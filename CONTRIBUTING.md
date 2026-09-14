@@ -41,6 +41,7 @@ Build the arm64 application bundle and launch the Phase 0 AppKit window:
 
 ```sh
 ./scripts/build-app.sh debug
+./scripts/verify-app.sh .build/app/debug/Ganit.app
 open .build/app/debug/Ganit.app
 ```
 

@@ -50,8 +50,4 @@ jobs:
         run: ./scripts/build-app.sh release
 
       - name: Validate application bundle
-        run: |
-          application=.build/app/release/Ganit.app
-          codesign --verify --deep --strict "$application"
-          test "$(lipo -archs "$application/Contents/MacOS/Ganit")" = "arm64"
-          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundlePackageType' "$application/Contents/Info.plist")" = "APPL"
+        run: ./scripts/verify-app.sh

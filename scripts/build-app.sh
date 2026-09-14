@@ -20,6 +20,8 @@ fi
 
 cd "$repository_root"
 plutil -lint App/Info.plist >/dev/null
+plutil -lint App/Ganit.entitlements >/dev/null
+plutil -lint App/PrivacyInfo.xcprivacy >/dev/null
 swift build --configuration "$configuration" --arch arm64 --product GanitApp
 
 binary_directory=$(swift build \
@@ -37,6 +39,7 @@ trap 'rm -rf "$staging"' EXIT
 mkdir -p "$staging/Contents/MacOS" "$staging/Contents/Resources"
 install -m 0755 "$binary_directory/GanitApp" "$staging/Contents/MacOS/Ganit"
 install -m 0644 App/Info.plist "$staging/Contents/Info.plist"
+install -m 0644 App/PrivacyInfo.xcprivacy "$staging/Contents/Resources/PrivacyInfo.xcprivacy"
 xcrun xcstringstool compile \
     App/Resources/Localizable.xcstrings \
     --output-directory "$staging/Contents/Resources"
@@ -47,7 +50,13 @@ if [[ "$architectures" != "arm64" ]]; then
     exit 1
 fi
 
-codesign --force --sign - --timestamp=none "$staging"
+codesign \
+    --force \
+    --sign - \
+    --timestamp=none \
+    --options runtime \
+    --entitlements App/Ganit.entitlements \
+    "$staging"
 mv "$staging" "$application"
 trap - EXIT
 

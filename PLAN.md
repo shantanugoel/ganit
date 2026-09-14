@@ -881,7 +881,7 @@ Tasks:
 - [x] Add deterministic formatting/linting only if tools are pinned and fast.
 - [x] Configure CI for build and package tests on supported Xcode.
 - [x] Add benchmark fixture targets without setting optimistic pass claims.
-- [ ] Add privacy manifest/entitlement baseline with no network initially.
+- [x] Add privacy manifest/entitlement baseline with no network initially.
 
 Exit criteria:
 
