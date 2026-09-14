@@ -876,7 +876,7 @@ Tasks:
 
 - [x] Initialize Git and add a focused `.gitignore`.
 - [x] Add `README.md`, contribution/testing instructions and license decision placeholder.
-- [ ] Record ADRs for AppKit-first UI, minimum macOS/Intel support, numeric representation/BigInt dependency, storage/export format, unit-data licensing and currency provider.
+- [x] Record ADRs for AppKit-first UI, minimum macOS/Intel support, numeric representation/BigInt dependency, storage/export format, unit-data licensing and currency provider.
 - [ ] Create Swift packages/modules matching section 7.2.
 - [ ] Add deterministic formatting/linting only if tools are pinned and fast.
 - [ ] Configure CI for build and package tests on supported Xcode.

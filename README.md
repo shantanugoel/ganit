@@ -17,6 +17,8 @@ The project is in its initial repository phase and is not yet a usable applicati
 
 The application is AppKit-first and targets macOS 14 or later. Pure Swift packages keep calculation, formatting, documents, data, diagnostics, and system integrations separate from UI modules. The engine receives all locale, clock, calendar, time-zone, and live-data context explicitly.
 
+Accepted architectural choices are indexed in [`docs/adr`](docs/adr/README.md).
+
 ## Development status
 
 Work proceeds in the ordered phases defined in `PLAN.md`. Each task is reviewed, tested, committed, and pushed before the next task begins. P1 and P2 capabilities are not pulled forward before P0 quality gates pass.
