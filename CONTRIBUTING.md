@@ -24,13 +24,27 @@ No additional formatter, linter, package manager, or global tool is required unl
 
 ## Build and test
 
-The repository does not contain buildable targets yet. The Phase 0 package-skeleton task will add and verify the canonical build and test commands. Until then, documentation-only changes must pass:
+Resolve the package manifest and build every product:
 
 ```sh
-git diff --check
+swift package dump-package >/dev/null
+swift build
 ```
 
-Once the package skeleton lands, this section must be updated in the same task with commands that work from a clean checkout. Do not claim sanitizer, performance, accessibility, or release-matrix coverage unless that coverage was actually run and recorded.
+Run all package tests, including the engine without launching the app:
+
+```sh
+swift test
+```
+
+Build the arm64 application bundle and launch the Phase 0 AppKit window:
+
+```sh
+./scripts/build-app.sh debug
+open .build/app/debug/Ganit.app
+```
+
+Documentation-only changes must also pass `git diff --check`. Do not claim sanitizer, performance, accessibility, or release-matrix coverage unless that coverage was actually run and recorded.
 
 ## Engineering expectations
 

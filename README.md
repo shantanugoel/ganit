@@ -2,7 +2,7 @@
 
 Ganit is a native, local-first macOS thinking calculator. It is designed to combine an immediate global-hotkey scratchpad with durable, editable calculation sheets backed by one deterministic engine.
 
-The project is in its initial repository phase and is not yet a usable application. [`PLAN.md`](PLAN.md) is the normative product and implementation plan.
+The project has a runnable native skeleton but is not yet a usable calculator. [`PLAN.md`](PLAN.md) is the normative product and implementation plan.
 
 ## Product principles
 
