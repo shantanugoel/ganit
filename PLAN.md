@@ -880,7 +880,7 @@ Tasks:
 - [x] Create Swift packages/modules matching section 7.2.
 - [x] Add deterministic formatting/linting only if tools are pinned and fast.
 - [x] Configure CI for build and package tests on supported Xcode.
-- [ ] Add benchmark fixture targets without setting optimistic pass claims.
+- [x] Add benchmark fixture targets without setting optimistic pass claims.
 - [ ] Add privacy manifest/entitlement baseline with no network initially.
 
 Exit criteria:

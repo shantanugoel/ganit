@@ -41,6 +41,11 @@ jobs:
           swift package dump-package >/dev/null
           swift test --parallel
 
+      - name: Build benchmark harness
+        run: |
+          swift build --configuration release --product GanitBenchmarks
+          swift run --configuration release GanitBenchmarks --list
+
       - name: Build application bundle
         run: ./scripts/build-app.sh release
 

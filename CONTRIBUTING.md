@@ -62,6 +62,16 @@ Check formatting without changing files:
 
 The script rejects an unpinned Xcode or `swift-format` version so local and CI output remains deterministic.
 
+## Benchmarks
+
+List the required benchmark fixture targets:
+
+```sh
+swift run --configuration release GanitBenchmarks --list
+```
+
+The Phase 0 harness reports every target as unavailable. It must not be cited as performance evidence until the implementing phase adds real fixtures and measurements as described in [`Benchmarks/README.md`](Benchmarks/README.md).
+
 ## Engineering expectations
 
 - Use Swift 6 language mode and adopt strict concurrency per module.
