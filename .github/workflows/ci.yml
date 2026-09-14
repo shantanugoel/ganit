@@ -69,6 +69,7 @@ jobs:
           swift build --configuration release --product GanitBenchmarks
           swift run --configuration release GanitBenchmarks --list
           swift run --configuration release GanitBenchmarks --parser 1000
+          swift run --configuration release GanitBenchmarks --engine 10
 
       - name: Build application bundle
         run: ./scripts/build-app.sh release

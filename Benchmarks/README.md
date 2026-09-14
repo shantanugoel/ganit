@@ -6,7 +6,14 @@
 swift run --configuration release GanitBenchmarks --list
 ```
 
-Running the executable without `--list` fails until Phase 1 adds a real expression benchmark. Each later benchmark must:
+Run the Phase 1 parser-only and initialized engine benchmarks with:
+
+```sh
+swift run --configuration release GanitBenchmarks --parser 10000
+swift run --configuration release GanitBenchmarks --engine 1000
+```
+
+Each benchmark must:
 
 - use release configuration and an immutable evaluation context;
 - use deterministic checked-in or reproducibly generated fixture source;
@@ -15,9 +22,12 @@ Running the executable without `--list` fails until Phase 1 adds a real expressi
 - compare measurements with the budgets in `PLAN.md` without changing a failed gate into a pass;
 - avoid timing fixture loading, process launch, or unrelated setup unless that is the named metric.
 
-The seven listed targets are unavailable, not passing. Their corpus population and assertions belong to the phases that implement the corresponding semantics.
+The `launch-expressions` target is available in Phase 1. The other six targets
+remain unavailable, not passing; their corpus population and assertions belong
+to the phases that implement the corresponding semantics.
 
 Recorded measurements:
 
 - [Phase 0 release baseline](Results/phase-0.md)
 - [Phase 1 parser baseline](Results/phase-1-parser.md)
+- [Phase 1 engine baseline](Results/phase-1-engine.md)

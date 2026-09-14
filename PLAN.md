@@ -904,7 +904,7 @@ Tasks:
 - [x] Inject locale, angle mode, precision, `now`, calendar and zone through `EvaluationContext`.
 - [x] Implement result formatting separate from values.
 - [x] Add golden/property/fuzz corpus and CLI-like internal test harness.
-- [ ] Benchmark simple expressions and record baseline.
+- [x] Benchmark simple expressions and record baseline.
 
 Exit criteria:
 

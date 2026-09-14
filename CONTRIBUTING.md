@@ -70,9 +70,13 @@ List the required benchmark fixture targets:
 ```sh
 swift run --configuration release GanitBenchmarks --list
 swift run --configuration release GanitBenchmarks --parser 10000
+swift run --configuration release GanitBenchmarks --engine 1000
 ```
 
-The fixture targets remain unavailable until their implementing phases populate them. The parser microbenchmark records observations without applying a pass threshold. Follow the measurement rules in [`Benchmarks/README.md`](Benchmarks/README.md).
+The Phase 1 launch-expression fixture is available; later-phase fixtures
+remain unavailable until their implementing phases populate them. The
+microbenchmarks record observations without applying a pass threshold. Follow
+the measurement rules in [`Benchmarks/README.md`](Benchmarks/README.md).
 
 Measure process start to a visible Workspace window after building the release app:
 
