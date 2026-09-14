@@ -51,6 +51,10 @@ public struct IntegerValue: Hashable, Sendable {
   public var canonicalDigits: String {
     String(storage)
   }
+
+  public var magnitudeBitWidth: Int {
+    storage.magnitude.bitWidth
+  }
 }
 
 public struct RationalValue: Hashable, Sendable {

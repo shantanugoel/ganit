@@ -902,7 +902,7 @@ Tasks:
 - [x] Implement Integer/Rational/Decimal/Approximate values and typed errors.
 - [x] Implement arithmetic, precedence, parentheses, powers, core functions and programmer literals.
 - [x] Inject locale, angle mode, precision, `now`, calendar and zone through `EvaluationContext`.
-- [ ] Implement result formatting separate from values.
+- [x] Implement result formatting separate from values.
 - [ ] Add golden/property/fuzz corpus and CLI-like internal test harness.
 - [ ] Benchmark simple expressions and record baseline.
 

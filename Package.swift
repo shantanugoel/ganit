@@ -95,6 +95,10 @@ let package = Package(
       dependencies: ["GanitEngine"]
     ),
     .testTarget(
+      name: "GanitFormattingTests",
+      dependencies: ["GanitFormatting"]
+    ),
+    .testTarget(
       name: "GanitWorkspaceUITests",
       dependencies: ["GanitWorkspaceUI"]
     ),

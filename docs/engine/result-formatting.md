@@ -1,0 +1,31 @@
+# Result formatting
+
+`GanitFormatting` turns evaluated numeric values into presentation strings. It
+does not parse source, perform calculations, or change the value.
+
+`NumericResultFormatter` returns a `FormattedResult` with:
+
+- `display`: localized digits, signs, separators, grouping, and rounding for
+  presentation.
+- `fullPrecision`: a stable, locale-neutral representation suitable for copy
+  and inspection.
+- `isApproximate`: an explicit exact-versus-approximate signal.
+
+Exact integers, rationals, and decimals retain every digit. Decimal scale,
+including trailing zeroes, is preserved. Rational values remain fractions.
+Display conventions come from the injected locale, independently of the
+locale syntax accepted by the lexer.
+
+Approximate values are prefixed with `≈`. Their display is rounded to the
+smaller of the evaluation context's requested precision and any known
+significant-digit metadata carried by the value. An absolute error bound is
+conservatively converted to a significant-digit ceiling at the estimate's
+magnitude. Very small and very large estimates use localized scientific
+notation so a finite nonzero estimate is not displayed as zero. The
+full-precision form uses Swift's locale-neutral, round-trippable `Double`
+representation and remains marked approximate.
+
+Formatting is bounded by `FormattingLimits`. The formatter preflights
+arbitrary-scale zero padding and grouping growth before allocation and throws
+`FormattingError.outputTooLong` when either output would exceed the configured
+character limit.
