@@ -1,26 +1,33 @@
 import Foundation
 
 public struct Evaluator: Sendable {
+  private let context: EvaluationContext
   private let limits: EvaluationLimits
 
-  public init(limits: EvaluationLimits = .default) {
+  public init(
+    context: EvaluationContext,
+    limits: EvaluationLimits = .default
+  ) {
+    self.context = context
     self.limits = limits
   }
 
   public func evaluate(_ expression: Expression) throws -> NumericValue {
-    var worker = EvaluationWorker(limits: limits)
+    var worker = EvaluationWorker(context: context, limits: limits)
     return try worker.evaluate(expression)
   }
 }
 
 private struct EvaluationWorker {
+  let context: EvaluationContext
   let limits: EvaluationLimits
   let operations: NumericOperations
   var visitedOperations = 0
 
-  init(limits: EvaluationLimits) {
+  init(context: EvaluationContext, limits: EvaluationLimits) {
+    self.context = context
     self.limits = limits
-    operations = NumericOperations(limits: limits)
+    operations = NumericOperations(context: context, limits: limits)
   }
 
   mutating func evaluate(_ expression: Expression) throws -> NumericValue {
@@ -38,7 +45,9 @@ private struct EvaluationWorker {
             try ApproximateValue(
               estimate: .pi,
               source: .mathematicalConstant,
-              precision: .unspecified
+              precision: .requestedSignificantDecimalDigits(
+                context.precision.transcendentalSignificantDigits
+              )
             )
           )
         case "e":
@@ -46,7 +55,9 @@ private struct EvaluationWorker {
             try ApproximateValue(
               estimate: Foundation.exp(1),
               source: .mathematicalConstant,
-              precision: .unspecified
+              precision: .requestedSignificantDecimalDigits(
+                context.precision.transcendentalSignificantDigits
+              )
             )
           )
         default:
@@ -175,7 +186,10 @@ private struct EvaluationWorker {
       case .maximum:
         return try operations.extremum(values, selectMinimum: false)
       case .round:
-        return try operations.rounded(values[0], rule: .toNearestOrEven)
+        return try operations.rounded(
+          values[0],
+          rule: context.precision.roundingRule.floatingPointRule
+        )
       case .floor:
         return try operations.rounded(values[0], rule: .down)
       case .ceiling:
@@ -187,6 +201,11 @@ private struct EvaluationWorker {
         )
       case .root:
         return try operations.root(values[0], degree: values[1])
+      case .sine, .cosine, .tangent,
+        .arcSine, .arcCosine, .arcTangent,
+        .naturalLogarithm, .commonLogarithm, .commonLogarithmExplicit,
+        .exponential:
+        return try operations.transcendental(function, value: values[0])
       }
     }
   }

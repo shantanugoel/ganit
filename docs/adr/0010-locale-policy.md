@@ -13,7 +13,7 @@ Locale affects decimal and grouping separators, digit shapes, currency symbols, 
 
 - Natural-language keywords and function names are English only.
 - P0 parsing fixtures cover `en-US`, `en-GB`, `en-IN`, `de-DE`, `fr-FR`, and `ar-EG`.
-- The engine receives a BCP 47 locale identifier in immutable `EvaluationContext`; it never reads a global current locale.
+- The engine receives a BCP 47 locale identifier and explicit separator/grouping syntax in immutable `EvaluationContext`; it never reads a global current locale.
 - New sheets capture the user's selected locale. Sheet metadata and `.ganit` manifests persist that identifier. Plain-text import requires an explicit import locale, defaulted visibly from the current app preference.
 
 ### Numbers

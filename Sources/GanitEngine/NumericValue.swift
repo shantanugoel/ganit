@@ -104,6 +104,7 @@ public enum ApproximationSource: String, Hashable, Sendable {
 
 public enum ApproximationPrecision: Hashable, Sendable {
   case significantDecimalDigits(Int)
+  case requestedSignificantDecimalDigits(Int)
   case absoluteErrorBound(DecimalValue)
   case unspecified
 }
@@ -125,7 +126,8 @@ public struct ApproximateValue: Hashable, Sendable {
     }
 
     switch precision {
-    case .significantDecimalDigits(let digits):
+    case .significantDecimalDigits(let digits),
+      .requestedSignificantDecimalDigits(let digits):
       guard digits > 0, digits <= Self.maximumSignificantDecimalDigits else {
         throw EngineError(
           code: .invalidApproximationPrecision,

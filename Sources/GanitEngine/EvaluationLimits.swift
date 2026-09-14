@@ -49,6 +49,16 @@ public enum BuiltInFunction: String, Hashable, Sendable {
   case ceiling = "ceil"
   case squareRoot = "sqrt"
   case root
+  case sine = "sin"
+  case cosine = "cos"
+  case tangent = "tan"
+  case arcSine = "asin"
+  case arcCosine = "acos"
+  case arcTangent = "atan"
+  case naturalLogarithm = "ln"
+  case commonLogarithm = "log"
+  case commonLogarithmExplicit = "log10"
+  case exponential = "exp"
 
   var argumentRange: ClosedRange<Int> {
     switch self {

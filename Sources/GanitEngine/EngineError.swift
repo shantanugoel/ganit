@@ -15,6 +15,8 @@ public enum EngineErrorCode: String, Hashable, Sendable {
   case argumentCountMismatch = "evaluation.argumentCountMismatch"
   case resourceLimitExceeded = "evaluation.resourceLimitExceeded"
   case approximationOutOfRange = "evaluation.approximationOutOfRange"
+  case internalFailure = "evaluation.internalFailure"
+  case invalidEvaluationContext = "evaluation.invalidContext"
 }
 
 public enum DiagnosticSeverity: String, Hashable, Sendable {
@@ -46,12 +48,19 @@ public enum EngineErrorContext: Hashable, Sendable {
   case maximumIntegerDigits(Int)
   case rootDegree
   case rootRadicand
+  case evaluationContext(EvaluationContextField)
   case argumentCount(
     function: BuiltInFunction,
     expected: ClosedRange<Int>,
     actual: Int
   )
   case resourceLimit(EvaluationResource)
+}
+
+public enum EvaluationContextField: String, Hashable, Sendable {
+  case locale
+  case now
+  case timeZone
 }
 
 public struct EngineError: Error, Hashable, Sendable {

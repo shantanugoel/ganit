@@ -18,9 +18,9 @@ Ganit's engine owns four immutable numeric value types. `BigInt` is an implement
 
 Integral powers remain exact within evaluation limits, including exact reciprocals for negative exponents. Rational powers first attempt bounded exact roots and cross to `Double` only when the result is not exact. Approximation conversion rejects overflow, nonfinite results, and nonzero underflow.
 
-## Context-free functions
+## Functions
 
-The first evaluator supports `abs`, `min`, `max`, `round`, `floor`, `ceil`, `sqrt`, and `root`, plus `π`/`pi` and `e`. Exact roots stay exact. `round` uses ties-to-even. Trigonometric/logarithmic functions and configurable precision wait for `EvaluationContext`.
+The evaluator supports `abs`, `min`, `max`, `round`, `floor`, `ceil`, `sqrt`, and `root`, plus `π`/`pi` and `e`. Exact roots stay exact. `round` uses the rule injected through `EvaluationContext`; trigonometric/logarithmic functions use the same context's angle and precision settings.
 
 Evaluation limits bound visited operations, integer bit width, decimal scale, power exponents, root degrees, and function arguments. Limits are checked before potentially large powers or multiplications and again on produced values.
 

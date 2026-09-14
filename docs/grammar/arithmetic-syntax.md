@@ -1,6 +1,6 @@
 # Arithmetic syntax
 
-This reference describes the Phase 1 arithmetic parser and context-free evaluator. Result formatting and context-dependent language features are added by later Phase 1 tasks.
+This reference describes the Phase 1 arithmetic parser and context-injected evaluator. Result formatting is added by a later Phase 1 task.
 
 ## Expressions
 
@@ -31,9 +31,11 @@ In comma-decimal locales, use a semicolon between function arguments (`max(1; 2)
 ## Evaluation
 
 - `π`, `pi`, and `e` are explicitly approximate constants.
-- `abs(x)`, `floor(x)`, `ceil(x)`, and `round(x)` take one argument. `round` uses ties-to-even.
+- `abs(x)`, `floor(x)`, `ceil(x)`, and `round(x)` take one argument. `round` uses the injected rounding rule.
 - `min(x, y, ...)` and `max(x, y, ...)` require at least two arguments.
 - `sqrt(x)` is equivalent to `root(x, 2)`. `root(x, degree)` requires a positive exact integer degree.
+- `sin`, `cos`, and `tan` use the injected angle mode. `asin`, `acos`, and `atan` return angles in that mode.
+- `ln(x)` is the natural logarithm; `log(x)` and `log10(x)` are base 10. `exp(x)` computes eˣ.
 - Perfect powers and roots remain exact. Other roots become explicitly approximate.
 - `0^0` is rejected as an invalid domain. A zero base with a negative exponent is division by zero.
 - Even roots of negative values are invalid. Odd roots preserve the sign.
@@ -41,7 +43,7 @@ In comma-decimal locales, use a semicolon between function arguments (`max(1; 2)
 
 Exact integer division produces an integer when evenly divisible and a reduced rational otherwise. Finite decimal results stay decimal where the operation remains naturally decimal. No exact value is silently coerced to floating point.
 
-Trigonometric/logarithmic functions wait for the next task's angle and precision context. Bitwise syntax is not part of this arithmetic grammar yet, while output-radix conversion belongs to result formatting. Decimal-place arguments for `round` wait for an explicit precision policy.
+Bitwise syntax is not part of this arithmetic grammar yet, while output-radix conversion belongs to result formatting. Decimal-place arguments for `round` are not accepted.
 
 ## Syntax failures
 

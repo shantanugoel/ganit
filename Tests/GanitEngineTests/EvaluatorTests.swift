@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import GanitEngine
@@ -98,7 +99,7 @@ struct EvaluatorTests {
       return
     }
     #expect(abs(squareRoot.estimate - 2.squareRoot()) < 1e-15)
-    #expect(squareRoot.precision == .unspecified)
+    #expect(squareRoot.precision == .requestedSignificantDecimalDigits(15))
 
     guard
       case .approximate(let nearOne) =
@@ -244,7 +245,23 @@ struct EvaluatorTests {
     let parsing = Parser(source: source).parse()
     #expect(parsing.diagnostics.isEmpty)
     let expression = try #require(parsing.expression)
-    return try Evaluator(limits: limits).evaluate(expression)
+    return try Evaluator(
+      context: fixedContext(),
+      limits: limits
+    ).evaluate(expression)
+  }
+
+  private func fixedContext() throws -> EvaluationContext {
+    let timeZone = try #require(TimeZone(identifier: "UTC"))
+    return try EvaluationContext(
+      localeIdentifier: "en-US",
+      lexingConfiguration: .englishUnitedStates,
+      angleMode: .radians,
+      precision: try PrecisionContext(significantDecimalDigits: 15),
+      now: Date(timeIntervalSince1970: 1_700_000_000),
+      calendar: Calendar(identifier: .gregorian),
+      timeZone: timeZone
+    )
   }
 
   private func error(

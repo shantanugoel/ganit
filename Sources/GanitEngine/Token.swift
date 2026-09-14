@@ -35,7 +35,7 @@ public struct Token: Equatable, Sendable {
   }
 }
 
-public struct LexingConfiguration: Equatable, Sendable {
+public struct LexingConfiguration: Hashable, Sendable {
   public let decimalSeparator: Character
   public let groupingSeparator: Character?
   public let primaryGroupingSize: Int

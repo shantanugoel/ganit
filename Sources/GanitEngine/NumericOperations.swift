@@ -2,6 +2,7 @@ import BigInt
 import Foundation
 
 struct NumericOperations {
+  let context: EvaluationContext
   let limits: EvaluationLimits
 
   func applying(
@@ -126,6 +127,10 @@ struct NumericOperations {
       rounded = fraction.numerator < 0 ? quotient - 1 : quotient
     case .up:
       rounded = fraction.numerator > 0 ? quotient + 1 : quotient
+    case .towardZero:
+      rounded = quotient
+    case .awayFromZero:
+      rounded = quotient + (fraction.numerator < 0 ? -1 : 1)
     case .toNearestOrEven:
       let comparison = remainder.magnitude * 2
       if comparison < fraction.denominator.magnitude {
@@ -233,6 +238,157 @@ struct NumericOperations {
       )
     }
     return try approximateRoot(value, degree: integerDegree)
+  }
+
+  func transcendental(
+    _ function: BuiltInFunction,
+    value: NumericValue
+  ) throws -> NumericValue {
+    let result: Double
+
+    switch function {
+    case .sine:
+      result = Foundation.sin(try trigonometricInput(value))
+    case .cosine:
+      result = Foundation.cos(try trigonometricInput(value))
+    case .tangent:
+      result = Foundation.tan(try trigonometricInput(value, forTangent: true))
+    case .arcSine:
+      try validateInverseTrigonometricDomain(value)
+      let input = try approximateEstimate(value)
+      guard (-1...1).contains(input) else {
+        throw EngineError(code: .invalidDomain)
+      }
+      result = angleResult(Foundation.asin(input))
+    case .arcCosine:
+      try validateInverseTrigonometricDomain(value)
+      let input = try approximateEstimate(value)
+      guard (-1...1).contains(input) else {
+        throw EngineError(code: .invalidDomain)
+      }
+      result = angleResult(Foundation.acos(input))
+    case .arcTangent:
+      result = angleResult(try arcTangent(value))
+    case .naturalLogarithm:
+      result = try logarithm(of: value)
+    case .commonLogarithm, .commonLogarithmExplicit:
+      result = try logarithm(of: value) / Foundation.log(10)
+    case .exponential:
+      result = Foundation.exp(try approximateEstimate(value))
+    default:
+      throw EngineError(code: .invalidDomain)
+    }
+
+    guard result.isFinite else {
+      throw EngineError(code: .approximationOutOfRange)
+    }
+    if function == .exponential, result == 0 {
+      throw EngineError(code: .approximationOutOfRange)
+    }
+    return .approximate(
+      try ApproximateValue(
+        estimate: result,
+        source: .transcendentalFunction,
+        precision: .requestedSignificantDecimalDigits(
+          context.precision.transcendentalSignificantDigits
+        )
+      )
+    )
+  }
+
+  private func logarithm(of value: NumericValue) throws -> Double {
+    let representation = logarithmicRepresentation(value)
+    guard !representation.isZero, !representation.isNegative else {
+      throw EngineError(code: .invalidDomain)
+    }
+    return representation.logarithmOfMagnitude
+  }
+
+  private func arcTangent(_ value: NumericValue) throws -> Double {
+    let representation = logarithmicRepresentation(value)
+    guard !representation.isZero else {
+      return 0
+    }
+    let magnitude: Double
+    if representation.logarithmOfMagnitude > 0 {
+      let reciprocal = Foundation.exp(
+        -representation.logarithmOfMagnitude
+      )
+      magnitude = .pi / 2 - Foundation.atan(reciprocal)
+    } else {
+      let input = Foundation.exp(representation.logarithmOfMagnitude)
+      guard input != 0 else {
+        throw EngineError(code: .approximationOutOfRange)
+      }
+      magnitude = Foundation.atan(input)
+    }
+    return representation.isNegative ? -magnitude : magnitude
+  }
+
+  private func validateInverseTrigonometricDomain(
+    _ value: NumericValue
+  ) throws {
+    guard case .approximate = value else {
+      guard
+        try compare(value, .integer(IntegerValue(-1))) >= 0,
+        try compare(value, .integer(IntegerValue(1))) <= 0
+      else {
+        throw EngineError(code: .invalidDomain)
+      }
+      return
+    }
+  }
+
+  private func trigonometricInput(
+    _ value: NumericValue,
+    forTangent: Bool = false
+  ) throws -> Double {
+    switch context.angleMode {
+    case .radians:
+      let input = try approximateEstimate(value)
+      guard Swift.abs(input) <= 1_000_000_000_000 else {
+        throw EngineError(code: .approximationOutOfRange)
+      }
+      return input
+
+    case .degrees:
+      if case .approximate = value {
+        let input = try approximateEstimate(value)
+        guard Swift.abs(input) <= 1_000_000_000_000 else {
+          throw EngineError(code: .approximationOutOfRange)
+        }
+        let reduced = input.truncatingRemainder(dividingBy: 360)
+        if forTangent, Swift.abs(reduced) == 90 || Swift.abs(reduced) == 270 {
+          throw EngineError(code: .invalidDomain)
+        }
+        return reduced * .pi / 180
+      }
+
+      let fraction = try exactFraction(value)
+      try preflightMultiplication(fraction.denominator, 360)
+      let modulus = fraction.denominator * 360
+      let reduced = Fraction(
+        numerator: fraction.numerator % modulus,
+        denominator: fraction.denominator
+      )
+      if forTangent {
+        let absoluteNumerator = reduced.numerator.magnitude
+        let denominator = reduced.denominator.magnitude
+        try preflightMultiplication(BigInt(denominator), 270)
+        if absoluteNumerator == denominator * 90
+          || absoluteNumerator == denominator * 270
+        {
+          throw EngineError(code: .invalidDomain)
+        }
+      }
+      return try approximateEstimate(try fractionValue(reduced)) * .pi / 180
+    }
+  }
+
+  private func angleResult(_ radians: Double) -> Double {
+    context.angleMode == .degrees
+      ? radians * 180 / .pi
+      : radians
   }
 
   private func add(
@@ -471,7 +627,9 @@ struct NumericOperations {
         try ApproximateValue(
           estimate: 0,
           source: .derivedArithmetic,
-          precision: .unspecified
+          precision: .requestedSignificantDecimalDigits(
+            context.precision.transcendentalSignificantDigits
+          )
         )
       )
     }
@@ -484,7 +642,9 @@ struct NumericOperations {
       try ApproximateValue(
         estimate: result,
         source: .derivedArithmetic,
-        precision: .unspecified
+        precision: .requestedSignificantDecimalDigits(
+          context.precision.transcendentalSignificantDigits
+        )
       )
     )
   }
