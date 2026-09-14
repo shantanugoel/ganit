@@ -17,6 +17,10 @@ public struct SyntaxDiagnostic: Hashable, Sendable {
   public let code: Code
   public let range: SourceRange
 
+  public var messageKey: String {
+    "syntax.\(code.rawValue)"
+  }
+
   package init(code: Code, range: SourceRange) {
     self.code = code
     self.range = range

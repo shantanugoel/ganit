@@ -90,6 +90,13 @@ let package = Package(
       name: "GanitBenchmarks",
       dependencies: ["GanitEngine"]
     ),
+    .executableTarget(
+      name: "GanitEngineHarness",
+      dependencies: [
+        "GanitEngine",
+        "GanitFormatting",
+      ]
+    ),
     .testTarget(
       name: "GanitEngineTests",
       dependencies: ["GanitEngine"]
@@ -97,6 +104,14 @@ let package = Package(
     .testTarget(
       name: "GanitFormattingTests",
       dependencies: ["GanitFormatting"]
+    ),
+    .testTarget(
+      name: "GanitEngineCorpusTests",
+      dependencies: [
+        "GanitEngine",
+        "GanitFormatting",
+      ],
+      resources: [.process("Fixtures")]
     ),
     .testTarget(
       name: "GanitWorkspaceUITests",

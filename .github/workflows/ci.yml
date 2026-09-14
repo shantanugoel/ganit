@@ -48,6 +48,22 @@ jobs:
           swift package dump-package >/dev/null
           swift test --parallel
 
+      - name: Exercise internal engine harness
+        run: |
+          output=$(printf '1 + 2 * 3\n1 / 0\n' | swift run GanitEngineHarness)
+          ruby -rjson -e '
+            records = STDIN.each_line.map { |line| JSON.parse(line) }
+            abort "Harness value mismatch" unless
+              records[0]["status"] == "value" &&
+              records[0]["fullPrecision"] == "7"
+            abort "Harness error mismatch" unless
+              records[1]["status"] == "evaluationFailure" &&
+              records[1]["code"] == "evaluation.divisionByZero"
+          ' <<<"$output"
+
+      - name: Run parser fuzz smoke with Address Sanitizer
+        run: swift test --sanitize address --filter ParserFuzzSmokeTests
+
       - name: Build benchmark harness
         run: |
           swift build --configuration release --product GanitBenchmarks

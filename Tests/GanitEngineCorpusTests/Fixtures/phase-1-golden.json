@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "operator precedence",
+      "expression": "1 + 2 * 3",
+      "expected": {
+        "status": "value",
+        "display": "7",
+        "fullPrecision": "7",
+        "approximate": false
+      }
+    },
+    {
+      "name": "reduced rational",
+      "expression": "1 / 3",
+      "expected": {
+        "status": "value",
+        "display": "1/3",
+        "fullPrecision": "1/3",
+        "approximate": false
+      }
+    },
+    {
+      "name": "decimal scale",
+      "expression": "1.20 + 2.3",
+      "expected": {
+        "status": "value",
+        "display": "3.50",
+        "fullPrecision": "3.50",
+        "approximate": false
+      }
+    },
+    {
+      "name": "programmer literals",
+      "expression": "0xff + 0b1010",
+      "expected": {
+        "status": "value",
+        "display": "265",
+        "fullPrecision": "265",
+        "approximate": false
+      }
+    },
+    {
+      "name": "implicit multiplication",
+      "expression": "2(3 + 4)",
+      "expected": {
+        "status": "value",
+        "display": "14",
+        "fullPrecision": "14",
+        "approximate": false
+      }
+    },
+    {
+      "name": "right associative power",
+      "expression": "2^3^2",
+      "expected": {
+        "status": "value",
+        "display": "512",
+        "fullPrecision": "512",
+        "approximate": false
+      }
+    },
+    {
+      "name": "explicit approximation",
+      "expression": "sqrt(2)",
+      "expected": {
+        "status": "value",
+        "display": "≈ 1.4142135623731",
+        "fullPrecision": "≈ 1.414213562373095",
+        "approximate": true
+      }
+    },
+    {
+      "name": "division by zero",
+      "expression": "1 / 0",
+      "expected": {
+        "status": "evaluationFailure",
+        "code": "evaluation.divisionByZero",
+        "messageKey": "error.evaluation.divisionByZero",
+        "lowerBound": 4,
+        "upperBound": 5
+      }
+    },
+    {
+      "name": "unknown identifier",
+      "expression": "unknown",
+      "expected": {
+        "status": "evaluationFailure",
+        "code": "evaluation.unknownIdentifier",
+        "messageKey": "error.evaluation.unknownIdentifier",
+        "lowerBound": 0,
+        "upperBound": 7
+      }
+    },
+    {
+      "name": "incomplete expression",
+      "expression": "1 +",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "expectedExpression",
+        "messageKey": "syntax.expectedExpression",
+        "lowerBound": 3,
+        "upperBound": 3
+      }
+    },
+    {
+      "name": "invalid radix digit",
+      "expression": "0b102",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "invalidRadixDigit",
+        "messageKey": "syntax.invalidRadixDigit",
+        "lowerBound": 4,
+        "upperBound": 5
+      }
+    }
+  ]
+}
