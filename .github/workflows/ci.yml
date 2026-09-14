@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: macos-26
+    timeout-minutes: 15
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.5.app/Contents/Developer
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Verify pinned toolchain
+        run: |
+          test "$(uname -m)" = "arm64"
+          expected_xcode=$(<.xcode-version)
+          actual_xcode=$(xcodebuild -version | awk 'NR == 1 { print $2 }')
+          test "$actual_xcode" = "$expected_xcode"
+
+      - name: Check Swift formatting
+        run: ./scripts/swift-format.sh lint
+
+      - name: Test packages
+        run: |
+          swift package dump-package >/dev/null
+          swift test --parallel
+
+      - name: Build application bundle
+        run: ./scripts/build-app.sh release
+
+      - name: Validate application bundle
+        run: |
+          application=.build/app/release/Ganit.app
+          codesign --verify --deep --strict "$application"
+          test "$(lipo -archs "$application/Contents/MacOS/Ganit")" = "arm64"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundlePackageType' "$application/Contents/Info.plist")" = "APPL"
