@@ -89,10 +89,34 @@ private struct TokenParser {
       return nil
     }
 
-    while let binding = infixBindingPower(for: current.kind),
-      binding.left >= minimumBindingPower
-    {
-      let operatorToken = advance()
+    while true {
+      let selectedOperator: BinaryOperator
+      let operatorRange: SourceRange
+      let binding: (left: Int, right: Int)
+      if let explicitBinding = infixBindingPower(for: current.kind) {
+        guard explicitBinding.left >= minimumBindingPower else {
+          break
+        }
+        binding = explicitBinding
+        let operatorToken = advance()
+        selectedOperator = binaryOperator(for: operatorToken.kind)
+        operatorRange = operatorToken.range
+      } else if isImplicitMultiplication(after: left, before: current) {
+        binding = (20, 21)
+        guard binding.left >= minimumBindingPower else {
+          break
+        }
+        selectedOperator = .multiply
+        operatorRange = SourceRange(
+          lowerBound: current.range.lowerBound,
+          upperBound: current.range.lowerBound,
+          graphemeLowerBound: current.range.graphemeLowerBound,
+          graphemeUpperBound: current.range.graphemeLowerBound
+        )
+      } else {
+        break
+      }
+
       guard
         let right = parseExpression(
           minimumBindingPower: binding.right,
@@ -104,8 +128,9 @@ private struct TokenParser {
 
       left = .infix(
         left: left,
-        operator: binaryOperator(for: operatorToken.kind),
+        operator: selectedOperator,
         right: right,
+        operatorRange: operatorRange,
         range: left.range.union(right.range)
       )
     }
@@ -142,6 +167,7 @@ private struct TokenParser {
       return .prefix(
         unaryOperator,
         operand: operand,
+        operatorRange: token.range,
         range: token.range.union(operand.range)
       )
 
@@ -185,6 +211,7 @@ private struct TokenParser {
       let closingParenthesis = advance()
       return .call(
         name: name,
+        nameRange: identifierRange,
         arguments: arguments,
         range: identifierRange.union(closingParenthesis.range)
       )
@@ -199,6 +226,7 @@ private struct TokenParser {
       else {
         return .call(
           name: name,
+          nameRange: identifierRange,
           arguments: arguments,
           range: identifierRange.union(current.range)
         )
@@ -209,6 +237,7 @@ private struct TokenParser {
         let closingParenthesis = advance()
         return .call(
           name: name,
+          nameRange: identifierRange,
           arguments: arguments,
           range: identifierRange.union(closingParenthesis.range)
         )
@@ -218,6 +247,7 @@ private struct TokenParser {
         diagnose(.expectedClosingParenthesis, at: current.range)
         return .call(
           name: name,
+          nameRange: identifierRange,
           arguments: arguments,
           range: identifierRange.union(argument.range)
         )
@@ -227,6 +257,7 @@ private struct TokenParser {
         diagnose(.expectedArgumentSeparator, at: current.range)
         return .call(
           name: name,
+          nameRange: identifierRange,
           arguments: arguments,
           range: identifierRange.union(argument.range)
         )
@@ -254,6 +285,41 @@ private struct TokenParser {
       return (30, 30)
     default:
       return nil
+    }
+  }
+
+  private func isImplicitMultiplication(
+    after expression: Expression,
+    before token: Token
+  ) -> Bool {
+    guard
+      expression.range.upperBound == token.range.lowerBound,
+      expression.range.graphemeUpperBound == token.range.graphemeLowerBound
+    else {
+      return false
+    }
+
+    let leftAllowsMultiplication: Bool
+    switch expression {
+    case .literal, .grouped, .call:
+      leftAllowsMultiplication = true
+    default:
+      leftAllowsMultiplication = false
+    }
+    guard leftAllowsMultiplication else {
+      return false
+    }
+
+    switch token.kind {
+    case .identifier, .leftParenthesis:
+      return true
+    case .number:
+      if case .literal = expression {
+        return false
+      }
+      return true
+    default:
+      return false
     }
   }
 

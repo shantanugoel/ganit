@@ -10,6 +10,11 @@ public enum EngineErrorCode: String, Hashable, Sendable {
   case invalidDomain = "evaluation.invalidDomain"
   case overflow = "evaluation.overflow"
   case nonConvergence = "evaluation.nonConvergence"
+  case unknownIdentifier = "evaluation.unknownIdentifier"
+  case unknownFunction = "evaluation.unknownFunction"
+  case argumentCountMismatch = "evaluation.argumentCountMismatch"
+  case resourceLimitExceeded = "evaluation.resourceLimitExceeded"
+  case approximationOutOfRange = "evaluation.approximationOutOfRange"
 }
 
 public enum DiagnosticSeverity: String, Hashable, Sendable {
@@ -39,6 +44,14 @@ public enum EngineErrorContext: Hashable, Sendable {
   case none
   case significantDecimalDigits(Int)
   case maximumIntegerDigits(Int)
+  case rootDegree
+  case rootRadicand
+  case argumentCount(
+    function: BuiltInFunction,
+    expected: ClosedRange<Int>,
+    actual: Int
+  )
+  case resourceLimit(EvaluationResource)
 }
 
 public struct EngineError: Error, Hashable, Sendable {

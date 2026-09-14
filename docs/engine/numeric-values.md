@@ -7,7 +7,22 @@ Ganit's engine owns four immutable numeric value types. `BigInt` is an implement
 - `DecimalValue` stores `coefficient × 10⁻ˢᶜᵃˡᵉ`. Scale is structural user intent, so `1.0` and `1.00` are distinct values. Negative scales are valid; `Int.min` is rejected because its magnitude cannot be represented safely.
 - `ApproximateValue` stores a finite binary estimate, its source, and explicit precision metadata. It rejects nonfinite estimates, significant-digit claims outside `1...17` for its binary `Double` estimate, and negative absolute error bounds. Seventeen is a representational ceiling for decimal round trips, not a claim that every `Double` contains 17 mathematically accurate digits; each approximate operation remains responsible for supplying honest metadata.
 
-These types do not yet define arithmetic. The next Phase 1 task adds operations and controls exact-to-approximate transitions.
+`NumericValue` tags these representations. Arithmetic follows one centralized promotion policy:
+
+- integer addition, subtraction, and multiplication remain integer;
+- integer division returns an integer when evenly divisible and a reduced rational otherwise;
+- decimal addition/subtraction aligns to the larger source scale, and decimal multiplication adds scales;
+- exact division involving decimals returns a minimal finite decimal when possible and a rational otherwise;
+- a rational operand promotes other exact operands to rational arithmetic;
+- an approximate operand produces an approximate result, never an unmarked exact value.
+
+Integral powers remain exact within evaluation limits, including exact reciprocals for negative exponents. Rational powers first attempt bounded exact roots and cross to `Double` only when the result is not exact. Approximation conversion rejects overflow, nonfinite results, and nonzero underflow.
+
+## Context-free functions
+
+The first evaluator supports `abs`, `min`, `max`, `round`, `floor`, `ceil`, `sqrt`, and `root`, plus `π`/`pi` and `e`. Exact roots stay exact. `round` uses ties-to-even. Trigonometric/logarithmic functions and configurable precision wait for `EvaluationContext`.
+
+Evaluation limits bound visited operations, integer bit width, decimal scale, power exponents, root degrees, and function arguments. Limits are checked before potentially large powers or multiplications and again on produced values.
 
 ## Errors
 

@@ -34,6 +34,21 @@ struct ParserTests {
   }
 
   @Test
+  func acceptsOnlyAdjacentUnambiguousImplicitMultiplication() throws {
+    let implicitShape = shape(try parse("2π + 2(3) + (1 + 1)3"))
+    #expect(
+      implicitShape == "(((2 * π) + (2 * (3))) + (((1 + 1)) * 3))"
+    )
+
+    let separatedNumbers = Parser(source: "2 3").parse()
+    let separatedIdentifier = Parser(source: "2 π").parse()
+    #expect(separatedNumbers.expression == nil)
+    #expect(separatedIdentifier.expression == nil)
+    #expect(separatedNumbers.diagnostics.first?.code == .unexpectedToken)
+    #expect(separatedIdentifier.diagnostics.first?.code == .unexpectedToken)
+  }
+
+  @Test
   func parsesNestedFunctionCalls() throws {
     let expression = try parse("max(1 + 2, sqrt(9))")
 
@@ -176,12 +191,12 @@ struct ParserTests {
       }
     case .identifier(let name, _):
       return name
-    case .prefix(let unaryOperator, let operand, _):
+    case .prefix(let unaryOperator, let operand, _, _):
       let symbol = unaryOperator == .plus ? "+" : "-"
       return "(\(symbol)\(shape(operand)))"
-    case .infix(let left, let binaryOperator, let right, _):
+    case .infix(let left, let binaryOperator, let right, _, _):
       return "(\(shape(left)) \(symbol(binaryOperator)) \(shape(right)))"
-    case .call(let name, let arguments, _):
+    case .call(let name, _, let arguments, _):
       return "\(name)(\(arguments.map(shape).joined(separator: ",")))"
     case .grouped(let expression, _):
       return "(\(shape(expression)))"

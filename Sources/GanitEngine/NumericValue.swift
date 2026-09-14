@@ -1,5 +1,12 @@
 import BigInt
 
+public enum NumericValue: Hashable, Sendable {
+  case integer(IntegerValue)
+  case rational(RationalValue)
+  case decimal(DecimalValue)
+  case approximate(ApproximateValue)
+}
+
 public struct IntegerValue: Hashable, Sendable {
   public static let maximumTextDigits = 10_000
 
@@ -92,6 +99,7 @@ public enum ApproximationSource: String, Hashable, Sendable {
   case iterativeMethod
   case explicitRounding
   case binaryFloatingPointConversion
+  case derivedArithmetic
 }
 
 public enum ApproximationPrecision: Hashable, Sendable {

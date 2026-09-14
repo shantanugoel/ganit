@@ -1,6 +1,6 @@
 # Arithmetic syntax
 
-This reference describes the Phase 1 parser. Evaluation and result formatting are added by later Phase 1 tasks.
+This reference describes the Phase 1 arithmetic parser and context-free evaluator. Result formatting and context-dependent language features are added by later Phase 1 tasks.
 
 ## Expressions
 
@@ -12,7 +12,7 @@ This reference describes the Phase 1 parser. Evaluation and result formatting ar
 
 Multiplication and division bind more tightly than addition and subtraction. Powers are right-associative and bind more tightly than unary signs, so `-2^2` parses as `-(2^2)`.
 
-Implicit multiplication is not accepted yet. Write `2 * π` rather than `2π`.
+Implicit multiplication is accepted only across an adjacent, unambiguous boundary such as `2π`, `2(3 + 4)`, or `(1 + 1)3`. Whitespace does not imply multiplication, and adjacent numeric literals such as `2 3` remain invalid.
 
 Identifier starts and continuations use Unicode XID properties. Swift's canonical-equivalent string comparison makes composed and decomposed spellings equivalent; a standalone combining mark cannot start a name.
 
@@ -27,6 +27,21 @@ Identifier starts and continuations use Unicode XID properties. Swift's canonica
 The lexer receives decimal/grouping separators and grouping sizes explicitly. It preserves exact half-open UTF-8 and grapheme source ranges while normalizing digit values for the typed numeric layer. Source text itself is never rewritten.
 
 In comma-decimal locales, use a semicolon between function arguments (`max(1; 2)`) so `1,2` remains an unambiguous decimal literal. A comma is an argument separator only when followed by whitespace. `1,` is an incomplete decimal, and `max(1 ,2)` is invalid rather than silently changing meaning.
+
+## Evaluation
+
+- `π`, `pi`, and `e` are explicitly approximate constants.
+- `abs(x)`, `floor(x)`, `ceil(x)`, and `round(x)` take one argument. `round` uses ties-to-even.
+- `min(x, y, ...)` and `max(x, y, ...)` require at least two arguments.
+- `sqrt(x)` is equivalent to `root(x, 2)`. `root(x, degree)` requires a positive exact integer degree.
+- Perfect powers and roots remain exact. Other roots become explicitly approximate.
+- `0^0` is rejected as an invalid domain. A zero base with a negative exponent is division by zero.
+- Even roots of negative values are invalid. Odd roots preserve the sign.
+- Binary, octal, and hexadecimal literals evaluate to ordinary arbitrary-sized integers; their source radix does not change the value type.
+
+Exact integer division produces an integer when evenly divisible and a reduced rational otherwise. Finite decimal results stay decimal where the operation remains naturally decimal. No exact value is silently coerced to floating point.
+
+Trigonometric/logarithmic functions wait for the next task's angle and precision context. Bitwise syntax is not part of this arithmetic grammar yet, while output-radix conversion belongs to result formatting. Decimal-place arguments for `round` wait for an explicit precision policy.
 
 ## Syntax failures
 
