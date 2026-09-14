@@ -1,0 +1,523 @@
+public struct Lexer: Sendable {
+  private let source: String
+  private let configuration: LexingConfiguration
+  private let limits: SyntaxLimits
+
+  public init(
+    source: String,
+    configuration: LexingConfiguration = .englishUnitedStates,
+    limits: SyntaxLimits = .default
+  ) {
+    self.source = source
+    self.configuration = configuration
+    self.limits = limits
+  }
+
+  public func lex() -> LexingResult {
+    let utf8Length = source.utf8.count
+    if utf8Length > limits.maximumSourceUTF8Length {
+      let graphemeLength = source.count
+      let sourceRange = SourceRange(
+        lowerBound: 0,
+        upperBound: utf8Length,
+        graphemeLowerBound: 0,
+        graphemeUpperBound: graphemeLength
+      )
+      let endRange = SourceRange(
+        lowerBound: utf8Length,
+        upperBound: utf8Length,
+        graphemeLowerBound: graphemeLength,
+        graphemeUpperBound: graphemeLength
+      )
+      return LexingResult(
+        tokens: [Token(kind: .endOfFile, range: endRange)],
+        diagnostics: [
+          SyntaxDiagnostic(code: .resourceLimitExceeded, range: sourceRange)
+        ]
+      )
+    }
+
+    var scanner = Scanner(
+      source: source,
+      configuration: configuration,
+      maximumTokenCount: limits.maximumTokenCount
+    )
+    return scanner.scan()
+  }
+}
+
+private struct Scanner {
+  private enum GroupingCacheEntry {
+    case valid(end: Int)
+    case invalid
+  }
+
+  private struct DecimalDigit {
+    let value: Int
+    let script: UInt32
+  }
+
+  private let characters: [Character]
+  private let utf8Offsets: [Int]
+  private let configuration: LexingConfiguration
+  private let maximumTokenCount: Int
+  private var cursor = 0
+  private var tokens: [Token] = []
+  private var diagnostics: [SyntaxDiagnostic] = []
+  private var groupingCache: [Int: GroupingCacheEntry] = [:]
+
+  init(
+    source: String,
+    configuration: LexingConfiguration,
+    maximumTokenCount: Int
+  ) {
+    characters = Array(source)
+    self.configuration = configuration
+    self.maximumTokenCount = maximumTokenCount
+
+    var offsets = [0]
+    offsets.reserveCapacity(characters.count + 1)
+    for character in characters {
+      offsets.append(offsets[offsets.count - 1] + character.utf8.count)
+    }
+    utf8Offsets = offsets
+  }
+
+  mutating func scan() -> LexingResult {
+    while let character = current {
+      if tokens.count + diagnostics.count >= maximumTokenCount {
+        diagnose(.resourceLimitExceeded, from: cursor, to: characters.count)
+        cursor = characters.count
+        break
+      }
+
+      let start = cursor
+
+      if character == "\r\n" || character == "\r" || character == "\n" {
+        advance()
+        if character == "\r", current == "\n" {
+          advance()
+        }
+        append(.newline, from: start)
+        continue
+      }
+
+      if character.isWhitespace {
+        advance()
+        continue
+      }
+
+      if decimalDigit(character) != nil {
+        scanNumber()
+        continue
+      }
+
+      if isIdentifierStart(character) {
+        scanIdentifier()
+        continue
+      }
+
+      advance()
+      switch character {
+      case "+":
+        append(.plus, from: start)
+      case "-", "−":
+        append(.minus, from: start)
+      case "*", "×":
+        append(.multiply, from: start)
+      case "/", "÷":
+        append(.divide, from: start)
+      case "^":
+        append(.power, from: start)
+      case "(":
+        append(.leftParenthesis, from: start)
+      case ")":
+        append(.rightParenthesis, from: start)
+      case ",":
+        if configuration.decimalSeparator != ","
+          || current?.isWhitespace == true
+        {
+          append(.argumentSeparator, from: start)
+        } else {
+          diagnose(.unexpectedCharacter, from: start)
+        }
+      case ";":
+        append(.argumentSeparator, from: start)
+      default:
+        diagnose(.unexpectedCharacter, from: start)
+      }
+    }
+
+    let endRange = range(from: cursor)
+    tokens.append(Token(kind: .endOfFile, range: endRange))
+    return LexingResult(tokens: tokens, diagnostics: diagnostics)
+  }
+
+  private var current: Character? {
+    character(at: cursor)
+  }
+
+  private func character(at index: Int) -> Character? {
+    characters.indices.contains(index) ? characters[index] : nil
+  }
+
+  private mutating func advance() {
+    cursor += 1
+  }
+
+  private func range(from start: Int, to end: Int? = nil) -> SourceRange {
+    SourceRange(
+      lowerBound: utf8Offsets[start],
+      upperBound: utf8Offsets[end ?? cursor],
+      graphemeLowerBound: start,
+      graphemeUpperBound: end ?? cursor
+    )
+  }
+
+  private mutating func append(_ kind: TokenKind, from start: Int) {
+    tokens.append(Token(kind: kind, range: range(from: start)))
+  }
+
+  private mutating func diagnose(
+    _ code: SyntaxDiagnostic.Code,
+    from start: Int,
+    to end: Int? = nil
+  ) {
+    diagnostics.append(
+      SyntaxDiagnostic(code: code, range: range(from: start, to: end))
+    )
+  }
+
+  private mutating func scanIdentifier() {
+    let start = cursor
+    advance()
+    while let character = current, isIdentifierContinuation(character) {
+      advance()
+    }
+
+    let identifier = String(characters[start..<cursor])
+    append(.identifier(identifier), from: start)
+  }
+
+  private mutating func scanNumber() {
+    let start = cursor
+    if character(at: cursor) == "0",
+      let radix = radix(afterZeroAt: cursor)
+    {
+      scanRadixNumber(from: start, radix: radix)
+      return
+    }
+
+    var digits = ""
+    var digitScript: UInt32?
+    var mixedDigitScriptsReported = false
+    var integerDigitCount = 0
+
+    consumeDecimalDigits(
+      into: &digits,
+      count: &integerDigitCount,
+      script: &digitScript,
+      mixedDigitScriptsReported: &mixedDigitScriptsReported
+    )
+
+    if let groupingSeparator = configuration.groupingSeparator,
+      current == groupingSeparator,
+      let groupingEnd = groupingCandidate(
+        startingAt: cursor,
+        initialGroupSize: integerDigitCount
+      )
+    {
+      for _ in cursor..<groupingEnd {
+        if let digit = decimalDigit(current) {
+          append(
+            digit,
+            into: &digits,
+            script: &digitScript,
+            mixedDigitScriptsReported: &mixedDigitScriptsReported
+          )
+        }
+        advance()
+      }
+    }
+
+    var fractionalDigitCount = 0
+    var hasDecimalSeparator = false
+    if current == configuration.decimalSeparator,
+      configuration.decimalSeparator != ","
+        || character(at: cursor + 1)?.isWhitespace != true
+    {
+      hasDecimalSeparator = true
+      let separator = cursor
+      advance()
+      consumeDecimalDigits(
+        into: &digits,
+        count: &fractionalDigitCount,
+        script: &digitScript,
+        mixedDigitScriptsReported: &mixedDigitScriptsReported
+      )
+      if fractionalDigitCount == 0 {
+        diagnose(.missingFractionDigits, from: separator)
+      }
+    }
+
+    var exponent = 0
+    var hasExponent = false
+    if current == "e" || current == "E" {
+      hasExponent = true
+      let exponentStart = cursor
+      advance()
+
+      var exponentIsNegative = false
+      if current == "+" {
+        advance()
+      } else if current == "-" || current == "−" {
+        exponentIsNegative = true
+        advance()
+      }
+
+      var exponentDigits = ""
+      var exponentDigitCount = 0
+      consumeDecimalDigits(
+        into: &exponentDigits,
+        count: &exponentDigitCount,
+        script: &digitScript,
+        mixedDigitScriptsReported: &mixedDigitScriptsReported
+      )
+
+      if exponentDigitCount == 0 {
+        diagnose(.missingExponentDigits, from: exponentStart)
+      } else if let magnitude = Int(exponentDigits) {
+        exponent = exponentIsNegative ? -magnitude : magnitude
+      } else {
+        diagnose(.exponentOutOfRange, from: exponentStart)
+      }
+    }
+
+    let literal: NumericLiteral
+    if hasDecimalSeparator || hasExponent {
+      literal = .decimal(
+        digits: digits,
+        fractionalDigitCount: fractionalDigitCount,
+        exponent: exponent
+      )
+    } else {
+      literal = .integer(digits: digits, radix: .decimal)
+    }
+    append(.number(literal), from: start)
+  }
+
+  private mutating func consumeDecimalDigits(
+    into digits: inout String,
+    count: inout Int,
+    script: inout UInt32?,
+    mixedDigitScriptsReported: inout Bool
+  ) {
+    while let digit = decimalDigit(current) {
+      append(
+        digit,
+        into: &digits,
+        script: &script,
+        mixedDigitScriptsReported: &mixedDigitScriptsReported
+      )
+      count += 1
+      advance()
+    }
+  }
+
+  private mutating func append(
+    _ digit: DecimalDigit,
+    into digits: inout String,
+    script: inout UInt32?,
+    mixedDigitScriptsReported: inout Bool
+  ) {
+    if let script, script != digit.script, !mixedDigitScriptsReported {
+      diagnose(.mixedDigitScripts, from: cursor, to: cursor + 1)
+      mixedDigitScriptsReported = true
+    } else if script == nil {
+      script = digit.script
+    }
+    digits.append(String(digit.value))
+  }
+
+  private mutating func groupingCandidate(
+    startingAt start: Int,
+    initialGroupSize: Int
+  ) -> Int? {
+    guard let groupingSeparator = configuration.groupingSeparator else {
+      return nil
+    }
+
+    if let cached = groupingCache[start] {
+      return groupingEnd(
+        from: cached,
+        initialGroupSize: initialGroupSize
+      )
+    }
+
+    var probe = start
+    var separatorPositions: [Int] = []
+    var groupSizes: [Int] = []
+    while character(at: probe) == groupingSeparator {
+      let separatorPosition = probe
+      let groupStart = separatorPosition + 1
+      var groupEnd = groupStart
+      while decimalDigit(character(at: groupEnd)) != nil {
+        groupEnd += 1
+      }
+
+      guard groupEnd > groupStart else {
+        break
+      }
+      separatorPositions.append(separatorPosition)
+      groupSizes.append(groupEnd - groupStart)
+      probe = groupEnd
+    }
+
+    guard !separatorPositions.isEmpty else {
+      groupingCache[start] = .invalid
+      return nil
+    }
+
+    var suffixIsValid = true
+    for index in stride(from: groupSizes.count - 1, through: 0, by: -1) {
+      if index == groupSizes.count - 1 {
+        suffixIsValid =
+          groupSizes[index] == configuration.primaryGroupingSize
+      } else {
+        suffixIsValid =
+          suffixIsValid
+          && groupSizes[index] == configuration.secondaryGroupingSize
+      }
+      groupingCache[separatorPositions[index]] =
+        suffixIsValid
+        ? .valid(end: probe)
+        : .invalid
+    }
+
+    return groupingEnd(
+      from: groupingCache[start] ?? .invalid,
+      initialGroupSize: initialGroupSize
+    )
+  }
+
+  private func groupingEnd(
+    from cacheEntry: GroupingCacheEntry,
+    initialGroupSize: Int
+  ) -> Int? {
+    guard case .valid(let end) = cacheEntry else {
+      return nil
+    }
+
+    guard
+      initialGroupSize > 0,
+      initialGroupSize <= configuration.secondaryGroupingSize
+    else {
+      return nil
+    }
+    return end
+  }
+
+  private func radix(afterZeroAt index: Int) -> NumericRadix? {
+    switch character(at: index + 1) {
+    case "b", "B":
+      return .binary
+    case "o", "O":
+      return .octal
+    case "x", "X":
+      return .hexadecimal
+    default:
+      return nil
+    }
+  }
+
+  private mutating func scanRadixNumber(from start: Int, radix: NumericRadix) {
+    cursor += 2
+    let digitsStart = cursor
+    var digits = ""
+
+    while let value = radixDigitValue(current), value < radix.rawValue {
+      digits.append(String(value, radix: radix.rawValue, uppercase: false))
+      advance()
+    }
+
+    if current.map(isASCIIAlphaNumeric) == true {
+      let invalidStart = cursor
+      while current.map(isASCIIAlphaNumeric) == true {
+        advance()
+      }
+      diagnose(.invalidRadixDigit, from: invalidStart)
+    } else if cursor == digitsStart {
+      diagnose(.missingRadixDigits, from: start)
+    }
+
+    append(.number(.integer(digits: digits, radix: radix)), from: start)
+  }
+
+  private func decimalDigit(_ character: Character?) -> DecimalDigit? {
+    guard
+      let character,
+      character.unicodeScalars.count == 1,
+      let scalar = character.unicodeScalars.first,
+      scalar.properties.generalCategory == .decimalNumber,
+      let value = character.wholeNumberValue
+    else {
+      return nil
+    }
+
+    return DecimalDigit(value: value, script: scalar.value - UInt32(value))
+  }
+
+  private func radixDigitValue(_ character: Character?) -> Int? {
+    guard let scalar = character?.unicodeScalars.first,
+      character?.unicodeScalars.count == 1
+    else {
+      return nil
+    }
+
+    switch scalar.value {
+    case 48...57:
+      return Int(scalar.value - 48)
+    case 65...70:
+      return Int(scalar.value - 65 + 10)
+    case 97...102:
+      return Int(scalar.value - 97 + 10)
+    default:
+      return nil
+    }
+  }
+
+  private func isASCIIAlphaNumeric(_ character: Character) -> Bool {
+    guard character.unicodeScalars.count == 1,
+      let value = character.unicodeScalars.first?.value
+    else {
+      return false
+    }
+    return (48...57).contains(value)
+      || (65...90).contains(value)
+      || (97...122).contains(value)
+  }
+
+  private func isIdentifierStart(_ character: Character) -> Bool {
+    if character == "_" {
+      return true
+    }
+
+    guard let firstScalar = character.unicodeScalars.first,
+      firstScalar.properties.isXIDStart
+    else {
+      return false
+    }
+    return character.unicodeScalars.dropFirst().allSatisfy {
+      $0.properties.isXIDContinue
+    }
+  }
+
+  private func isIdentifierContinuation(_ character: Character) -> Bool {
+    if character == "_" {
+      return true
+    }
+    return character.unicodeScalars.allSatisfy {
+      $0.properties.isXIDContinue
+    }
+  }
+}

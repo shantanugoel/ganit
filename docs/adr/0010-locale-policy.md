@@ -20,6 +20,7 @@ Locale affects decimal and grouping separators, digit shapes, currency symbols, 
 
 - The locale's declared decimal and grouping separators are the only accepted separators. There is no cross-locale fallback.
 - Grouping is optional. When present, every group must match the locale's primary and secondary grouping sizes.
+- Function arguments use a semicolon in comma-decimal locales; a comma followed by whitespace remains accepted when it cannot be a decimal separator.
 - Unicode decimal digits are converted by numeric value, but one literal may not mix digit scripts.
 - Accept ASCII hyphen-minus and Unicode minus as signs. Scientific exponents use `e` or `E`.
 - Preserve source text exactly. Parsed finite decimals store coefficient and scale; canonical diagnostic and interchange values use ASCII digits, `-`, and `.` with no grouping.

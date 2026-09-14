@@ -20,3 +20,4 @@ The seven listed targets are unavailable, not passing. Their corpus population a
 Recorded measurements:
 
 - [Phase 0 release baseline](Results/phase-0.md)
+- [Phase 1 parser baseline](Results/phase-1-parser.md)

@@ -69,9 +69,10 @@ List the required benchmark fixture targets:
 
 ```sh
 swift run --configuration release GanitBenchmarks --list
+swift run --configuration release GanitBenchmarks --parser 10000
 ```
 
-The Phase 0 harness reports every target as unavailable. It must not be cited as performance evidence until the implementing phase adds real fixtures and measurements as described in [`Benchmarks/README.md`](Benchmarks/README.md).
+The fixture targets remain unavailable until their implementing phases populate them. The parser microbenchmark records observations without applying a pass threshold. Follow the measurement rules in [`Benchmarks/README.md`](Benchmarks/README.md).
 
 Measure process start to a visible Workspace window after building the release app:
 

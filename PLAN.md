@@ -898,7 +898,7 @@ Exit criteria:
 
 Tasks:
 
-- [ ] Implement source ranges, tokens, lexer and Pratt parser.
+- [x] Implement source ranges, tokens, lexer and Pratt parser.
 - [ ] Implement Integer/Rational/Decimal/Approximate values and typed errors.
 - [ ] Implement arithmetic, precedence, parentheses, powers, core functions and programmer literals.
 - [ ] Inject locale, angle mode, precision, `now`, calendar and zone through `EvaluationContext`.
