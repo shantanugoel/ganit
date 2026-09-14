@@ -21,7 +21,7 @@ Accepted architectural choices are indexed in [`docs/adr`](docs/adr/README.md).
 
 ## Development status
 
-Work proceeds in the ordered phases defined in `PLAN.md`. Each task is reviewed, tested, committed, and pushed before the next task begins. P1 and P2 capabilities are not pulled forward before P0 quality gates pass.
+Phase 0 is complete; work now proceeds through the typed arithmetic engine in Phase 1. Each task is reviewed, tested, committed, and pushed before the next task begins. P1 and P2 capabilities are not pulled forward before P0 quality gates pass.
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the development and testing workflow.
 

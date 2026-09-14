@@ -872,6 +872,8 @@ Each phase is a vertical quality gate. A later agent should execute phases in or
 
 **Goal:** A reproducible, minimal native skeleton and explicit contracts.
 
+**Status:** Complete — verified 2026-09-14.
+
 Tasks:
 
 - [x] Initialize Git and add a focused `.gitignore`.
@@ -885,10 +887,10 @@ Tasks:
 
 Exit criteria:
 
-- Clean checkout builds and launches a standard empty window.
-- Engine test target runs without launching the app.
-- Production bundle has no third-party SDK or accidental entitlement.
-- ADRs settle all decisions that would otherwise fork Phase 1.
+- [x] Clean checkout builds and launches a standard empty window.
+- [x] Engine test target runs without launching the app.
+- [x] Production bundle has no third-party SDK or accidental entitlement.
+- [x] ADRs settle all decisions that would otherwise fork Phase 1.
 
 ## Phase 1 — Typed arithmetic engine
 
