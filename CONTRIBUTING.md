@@ -5,11 +5,11 @@ Ganit is currently developed against the ordered roadmap and quality gates in [`
 ## Requirements
 
 - macOS 14 or later
-- A current stable Xcode with the Swift 6 toolchain
+- The Xcode version recorded in `.xcode-version`
 - Command Line Tools selected with `xcode-select`
 - Git
 
-No additional formatter, linter, package manager, or global tool is required unless the repository pins it.
+No additional formatter, linter, package manager, or global tool is required. The formatting script verifies and uses the `swift-format` bundled with the pinned Xcode.
 
 ## Working agreement
 
@@ -45,6 +45,22 @@ open .build/app/debug/Ganit.app
 ```
 
 Documentation-only changes must also pass `git diff --check`. Do not claim sanitizer, performance, accessibility, or release-matrix coverage unless that coverage was actually run and recorded.
+
+## Formatting
+
+Format all Swift sources and the package manifest:
+
+```sh
+./scripts/swift-format.sh format
+```
+
+Check formatting without changing files:
+
+```sh
+./scripts/swift-format.sh lint
+```
+
+The script rejects an unpinned Xcode or `swift-format` version so local and CI output remains deterministic.
 
 ## Engineering expectations
 
