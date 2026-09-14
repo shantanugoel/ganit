@@ -38,6 +38,13 @@ jobs:
 
       - name: Test packages
         run: |
+          ruby -rjson -e '
+            pins = JSON.parse(File.read("Package.resolved"))["pins"]
+            pin = pins.find { |candidate| candidate["identity"] == "bigint" }
+            abort "BigInt pin mismatch" unless pin &&
+              pin["state"]["version"] == "6.0.1" &&
+              pin["state"]["revision"] == "63feef7820abb1a8fb08587d7da56bb0b7db8751"
+          '
           swift package dump-package >/dev/null
           swift test --parallel
 

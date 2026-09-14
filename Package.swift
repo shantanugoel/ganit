@@ -21,6 +21,12 @@ let package = Package(
     .library(name: "GanitSystemIntegration", targets: ["GanitSystemIntegration"]),
     .library(name: "GanitDiagnostics", targets: ["GanitDiagnostics"]),
   ],
+  dependencies: [
+    .package(
+      url: "https://github.com/attaswift/BigInt.git",
+      exact: "6.0.1"
+    )
+  ],
   targets: [
     .executableTarget(
       name: "GanitApp",
@@ -58,7 +64,12 @@ let package = Package(
       dependencies: ["GanitEngine"]
     ),
     .target(name: "GanitData"),
-    .target(name: "GanitEngine"),
+    .target(
+      name: "GanitEngine",
+      dependencies: [
+        .product(name: "BigInt", package: "BigInt")
+      ]
+    ),
     .target(
       name: "GanitFormatting",
       dependencies: [

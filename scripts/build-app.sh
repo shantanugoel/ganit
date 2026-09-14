@@ -40,6 +40,9 @@ mkdir -p "$staging/Contents/MacOS" "$staging/Contents/Resources"
 install -m 0755 "$binary_directory/GanitApp" "$staging/Contents/MacOS/Ganit"
 install -m 0644 App/Info.plist "$staging/Contents/Info.plist"
 install -m 0644 App/PrivacyInfo.xcprivacy "$staging/Contents/Resources/PrivacyInfo.xcprivacy"
+install -m 0644 \
+    ThirdPartyNotices/BigInt-LICENSE.md \
+    "$staging/Contents/Resources/BigInt-LICENSE.md"
 xcrun xcstringstool compile \
     App/Resources/Localizable.xcstrings \
     --output-directory "$staging/Contents/Resources"

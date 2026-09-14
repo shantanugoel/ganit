@@ -29,3 +29,27 @@ func engineSourcesDoNotImportUIFrameworks() throws {
     #expect(!source.contains("import SwiftUI"))
   }
 }
+
+@Test
+func applicationModulesDoNotImportBigIntDirectly() throws {
+  let repositoryRoot = URL(fileURLWithPath: #filePath)
+    .deletingLastPathComponent()
+    .deletingLastPathComponent()
+    .deletingLastPathComponent()
+  let sourcesDirectory = repositoryRoot.appending(path: "Sources")
+  let sourceURLs = try #require(
+    FileManager.default.enumerator(
+      at: sourcesDirectory,
+      includingPropertiesForKeys: nil
+    )?.compactMap { $0 as? URL }
+      .filter {
+        $0.pathExtension == "swift"
+          && !$0.path.contains("/Sources/GanitEngine/")
+      }
+  )
+
+  for sourceURL in sourceURLs {
+    let source = try String(contentsOf: sourceURL, encoding: .utf8)
+    #expect(!source.contains("import BigInt"))
+  }
+}

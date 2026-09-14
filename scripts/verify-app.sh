@@ -17,6 +17,12 @@ test "$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$application
 privacy_manifest="$application/Contents/Resources/PrivacyInfo.xcprivacy"
 plutil -lint "$privacy_manifest" >/dev/null
 cmp -s App/PrivacyInfo.xcprivacy "$privacy_manifest"
+cmp -s \
+  .build/checkouts/BigInt/LICENSE.md \
+  ThirdPartyNotices/BigInt-LICENSE.md
+cmp -s \
+  ThirdPartyNotices/BigInt-LICENSE.md \
+  "$application/Contents/Resources/BigInt-LICENSE.md"
 privacy_declaration=$(plutil -convert json -o - "$privacy_manifest")
 test "$privacy_declaration" = '{"NSPrivacyCollectedDataTypes":[],"NSPrivacyTracking":false}'
 
