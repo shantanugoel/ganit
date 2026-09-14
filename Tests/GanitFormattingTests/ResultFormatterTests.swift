@@ -196,6 +196,55 @@ struct ResultFormatterTests {
     )
   }
 
+  @Test
+  func formatsFailuresWithCodeSeverityRangeAndLocalizedMessage() throws {
+    let evaluationContext = try context()
+    let engine = CalculationEngine()
+    let formatter = DiagnosticFormatter(context: evaluationContext)
+
+    guard
+      case .evaluationFailure(let evaluationError) = engine.evaluate(
+        "1 / 0",
+        context: evaluationContext
+      )
+    else {
+      Issue.record("Expected division-by-zero failure")
+      return
+    }
+    let formattedEvaluation = formatter.format(evaluationError)
+    #expect(formattedEvaluation.code == "evaluation.divisionByZero")
+    #expect(formattedEvaluation.severity == .error)
+    #expect(formattedEvaluation.ranges.count == 1)
+    #expect(formattedEvaluation.message == "Cannot divide by zero.")
+
+    guard
+      case .syntaxFailure(let syntaxErrors) = engine.evaluate(
+        "1 +",
+        context: evaluationContext
+      ),
+      let syntaxError = syntaxErrors.first
+    else {
+      Issue.record("Expected incomplete-expression failure")
+      return
+    }
+    let formattedSyntax = formatter.format(syntaxError)
+    #expect(formattedSyntax.code == "expectedExpression")
+    #expect(formattedSyntax.severity == .incomplete)
+    #expect(formattedSyntax.ranges.count == 1)
+    #expect(formattedSyntax.message == "Enter an expression here.")
+
+    let formattedOutputLimit = formatter.format(
+      .outputTooLong,
+      ranges: formattedSyntax.ranges
+    )
+    #expect(formattedOutputLimit.code == "formatting.outputTooLong")
+    #expect(formattedOutputLimit.ranges == formattedSyntax.ranges)
+    #expect(
+      formattedOutputLimit.message
+        == "The formatted result is too long to display."
+    )
+  }
+
   private func context(
     localeIdentifier: String = "en-US",
     lexingConfiguration: LexingConfiguration = .englishUnitedStates,

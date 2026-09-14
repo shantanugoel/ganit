@@ -61,8 +61,10 @@ jobs:
               records[1]["code"] == "evaluation.divisionByZero"
           ' <<<"$output"
 
-      - name: Run parser fuzz smoke with Address Sanitizer
-        run: swift test --sanitize address --filter ParserFuzzSmokeTests
+      - name: Run engine corpus with Address Sanitizer
+        run: |
+          swift test --sanitize address \
+            --filter 'GoldenCorpusTests|ArithmeticPropertyTests|ParserFuzzSmokeTests'
 
       - name: Build benchmark harness
         run: |

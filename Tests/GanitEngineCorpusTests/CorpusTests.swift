@@ -177,6 +177,96 @@ struct ArithmeticPropertyTests {
       )
     }
   }
+
+  @Test
+  func boundedIntegersMatchNativeArithmeticDifferentially() throws {
+    let context = try fixedContext()
+    let engine = CalculationEngine()
+    var generator = SeededGenerator(seed: 0x4449_4646_494E_5431)
+
+    for _ in 0..<1_000 {
+      let left = Int64(generator.integer(in: -1_000_000_000...1_000_000_000))
+      var right = Int64(
+        generator.integer(in: -1_000_000_000...1_000_000_000)
+      )
+      if right == 0 {
+        right = 1
+      }
+
+      #expect(
+        try value("\(left) + \(right)", engine: engine, context: context)
+          == .integer(try IntegerValue(String(left + right)))
+      )
+      #expect(
+        try value("\(left) - \(right)", engine: engine, context: context)
+          == .integer(try IntegerValue(String(left - right)))
+      )
+      #expect(
+        try value("\(left) * \(right)", engine: engine, context: context)
+          == .integer(try IntegerValue(String(left * right)))
+      )
+
+      let divisor = greatestCommonDivisor(abs(left), abs(right))
+      let denominatorSign: Int64 = right < 0 ? -1 : 1
+      let expectedNumerator = left / divisor * denominatorSign
+      let expectedDenominator = abs(right) / divisor
+      let expectedDivision =
+        expectedDenominator == 1
+        ? String(expectedNumerator)
+        : "\(expectedNumerator)/\(expectedDenominator)"
+      let division = try value(
+        "\(left) / \(right)",
+        engine: engine,
+        context: context
+      )
+      #expect(
+        try NumericResultFormatter(context: context).format(division)
+          .fullPrecision == expectedDivision
+      )
+    }
+  }
+
+  @Test
+  func numericBoundaryFuzzPreservesExactnessAndEnforcesBitLimits() throws {
+    let context = try fixedContext()
+    let engine = CalculationEngine()
+    var generator = SeededGenerator(seed: 0x424F_554E_4441_5259)
+
+    for _ in 0..<500 {
+      let bit = generator.integer(in: 2...62)
+      let delta = generator.integer(in: -1...1)
+      let boundary = (UInt64(1) << UInt64(bit)) + UInt64(delta + 1) - 1
+      let expected = boundary + 1
+      #expect(
+        try value(
+          "\(boundary) + 1",
+          engine: engine,
+          context: context
+        ) == .integer(try IntegerValue(String(expected)))
+      )
+    }
+
+    for maximumBits in 2...63 {
+      let boundary = UInt64(1) << UInt64(maximumBits - 1)
+      let limits = EvaluationLimits(maximumIntegerBits: maximumBits)
+      let accepted = CalculationEngine(evaluationLimits: limits).evaluate(
+        String(boundary),
+        context: context
+      )
+      #expect(accepted == .value(.integer(try IntegerValue(String(boundary)))))
+
+      guard
+        case .evaluationFailure(let error) = CalculationEngine(
+          evaluationLimits: limits
+        ).evaluate("\(boundary) * 2", context: context)
+      else {
+        Issue.record("Expected bit-limit failure at \(maximumBits) bits")
+        continue
+      }
+      #expect(error.context == .resourceLimit(.integerBits))
+      #expect(!error.ranges.isEmpty)
+    }
+  }
 }
 
 @Suite
@@ -228,6 +318,7 @@ struct ParserFuzzSmokeTests {
       case .evaluationFailure(let error):
         #expect(error.code != EngineErrorCode.internalFailure)
         #expect(!error.messageKey.isEmpty)
+        #expect(!error.ranges.isEmpty)
         for range in error.ranges {
           expectValid(
             range,
@@ -257,6 +348,7 @@ private struct GoldenOutcome: Codable, Equatable {
   let approximate: Bool?
   let code: String?
   let messageKey: String?
+  let message: String?
   let lowerBound: Int?
   let upperBound: Int?
 }
@@ -277,11 +369,13 @@ private func outcome(
       approximate: formatted.isApproximate,
       code: nil,
       messageKey: nil,
+      message: nil,
       lowerBound: nil,
       upperBound: nil
     )
   case .syntaxFailure(let diagnostics):
     let diagnostic = try #require(diagnostics.first)
+    let message = DiagnosticFormatter(context: context).format(diagnostic).message
     return GoldenOutcome(
       status: "syntaxFailure",
       display: nil,
@@ -289,11 +383,13 @@ private func outcome(
       approximate: nil,
       code: diagnostic.code.rawValue,
       messageKey: diagnostic.messageKey,
+      message: message,
       lowerBound: diagnostic.range.lowerBound,
       upperBound: diagnostic.range.upperBound
     )
   case .evaluationFailure(let error):
     let range = error.ranges.first
+    let message = DiagnosticFormatter(context: context).format(error).message
     return GoldenOutcome(
       status: "evaluationFailure",
       display: nil,
@@ -301,6 +397,7 @@ private func outcome(
       approximate: nil,
       code: error.code.rawValue,
       messageKey: error.messageKey,
+      message: message,
       lowerBound: range?.lowerBound,
       upperBound: range?.upperBound
     )
@@ -397,6 +494,15 @@ private func exactDecimalLiteral(coefficient: Int, scale: Int) -> String {
   }
   let split = digits.index(digits.endIndex, offsetBy: -scale)
   return sign + digits[..<split] + "." + digits[split...]
+}
+
+private func greatestCommonDivisor(_ left: Int64, _ right: Int64) -> Int64 {
+  var lhs = left
+  var rhs = right
+  while rhs != 0 {
+    (lhs, rhs) = (rhs, lhs % rhs)
+  }
+  return lhs
 }
 
 private enum CorpusFailure: Error {

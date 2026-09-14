@@ -442,11 +442,11 @@ struct NumericOperations {
         lhs.coefficient.storage,
         rhs.coefficient.storage
       )
+      let coefficient = lhs.coefficient.storage * rhs.coefficient.storage
+      try validateInteger(coefficient)
       return .decimal(
         try DecimalValue(
-          coefficient: IntegerValue(
-            storage: lhs.coefficient.storage * rhs.coefficient.storage
-          ),
+          coefficient: IntegerValue(storage: coefficient),
           scale: scale
         )
       )
@@ -542,11 +542,11 @@ struct NumericOperations {
     if case .decimal(let decimal) = base, exponentValue > 0 {
       let scale = try checkedScale(decimal.scale, multipliedBy: exponentValue)
       try preflightPower(decimal.coefficient.storage, exponent: exponentValue)
+      let coefficient = decimal.coefficient.storage.power(exponentValue)
+      try validateInteger(coefficient)
       return .decimal(
         try DecimalValue(
-          coefficient: IntegerValue(
-            storage: decimal.coefficient.storage.power(exponentValue)
-          ),
+          coefficient: IntegerValue(storage: coefficient),
           scale: scale
         )
       )
@@ -968,7 +968,7 @@ struct NumericOperations {
   }
 
   private func validateInteger(_ value: BigInt) throws {
-    guard value.bitWidth <= limits.maximumIntegerBits else {
+    guard value.magnitude.bitWidth <= limits.maximumIntegerBits else {
       throw limitError(.integerBits)
     }
   }
@@ -1002,21 +1002,26 @@ struct NumericOperations {
 
   private func powerOfTen(_ exponent: Int) throws -> BigInt {
     try validateScale(exponent)
-    let predictedBits = Double(exponent) * 3.322
-    guard predictedBits <= Double(limits.maximumIntegerBits) else {
+    guard
+      exponent >= 0,
+      exponent == 0
+        || exponent <= (limits.maximumIntegerBits - 1) / 3
+    else {
       throw limitError(.integerBits)
     }
-    return BigInt(10).power(exponent)
+    let result = BigInt(10).power(exponent)
+    try validateInteger(result)
+    return result
   }
 
   private func preflightMultiplication(_ left: BigInt, _ right: BigInt) throws {
     let leftBits = left.magnitude.bitWidth
     let rightBits = right.magnitude.bitWidth
-    guard
-      left.isZero || right.isZero
-        || leftBits <= limits.maximumIntegerBits
-          - min(rightBits, limits.maximumIntegerBits)
-    else {
+    guard !left.isZero, !right.isZero else {
+      return
+    }
+    let (sum, overflow) = leftBits.addingReportingOverflow(rightBits)
+    guard !overflow, sum - 1 <= limits.maximumIntegerBits else {
       throw limitError(.integerBits)
     }
   }
@@ -1028,8 +1033,14 @@ struct NumericOperations {
     if base.magnitude <= 1 {
       return
     }
-    let predictedBits = Double(base.magnitude.bitWidth) * Double(exponent)
-    guard predictedBits <= Double(max(0, limits.maximumIntegerBits - 1)) else {
+    guard exponent > 0 else {
+      return
+    }
+    let minimumBitsPerFactor = base.magnitude.bitWidth - 1
+    guard
+      minimumBitsPerFactor
+        <= (limits.maximumIntegerBits - 1) / exponent
+    else {
       throw limitError(.integerBits)
     }
   }

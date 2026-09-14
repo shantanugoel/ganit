@@ -11,6 +11,7 @@ private struct FixtureTarget: Sendable {
 @main
 private enum GanitBenchmarks {
   private static let maximumIterations = 100_000
+  private static let maximumEngineIterations = 10_000
 
   private static let parserExpressions = [
     "1 + 2 * 3",
@@ -82,7 +83,7 @@ private enum GanitBenchmarks {
     if arguments.count == 2,
       arguments[0] == "--engine",
       let iterations = Int(arguments[1]),
-      (1...maximumIterations).contains(iterations)
+      (1...maximumEngineIterations).contains(iterations)
     {
       runEngineBenchmark(iterations: iterations)
       return
@@ -92,7 +93,7 @@ private enum GanitBenchmarks {
       usage:
         GanitBenchmarks --list
         GanitBenchmarks --parser <iteration-count: 1...\(maximumIterations)>
-        GanitBenchmarks --engine <iteration-count: 1...\(maximumIterations)>
+        GanitBenchmarks --engine <iteration-count: 1...\(maximumEngineIterations)>
 
       Benchmarks record observations without applying a pass threshold.
 
@@ -189,8 +190,11 @@ private enum GanitBenchmarks {
     let clock = ContinuousClock()
     let start = clock.now
     var checksum = 0
+    var latencySamples: [Double] = []
+    latencySamples.reserveCapacity(expressionCount)
     for _ in 0..<iterations {
       for (index, source) in expressions.enumerated() {
+        let expressionStart = clock.now
         switch engine.evaluate(source, context: context) {
         case .value(let value) where value == expectedValues[index]:
           checksum &+= valueTag(value) + source.utf8.count
@@ -199,18 +203,27 @@ private enum GanitBenchmarks {
         case .syntaxFailure, .evaluationFailure:
           fail("Engine benchmark became nondeterministic.")
         }
+        latencySamples.append(
+          nanoseconds(expressionStart.duration(to: clock.now))
+        )
       }
     }
-    let components = start.duration(to: clock.now).components
-    let elapsedNanoseconds =
-      Double(components.seconds) * 1_000_000_000
-      + Double(components.attoseconds) / 1_000_000_000
+    let elapsedNanoseconds = nanoseconds(start.duration(to: clock.now))
+    latencySamples.sort()
 
     print("expressions=\(expressionCount)")
     print("elapsed_ms=\(String(format: "%.3f", elapsedNanoseconds / 1_000_000))")
     print(
       "nanoseconds_per_expression="
         + String(format: "%.3f", elapsedNanoseconds / Double(expressionCount))
+    )
+    print(
+      "p50_nanoseconds="
+        + String(format: "%.3f", nearestRank(0.50, in: latencySamples))
+    )
+    print(
+      "p95_nanoseconds="
+        + String(format: "%.3f", nearestRank(0.95, in: latencySamples))
     )
     print("fixture_checksum=\(fixtureChecksum(expressions))")
     print("checksum=\(checksum)")
@@ -282,6 +295,20 @@ private enum GanitBenchmarks {
       checksum &*= 1_099_511_628_211
     }
     return String(checksum, radix: 16)
+  }
+
+  private static func nanoseconds(_ duration: Duration) -> Double {
+    let components = duration.components
+    return Double(components.seconds) * 1_000_000_000
+      + Double(components.attoseconds) / 1_000_000_000
+  }
+
+  private static func nearestRank(
+    _ percentile: Double,
+    in sortedSamples: [Double]
+  ) -> Double {
+    let index = Int(ceil(percentile * Double(sortedSamples.count))) - 1
+    return sortedSamples[index]
   }
 
   private static func fail(_ message: String) -> Never {

@@ -78,6 +78,7 @@
         "status": "evaluationFailure",
         "code": "evaluation.divisionByZero",
         "messageKey": "error.evaluation.divisionByZero",
+        "message": "Cannot divide by zero.",
         "lowerBound": 4,
         "upperBound": 5
       }
@@ -89,6 +90,7 @@
         "status": "evaluationFailure",
         "code": "evaluation.unknownIdentifier",
         "messageKey": "error.evaluation.unknownIdentifier",
+        "message": "This identifier is not defined.",
         "lowerBound": 0,
         "upperBound": 7
       }
@@ -100,6 +102,7 @@
         "status": "syntaxFailure",
         "code": "expectedExpression",
         "messageKey": "syntax.expectedExpression",
+        "message": "Enter an expression here.",
         "lowerBound": 3,
         "upperBound": 3
       }
@@ -111,6 +114,7 @@
         "status": "syntaxFailure",
         "code": "invalidRadixDigit",
         "messageKey": "syntax.invalidRadixDigit",
+        "message": "This digit is not valid for the number's radix.",
         "lowerBound": 4,
         "upperBound": 5
       }

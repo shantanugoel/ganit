@@ -38,6 +38,14 @@ trap 'rm -rf "$staging"' EXIT
 
 mkdir -p "$staging/Contents/MacOS" "$staging/Contents/Resources"
 install -m 0755 "$binary_directory/GanitApp" "$staging/Contents/MacOS/Ganit"
+ditto \
+    "$binary_directory/Ganit_GanitFormatting.bundle" \
+    "$staging/Contents/Resources/Ganit_GanitFormatting.bundle"
+xcrun xcstringstool compile \
+    Sources/GanitFormatting/Resources/Localizable.xcstrings \
+    --output-directory \
+    "$staging/Contents/Resources/Ganit_GanitFormatting.bundle"
+rm "$staging/Contents/Resources/Ganit_GanitFormatting.bundle/Localizable.xcstrings"
 install -m 0644 App/Info.plist "$staging/Contents/Info.plist"
 install -m 0644 App/PrivacyInfo.xcprivacy "$staging/Contents/Resources/PrivacyInfo.xcprivacy"
 install -m 0644 \

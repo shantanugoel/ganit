@@ -250,8 +250,25 @@ struct LexerTests {
     let result = Lexer(source: source).lex()
 
     #expect(result.diagnostics.map(\.code) == [.invalidRadixDigit, .missingExponentDigits])
+    #expect(result.diagnostics.map(\.severity) == [.error, .incomplete])
     #expect(try #require(result.diagnostics[0].range.text(in: source)) == "G")
     #expect(try #require(result.diagnostics[1].range.text(in: source)) == "e")
+  }
+
+  @Test
+  func marksMissingDigitsIncompleteOnlyAtEndOfInput() {
+    let incompleteSources = [
+      "0x", "1.", "1e+",
+      "0x \t", "1. \t", "1e+ \t",
+    ]
+    let malformedSources = ["0x + 1", "1.+2", "1e+)"]
+
+    for source in incompleteSources {
+      #expect(Lexer(source: source).lex().diagnostics.first?.severity == .incomplete)
+    }
+    for source in malformedSources {
+      #expect(Lexer(source: source).lex().diagnostics.first?.severity == .error)
+    }
   }
 
   @Test

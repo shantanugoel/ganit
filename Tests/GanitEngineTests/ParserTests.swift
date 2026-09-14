@@ -96,6 +96,7 @@ struct ParserTests {
 
     #expect(result.expression == nil)
     #expect(result.diagnostics.map(\.code) == [.expectedExpression])
+    #expect(result.diagnostics[0].severity == .incomplete)
     #expect(
       result.diagnostics[0].range
         == SourceRange(
@@ -104,6 +105,21 @@ struct ParserTests {
           graphemeLowerBound: 3,
           graphemeUpperBound: 3
         )
+    )
+  }
+
+  @Test
+  func distinguishesIncompleteInputFromCompleteSyntaxErrors() {
+    let unexpectedClosing = Parser(source: ")").parse()
+    let missingOperand = Parser(source: "1 + )").parse()
+    let invalidGroupedSeparator = Parser(source: "(1,2)").parse()
+
+    #expect(unexpectedClosing.diagnostics.first?.severity == .error)
+    #expect(missingOperand.diagnostics.first?.severity == .error)
+    #expect(invalidGroupedSeparator.diagnostics.first?.severity == .error)
+    #expect(
+      invalidGroupedSeparator.diagnostics.first?.code
+        == .expectedClosingParenthesis
     )
   }
 

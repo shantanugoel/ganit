@@ -13,6 +13,10 @@ signature_details=$(codesign -dvv "$application" 2>&1)
 test "$(lipo -archs "$application/Contents/MacOS/Ganit")" = "arm64"
 test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundlePackageType' "$application/Contents/Info.plist")" = "APPL"
 test "$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$application/Contents/Info.plist")" = "14.0"
+formatting_resources="$application/Contents/Resources/Ganit_GanitFormatting.bundle"
+test -f "$formatting_resources/Info.plist"
+test -f "$formatting_resources/en.lproj/Localizable.strings"
+test ! -e "$formatting_resources/Localizable.xcstrings"
 
 privacy_manifest="$application/Contents/Resources/PrivacyInfo.xcprivacy"
 plutil -lint "$privacy_manifest" >/dev/null

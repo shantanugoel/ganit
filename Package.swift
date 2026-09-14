@@ -75,7 +75,8 @@ let package = Package(
       dependencies: [
         "GanitData",
         "GanitEngine",
-      ]
+      ],
+      resources: [.process("Resources")]
     ),
     .target(
       name: "GanitSystemIntegration",

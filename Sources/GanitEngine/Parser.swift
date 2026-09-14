@@ -42,6 +42,12 @@ public struct Parser: Sendable {
   }
 }
 
+extension Token {
+  fileprivate var isEndOfInput: Bool {
+    kind == .endOfFile || kind == .newline
+  }
+}
+
 private struct TokenParser {
   private static let prefixBindingPower = 25
 
@@ -181,7 +187,11 @@ private struct TokenParser {
         return nil
       }
       guard current.kind == .rightParenthesis else {
-        diagnose(.expectedClosingParenthesis, at: current.range)
+        diagnose(
+          .expectedClosingParenthesis,
+          at: current.range,
+          severity: current.isEndOfInput ? .incomplete : .error
+        )
         return .grouped(
           expression,
           range: token.range.union(expression.range)
@@ -194,7 +204,11 @@ private struct TokenParser {
       )
 
     default:
-      diagnose(.expectedExpression, at: token.range)
+      diagnose(
+        .expectedExpression,
+        at: token.range,
+        severity: token.isEndOfInput ? .incomplete : .error
+      )
       return nil
     }
   }
@@ -244,7 +258,11 @@ private struct TokenParser {
       }
 
       if current.kind == .endOfFile || current.kind == .newline {
-        diagnose(.expectedClosingParenthesis, at: current.range)
+        diagnose(
+          .expectedClosingParenthesis,
+          at: current.range,
+          severity: .incomplete
+        )
         return .call(
           name: name,
           nameRange: identifierRange,
@@ -268,9 +286,12 @@ private struct TokenParser {
 
   private mutating func diagnose(
     _ code: SyntaxDiagnostic.Code,
-    at range: SourceRange
+    at range: SourceRange,
+    severity: DiagnosticSeverity = .error
   ) {
-    diagnostics.append(SyntaxDiagnostic(code: code, range: range))
+    diagnostics.append(
+      SyntaxDiagnostic(code: code, severity: severity, range: range)
+    )
   }
 
   private func infixBindingPower(

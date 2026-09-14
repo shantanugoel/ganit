@@ -1,6 +1,7 @@
 # Arithmetic syntax
 
-This reference describes the Phase 1 arithmetic parser and context-injected evaluator. Result formatting is added by a later Phase 1 task.
+This reference describes the Phase 1 arithmetic parser, context-injected
+evaluator, and separately layered result/diagnostic formatting.
 
 ## Expressions
 

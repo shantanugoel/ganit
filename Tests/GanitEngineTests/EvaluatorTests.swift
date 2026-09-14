@@ -166,7 +166,7 @@ struct EvaluatorTests {
   func reportsRangedDomainsNamesAndArgumentCounts() throws {
     let zeroPowerZero = try error(evaluating: "0^0")
     #expect(zeroPowerZero.code == .invalidDomain)
-    #expect(zeroPowerZero.ranges.first?.lowerBound == 1)
+    #expect(zeroPowerZero.ranges.first?.lowerBound == 2)
 
     let divisionByZero = try error(evaluating: "1 / 0")
     #expect(divisionByZero.code == .divisionByZero)
@@ -195,6 +195,11 @@ struct EvaluatorTests {
     #expect(approximateDegree.code == .invalidDomain)
     #expect(approximateDegree.ranges.first?.lowerBound == 8)
 
+    let logarithmDomain = try error(evaluating: "ln(-1)")
+    #expect(logarithmDomain.ranges.first?.lowerBound == 3)
+    let inverseTrigonometricDomain = try error(evaluating: "asin(2)")
+    #expect(inverseTrigonometricDomain.ranges.first?.lowerBound == 5)
+
     let unknownIdentifier = try error(evaluating: "answer")
     #expect(unknownIdentifier.code == .unknownIdentifier)
     #expect(unknownIdentifier.ranges.first?.upperBound == 6)
@@ -214,9 +219,52 @@ struct EvaluatorTests {
   @Test
   func enforcesEvaluationResourceLimits() throws {
     let bitLimits = EvaluationLimits(maximumIntegerBits: 3)
+    #expect(
+      try evaluate("2 * 2", limits: bitLimits)
+        == .integer(IntegerValue(4))
+    )
+    #expect(
+      try evaluate("2^2", limits: bitLimits)
+        == .integer(IntegerValue(4))
+    )
     let bitError = try error(evaluating: "3 * 3", limits: bitLimits)
     #expect(bitError.code == .resourceLimitExceeded)
     #expect(bitError.context == .resourceLimit(.integerBits))
+    let powerBitError = try error(evaluating: "2^3", limits: bitLimits)
+    #expect(powerBitError.context == .resourceLimit(.integerBits))
+
+    let decimalBitLimits = EvaluationLimits(maximumIntegerBits: 9)
+    #expect(
+      try evaluate("2.0 * 2.0", limits: decimalBitLimits)
+        == .decimal(
+          try DecimalValue(coefficient: IntegerValue(400), scale: 2)
+        )
+    )
+    #expect(
+      try evaluate("2.0^2", limits: decimalBitLimits)
+        == .decimal(
+          try DecimalValue(coefficient: IntegerValue(400), scale: 2)
+        )
+    )
+    let decimalBitError = try error(
+      evaluating: "3.0 * 3.0",
+      limits: decimalBitLimits
+    )
+    #expect(decimalBitError.context == .resourceLimit(.integerBits))
+    #expect(
+      try evaluate(
+        "0.1 + 0",
+        limits: EvaluationLimits(maximumIntegerBits: 4)
+      )
+        == .decimal(
+          try DecimalValue(coefficient: IntegerValue(1), scale: 1)
+        )
+    )
+    let powerOfTenError = try error(
+      evaluating: "0.1 + 0",
+      limits: bitLimits
+    )
+    #expect(powerOfTenError.context == .resourceLimit(.integerBits))
 
     let exponentLimits = EvaluationLimits(maximumPowerExponent: 3)
     let exponentError = try error(evaluating: "2^4", limits: exponentLimits)

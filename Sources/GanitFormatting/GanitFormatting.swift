@@ -3,6 +3,42 @@ import GanitEngine
 
 public enum FormattingError: Error, Hashable, Sendable {
   case outputTooLong
+  case internalFailure
+
+  public var code: String {
+    switch self {
+    case .outputTooLong:
+      return "formatting.outputTooLong"
+    case .internalFailure:
+      return "formatting.internalFailure"
+    }
+  }
+
+  public var messageKey: String {
+    "error.\(code)"
+  }
+}
+
+public struct FormattedDiagnostic: Hashable, Sendable {
+  public let code: String
+  public let severity: DiagnosticSeverity
+  public let ranges: [SourceRange]
+  public let message: String
+  public let fixIts: [DiagnosticFixIt]
+
+  public init(
+    code: String,
+    severity: DiagnosticSeverity,
+    ranges: [SourceRange],
+    message: String,
+    fixIts: [DiagnosticFixIt] = []
+  ) {
+    self.code = code
+    self.severity = severity
+    self.ranges = ranges
+    self.message = message
+    self.fixIts = fixIts
+  }
 }
 
 public struct FormattingLimits: Hashable, Sendable {
@@ -314,6 +350,274 @@ public struct NumericResultFormatter: Sendable {
 
   private var localeSecondaryGroupingSize: Int {
     convention.secondaryGroupingSize
+  }
+}
+
+public struct DiagnosticFormatter: Sendable {
+  private let locale: Locale
+
+  public init(localeIdentifier: String) {
+    locale = Locale(identifier: localeIdentifier)
+  }
+
+  public init(context: EvaluationContext) {
+    self.init(localeIdentifier: context.localeIdentifier)
+  }
+
+  public func format(_ diagnostic: SyntaxDiagnostic) -> FormattedDiagnostic {
+    return FormattedDiagnostic(
+      code: diagnostic.code.rawValue,
+      severity: diagnostic.severity,
+      ranges: [diagnostic.range],
+      message: message(for: diagnostic.code)
+    )
+  }
+
+  public func format(_ error: EngineError) -> FormattedDiagnostic {
+    FormattedDiagnostic(
+      code: error.code.rawValue,
+      severity: error.severity,
+      ranges: error.ranges,
+      message: message(for: error),
+      fixIts: error.fixIts
+    )
+  }
+
+  public func format(
+    _ error: FormattingError,
+    ranges: [SourceRange]
+  ) -> FormattedDiagnostic {
+    let message: String
+    switch error {
+    case .outputTooLong:
+      message = localized(
+        "error.formatting.outputTooLong",
+        defaultValue: "The formatted result is too long to display."
+      )
+    case .internalFailure:
+      message = localized(
+        "error.formatting.internalFailure",
+        defaultValue: "The result could not be formatted."
+      )
+    }
+    return FormattedDiagnostic(
+      code: error.code,
+      severity: .error,
+      ranges: ranges,
+      message: message
+    )
+  }
+
+  private func message(for code: SyntaxDiagnostic.Code) -> String {
+    switch code {
+    case .unexpectedCharacter:
+      return localized(
+        "syntax.unexpectedCharacter",
+        defaultValue: "This character is not valid in an expression."
+      )
+    case .mixedDigitScripts:
+      return localized(
+        "syntax.mixedDigitScripts",
+        defaultValue: "Use one digit script within each number."
+      )
+    case .missingRadixDigits:
+      return localized(
+        "syntax.missingRadixDigits",
+        defaultValue: "Enter digits after the radix prefix."
+      )
+    case .invalidRadixDigit:
+      return localized(
+        "syntax.invalidRadixDigit",
+        defaultValue: "This digit is not valid for the number's radix."
+      )
+    case .missingFractionDigits:
+      return localized(
+        "syntax.missingFractionDigits",
+        defaultValue: "Enter digits after the decimal separator."
+      )
+    case .missingExponentDigits:
+      return localized(
+        "syntax.missingExponentDigits",
+        defaultValue: "Enter digits in the exponent."
+      )
+    case .exponentOutOfRange:
+      return localized(
+        "syntax.exponentOutOfRange",
+        defaultValue: "The exponent is too large."
+      )
+    case .expectedExpression:
+      return localized(
+        "syntax.expectedExpression",
+        defaultValue: "Enter an expression here."
+      )
+    case .expectedClosingParenthesis:
+      return localized(
+        "syntax.expectedClosingParenthesis",
+        defaultValue: "Add a closing parenthesis."
+      )
+    case .expectedArgumentSeparator:
+      return localized(
+        "syntax.expectedArgumentSeparator",
+        defaultValue: "Separate function arguments."
+      )
+    case .unexpectedToken:
+      return localized(
+        "syntax.unexpectedToken",
+        defaultValue: "This part of the expression is unexpected."
+      )
+    case .resourceLimitExceeded:
+      return localized(
+        "syntax.resourceLimitExceeded",
+        defaultValue: "The expression is too complex."
+      )
+    }
+  }
+
+  private func message(for error: EngineError) -> String {
+    switch error.code {
+    case .zeroDenominator:
+      return localized(
+        "error.numeric.zeroDenominator",
+        defaultValue: "A fraction denominator cannot be zero."
+      )
+    case .invalidIntegerLiteral:
+      return localized(
+        "error.numeric.invalidIntegerLiteral",
+        defaultValue: "The integer is not valid."
+      )
+    case .integerLiteralTooLong:
+      return localized(
+        "error.numeric.integerLiteralTooLong",
+        defaultValue: "The integer has too many digits."
+      )
+    case .invalidDecimalScale:
+      return localized(
+        "error.numeric.invalidDecimalScale",
+        defaultValue: "The decimal scale is not valid."
+      )
+    case .nonFiniteApproximation:
+      return localized(
+        "error.numeric.nonFiniteApproximation",
+        defaultValue: "The approximation is not finite."
+      )
+    case .invalidApproximationPrecision:
+      return localized(
+        "error.numeric.invalidApproximationPrecision",
+        defaultValue: "The requested precision is not supported."
+      )
+    case .negativeApproximationErrorBound:
+      return localized(
+        "error.numeric.negativeApproximationErrorBound",
+        defaultValue: "An approximation error bound cannot be negative."
+      )
+    case .divisionByZero:
+      return localized(
+        "error.evaluation.divisionByZero",
+        defaultValue: "Cannot divide by zero."
+      )
+    case .invalidDomain:
+      return localized(
+        "error.evaluation.invalidDomain",
+        defaultValue: "This operation is not defined for the given value."
+      )
+    case .overflow:
+      return localized(
+        "error.evaluation.overflow",
+        defaultValue: "The result is outside the supported range."
+      )
+    case .nonConvergence:
+      return localized(
+        "error.evaluation.nonConvergence",
+        defaultValue: "The calculation did not converge."
+      )
+    case .unknownIdentifier:
+      return localized(
+        "error.evaluation.unknownIdentifier",
+        defaultValue: "This identifier is not defined."
+      )
+    case .unknownFunction:
+      return localized(
+        "error.evaluation.unknownFunction",
+        defaultValue: "This function is not defined."
+      )
+    case .argumentCountMismatch:
+      return localized(
+        "error.evaluation.argumentCountMismatch",
+        defaultValue: "The function received the wrong number of arguments."
+      )
+    case .resourceLimitExceeded:
+      return resourceLimitMessage(for: error.context)
+    case .approximationOutOfRange:
+      return localized(
+        "error.evaluation.approximationOutOfRange",
+        defaultValue: "This value cannot be approximated safely."
+      )
+    case .internalFailure:
+      return localized(
+        "error.evaluation.internalFailure",
+        defaultValue: "The calculation could not be completed."
+      )
+    case .invalidEvaluationContext:
+      return localized(
+        "error.evaluation.invalidContext",
+        defaultValue: "The calculation settings are not valid."
+      )
+    }
+  }
+
+  private func resourceLimitMessage(
+    for context: EngineErrorContext
+  ) -> String {
+    guard case .resourceLimit(let resource) = context else {
+      return localized(
+        "error.evaluation.resourceLimitExceeded",
+        defaultValue: "The calculation exceeds a resource limit."
+      )
+    }
+    switch resource {
+    case .operations:
+      return localized(
+        "error.evaluation.resourceLimit.operations",
+        defaultValue: "The calculation has too many operations."
+      )
+    case .integerBits:
+      return localized(
+        "error.evaluation.resourceLimit.integerBits",
+        defaultValue: "The exact integer result is too large."
+      )
+    case .decimalScale:
+      return localized(
+        "error.evaluation.resourceLimit.decimalScale",
+        defaultValue: "The decimal scale is too large."
+      )
+    case .powerExponent:
+      return localized(
+        "error.evaluation.resourceLimit.powerExponent",
+        defaultValue: "The power exponent is too large."
+      )
+    case .rootDegree:
+      return localized(
+        "error.evaluation.resourceLimit.rootDegree",
+        defaultValue: "The root degree is too large."
+      )
+    case .functionArguments:
+      return localized(
+        "error.evaluation.resourceLimit.functionArguments",
+        defaultValue: "The function has too many arguments."
+      )
+    }
+  }
+
+  private func localized(
+    _ key: StaticString,
+    defaultValue: String.LocalizationValue
+  ) -> String {
+    String(
+      localized: key,
+      defaultValue: defaultValue,
+      bundle: .module,
+      locale: locale
+    )
   }
 }
 

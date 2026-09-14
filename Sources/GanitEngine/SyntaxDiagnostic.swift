@@ -15,14 +15,20 @@ public struct SyntaxDiagnostic: Hashable, Sendable {
   }
 
   public let code: Code
+  public let severity: DiagnosticSeverity
   public let range: SourceRange
 
   public var messageKey: String {
     "syntax.\(code.rawValue)"
   }
 
-  package init(code: Code, range: SourceRange) {
+  package init(
+    code: Code,
+    severity: DiagnosticSeverity = .error,
+    range: SourceRange
+  ) {
     self.code = code
+    self.severity = severity
     self.range = range
   }
 }

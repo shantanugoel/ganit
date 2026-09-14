@@ -5,7 +5,9 @@ Phase 1 adds three deterministic layers beyond focused unit tests:
 - `phase-1-golden.json` fixes representative parse, evaluation, formatting,
   approximation, error code, message key, and source-range outcomes.
 - `ArithmeticPropertyTests` checks exact arithmetic identities, whitespace
-  invariance, and canonical-format round trips with fixed PRNG seeds.
+  invariance, canonical-format round trips, differential results against
+  native bounded integer arithmetic, and numeric bit-limit boundaries with
+  fixed PRNG seeds.
 - `parser-fuzz-seeds.json` plus `ParserFuzzSmokeTests` exercises malformed and
   mixed-script Unicode input, generated from a fixed seed under strict syntax
   limits. Every diagnostic range is checked against the original source.
@@ -16,7 +18,8 @@ Run these suites directly:
 swift test --filter GoldenCorpusTests
 swift test --filter ArithmeticPropertyTests
 swift test --filter ParserFuzzSmokeTests
-swift test --sanitize address --filter ParserFuzzSmokeTests
+swift test --sanitize address \
+  --filter 'GoldenCorpusTests|ArithmeticPropertyTests|ParserFuzzSmokeTests'
 ```
 
 The golden corpus has schema version `1`. Change an expected outcome only when

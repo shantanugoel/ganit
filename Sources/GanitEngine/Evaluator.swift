@@ -85,7 +85,7 @@ private struct EvaluationWorker {
         let lhs = try evaluate(left)
         let rhs = try evaluate(right)
         let errorRange =
-          binaryOperator == .divide
+          binaryOperator == .divide || binaryOperator == .power
           ? right.range
           : operatorRange
         return try located(at: errorRange) {
@@ -177,7 +177,11 @@ private struct EvaluationWorker {
       )
     }
 
-    return try located(at: nameRange) {
+    let errorRange =
+      arguments.count == 1
+      ? arguments[0].range
+      : nameRange
+    return try located(at: errorRange) {
       switch function {
       case .absoluteValue:
         return try operations.absoluteValue(values[0])
@@ -238,7 +242,7 @@ private struct EvaluationWorker {
   }
 
   private func validate(_ integer: IntegerValue, at range: SourceRange) throws {
-    guard integer.storage.bitWidth <= limits.maximumIntegerBits else {
+    guard integer.storage.magnitude.bitWidth <= limits.maximumIntegerBits else {
       throw limitError(.integerBits, range: range)
     }
   }

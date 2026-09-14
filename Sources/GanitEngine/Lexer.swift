@@ -181,10 +181,15 @@ private struct Scanner {
   private mutating func diagnose(
     _ code: SyntaxDiagnostic.Code,
     from start: Int,
-    to end: Int? = nil
+    to end: Int? = nil,
+    severity: DiagnosticSeverity = .error
   ) {
     diagnostics.append(
-      SyntaxDiagnostic(code: code, range: range(from: start, to: end))
+      SyntaxDiagnostic(
+        code: code,
+        severity: severity,
+        range: range(from: start, to: end)
+      )
     )
   }
 
@@ -256,7 +261,11 @@ private struct Scanner {
         mixedDigitScriptsReported: &mixedDigitScriptsReported
       )
       if fractionalDigitCount == 0 {
-        diagnose(.missingFractionDigits, from: separator)
+        diagnose(
+          .missingFractionDigits,
+          from: separator,
+          severity: remainingInputIsWhitespace ? .incomplete : .error
+        )
       }
     }
 
@@ -285,7 +294,11 @@ private struct Scanner {
       )
 
       if exponentDigitCount == 0 {
-        diagnose(.missingExponentDigits, from: exponentStart)
+        diagnose(
+          .missingExponentDigits,
+          from: exponentStart,
+          severity: remainingInputIsWhitespace ? .incomplete : .error
+        )
       } else if let magnitude = Int(exponentDigits) {
         exponent = exponentIsNegative ? -magnitude : magnitude
       } else {
@@ -447,10 +460,18 @@ private struct Scanner {
       }
       diagnose(.invalidRadixDigit, from: invalidStart)
     } else if cursor == digitsStart {
-      diagnose(.missingRadixDigits, from: start)
+      diagnose(
+        .missingRadixDigits,
+        from: start,
+        severity: remainingInputIsWhitespace ? .incomplete : .error
+      )
     }
 
     append(.number(.integer(digits: digits, radix: radix)), from: start)
+  }
+
+  private var remainingInputIsWhitespace: Bool {
+    characters[cursor...].allSatisfy(\.isWhitespace)
   }
 
   private func decimalDigit(_ character: Character?) -> DecimalDigit? {

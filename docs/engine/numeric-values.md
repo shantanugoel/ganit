@@ -23,10 +23,14 @@ Integral powers remain exact within evaluation limits, including exact reciproca
 The evaluator supports `abs`, `min`, `max`, `round`, `floor`, `ceil`, `sqrt`, and `root`, plus `π`/`pi` and `e`. Exact roots stay exact. `round` uses the rule injected through `EvaluationContext`; trigonometric/logarithmic functions use the same context's angle and precision settings.
 
 Evaluation limits bound visited operations, integer bit width, decimal scale, power exponents, root degrees, and function arguments. Limits are checked before potentially large powers or multiplications and again on produced values.
+Exact-operation preflights use integer bit-width bounds, not floating-point
+estimates. Ambiguous one-bit boundary cases are evaluated within a bounded
+allocation and then checked exactly, so a conservative estimate does not
+reject a valid exact result.
 
 ## Errors
 
-`EngineError` carries a stable machine code, severity, zero or more exact source ranges, localization message key, optional fix-its, and typed context that does not contain user source. Low-level value construction can produce an error without a source range; the evaluator will attach expression ranges at its boundary.
+`EngineError` carries a stable machine code, severity, zero or more exact source ranges, localization message key, optional fix-its, and typed context that does not contain user source. Low-level value construction can produce an error without a source range; every source-expression failure receives one or more ranges at the evaluator boundary.
 
 Localized explanations belong to `GanitFormatting` and string catalogs. Error codes and English prose are not used as interchangeable identifiers.
 

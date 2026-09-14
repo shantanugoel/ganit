@@ -908,10 +908,10 @@ Tasks:
 
 Exit criteria:
 
-- No ordinary integer/decimal/money-intended operation uses `Double` implicitly.
-- Every failure includes code/range/message.
-- Exact versus approximate output is inspectable.
-- Core corpus and fuzz smoke tests pass under sanitizers where supported.
+- [x] No ordinary integer/decimal/money-intended operation uses `Double` implicitly.
+- [x] Every source-expression failure includes code/range/message.
+- [x] Exact versus approximate output is inspectable.
+- [x] Core corpus and fuzz smoke tests pass under sanitizers where supported.
 
 ## Phase 2 — Units and percentages
 

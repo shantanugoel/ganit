@@ -29,3 +29,10 @@ Formatting is bounded by `FormattingLimits`. The formatter preflights
 arbitrary-scale zero padding and grouping growth before allocation and throws
 `FormattingError.outputTooLong` when either output would exceed the configured
 character limit.
+
+`DiagnosticFormatter` turns syntax, evaluation, and formatting failures into
+`FormattedDiagnostic` values. The engine retains stable codes, severity,
+source ranges, fix-its, and localization-neutral typed context; the formatting
+layer resolves the code through its string catalog using the injected locale.
+The internal harness emits every syntax diagnostic and includes a concise
+message and source range for each source-expression failure.

@@ -9,6 +9,7 @@ enum GanitEngineHarness {
     let context = try fixedContext()
     let engine = CalculationEngine()
     let formatter = NumericResultFormatter(context: context)
+    let diagnosticFormatter = DiagnosticFormatter(context: context)
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.sortedKeys]
 
@@ -18,6 +19,7 @@ enum GanitEngineHarness {
           expression,
           engine: engine,
           formatter: formatter,
+          diagnosticFormatter: diagnosticFormatter,
           context: context,
           encoder: encoder
         )
@@ -28,6 +30,7 @@ enum GanitEngineHarness {
           expression,
           engine: engine,
           formatter: formatter,
+          diagnosticFormatter: diagnosticFormatter,
           context: context,
           encoder: encoder
         )
@@ -39,6 +42,7 @@ enum GanitEngineHarness {
     _ expression: String,
     engine: CalculationEngine,
     formatter: NumericResultFormatter,
+    diagnosticFormatter: DiagnosticFormatter,
     context: EvaluationContext,
     encoder: JSONEncoder
   ) throws {
@@ -46,6 +50,7 @@ enum GanitEngineHarness {
       expression,
       engine: engine,
       formatter: formatter,
+      diagnosticFormatter: diagnosticFormatter,
       context: context
     )
     let data = try encoder.encode(record)
@@ -72,6 +77,7 @@ enum GanitEngineHarness {
     _ expression: String,
     engine: CalculationEngine,
     formatter: NumericResultFormatter,
+    diagnosticFormatter: DiagnosticFormatter,
     context: EvaluationContext
   ) -> HarnessRecord {
     switch engine.evaluate(expression, context: context) {
@@ -85,34 +91,64 @@ enum GanitEngineHarness {
           fullPrecision: result.fullPrecision,
           approximate: result.isApproximate
         )
-      } catch {
+      } catch let error as FormattingError {
+        let range = engine.parse(expression, context: context).expression?.range
+        let diagnostic = diagnosticFormatter.format(
+          error,
+          ranges: range.map { [$0] } ?? []
+        )
         return HarnessRecord(
           expression: expression,
           status: .formattingFailure,
-          code: "formatting.outputTooLong",
-          messageKey: "error.formatting.outputTooLong"
+          code: diagnostic.code,
+          messageKey: error.messageKey,
+          message: diagnostic.message,
+          range: diagnostic.ranges.first.map { HarnessRange($0) }
+        )
+      } catch {
+        let range = engine.parse(expression, context: context).expression?.range
+        let formattingError = FormattingError.internalFailure
+        let diagnostic = diagnosticFormatter.format(
+          formattingError,
+          ranges: range.map { [$0] } ?? []
+        )
+        return HarnessRecord(
+          expression: expression,
+          status: .formattingFailure,
+          code: diagnostic.code,
+          messageKey: formattingError.messageKey,
+          message: diagnostic.message,
+          range: diagnostic.ranges.first.map { HarnessRange($0) }
         )
       }
 
     case .syntaxFailure(let diagnostics):
       let first = diagnostics.first
       let range = first.map { HarnessRange($0.range) }
+      let formattedDiagnostics = diagnostics.map {
+        HarnessDiagnostic(diagnosticFormatter.format($0))
+      }
       return HarnessRecord(
         expression: expression,
         status: .syntaxFailure,
         code: first?.code.rawValue,
         messageKey: first?.messageKey,
-        range: range
+        message: first.map { diagnosticFormatter.format($0).message },
+        range: range,
+        diagnostics: formattedDiagnostics
       )
 
     case .evaluationFailure(let error):
       let range = error.ranges.first.map { HarnessRange($0) }
+      let formatted = diagnosticFormatter.format(error)
       return HarnessRecord(
         expression: expression,
         status: .evaluationFailure,
         code: error.code.rawValue,
         messageKey: error.messageKey,
-        range: range
+        message: formatted.message,
+        range: range,
+        diagnostics: [HarnessDiagnostic(formatted)]
       )
     }
   }
@@ -136,6 +172,20 @@ private struct HarnessRange: Codable {
   }
 }
 
+private struct HarnessDiagnostic: Codable {
+  let code: String
+  let severity: String
+  let message: String
+  let ranges: [HarnessRange]
+
+  init(_ diagnostic: FormattedDiagnostic) {
+    code = diagnostic.code
+    severity = diagnostic.severity.rawValue
+    message = diagnostic.message
+    ranges = diagnostic.ranges.map { HarnessRange($0) }
+  }
+}
+
 private struct HarnessRecord: Codable {
   enum Status: String, Codable {
     case value
@@ -151,7 +201,9 @@ private struct HarnessRecord: Codable {
   let approximate: Bool?
   let code: String?
   let messageKey: String?
+  let message: String?
   let range: HarnessRange?
+  let diagnostics: [HarnessDiagnostic]?
 
   init(
     expression: String,
@@ -161,7 +213,9 @@ private struct HarnessRecord: Codable {
     approximate: Bool? = nil,
     code: String? = nil,
     messageKey: String? = nil,
-    range: HarnessRange? = nil
+    message: String? = nil,
+    range: HarnessRange? = nil,
+    diagnostics: [HarnessDiagnostic]? = nil
   ) {
     self.expression = expression
     self.status = status
@@ -170,6 +224,8 @@ private struct HarnessRecord: Codable {
     self.approximate = approximate
     self.code = code
     self.messageKey = messageKey
+    self.message = message
     self.range = range
+    self.diagnostics = diagnostics
   }
 }

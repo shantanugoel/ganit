@@ -1,0 +1,196 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "error.evaluation.approximationOutOfRange" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This value cannot be approximated safely." } }
+      }
+    },
+    "error.evaluation.argumentCountMismatch" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The function received the wrong number of arguments." } }
+      }
+    },
+    "error.evaluation.divisionByZero" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Cannot divide by zero." } }
+      }
+    },
+    "error.evaluation.internalFailure" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The calculation could not be completed." } }
+      }
+    },
+    "error.evaluation.invalidContext" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The calculation settings are not valid." } }
+      }
+    },
+    "error.evaluation.invalidDomain" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This operation is not defined for the given value." } }
+      }
+    },
+    "error.evaluation.nonConvergence" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The calculation did not converge." } }
+      }
+    },
+    "error.evaluation.overflow" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The result is outside the supported range." } }
+      }
+    },
+    "error.evaluation.resourceLimit.decimalScale" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The decimal scale is too large." } }
+      }
+    },
+    "error.evaluation.resourceLimit.functionArguments" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The function has too many arguments." } }
+      }
+    },
+    "error.evaluation.resourceLimit.integerBits" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The exact integer result is too large." } }
+      }
+    },
+    "error.evaluation.resourceLimit.operations" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The calculation has too many operations." } }
+      }
+    },
+    "error.evaluation.resourceLimit.powerExponent" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The power exponent is too large." } }
+      }
+    },
+    "error.evaluation.resourceLimit.rootDegree" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The root degree is too large." } }
+      }
+    },
+    "error.evaluation.resourceLimitExceeded" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The calculation exceeds a resource limit." } }
+      }
+    },
+    "error.evaluation.unknownFunction" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This function is not defined." } }
+      }
+    },
+    "error.evaluation.unknownIdentifier" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This identifier is not defined." } }
+      }
+    },
+    "error.formatting.internalFailure" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The result could not be formatted." } }
+      }
+    },
+    "error.formatting.outputTooLong" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The formatted result is too long to display." } }
+      }
+    },
+    "error.numeric.integerLiteralTooLong" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The integer has too many digits." } }
+      }
+    },
+    "error.numeric.invalidApproximationPrecision" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The requested precision is not supported." } }
+      }
+    },
+    "error.numeric.invalidDecimalScale" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The decimal scale is not valid." } }
+      }
+    },
+    "error.numeric.invalidIntegerLiteral" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The integer is not valid." } }
+      }
+    },
+    "error.numeric.negativeApproximationErrorBound" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "An approximation error bound cannot be negative." } }
+      }
+    },
+    "error.numeric.nonFiniteApproximation" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The approximation is not finite." } }
+      }
+    },
+    "error.numeric.zeroDenominator" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "A fraction denominator cannot be zero." } }
+      }
+    },
+    "syntax.expectedArgumentSeparator" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Separate function arguments." } }
+      }
+    },
+    "syntax.expectedClosingParenthesis" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add a closing parenthesis." } }
+      }
+    },
+    "syntax.expectedExpression" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Enter an expression here." } }
+      }
+    },
+    "syntax.exponentOutOfRange" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The exponent is too large." } }
+      }
+    },
+    "syntax.invalidRadixDigit" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This digit is not valid for the number's radix." } }
+      }
+    },
+    "syntax.missingExponentDigits" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Enter digits in the exponent." } }
+      }
+    },
+    "syntax.missingFractionDigits" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Enter digits after the decimal separator." } }
+      }
+    },
+    "syntax.missingRadixDigits" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Enter digits after the radix prefix." } }
+      }
+    },
+    "syntax.mixedDigitScripts" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Use one digit script within each number." } }
+      }
+    },
+    "syntax.resourceLimitExceeded" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The expression is too complex." } }
+      }
+    },
+    "syntax.unexpectedCharacter" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This character is not valid in an expression." } }
+      }
+    },
+    "syntax.unexpectedToken" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This part of the expression is unexpected." } }
+      }
+    }
+  },
+  "version" : "1.0"
+}
