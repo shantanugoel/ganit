@@ -49,5 +49,8 @@ jobs:
       - name: Build application bundle
         run: ./scripts/build-app.sh release
 
+      - name: Smoke test application launch
+        run: ./scripts/measure-launch.sh 1
+
       - name: Validate application bundle
         run: ./scripts/verify-app.sh

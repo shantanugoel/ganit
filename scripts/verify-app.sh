@@ -23,7 +23,7 @@ test "$privacy_declaration" = '{"NSPrivacyCollectedDataTypes":[],"NSPrivacyTrack
 source_entitlements=$(plutil -convert json -o - App/Ganit.entitlements)
 test "$source_entitlements" = '{"com.apple.security.app-sandbox":true}'
 signed_entitlements=$(
-  codesign -d --entitlements :- "$application" 2>/dev/null |
+  codesign -d --entitlements - --xml "$application" 2>/dev/null |
     plutil -convert json -o - -
 )
 test "$signed_entitlements" = "$source_entitlements"

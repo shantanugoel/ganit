@@ -73,6 +73,12 @@ swift run --configuration release GanitBenchmarks --list
 
 The Phase 0 harness reports every target as unavailable. It must not be cited as performance evidence until the implementing phase adds real fixtures and measurements as described in [`Benchmarks/README.md`](Benchmarks/README.md).
 
+Measure process start to a visible Workspace window after building the release app:
+
+```sh
+./scripts/measure-launch.sh 20
+```
+
 ## Engineering expectations
 
 - Use Swift 6 language mode and adopt strict concurrency per module.

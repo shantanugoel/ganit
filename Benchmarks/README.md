@@ -16,3 +16,7 @@ Running the executable without `--list` fails until Phase 1 adds a real expressi
 - avoid timing fixture loading, process launch, or unrelated setup unless that is the named metric.
 
 The seven listed targets are unavailable, not passing. Their corpus population and assertions belong to the phases that implement the corresponding semantics.
+
+Recorded measurements:
+
+- [Phase 0 release baseline](Results/phase-0.md)
