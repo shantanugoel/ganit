@@ -90,3 +90,16 @@ recent sheet only when no window was restored.
 answers the editor shows once evaluation settles (`exportedLines()`), including
 exchange rates and definitions, and reports failures with their messages
 rather than hiding them. `SheetDocumentRenderer` produces all of them.
+
+## Spotlight
+
+**Ganit ▸ Show Sheet Titles in Spotlight** is off by default. When it is on,
+`SpotlightTitleIndex` gives Spotlight the title of each active sheet, and
+nothing else: no source, answers, folders, or dates, and no archived or
+trashed sheets. Choosing a result opens that sheet in a window.
+
+The library reports every save, organizing change, import, and deletion
+(`SheetLibrary.sheetsDidChange`), and the index sends Spotlight only the titles
+that changed and the sheets that are gone. Its first update after launch
+replaces everything in Ganit's Spotlight domain, so sheets deleted while the
+app was closed disappear too. Turning the option off removes every item.

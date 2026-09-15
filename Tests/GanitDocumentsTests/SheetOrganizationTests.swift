@@ -14,6 +14,24 @@ struct SheetOrganizationTests {
   )
 
   @Test
+  func reportsEverySheetChange() throws {
+    let library = try SheetLibrary(root: root)
+    var changes = 0
+    library.sheetsDidChange = { changes += 1 }
+
+    var metadata = try library.create(preferences: .standard)
+    changes = 0
+    metadata = try library.save(source: "1", metadata: metadata)
+    #expect(changes == 1)
+    _ = try library.rename(metadata.id, to: "Rent")
+    #expect(changes == 2)
+    _ = try library.update(metadata.id) { $0.state = .trashed }
+    #expect(changes == 3)
+    try library.emptyTrash()
+    #expect(changes == 4)
+  }
+
+  @Test
   func renamedTitlesPersistUntilCleared() throws {
     let library = try SheetLibrary(root: root)
     var sheet = try library.save(

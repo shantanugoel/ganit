@@ -1081,6 +1081,16 @@
         }
       }
     },
+    "menu.spotlightTitles" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Sheet Titles in Spotlight"
+          }
+        }
+      }
+    },
     "menu.stop" : {
       "localizations" : {
         "en" : {

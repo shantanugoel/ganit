@@ -10,6 +10,7 @@ import GanitEditorUI
   func toggleQuickGanitStartsEmpty(_ sender: Any?)
   func updateExchangeRates(_ sender: Any?)
   func toggleAutomaticExchangeRateUpdates(_ sender: Any?)
+  func toggleSpotlightTitles(_ sender: Any?)
 }
 
 /// Actions handled by the Quick Ganit panel while it is key.
@@ -91,6 +92,10 @@ public enum MainMenu {
           item(
             localized("menu.about", "About Ganit"),
             #selector(NSApplication.orderFrontStandardAboutPanel(_:))),
+          .separator(),
+          item(
+            localized("menu.spotlightTitles", "Show Sheet Titles in Spotlight"),
+            #selector(ApplicationCommands.toggleSpotlightTitles(_:))),
           .separator(),
           servicesItem,
           .separator(),

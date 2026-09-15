@@ -1090,7 +1090,7 @@ Tasks in priority order:
 - [x] URL callbacks with input/security limits. `ganit://x-callback-url/calculate` answers one bounded expression to an `x-success` or `x-error` callback; see docs/integration/headless-answers.md.
 - [x] Quick Look, print/PDF/CSV/HTML exports. Exported `.ganit` packages embed Quick Look previews shown by the system package previewer; see docs/workspace/library.md.
 - [x] CLI linked to the same engine. `ganit` answers an expression or a sheet from standard input through `ExpressionCalculation` and ships in `Contents/Helpers`; see docs/integration/headless-answers.md.
-- [ ] Optional title-only Spotlight index.
+- [x] Optional title-only Spotlight index. Off by default; indexes active sheet titles only and opens results; see docs/workspace/library.md.
 
 Exit criteria:
 

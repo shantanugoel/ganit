@@ -40,6 +40,8 @@ public struct BackupPolicy: Equatable, Sendable {
 /// recovers sheet metadata from the canonical source files and rebuilds the
 /// index.
 public final class SheetLibrary {
+  /// Called after any sheet is saved, organized, imported, or deleted.
+  public var sheetsDidChange: (() -> Void)?
   /// `~/Library/Application Support/<bundle id>`, holding the library, the
   /// quick buffer, and exchange-rate snapshots.
   public static func applicationSupportRoot() throws -> URL {
@@ -99,6 +101,7 @@ public final class SheetLibrary {
     }
     let result = try change()
     try FileManager.default.removeItem(at: unsyncedMarker)
+    sheetsDidChange?()
     return result
   }
 

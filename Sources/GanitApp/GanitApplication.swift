@@ -22,6 +22,8 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   private var quickBufferStore: TextDocumentStore?
   private var rateRefresher: RateRefresher?
   private var serviceProvider: ExpressionServiceProvider?
+  private let spotlight = SpotlightTitleIndex()
+  private static let spotlightDefaultsKey = "SpotlightIndexesSheetTitles"
   private var shortcutWindow: NSWindow?
   private lazy var hotKey = GlobalHotKey { [weak self] in
     self?.toggleQuickGanit()
@@ -62,6 +64,10 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
         self?.quickPanel?.editor.setDefinitions(definitions)
       }
       rateRefresher = refresher
+      workspace.library.sheetsDidChange = { [weak self] in
+        self?.updateSpotlight()
+      }
+      updateSpotlight()
     } catch {
       NSApplication.shared.presentError(error)
       NSApplication.shared.terminate(nil)
@@ -214,8 +220,45 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       !rateRefresher.isAutomatic, forKey: Self.manualExchangeRatesDefaultsKey)
   }
 
+  // MARK: Spotlight
+
+  /// Turns the title-only Spotlight index on or off.
+  @objc func toggleSpotlightTitles(_ sender: Any?) {
+    let isOn = !UserDefaults.standard.bool(forKey: Self.spotlightDefaultsKey)
+    UserDefaults.standard.set(isOn, forKey: Self.spotlightDefaultsKey)
+    if isOn {
+      updateSpotlight()
+    } else {
+      spotlight.removeAll()
+    }
+  }
+
+  private func updateSpotlight() {
+    guard UserDefaults.standard.bool(forKey: Self.spotlightDefaultsKey),
+      let summaries = try? workspace?.library.index.summaries()
+    else {
+      return
+    }
+    spotlight.update(summaries)
+  }
+
+  /// Opens the sheet a Spotlight result names.
+  func application(
+    _ application: NSApplication,
+    continue userActivity: NSUserActivity,
+    restorationHandler: @escaping ([any NSUserActivityRestoring]) -> Void
+  ) -> Bool {
+    guard let id = SpotlightTitleIndex.sheetID(from: userActivity), let workspace else {
+      return false
+    }
+    workspace.openWindow(showing: id)
+    return true
+  }
+
   func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
     switch menuItem.action {
+    case #selector(toggleSpotlightTitles(_:)):
+      menuItem.state = UserDefaults.standard.bool(forKey: Self.spotlightDefaultsKey) ? .on : .off
     case #selector(toggleQuickGanitStartsEmpty(_:)):
       menuItem.state = UserDefaults.standard.bool(forKey: Self.startsEmptyDefaultsKey) ? .on : .off
     case #selector(toggleAutomaticExchangeRateUpdates(_:)):
