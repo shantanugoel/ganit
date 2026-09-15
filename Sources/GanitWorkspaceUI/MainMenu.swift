@@ -1,6 +1,13 @@
 import AppKit
 import GanitEditorUI
 
+/// Application actions handled by the application delegate.
+@MainActor
+@objc public protocol ApplicationCommands {
+  func showQuickGanit(_ sender: Any?)
+  func showQuickGanitShortcut(_ sender: Any?)
+}
+
 /// Library and sheet actions handled by workspace windows. The application
 /// delegate also handles New Sheet when no window is open.
 @MainActor
@@ -37,6 +44,15 @@ public enum MainMenu {
         item(
           localized("menu.minimize", "Minimize"), #selector(NSWindow.performMiniaturize(_:)), "m"),
         item(localized("menu.zoom", "Zoom"), #selector(NSWindow.performZoom(_:))),
+        .separator(),
+        .separator(),
+        item(
+          localized("menu.quickGanit", "Quick Ganit"),
+          #selector(ApplicationCommands.showQuickGanit(_:))),
+        item(
+          localized("menu.quickGanitShortcut", "Quick Ganit Shortcut…"),
+          #selector(ApplicationCommands.showQuickGanitShortcut(_:))
+        ),
         .separator(),
         item(
           localized("menu.bringAllToFront", "Bring All to Front"),

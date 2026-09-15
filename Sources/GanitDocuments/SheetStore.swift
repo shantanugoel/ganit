@@ -31,6 +31,23 @@ public struct SheetPreferences: Codable, Equatable, Sendable {
   }
 }
 
+extension SheetPreferences {
+  /// The evaluation context these preferences describe, with the current time
+  /// zone and `now`.
+  public func evaluationContext(now: Date = Date()) throws -> EvaluationContext {
+    try EvaluationContext(
+      localeIdentifier: localeIdentifier,
+      // English grammar with `en-US` separators is the only lexing syntax so far.
+      lexingConfiguration: .englishUnitedStates,
+      angleMode: angleMode,
+      precision: PrecisionContext(significantDecimalDigits: significantDecimalDigits),
+      now: now,
+      calendar: Calendar(identifier: .gregorian),
+      timeZone: TimeZone(identifier: TimeZone.current.identifier) ?? .gmt
+    )
+  }
+}
+
 /// Small, versioned metadata stored beside a sheet's canonical source.
 public struct SheetMetadata: Codable, Equatable, Sendable {
   public static let currentSchemaVersion = 1

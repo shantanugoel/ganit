@@ -1,7 +1,6 @@
 import AppKit
 import GanitDocuments
 import GanitEditorUI
-import GanitEngine
 
 /// A sheet open in the app: its editor, which owns the text and undo history,
 /// and its autosaver. A sheet is shown in at most one window at a time.
@@ -84,7 +83,7 @@ public final class Workspace {
     let stored = try library.store.load(id: id)
     let editor = SheetEditorViewController(
       text: stored.source,
-      context: try Self.context(for: stored.metadata.preferences)
+      context: try stored.metadata.preferences.evaluationContext()
     )
     editor.textView.isEditable = stored.metadata.state != .trashed
     let autosaver = SheetAutosaver(
@@ -141,19 +140,6 @@ public final class Workspace {
     for window in windows {
       window.libraryDidChange()
     }
-  }
-
-  private static func context(for preferences: SheetPreferences) throws -> EvaluationContext {
-    try EvaluationContext(
-      localeIdentifier: preferences.localeIdentifier,
-      // English grammar with `en-US` separators is the only lexing syntax so far.
-      lexingConfiguration: .englishUnitedStates,
-      angleMode: preferences.angleMode,
-      precision: PrecisionContext(significantDecimalDigits: preferences.significantDecimalDigits),
-      now: Date(),
-      calendar: Calendar(identifier: .gregorian),
-      timeZone: TimeZone(identifier: TimeZone.current.identifier) ?? .gmt
-    )
   }
 }
 

@@ -681,6 +681,26 @@
         }
       }
     },
+    "menu.quickGanit" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quick Ganit"
+          }
+        }
+      }
+    },
+    "menu.quickGanitShortcut" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quick Ganit Shortcut…"
+          }
+        }
+      }
+    },
     "menu.quit" : {
       "localizations" : {
         "en" : {
@@ -881,6 +901,16 @@
         }
       }
     },
+    "quick.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quick Ganit"
+          }
+        }
+      }
+    },
     "restore.cancel" : {
       "localizations" : {
         "en" : {
@@ -977,6 +1007,106 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Untitled"
+          }
+        }
+      }
+    },
+    "shortcut.conflict.menu" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ganit's “%@” command uses this shortcut."
+          }
+        }
+      }
+    },
+    "shortcut.conflict.other" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Another app is already using this shortcut."
+          }
+        }
+      }
+    },
+    "shortcut.conflict.system" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "macOS uses this shortcut, so it may not reach Ganit."
+          }
+        }
+      }
+    },
+    "shortcut.explanation" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a shortcut that opens Quick Ganit from any app. Click the field and press the keys, including at least one modifier."
+          }
+        }
+      }
+    },
+    "shortcut.noConflicts" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No known conflicts."
+          }
+        }
+      }
+    },
+    "shortcut.none" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quick Ganit stays available from the Window menu."
+          }
+        }
+      }
+    },
+    "shortcut.record" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record Shortcut"
+          }
+        }
+      }
+    },
+    "shortcut.recorder" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quick Ganit shortcut"
+          }
+        }
+      }
+    },
+    "shortcut.remove" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Shortcut"
+          }
+        }
+      }
+    },
+    "shortcut.save" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use Shortcut"
           }
         }
       }

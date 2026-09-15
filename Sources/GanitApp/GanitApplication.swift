@@ -1,5 +1,6 @@
 import AppKit
 import GanitDocuments
+import GanitQuickUI
 import GanitWorkspaceUI
 
 #if !arch(arm64)
@@ -8,9 +9,15 @@ import GanitWorkspaceUI
 
 @main
 @MainActor
-final class GanitApplication: NSObject, NSApplicationDelegate {
+final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationCommands {
+  private static let shortcutDefaultsKey = "QuickGanitShortcut"
   private static var retainedDelegate: GanitApplication?
   private var workspace: Workspace?
+  private var quickPanel: QuickPanelController?
+  private var shortcutWindow: NSWindow?
+  private lazy var hotKey = GlobalHotKey { [weak self] in
+    self?.toggleQuickGanit()
+  }
 
   static func main() {
     let application = NSApplication.shared
@@ -43,6 +50,11 @@ final class GanitApplication: NSObject, NSApplicationDelegate {
 
   /// Opens the most recent sheet when no window was restored.
   func applicationDidFinishLaunching(_ notification: Notification) {
+    if let data = UserDefaults.standard.data(forKey: Self.shortcutDefaultsKey),
+      let shortcut = try? JSONDecoder().decode(KeyboardShortcut.self, from: data)
+    {
+      try? hotKey.register(shortcut)
+    }
     if let workspace, workspace.windows.isEmpty {
       let recent = try? workspace.library.index.summaries().first { $0.state == .active }
       if let recent {
@@ -66,6 +78,48 @@ final class GanitApplication: NSObject, NSApplicationDelegate {
         application.presentError(error)
       }
     }
+  }
+
+  // MARK: Quick Ganit
+
+  @objc func showQuickGanit(_ sender: Any?) {
+    quickGanit()?.show()
+  }
+
+  @objc func showQuickGanitShortcut(_ sender: Any?) {
+    if let shortcutWindow {
+      shortcutWindow.makeKeyAndOrderFront(nil)
+      return
+    }
+    let settings = ShortcutSettingsController(hotKey: hotKey, menu: NSApplication.shared.mainMenu) {
+      shortcut in
+      let defaults = UserDefaults.standard
+      if let shortcut, let data = try? JSONEncoder().encode(shortcut) {
+        defaults.set(data, forKey: Self.shortcutDefaultsKey)
+      } else {
+        defaults.removeObject(forKey: Self.shortcutDefaultsKey)
+      }
+    }
+    let window = NSWindow(contentViewController: settings)
+    window.title = String(
+      localized: "menu.quickGanitShortcut", defaultValue: "Quick Ganit Shortcut…", bundle: .main)
+    window.styleMask = [.titled, .closable]
+    window.isReleasedWhenClosed = false
+    window.center()
+    window.makeKeyAndOrderFront(nil)
+    shortcutWindow = window
+  }
+
+  private func toggleQuickGanit() {
+    quickGanit()?.toggle()
+  }
+
+  /// The Quick Ganit panel, created on first use.
+  private func quickGanit() -> QuickPanelController? {
+    if quickPanel == nil {
+      quickPanel = try? QuickPanelController(context: SheetPreferences.standard.evaluationContext())
+    }
+    return quickPanel
   }
 
   func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {

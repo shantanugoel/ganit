@@ -303,6 +303,12 @@ final class SheetTextView: NSTextView {
     }
   }
 
+  /// Escape cancels up the responder chain, such as dismissing Quick Ganit,
+  /// instead of offering text completion; it never changes the source.
+  override func complete(_ sender: Any?) {
+    nextResponder?.tryToPerform(#selector(cancelOperation(_:)), with: sender)
+  }
+
   override func copy(_ sender: Any?) {
     guard selectedAnswer != nil else {
       super.copy(sender)
