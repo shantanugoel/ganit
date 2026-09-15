@@ -46,6 +46,7 @@ public final class SheetEditorViewController: NSViewController {
 
   private var context: EvaluationContext
   private let scrollView = NSScrollView()
+  let summaryBar = SelectionSummaryBar()
   private let sheetTextView = SheetTextView(usingTextLayoutManager: true)
   private let storageObserver = StorageObserver()
   private(set) var scheduler: SheetEvaluationScheduler?
@@ -139,7 +140,18 @@ public final class SheetEditorViewController: NSViewController {
   }
 
   public override func loadView() {
-    view = scrollView
+    let container = NSView(frame: scrollView.frame)
+    container.addSubview(scrollView)
+    container.addSubview(summaryBar)
+    view = container
+  }
+
+  public override func viewDidLayout() {
+    super.viewDidLayout()
+    let height = summaryBar.fittingHeight
+    summaryBar.frame = NSRect(x: 0, y: 0, width: view.bounds.width, height: height)
+    scrollView.frame = NSRect(
+      x: 0, y: height, width: view.bounds.width, height: view.bounds.height - height)
   }
 
   public override func viewDidAppear() {
@@ -252,6 +264,7 @@ public final class SheetEditorViewController: NSViewController {
   }
 
   fileprivate func selectionDidChange() {
+    summarizeSelection()
     let line = sheet.lines[lineIndex(atUTF16: textView.selectedRange().location)].id
     guard line != editingLine else {
       return
@@ -262,6 +275,46 @@ public final class SheetEditorViewController: NSViewController {
       decorate(index)
     }
     sheetTextView.answersDidChange()
+  }
+
+  /// Shows what the selected lines add up to, for a selection covering more
+  /// than one answer. Answers that cannot be added, such as money and metres,
+  /// leave their count alone.
+  private func summarizeSelection() {
+    let selection = textView.selectedRange()
+    // An insertion point covers one line at most, which keeps moving it and
+    // typing off this path entirely.
+    guard selection.length > 0 else {
+      summaryBar.summary = nil
+      view.needsLayout = true
+      return
+    }
+    let values = zip(sheet.lines, utf16Starts()).compactMap { line, start -> EngineValue? in
+      guard start < selection.upperBound, start + line.text.utf16.count > selection.location,
+        case .value(let value) = shownLines[line.id]?.result.result
+      else {
+        return nil
+      }
+      return value
+    }
+    guard values.count > 1 else {
+      summaryBar.summary = nil
+      view.needsLayout = true
+      return
+    }
+    let evaluator = Evaluator(context: context)
+    func formatted(_ aggregate: Aggregate) -> String? {
+      guard let value = try? evaluator.aggregating(aggregate, of: values) else {
+        return nil
+      }
+      return (try? resultFormatter.format(value))?.display
+    }
+    summaryBar.summary = SelectionSummary(
+      count: values.count,
+      total: formatted(.sum),
+      average: formatted(.average)
+    )
+    view.needsLayout = true
   }
 
   private func show(_ evaluation: SheetEvaluation, of snapshot: SheetSource) {
@@ -297,6 +350,7 @@ public final class SheetEditorViewController: NSViewController {
       decorate(index)
     }
     sheetTextView.answersDidChange()
+    summarizeSelection()
   }
 
   /// The formatted value of a line, or the message of a failure its
@@ -546,7 +600,7 @@ private final class StorageObserver: NSObject, @preconcurrency NSTextStorageDele
   }
 }
 
-private func localized(_ key: StaticString, _ defaultValue: String.LocalizationValue) -> String {
+func localized(_ key: StaticString, _ defaultValue: String.LocalizationValue) -> String {
   String(localized: key, defaultValue: defaultValue, bundle: .main)
 }
 

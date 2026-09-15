@@ -40,6 +40,19 @@ public struct Evaluator: Sendable {
     try evaluateTracing(expression).result.get()
   }
 
+  /// The aggregate of these values, computed as a `total`, `average`, or
+  /// `median` line computes it, for a caller that picked the values itself,
+  /// such as a selection in the editor.
+  public func aggregating(_ aggregate: Aggregate, of values: [EngineValue]) throws -> EngineValue {
+    try EvaluationWorker(
+      context: context,
+      limits: limits,
+      variables: variables,
+      lines: lines,
+      manualRates: manualRates
+    ).evaluate(aggregate, of: values)
+  }
+
   /// The result and what evaluation read besides its inputs.
   func evaluateTracing(_ expression: Expression) -> (
     result: Result<EngineValue, any Error>, trace: EvaluationTrace
@@ -613,7 +626,7 @@ private struct EvaluationWorker {
     }
   }
 
-  private func evaluate(
+  func evaluate(
     _ aggregate: Aggregate,
     of values: [EngineValue]
   ) throws -> EngineValue {

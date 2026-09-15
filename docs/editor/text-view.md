@@ -103,6 +103,25 @@ full precision, value kind, and exactness; for a failure it lists the
 expression, message, and stable diagnostic code. Unit conversions, provenance,
 time zones, and references join the card as those details become available.
 
+## Selection summary
+
+A bar below the sheet shows what the selected lines add up to: the number of
+answers the selection covers, and their total and average. It appears only
+while a selection covers more than one answer, because a single answer is
+already beside its line, and it takes the editor's bottom edge while it is
+there.
+
+A line contributes its answer when the selection reaches any part of it, so a
+selection dragged partway through the first and last lines still counts them.
+Lines without an answer — blank lines, headings, comments, labels, and
+failures — contribute nothing. Totals and averages follow the same rules as a
+[`total` line](../grammar/references.md), so answers that cannot be added,
+such as money and metres, leave the bar showing their count alone.
+
+The bar is static text labeled "Selection summary" for accessibility, with no
+action of its own; a sheet's own `total`, `average`, and `subtotal` lines
+remain the way to keep a sum.
+
 ## Text size, appearance, and accessibility
 
 View ▸ Bigger, Smaller, and Actual Size step the editor's text scale through

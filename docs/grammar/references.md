@@ -55,3 +55,11 @@ block are `0`.
 
 The parser treats references as numbers when choosing phrase grammar, so use
 parentheses or a variable for percentage phrases over a referenced percentage.
+
+## Selecting lines instead
+
+Selecting lines in the editor shows their count, total, and average in a
+[summary bar](../editor/text-view.md) without writing anything. A selection is
+not a block: it counts every answer it touches, in any order, across blank
+lines, headings, and dividers, and it reads the answers already on screen. The
+values themselves are aggregated by the same rules as above.
