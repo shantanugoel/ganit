@@ -27,6 +27,9 @@ cmp -s \
 cmp -s \
   ThirdPartyNotices/BigInt-LICENSE.md \
   "$application/Contents/Resources/BigInt-LICENSE.md"
+cmp -s \
+  ThirdPartyNotices/UnitSources.md \
+  "$application/Contents/Resources/UnitSources.md"
 privacy_declaration=$(plutil -convert json -o - "$privacy_manifest")
 test "$privacy_declaration" = '{"NSPrivacyCollectedDataTypes":[],"NSPrivacyTracking":false}'
 

@@ -19,6 +19,7 @@ if [[ $(uname -m) != "arm64" ]]; then
 fi
 
 cd "$repository_root"
+./scripts/verify-unit-attribution.sh
 plutil -lint App/Info.plist >/dev/null
 plutil -lint App/Ganit.entitlements >/dev/null
 plutil -lint App/PrivacyInfo.xcprivacy >/dev/null
@@ -51,6 +52,9 @@ install -m 0644 App/PrivacyInfo.xcprivacy "$staging/Contents/Resources/PrivacyIn
 install -m 0644 \
     ThirdPartyNotices/BigInt-LICENSE.md \
     "$staging/Contents/Resources/BigInt-LICENSE.md"
+install -m 0644 \
+    ThirdPartyNotices/UnitSources.md \
+    "$staging/Contents/Resources/UnitSources.md"
 xcrun xcstringstool compile \
     App/Resources/Localizable.xcstrings \
     --output-directory "$staging/Contents/Resources"

@@ -3,6 +3,11 @@ public enum UnitTransform: Hashable, Sendable {
   case affine(scale: NumericValue, offset: NumericValue)
 }
 
+public enum UnitPrefixFamily: String, Hashable, Sendable {
+  case decimal
+  case binary
+}
+
 public struct UnitDefinition: Hashable, Sendable {
   public static let maximumIdentifierLength = 128
   public static let maximumSymbolLength = 64
@@ -11,14 +16,14 @@ public struct UnitDefinition: Hashable, Sendable {
   public let symbol: String
   public let dimension: Dimension
   public let transform: UnitTransform
-  public let allowsPrefixes: Bool
+  public let allowedPrefixFamilies: Set<UnitPrefixFamily>
 
   public init(
     canonicalIdentifier: String,
     symbol: String,
     dimension: Dimension,
     transform: UnitTransform,
-    allowsPrefixes: Bool = false
+    allowedPrefixFamilies: Set<UnitPrefixFamily> = []
   ) throws {
     guard
       !canonicalIdentifier.isEmpty,
@@ -30,7 +35,7 @@ public struct UnitDefinition: Hashable, Sendable {
       throw EngineError(code: .invalidUnitDefinition)
     }
     if case .affine = transform {
-      guard dimension == .temperature, !allowsPrefixes else {
+      guard dimension == .temperature, allowedPrefixFamilies.isEmpty else {
         throw EngineError(code: .invalidUnitDefinition)
       }
     }
@@ -38,7 +43,7 @@ public struct UnitDefinition: Hashable, Sendable {
     self.symbol = symbol
     self.dimension = dimension
     self.transform = transform
-    self.allowsPrefixes = allowsPrefixes
+    self.allowedPrefixFamilies = allowedPrefixFamilies
   }
 }
 
@@ -46,11 +51,13 @@ public struct UnitPrefix: Hashable, Sendable {
   public let canonicalIdentifier: String
   public let symbol: String
   public let scale: NumericValue
+  public let family: UnitPrefixFamily
 
   public init(
     canonicalIdentifier: String,
     symbol: String,
-    scale: NumericValue
+    scale: NumericValue,
+    family: UnitPrefixFamily
   ) throws {
     guard
       !canonicalIdentifier.isEmpty,
@@ -64,6 +71,7 @@ public struct UnitPrefix: Hashable, Sendable {
     self.canonicalIdentifier = canonicalIdentifier
     self.symbol = symbol
     self.scale = scale
+    self.family = family
   }
 }
 

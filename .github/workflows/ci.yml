@@ -36,6 +36,9 @@ jobs:
       - name: Check Swift formatting
         run: ./scripts/swift-format.sh lint
 
+      - name: Verify generated unit attribution
+        run: ./scripts/verify-unit-attribution.sh
+
       - name: Test packages
         run: |
           ruby -rjson -e '

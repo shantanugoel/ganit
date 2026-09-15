@@ -27,7 +27,7 @@ public struct UnitAlgebra: Sendable {
     _ prefix: UnitPrefix,
     to definition: UnitDefinition
   ) throws -> UnitDefinition {
-    guard definition.allowsPrefixes else {
+    guard definition.allowedPrefixFamilies.contains(prefix.family) else {
       throw EngineError(code: .invalidUnitDefinition)
     }
     guard case .ratio(let scale) = definition.transform else {
@@ -45,7 +45,7 @@ public struct UnitAlgebra: Sendable {
           right: scale
         )
       ),
-      allowsPrefixes: false
+      allowedPrefixFamilies: []
     )
   }
 

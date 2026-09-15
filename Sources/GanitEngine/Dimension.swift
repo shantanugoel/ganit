@@ -44,6 +44,17 @@ public struct Dimension: Hashable, Sendable {
     exponents[base, default: 0]
   }
 
+  public var canonicalDescription: String {
+    let components = BaseDimension.allCases.compactMap { base -> String? in
+      let exponent = self[base]
+      guard exponent != 0 else {
+        return nil
+      }
+      return exponent == 1 ? base.rawValue : "\(base.rawValue)^\(exponent)"
+    }
+    return components.isEmpty ? "1" : components.joined(separator: "·")
+  }
+
   public func multiplied(by other: Dimension) throws -> Dimension {
     try combining(with: other, sign: 1)
   }

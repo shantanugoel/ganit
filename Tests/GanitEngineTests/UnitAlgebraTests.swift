@@ -314,7 +314,8 @@ struct UnitAlgebraTests {
       try UnitPrefix(
         canonicalIdentifier: "invalid",
         symbol: "x",
-        scale: integer(-1)
+        scale: integer(-1),
+        family: .decimal
       )
     }
   }
@@ -324,7 +325,7 @@ struct UnitAlgebraTests {
     symbol: "m",
     dimension: .length,
     transform: .ratio(scale: integer(1)),
-    allowsPrefixes: true
+    allowedPrefixFamilies: [.decimal]
   )
 
   private static let foot = try! UnitDefinition(
@@ -346,7 +347,7 @@ struct UnitAlgebraTests {
     symbol: "s",
     dimension: .time,
     transform: .ratio(scale: integer(1)),
-    allowsPrefixes: true
+    allowedPrefixFamilies: [.decimal]
   )
 
   private static let kilogram = try! UnitDefinition(
@@ -361,7 +362,7 @@ struct UnitAlgebraTests {
     symbol: "B",
     dimension: .data,
     transform: .ratio(scale: integer(1)),
-    allowsPrefixes: true
+    allowedPrefixFamilies: [.decimal, .binary]
   )
 
   private static let celsius = try! UnitDefinition(
@@ -406,13 +407,15 @@ struct UnitAlgebraTests {
   private static let kilo = try! UnitPrefix(
     canonicalIdentifier: "kilo",
     symbol: "k",
-    scale: integer(1_000)
+    scale: integer(1_000),
+    family: .decimal
   )
 
   private static let kibi = try! UnitPrefix(
     canonicalIdentifier: "kibi",
     symbol: "Ki",
-    scale: integer(1_024)
+    scale: integer(1_024),
+    family: .binary
   )
 
   private static func integer(_ value: Int) -> NumericValue {

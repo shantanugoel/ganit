@@ -98,6 +98,10 @@ let package = Package(
         "GanitFormatting",
       ]
     ),
+    .executableTarget(
+      name: "GanitUnitAttributionGenerator",
+      dependencies: ["GanitEngine"]
+    ),
     .testTarget(
       name: "GanitEngineTests",
       dependencies: ["GanitEngine"]
