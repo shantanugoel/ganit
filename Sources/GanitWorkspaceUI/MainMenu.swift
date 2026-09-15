@@ -7,6 +7,8 @@ import GanitEditorUI
 @objc public protocol WorkspaceCommands {
   func newSheet(_ sender: Any?)
   func openInNewWindow(_ sender: Any?)
+  func importSheets(_ sender: Any?)
+  func exportSheet(_ sender: Any?)
   func newFolder(_ sender: Any?)
   func renameSheet(_ sender: Any?)
   func duplicateSheet(_ sender: Any?)
@@ -84,6 +86,18 @@ public enum MainMenu {
           item(
             localized("menu.openInNewWindow", "Open in New Window"),
             #selector(WorkspaceCommands.openInNewWindow(_:))
+          ),
+          item(
+            localized("menu.import", "Import…"),
+            #selector(WorkspaceCommands.importSheets(_:)),
+            "o",
+            [.command, .shift]
+          ),
+          item(
+            localized("menu.export", "Export…"),
+            #selector(WorkspaceCommands.exportSheet(_:)),
+            "e",
+            [.command, .shift]
           ),
           .separator(),
           item(localized("menu.close", "Close"), #selector(NSWindow.performClose(_:)), "w"),

@@ -183,6 +183,7 @@ public struct SheetStore: Sendable {
   }()
 }
 
-private func checksum(of data: Data) -> String {
+/// `sha256:` and the lowercase hex SHA-256 digest of `data`.
+func checksum(of data: Data) -> String {
   "sha256:" + SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
 }

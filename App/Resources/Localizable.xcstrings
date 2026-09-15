@@ -51,6 +51,26 @@
         }
       }
     },
+    "export.ganit" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ganit Sheet"
+          }
+        }
+      }
+    },
+    "export.text" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plain Text"
+          }
+        }
+      }
+    },
     "folder.new" : {
       "localizations" : {
         "en" : {
@@ -411,6 +431,16 @@
         }
       }
     },
+    "menu.export" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export…"
+          }
+        }
+      }
+    },
     "menu.file" : {
       "localizations" : {
         "en" : {
@@ -517,6 +547,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Hide Others"
+          }
+        }
+      }
+    },
+    "menu.import" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import…"
           }
         }
       }

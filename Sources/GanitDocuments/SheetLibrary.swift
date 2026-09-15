@@ -38,7 +38,7 @@ public final class SheetLibrary {
   public let store: SheetStore
   public let index: SheetIndex
   private let backupPolicy: BackupPolicy
-  private let now: () -> Date
+  let now: () -> Date
   private let dayFormatter: DateFormatter
   private let folderStore: SheetFolderStore
 

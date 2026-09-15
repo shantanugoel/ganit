@@ -185,6 +185,21 @@ struct WorkspaceWindowControllerTests {
   }
 
   @Test
+  func importedSheetsAppearInOpenWindows() throws {
+    let (workspace, ids) = try makeWorkspace(["existing"])
+    defer { close(workspace) }
+    let controller = workspace.openWindow(showing: ids[0])
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+    let file = root.appending(path: "Groceries.txt")
+    try Data("# Groceries\nmilk = 3.50".utf8).write(to: file)
+
+    let imported = try workspace.importSheet(from: file)
+
+    #expect(controller.sidebar.sheets.contains { $0.id == imported && $0.title == "Groceries" })
+    #expect(try workspace.library.store.load(id: imported).source == "# Groceries\nmilk = 3.50")
+  }
+
+  @Test
   func searchNarrowsTheListedSheets() throws {
     let (workspace, ids) = try makeWorkspace(["hotel = 85", "rent = 2100"])
     defer { close(workspace) }

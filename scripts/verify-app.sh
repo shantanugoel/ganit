@@ -34,11 +34,15 @@ cmp -s \
 privacy_declaration=$(plutil -convert json -o - "$privacy_manifest")
 test "$privacy_declaration" = '{"NSPrivacyCollectedDataTypes":[],"NSPrivacyTracking":false}'
 
-source_entitlements=$(plutil -convert json -o - App/Ganit.entitlements)
-test "$source_entitlements" = '{"com.apple.security.app-sandbox":true}'
+# Entitlements are compared as key-sorted JSON.
+sorted_json() {
+  ruby -rjson -e 'puts JSON.generate(JSON.parse(STDIN.read).sort.to_h)'
+}
+source_entitlements=$(plutil -convert json -o - App/Ganit.entitlements | sorted_json)
+test "$source_entitlements" = '{"com.apple.security.app-sandbox":true,"com.apple.security.files.user-selected.read-write":true}'
 signed_entitlements=$(
   codesign -d --entitlements - --xml "$application" 2>/dev/null |
-    plutil -convert json -o - -
+    plutil -convert json -o - - | sorted_json
 )
 test "$signed_entitlements" = "$source_entitlements"
 test ! -e "$application/Contents/Frameworks"

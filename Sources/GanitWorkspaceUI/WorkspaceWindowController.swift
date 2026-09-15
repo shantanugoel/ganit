@@ -1,6 +1,7 @@
 import AppKit
 import GanitDocuments
 import GanitEditorUI
+import UniformTypeIdentifiers
 
 /// A library window: the sidebar of collections and sheets beside the open
 /// sheet's editor.
@@ -253,6 +254,58 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
       return
     }
     workspace.openWindow(showing: target)
+  }
+
+  /// Imports chosen `.ganit` packages and text files as new sheets and shows
+  /// the last one.
+  @objc public func importSheets(_ sender: Any?) {
+    guard let window else {
+      return
+    }
+    let panel = NSOpenPanel()
+    panel.allowsMultipleSelection = true
+    panel.allowedContentTypes = [.ganitSheet, .plainText]
+    panel.beginSheetModal(for: window) { [weak self] response in
+      guard response == .OK, let self else {
+        return
+      }
+      perform {
+        let imported = try panel.urls.map {
+          try self.workspace.importSheet(from: $0)
+        }
+        if let last = imported.last {
+          sidebar.show(.all)
+          show(last)
+        }
+      }
+    }
+  }
+
+  /// Exports the open sheet as a `.ganit` package or plain text.
+  @objc public func exportSheet(_ sender: Any?) {
+    guard let window, let sheetID, let title = sheet?.autosaver.metadata.title else {
+      return
+    }
+    saveNow(nil)
+    let panel = NSSavePanel()
+    let formats = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 200, height: 26), pullsDown: false)
+    formats.addItems(withTitles: [
+      localized("export.ganit", "Ganit Sheet"), localized("export.text", "Plain Text"),
+    ])
+    let types: [UTType] = [.ganitSheet, .plainText]
+    panel.allowedContentTypes = [types[0]]
+    panel.accessoryView = formats
+    panel.nameFieldStringValue = title.isEmpty ? localized("sheet.untitled", "Untitled") : title
+    let observer = FormatObserver(panel: panel, types: types)
+    formats.target = observer
+    formats.action = #selector(FormatObserver.formatChanged(_:))
+    panel.beginSheetModal(for: window) { [weak self] response in
+      withExtendedLifetime(observer) {}
+      guard response == .OK, let url = panel.url else {
+        return
+      }
+      self?.perform { try self?.library.exportSheet(sheetID, to: url) }
+    }
   }
 
   @objc public func newFolder(_ sender: Any?) {
@@ -572,5 +625,30 @@ extension WorkspaceWindowController: NSToolbarDelegate {
     default:
       return nil
     }
+  }
+}
+
+extension UTType {
+  /// A `.ganit` sheet package.
+  static let ganitSheet =
+    UTType(
+      filenameExtension: SheetExchange.packageExtension,
+      conformingTo: .package
+    ) ?? .package
+}
+
+/// Switches a save panel's file type with its format pop-up.
+@MainActor
+private final class FormatObserver: NSObject {
+  private let panel: NSSavePanel
+  private let types: [UTType]
+
+  init(panel: NSSavePanel, types: [UTType]) {
+    self.panel = panel
+    self.types = types
+  }
+
+  @objc func formatChanged(_ sender: NSPopUpButton) {
+    panel.allowedContentTypes = [types[sender.indexOfSelectedItem]]
   }
 }

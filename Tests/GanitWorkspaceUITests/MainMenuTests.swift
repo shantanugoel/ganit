@@ -24,6 +24,8 @@ struct MainMenuTests {
 
     let expected: [(Selector, String, NSEvent.ModifierFlags)] = [
       (#selector(WorkspaceCommands.newSheet(_:)), "n", .command),
+      (#selector(WorkspaceCommands.importSheets(_:)), "o", [.command, .shift]),
+      (#selector(WorkspaceCommands.exportSheet(_:)), "e", [.command, .shift]),
       (#selector(WorkspaceCommands.restorePreviousVersion(_:)), "", .command),
       (#selector(NSWindow.performClose(_:)), "w", .command),
       (Selector(("undo:")), "z", .command),

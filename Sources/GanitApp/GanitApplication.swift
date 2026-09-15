@@ -54,6 +54,20 @@ final class GanitApplication: NSObject, NSApplicationDelegate {
     NSApplication.shared.activate()
   }
 
+  /// Imports sheets opened from Finder and shows each in a window.
+  func application(_ application: NSApplication, open urls: [URL]) {
+    guard let workspace else {
+      return
+    }
+    for url in urls {
+      do {
+        workspace.openWindow(showing: try workspace.importSheet(from: url))
+      } catch {
+        application.presentError(error)
+      }
+    }
+  }
+
   func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
     true
   }

@@ -47,6 +47,24 @@ public final class Workspace {
     return controller
   }
 
+  /// Imports a `.ganit` package or text file and returns the new sheet's ID.
+  public func importSheet(from url: URL) throws -> UUID {
+    let accessing = url.startAccessingSecurityScopedResource()
+    defer {
+      if accessing {
+        url.stopAccessingSecurityScopedResource()
+      }
+    }
+    let metadata = try library.importSheet(
+      from: url,
+      preferences: WorkspaceWindowController.newSheetPreferences
+    )
+    for window in windows {
+      window.libraryDidChange()
+    }
+    return metadata.id
+  }
+
   /// Saves every open sheet's unsaved edits.
   public func saveAll() {
     for sheet in sheets.values {
