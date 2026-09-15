@@ -85,6 +85,12 @@ struct RateSnapshotStoreTests {
     let names = try FileManager.default.contentsOfDirectory(
       atPath: root.appending(path: "Snapshots").path)
     #expect(Set(names) == Set(snapshots.suffix(8).map(\.id)))
+    let size = try FileManager.default.subpathsOfDirectory(atPath: root.path).reduce(0) {
+      $0
+        + ((try FileManager.default.attributesOfItem(atPath: root.appending(path: $1).path)[.size]
+          as? Int) ?? 0)
+    }
+    #expect(size < 5_000_000)
     #expect(try store.lastKnownGood() == snapshots.last)
   }
 

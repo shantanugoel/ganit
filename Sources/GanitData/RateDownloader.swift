@@ -1,7 +1,8 @@
 import Foundation
 
 /// Downloads the ECB feed with a request that carries nothing about the user:
-/// no cookies, cache, credentials, or query, and no redirect off the ECB host.
+/// no cookies, cache, credentials, query, locale, or OS version, and no
+/// redirect off the ECB host.
 public final class RateDownloader: NSObject, URLSessionTaskDelegate, Sendable {
   private let session: URLSession
 
@@ -14,6 +15,9 @@ public final class RateDownloader: NSObject, URLSessionTaskDelegate, Sendable {
     configuration.urlCredentialStorage = nil
     configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
     configuration.timeoutIntervalForRequest = 30
+    // Replace the system defaults, which name the OS version and the
+    // user's preferred languages.
+    configuration.httpAdditionalHeaders = ["User-Agent": "Ganit", "Accept-Language": "*"]
     session = URLSession(configuration: configuration)
     super.init()
   }
@@ -29,8 +33,13 @@ public final class RateDownloader: NSObject, URLSessionTaskDelegate, Sendable {
   public func download(retrievedAt now: @Sendable () -> Date = Date.init) async throws
     -> RateSnapshot
   {
-    let (data, response) = try await session.data(for: Self.request, delegate: self)
+    let (data, response) = try await fetch(Self.request)
     return try ECBRateValidator.snapshot(from: data, response: response, retrievedAt: now())
+  }
+
+  /// Sends a request with this downloader's session and redirect policy.
+  func fetch(_ request: URLRequest) async throws -> (Data, URLResponse) {
+    try await session.data(for: request, delegate: self)
   }
 
   public func urlSession(

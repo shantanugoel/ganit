@@ -1046,7 +1046,7 @@ Tasks:
 - [x] Implement money grammar, ISO metadata, symbols and manual rates.
 - [x] Add stale/weekend/offline status and answer provenance.
 - [x] Add refresh scheduling/backoff and last-known-good rollback.
-- [ ] Verify network traffic contains no calculation text or identifiers.
+- [x] Verify network traffic contains no calculation text or identifiers.
 
 Exit criteria:
 
