@@ -193,6 +193,38 @@ struct TemporalValueTests {
         == .number(.integer(IntegerValue(6))))
   }
 
+  @Test
+  func resolvesIANAZonesAndConservativeAliases() throws {
+    let noon = Date(timeIntervalSince1970: 1_710_003_600)
+    let frozenNow = Date(timeIntervalSince1970: 1_700_000_000)
+    #expect(
+      try evaluate("now in Asia/Tokyo")
+        == .instant(InstantValue(date: frozenNow, timeZoneIdentifier: "Asia/Tokyo"))
+    )
+    #expect(
+      try evaluate("now to america/argentina/buenos_aires")
+        == .instant(
+          InstantValue(date: frozenNow, timeZoneIdentifier: "America/Argentina/Buenos_Aires"))
+    )
+    #expect(
+      try evaluate("2024-03-09T17:00Z in New York")
+        == .instant(InstantValue(date: noon, timeZoneIdentifier: "America/New_York"))
+    )
+    #expect(
+      try evaluate("2024-03-09T12:00 America/New_York")
+        == .instant(InstantValue(date: noon, timeZoneIdentifier: "America/New_York"))
+    )
+    #expect(
+      try evaluate("2024-03-10T02:00 tokyo - 2024-03-09T12:00 New York")
+        == .quantity(try duration(0))
+    )
+    #expect(try error("today in Tokyo").code == .typeMismatch)
+    for source in ["now in EST", "now in Mars", "now in Asia/Atlantis", "now in"] {
+      #expect(Parser(source: source).parse().diagnostics.map(\.code) == [.unknownTimeZone])
+    }
+    #expect(Set(TimeZoneNames.aliases.values).allSatisfy { TimeZone(identifier: $0) != nil })
+  }
+
   private func evaluate(
     _ source: String, _ values: [String: EngineValue?] = [:], zone: String = "UTC"
   ) throws -> EngineValue {

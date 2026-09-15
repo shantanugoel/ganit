@@ -1,6 +1,6 @@
 # Ambiguity registry
 
-**Registry version:** 2
+**Registry version:** 3
 
 This registry records how the English grammar resolves inputs that could
 reasonably mean more than one thing. Every entry is pinned by named cases in
@@ -88,7 +88,8 @@ unit meaning.
 
 ## `dates` — date and time input versus arithmetic and units
 
-Added in registry version 2; see [date and time syntax](date-syntax.md).
+Added in registry version 2, with zones in version 3; see
+[date and time syntax](date-syntax.md).
 
 - Exactly four digits, `-`, two digits, `-`, two digits is an ISO date, not
   subtraction: `2024-03-09` is March 9, 2024. Other digit counts stay
@@ -100,3 +101,8 @@ Added in registry version 2; see [date and time syntax](date-syntax.md).
   the month's name is used instead.
 - `today`, `tomorrow`, `yesterday`, `now`, and `ago` are keywords and cannot
   be variable names.
+- `in`, `to`, `as`, or `into` followed by a time zone shows an instant in that
+  zone: `now in Tokyo`. After an instant, a word that is not a zone fails with
+  `syntax.unknownTimeZone` instead of being read as a unit.
+- Zone abbreviations are not zones: `now in EST` fails, because `EST`, `IST`,
+  and `CST` each name several offsets or regions.

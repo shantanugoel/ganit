@@ -286,6 +286,8 @@ struct ParserTests {
       return "\(shape(count)) \(unit.rawValue)"
     case .temporal(let literal, _):
       return "\(literal)"
+    case .zoneConversion(let value, let zone, _):
+      return "(\(shape(value)) in \(zone))"
     case .relative(let offset, let isPast, _):
       return "(\(shape(offset)) \(isPast ? "ago" : "from now"))"
     case .conversion(let value, let target, _, _):

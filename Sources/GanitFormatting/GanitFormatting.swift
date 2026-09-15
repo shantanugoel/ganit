@@ -701,6 +701,11 @@ public struct DiagnosticFormatter: Sendable {
         "syntax.unknownUnit",
         defaultValue: "This unit is not recognized."
       )
+    case .unknownTimeZone:
+      return localized(
+        "syntax.unknownTimeZone",
+        defaultValue: "Enter a time zone such as Asia/Tokyo or a listed city."
+      )
     case .invalidUnitExponent:
       return localized(
         "syntax.invalidUnitExponent",

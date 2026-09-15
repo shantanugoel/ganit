@@ -10,16 +10,24 @@ public enum NumericLiteral: Equatable, Sendable {
   case decimal(digits: String, fractionalDigitCount: Int, exponent: Int)
 }
 
+/// The zone of a written date and time.
+public enum TemporalZone: Equatable, Sendable {
+  /// A UTC offset in seconds.
+  case offset(Int)
+  /// An IANA zone identifier.
+  case named(String)
+}
+
 /// A date or time written in ISO 8601 form, or in an English phrase. Fields
 /// are validated when evaluated.
 public enum TemporalLiteral: Equatable, Sendable {
   /// A calendar date; a `nil` year is the current year.
   case date(year: Int?, month: Int, day: Int)
   case time(hour: Int, minute: Int, second: Int)
-  /// A wall-clock date and time, in the evaluation time zone unless a UTC
-  /// offset in seconds is given.
+  /// A wall-clock date and time, in the evaluation time zone unless a zone is
+  /// given.
   case dateTime(
-    year: Int, month: Int, day: Int, hour: Int, minute: Int, second: Int, offset: Int?)
+    year: Int, month: Int, day: Int, hour: Int, minute: Int, second: Int, zone: TemporalZone?)
   /// Today moved by a number of days: `yesterday`, `today`, `tomorrow`.
   case relativeDay(Int)
   case now

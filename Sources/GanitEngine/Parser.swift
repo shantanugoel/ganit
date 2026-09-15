@@ -290,6 +290,29 @@ private struct TokenParser {
       if 1 >= minimumBindingPower,
         let keyword = identifier(at: 0),
         ["in", "to", "as", "into"].contains(keyword),
+        timeZone(at: 1) != nil || inferredKind(of: left) == .instant
+      {
+        let keywordRange = advance().range
+        guard let (zone, tokenCount) = timeZone(at: 0) else {
+          if current.isEndOfInput {
+            diagnose(.unknownTimeZone, at: keywordRange.union(current.range), severity: .incomplete)
+          } else {
+            diagnose(.unknownTimeZone, at: advance().range)
+          }
+          return left
+        }
+        var end = current.range
+        for _ in 0..<tokenCount {
+          end = advance().range
+        }
+        left = .zoneConversion(value: left, zone: zone, range: left.range.union(end))
+        depth += 1
+        continue
+      }
+
+      if 1 >= minimumBindingPower,
+        let keyword = identifier(at: 0),
+        ["in", "to", "as", "into"].contains(keyword),
         startsUnitExpression(at: 1) || inferredKind(of: left) == .quantity
       {
         guard let conversion = parseConversion(of: left, depth: depth) else {
@@ -354,6 +377,25 @@ private struct TokenParser {
     switch token.kind {
     case .number(let literal):
       return .literal(literal, range: token.range)
+
+    case .temporal(
+      .dateTime(let year, let month, let day, let hour, let minute, let second, nil)):
+      guard let (zone, tokenCount) = timeZone(at: 0) else {
+        return .temporal(
+          .dateTime(
+            year: year, month: month, day: day, hour: hour, minute: minute, second: second,
+            zone: nil),
+          range: token.range)
+      }
+      var end = token.range
+      for _ in 0..<tokenCount {
+        end = advance().range
+      }
+      return .temporal(
+        .dateTime(
+          year: year, month: month, day: day, hour: hour, minute: minute, second: second,
+          zone: .named(zone)),
+        range: token.range.union(end))
 
     case .temporal(let literal):
       return parseMeridiem(literal, range: token.range)
@@ -911,6 +953,32 @@ private struct TokenParser {
     return .identifier(words.joined(separator: " "), range: range.union(end))
   }
 
+  /// The IANA identifier named by the tokens at an offset, and how many tokens
+  /// name it: `Asia/Tokyo`, `America/Argentina/Buenos_Aires`, `Tokyo`, or
+  /// `New York`. The longest name wins.
+  private func timeZone(at offset: Int) -> (identifier: String, tokenCount: Int)? {
+    guard let first = identifier(at: offset) else {
+      return nil
+    }
+    var path = first
+    var pathCount = 1
+    while token(at: offset + pathCount).kind == .divide,
+      let part = identifier(at: offset + pathCount + 1)
+    {
+      path += "/" + part
+      pathCount += 2
+    }
+    if pathCount > 1, let zone = TimeZoneNames.identifier(for: path) {
+      return (zone, pathCount)
+    }
+    if let second = identifier(at: offset + 1),
+      let zone = TimeZoneNames.identifier(for: first + " " + second)
+    {
+      return (zone, 2)
+    }
+    return TimeZoneNames.identifier(for: first).map { ($0, 1) }
+  }
+
   /// `today`, `now`, `next friday`, or a month-name date such as `March 9`.
   private mutating func parseDatePhrase(_ word: String, range: SourceRange) -> Expression? {
     let lowercased = word.lowercased()
@@ -1023,6 +1091,8 @@ private struct TokenParser {
       }
     case .relative:
       return .date
+    case .zoneConversion:
+      return .instant
     case .percentage:
       return .percentage
     case .prefix(_, let operand, _, _):

@@ -76,10 +76,16 @@ struct TemporalArithmetic {
       return .date(try DateValue(year: year ?? today().year, month: month, day: day))
     case .time(let hour, let minute, let second):
       return .time(try LocalTimeValue(hour: hour, minute: minute, second: second))
-    case .dateTime(let year, let month, let day, let hour, let minute, let second, let offset):
+    case .dateTime(let year, let month, let day, let hour, let minute, let second, let zoneName):
       let date = try DateValue(year: year, month: month, day: day)
       _ = try LocalTimeValue(hour: hour, minute: minute, second: second)
-      guard let zone = offset.map({ TimeZone(secondsFromGMT: $0) }) ?? context.timeZone else {
+      let zone =
+        switch zoneName {
+        case nil: context.timeZone
+        case .offset(let seconds): TimeZone(secondsFromGMT: seconds)
+        case .named(let identifier): TimeZone(identifier: identifier)
+        }
+      guard let zone else {
         throw EngineError(code: .invalidTime)
       }
       var calendar = Calendar(identifier: .gregorian)
@@ -90,7 +96,8 @@ struct TemporalArithmetic {
       guard let instant = calendar.date(from: components) else {
         throw EngineError(code: .dateOutOfRange)
       }
-      return .instant(InstantValue(date: instant, timeZoneIdentifier: zone.identifier))
+      let identifier = if case .named(let name) = zoneName { name } else { zone.identifier }
+      return .instant(InstantValue(date: instant, timeZoneIdentifier: identifier))
     case .relativeDay(let days):
       return .date(try add(CalendarPeriodValue(days: days), to: today()))
     case .now:
@@ -101,6 +108,15 @@ struct TemporalArithmetic {
       let days = isNext ? (weekday - current + 6) % 7 + 1 : -((current - weekday + 6) % 7 + 1)
       return .date(try add(CalendarPeriodValue(days: days), to: today))
     }
+  }
+
+  /// The same moment shown in another zone.
+  func converted(_ value: EngineValue, toZone identifier: String) throws -> EngineValue {
+    guard case .instant(let instant) = value else {
+      throw EngineError(
+        code: .typeMismatch, context: .typeMismatch(expected: .instant, actual: value.kind))
+    }
+    return .instant(InstantValue(date: instant.date, timeZoneIdentifier: identifier))
   }
 
   /// The current moment in the evaluation time zone.

@@ -554,6 +554,28 @@
         "fullPrecision": "2023-05-05",
         "approximate": false
       }
+    },
+    {
+      "name": "dates: in after an instant names a zone",
+      "expression": "now in Tokyo",
+      "expected": {
+        "status": "value",
+        "display": "Nov 15, 2023 at 7:13:20 AM Asia/Tokyo",
+        "fullPrecision": "2023-11-15T07:13:20+09:00[Asia/Tokyo]",
+        "approximate": false
+      }
+    },
+    {
+      "name": "dates: zone abbreviations are not zones",
+      "expression": "now in EST",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "unknownTimeZone",
+        "messageKey": "syntax.unknownTimeZone",
+        "message": "Enter a time zone such as Asia/Tokyo or a listed city.",
+        "lowerBound": 7,
+        "upperBound": 10
+      }
     }
   ]
 }

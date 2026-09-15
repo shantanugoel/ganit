@@ -35,6 +35,29 @@ Month and weekday names accept full names and common abbreviations, in any
 letter case. `ago` and `from now` apply to the whole expression before them:
 `1 month + 2 weeks from now` moves today by six weeks and a month.
 
+## Time zones
+
+`in`, `to`, `as`, or `into` followed by a zone shows an instant in that zone,
+and a zone after an ISO date and time without an offset places its wall-clock
+time there:
+
+```text
+now in Asia/Tokyo
+2024-03-09T17:00Z in New York
+2024-03-09T12:00 Europe/London
+```
+
+A zone is an IANA identifier in any letter case, such as `Asia/Tokyo` or
+`America/Argentina/Buenos_Aires`, or one of a small set of city aliases for
+large cities in exactly one zone, such as `Tokyo`, `New York`, or `Mumbai`
+(see `TimeZoneNames.aliases`). Abbreviations such as `EST`, `IST`, and `CST`
+are rejected with `syntax.unknownTimeZone`, because each names several offsets
+or regions. `UTC` and `GMT` are accepted. The result keeps the zone's
+identifier, and full precision shows the resolved offset:
+`2023-11-15T07:13:20+09:00[Asia/Tokyo]`.
+
+## Keywords
+
 `today`, `tomorrow`, `yesterday`, `now`, and `ago` are keywords. Month names,
 weekday names, `next`, `last`, and period words may be declared as variables,
 and a declared variable is used in place of the phrase. See the

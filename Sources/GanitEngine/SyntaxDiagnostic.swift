@@ -11,6 +11,7 @@ public struct SyntaxDiagnostic: Hashable, Sendable {
     case expectedPercentagePhrase
     case expectedConversionUnit
     case unknownUnit
+    case unknownTimeZone
     case invalidUnitExponent
     case expectedUnitClosingParenthesis
     case expectedClosingParenthesis

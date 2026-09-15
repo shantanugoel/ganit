@@ -104,6 +104,8 @@ private struct EvaluationWorker {
         return try temporal.value(of: literal)
       case .relative(let offset, let isPast, _):
         return try evaluateRelative(offset, isPast: isPast)
+      case .zoneConversion(let value, let zone, _):
+        return try temporal.converted(evaluate(value), toZone: zone)
       case .conversion(let valueExpression, let targetSyntax, _, _):
         return try evaluateConversion(valueExpression, to: targetSyntax)
       case .grouped(let nested, _):

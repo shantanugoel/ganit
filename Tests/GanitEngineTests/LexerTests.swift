@@ -36,10 +36,10 @@ struct LexerTests {
         .temporal(.time(hour: 9, minute: 5, second: 0)),
         .temporal(.time(hour: 14, minute: 5, second: 30)),
         .temporal(
-          .dateTime(year: 2024, month: 3, day: 9, hour: 12, minute: 0, second: 0, offset: 0)),
+          .dateTime(year: 2024, month: 3, day: 9, hour: 12, minute: 0, second: 0, zone: .offset(0))),
         .temporal(
           .dateTime(
-            year: 2024, month: 3, day: 9, hour: 12, minute: 0, second: 1, offset: -19_800)),
+            year: 2024, month: 3, day: 9, hour: 12, minute: 0, second: 1, zone: .offset(-19_800))),
         .number(.integer(digits: "2024", radix: .decimal)),
         .minus,
         .number(.integer(digits: "3", radix: .decimal)),

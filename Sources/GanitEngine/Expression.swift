@@ -63,6 +63,8 @@ public indirect enum Expression: Equatable, Sendable {
   case temporal(TemporalLiteral, range: SourceRange)
   /// A period or duration before or after now: `3 days ago`, `2 h from now`.
   case relative(offset: Expression, isPast: Bool, range: SourceRange)
+  /// An instant shown in an IANA zone: `now in Asia/Tokyo`.
+  case zoneConversion(value: Expression, zone: String, range: SourceRange)
   case identifier(String, range: SourceRange)
   case prefix(
     UnaryOperator,
@@ -120,6 +122,7 @@ public indirect enum Expression: Equatable, Sendable {
     case .literal(_, let range),
       .temporal(_, let range),
       .relative(_, _, let range),
+      .zoneConversion(_, _, let range),
       .identifier(_, let range),
       .prefix(_, _, _, let range),
       .infix(_, _, _, _, let range),
@@ -147,6 +150,7 @@ public indirect enum Expression: Equatable, Sendable {
       .quantity(let operand, _, _),
       .period(let operand, _, _),
       .relative(let operand, _, _),
+      .zoneConversion(let operand, _, _),
       .conversion(let operand, _, _, _),
       .grouped(let operand, _):
       return operand.references

@@ -304,6 +304,11 @@
         "en" : { "stringUnit" : { "state" : "translated", "value" : "This part of the expression is unexpected." } }
       }
     },
+    "syntax.unknownTimeZone" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Enter a time zone such as Asia/Tokyo or a listed city." } }
+      }
+    },
     "syntax.unknownUnit" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "This unit is not recognized." } }
