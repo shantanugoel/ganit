@@ -12,9 +12,12 @@ struct AnswerCell: Equatable {
   let text: String
   /// The exact value for Copy Full Precision; `nil` for failures.
   let fullPrecision: String?
+  /// An answer from the assistant, which Ganit did not work out itself and so
+  /// writes in a colour of its own.
+  var isAssisted = false
 
   var isFailure: Bool {
-    fullPrecision == nil
+    fullPrecision == nil && !isAssisted
   }
 }
 

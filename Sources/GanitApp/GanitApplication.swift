@@ -1,5 +1,6 @@
 import AppIntents
 import AppKit
+import GanitData
 import GanitDiagnostics
 import GanitDocuments
 import GanitEditorUI
@@ -30,6 +31,10 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   private static let menuBarDefaultsKey = "GanitStaysInMenuBar"
   private var statusItem: NSStatusItem?
   private var shortcutWindow: NSWindow?
+  private var assistantWindow: NSWindow?
+  /// The assistant's settings, read once so that asking about a line does not
+  /// go to the keychain every time.
+  private var assistantSettings = AssistantSettings.load()
   private lazy var hotKey = GlobalHotKey { [weak self] in
     self?.toggleQuickGanit()
   }
@@ -67,6 +72,9 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       }
       workspace.definitionsDidChange = { [weak self] definitions in
         self?.quickPanel?.editor.setDefinitions(definitions)
+      }
+      workspace.askAssistant = { [weak self] line in
+        await self?.assistantAnswer(to: line) ?? nil
       }
       rateRefresher = refresher
       workspace.library.sheetsDidChange = { [weak self] in
@@ -258,6 +266,39 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     shortcutWindow = window
   }
 
+  // MARK: The assistant
+
+  /// Sets up where Ganit asks about the lines it cannot work out.
+  @objc func showAssistantSettings(_ sender: Any?) {
+    if let assistantWindow {
+      assistantWindow.makeKeyAndOrderFront(nil)
+      return
+    }
+    let settings = AssistantSettingsController(settings: assistantSettings) { [weak self] saved in
+      saved.save()
+      self?.assistantSettings = saved
+    }
+    let window = NSWindow(contentViewController: settings)
+    window.title = String(
+      localized: "menu.assistant", defaultValue: "Assistant…", bundle: .main)
+    window.styleMask = [.titled, .closable]
+    window.isReleasedWhenClosed = false
+    window.center()
+    window.makeKeyAndOrderFront(nil)
+    assistantWindow = window
+  }
+
+  /// Asks the configured model about a line, or answers nothing when no
+  /// assistant is set up or the request fails. A line Ganit cannot work out is
+  /// already shown as one, so a failed request needs no second complaint.
+  private func assistantAnswer(to line: String) async -> String? {
+    let settings = assistantSettings
+    guard settings.isReady else {
+      return nil
+    }
+    return try? await Assistant(settings: settings).answer(to: line)
+  }
+
   /// Chooses whether Quick Ganit restores its last text or starts empty.
   @objc func toggleQuickGanitStartsEmpty(_ sender: Any?) {
     let startsEmpty = !UserDefaults.standard.bool(forKey: Self.startsEmptyDefaultsKey)
@@ -334,6 +375,8 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
           UserDefaults.standard.bool(forKey: Self.startsEmptyDefaultsKey)),
         "Stay in the menu bar": onOff(
           UserDefaults.standard.bool(forKey: Self.menuBarDefaultsKey)),
+        "Assistant": assistantSettings.isReady
+          ? assistantSettings.endpoint.host() ?? "on" : onOff(false),
         "Exchange rates published": rateRefresher?.rates.observationDate ?? "none",
       ],
       sheetCount: (try? workspace?.library.index.summaries().count) ?? 0,
@@ -427,9 +470,13 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
         try self?.workspace?.openNewSheet(source: source)
         NSApplication.shared.activate()
       }
-      // A quick calculation reads the definitions sheet like any other.
+      // A quick calculation reads the definitions sheet, and asks the
+      // assistant, like any other.
       if let definitions = workspace?.definitions {
         quickPanel?.editor.setDefinitions(definitions)
+      }
+      quickPanel?.editor.askAssistant = { [weak self] line in
+        await self?.assistantAnswer(to: line) ?? nil
       }
     }
     return quickPanel

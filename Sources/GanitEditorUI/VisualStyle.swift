@@ -18,6 +18,8 @@ public enum VisualStyle {
     public static let failure = NSColor.systemRed
     /// Ambiguity and warning underlines.
     public static let warning = NSColor.systemOrange
+    /// Answers the assistant gave, which Ganit did not work out itself.
+    public static let assisted = NSColor.systemPurple
     public static let selectionBackground = NSColor.selectedContentBackgroundColor
     public static let selectionText = NSColor.selectedTextColor
   }

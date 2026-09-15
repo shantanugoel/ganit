@@ -51,6 +51,15 @@ public final class Workspace {
   /// Called when the definitions sheet's definitions change, so a sheet
   /// outside the library, such as Quick Ganit's buffer, can follow.
   public var definitionsDidChange: ((SheetDefinitions) -> Void)?
+  /// Asks the reader's assistant about a line Ganit could not work out. Every
+  /// open and newly opened sheet asks through it.
+  public var askAssistant: ((String) async -> String?)? {
+    didSet {
+      for sheet in sheets.values {
+        sheet.editor.askAssistant = askAssistant
+      }
+    }
+  }
   private let definitionsStore: TextDocumentStore?
   private(set) var definitionsWindow: DefinitionsWindowController?
   private var sheets: [UUID: OpenSheet] = [:]
@@ -178,6 +187,7 @@ public final class Workspace {
       display: stored.metadata.preferences.display
     )
     editor.setDefinitions(definitions)
+    editor.askAssistant = askAssistant
     editor.textView.isEditable = stored.metadata.state != .trashed
     let autosaver = SheetAutosaver(
       library: library,

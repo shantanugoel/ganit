@@ -7,13 +7,13 @@ enabled only when the focused editor or window can perform it.
 
 | Menu | Items |
 |---|---|
-| Ganit | About, Services, Hide ⌘H, Hide Others ⌥⌘H, Show All, Quit ⌘Q |
+| Ganit | About, Check for Updates…, Stay in the Menu Bar, Show Sheet Titles in Spotlight, Assistant…, Services, Hide ⌘H, Hide Others ⌥⌘H, Show All, Quit ⌘Q |
 | File | New Sheet ⌘N, Close ⌘W, Print… ⌘P |
 | Edit | Undo ⌘Z, Redo ⇧⌘Z, Cut ⌘X, Copy ⌘C, Paste ⌘V, Delete, Select All ⌘A, Find ▸ (Find… ⌘F, Find and Replace… ⌥⌘F, Find Next ⌘G, Find Previous ⇧⌘G, Use Selection for Find ⌘E) |
 | Calculate | Copy Result ⇧⌘C, Copy Full Precision ⌥⇧⌘C, Show Interpretation, Insert Reference ⌘\, Insert Subtotal ⌘T, Recalculate ⌘R, Stop ⌘. |
-| Format | Heading, Comment ⌘/, Divider, Step Number Up ⌃↑, Step Number Down ⌃↓, Number Format, Group Digits |
-| View | Bigger ⌘+, Smaller ⌘-, Actual Size ⌘0, Enter Full Screen ⌃⌘F |
-| Window | Minimize ⌘M, Zoom, Definitions ⌘⇧D, Quick Ganit items, Bring All to Front, and the window list |
+| Format | Heading, Comment ⌘/, Divider, Step Number Up ⌃↑, Step Number Down ⌃↓, Number Format, Group Digits, Prose Mode |
+| View | Bigger ⌘+, Smaller ⌘-, Actual Size ⌘0, Show Answer Separator, Enter Full Screen ⌃⌘F |
+| Window | Minimize ⌘M, Zoom, Scratch ⇧⌘S, Definitions ⌘⇧D, Quick Ganit items, Bring All to Front, and the window list |
 | Help | menu search |
 
 `SheetCommands` declares the sheet actions. The text view handles result,

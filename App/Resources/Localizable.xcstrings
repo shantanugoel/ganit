@@ -71,6 +71,136 @@
         }
       }
     },
+    "assistant.address" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Address"
+          }
+        }
+      }
+    },
+    "assistant.enabled" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ask a model about lines Ganit cannot work out"
+          }
+        }
+      }
+    },
+    "assistant.error.address" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The address must start with https://, or name this Mac for a model running on it."
+          }
+        }
+      }
+    },
+    "assistant.error.reply" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The address answered with something Ganit could not read."
+          }
+        }
+      }
+    },
+    "assistant.error.status" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The address answered with status %lld."
+          }
+        }
+      }
+    },
+    "assistant.explanation" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ganit sends the one line it could not work out, and nothing else: not the rest of the sheet, its title, or anything about this Mac. It asks only about lines you are not typing on, and shows what comes back in purple, because a model's answer is not a calculation."
+          }
+        }
+      }
+    },
+    "assistant.key" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "API Key"
+          }
+        }
+      }
+    },
+    "assistant.keyPlaceholder" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not needed for a local model"
+          }
+        }
+      }
+    },
+    "assistant.model" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Model"
+          }
+        }
+      }
+    },
+    "assistant.noAnswer" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The model had no answer for that line."
+          }
+        }
+      }
+    },
+    "assistant.save" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save"
+          }
+        }
+      }
+    },
+    "assistant.test" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try It"
+          }
+        }
+      }
+    },
+    "assistant.testing" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Asking…"
+          }
+        }
+      }
+    },
     "definitions.title" : {
       "localizations" : {
         "en" : {
@@ -447,6 +577,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Archive"
+          }
+        }
+      }
+    },
+    "menu.assistant" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assistant…"
           }
         }
       }
@@ -1081,22 +1221,22 @@
         }
       }
     },
-    "menu.scratch" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Scratch"
-          }
-        }
-      }
-    },
     "menu.scientific" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Scientific"
+          }
+        }
+      }
+    },
+    "menu.scratch" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scratch"
           }
         }
       }

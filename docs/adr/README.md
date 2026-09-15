@@ -15,3 +15,4 @@ Architecture decision records (ADRs) capture choices that constrain Ganit's impl
 | [0009](0009-pricing-and-trial.md) | One-time purchase and local trial |
 | [0010](0010-locale-policy.md) | Explicit locale with English grammar |
 | [0011](0011-update-path.md) | Point to releases before in-app installation |
+| [0012](0012-assistant-fallback.md) | Ask a configured model about lines Ganit cannot work out |

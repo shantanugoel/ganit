@@ -43,6 +43,14 @@ public final class SheetEditorViewController: NSViewController {
   /// Called when the variables and units this sheet defines change, so the
   /// definitions sheet can share them with every other sheet.
   public var definitionsDidChange: ((SheetDefinitions) -> Void)?
+  /// Asks something outside Ganit about a line Ganit could not work out, when
+  /// the reader has set an assistant up. A line is asked about once, only
+  /// after typing on it stops, and its answer arrives later.
+  public var askAssistant: ((String) async -> String?)? {
+    didSet {
+      askAboutUnansweredLines()
+    }
+  }
 
   private var context: EvaluationContext
   private let scrollView = NSScrollView()
@@ -52,9 +60,15 @@ public final class SheetEditorViewController: NSViewController {
   private(set) var scheduler: SheetEvaluationScheduler?
   private var resultFormatter: ResultFormatter
   private let diagnosticFormatter: DiagnosticFormatter
-  /// Answer cells by line, reused while the line's result and editing state
-  /// are unchanged. Cells are computed when lines are drawn.
-  private var cells: [LineID: (result: CalculationResult, isEditing: Bool, cell: AnswerCell?)] = [:]
+  /// Answer cells by line, reused while the line's result, editing state, and
+  /// assistant answer are unchanged. Cells are computed when lines are drawn.
+  private var cells:
+    [LineID: (result: CalculationResult, isEditing: Bool, assisted: String?, cell: AnswerCell?)] =
+      [:]
+  /// What the assistant said about a line, by the text that was asked, so an
+  /// answer outlives the evaluations and line identities of the text it
+  /// belongs to. A line asked about but unanswered maps to `nil`.
+  private var assistantAnswers: [String: String?] = [:]
   /// Each line's UTF-16 start offset, in line order.
   private var cachedUTF16Starts: [Int]?
   /// The text and result of each line in the newest shown evaluation.
@@ -284,6 +298,8 @@ public final class SheetEditorViewController: NSViewController {
       decorate(index)
     }
     sheetTextView.answersDidChange()
+    // Leaving a line is what makes it worth asking about.
+    askAboutUnansweredLines()
   }
 
   /// Shows what the selected lines add up to, for a selection covering more
@@ -360,6 +376,54 @@ public final class SheetEditorViewController: NSViewController {
     }
     sheetTextView.answersDidChange()
     summarizeSelection()
+    askAboutUnansweredLines()
+  }
+
+  /// How long a line must sit still before it is worth asking about, so that
+  /// typing a line does not ask about each of its halves.
+  var assistantPause = Duration.milliseconds(1_200)
+  private var assistantPauseTask: Task<Void, Never>?
+
+  /// Waits for typing to stop, then asks the assistant about each line Ganit
+  /// flagged as one it could not work out. Every answer redraws its column.
+  private func askAboutUnansweredLines() {
+    guard askAssistant != nil else {
+      return
+    }
+    assistantPauseTask?.cancel()
+    assistantPauseTask = Task { [weak self, assistantPause] in
+      try? await Task.sleep(for: assistantPause)
+      guard !Task.isCancelled else {
+        return
+      }
+      self?.askNow()
+    }
+  }
+
+  private func askNow() {
+    guard let askAssistant else {
+      return
+    }
+    for (id, shown) in shownLines {
+      guard let result = shown.result.result,
+        flaggedDiagnostic(result, isEditing: id == editingLine) != nil
+      else {
+        continue
+      }
+      let asked = shown.text.trimmingCharacters(in: .whitespacesAndNewlines)
+      guard !asked.isEmpty, assistantAnswers[asked] == nil else {
+        continue
+      }
+      assistantAnswers[asked] = .some(nil)
+      Task { [weak self] in
+        let answer = await askAssistant(asked)
+        guard let self, let answer else {
+          return
+        }
+        assistantAnswers[asked] = answer
+        sheetTextView.answersDidChange()
+      }
+    }
   }
 
   /// The formatted value of a line, or the message of a failure its
@@ -369,7 +433,9 @@ public final class SheetEditorViewController: NSViewController {
   public func exportedLines() async -> [ExportedLine] {
     await scheduler?.waitUntilIdle()
     return sheet.lines.map { line in
-      let cell = shownLines[line.id]?.result.result.flatMap { makeCell(for: $0, isEditing: false) }
+      let cell = shownLines[line.id]?.result.result.flatMap {
+        makeCell(for: $0, isEditing: false, assisted: assistantAnswer(to: line.text))
+      }
       return ExportedLine(
         source: line.text, answer: cell?.text, isFailure: cell?.isFailure ?? false)
     }
@@ -395,25 +461,39 @@ public final class SheetEditorViewController: NSViewController {
   }
 
   private func answerCell(for id: LineID) -> AnswerCell? {
-    guard let result = shownLines[id]?.result.result else {
+    guard let shown = shownLines[id], let result = shown.result.result else {
       return nil
     }
     let isEditing = id == editingLine
-    if let cached = cells[id], cached.isEditing == isEditing, cached.result == result {
+    let assisted = assistantAnswer(to: shown.text)
+    if let cached = cells[id], cached.isEditing == isEditing, cached.result == result,
+      cached.assisted == assisted
+    {
       return cached.cell
     }
-    let cell = makeCell(for: result, isEditing: isEditing)
-    cells[id] = (result, isEditing, cell)
+    let cell = makeCell(for: result, isEditing: isEditing, assisted: assisted)
+    cells[id] = (result, isEditing, assisted, cell)
     return cell
   }
 
-  private func makeCell(for result: CalculationResult, isEditing: Bool) -> AnswerCell? {
+  private func assistantAnswer(to text: String) -> String? {
+    assistantAnswers[text.trimmingCharacters(in: .whitespacesAndNewlines)] ?? nil
+  }
+
+  private func makeCell(for result: CalculationResult, isEditing: Bool, assisted: String? = nil)
+    -> AnswerCell?
+  {
     switch result {
     case .value(let value):
       return (try? resultFormatter.format(value)).map {
         AnswerCell(text: $0.display, fullPrecision: $0.fullPrecision)
       }
     case .syntaxFailure, .evaluationFailure:
+      // What the assistant said answers the line; what Ganit says only
+      // explains why it could not.
+      if let assisted {
+        return AnswerCell(text: assisted, fullPrecision: nil, isAssisted: true)
+      }
       return flaggedDiagnostic(result, isEditing: isEditing).map {
         AnswerCell(text: $0.message, fullPrecision: nil)
       }

@@ -32,6 +32,7 @@ let package = Package(
     .executableTarget(
       name: "GanitApp",
       dependencies: [
+        "GanitData",
         "GanitDiagnostics",
         "GanitDocuments",
         "GanitEditorUI",
@@ -43,6 +44,7 @@ let package = Package(
     .target(
       name: "GanitWorkspaceUI",
       dependencies: [
+        "GanitData",
         "GanitDocuments",
         "GanitEditorUI",
         "GanitEngine",

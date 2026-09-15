@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import GanitData
 import GanitDocuments
 import GanitQuickUI
 import Testing
@@ -31,9 +32,11 @@ struct PseudolocalizationTests {
 
     let settings = ShortcutSettingsController(hotKey: GlobalHotKey {}, menu: nil) { _ in }
     let settingsWindow = NSWindow(contentViewController: settings)
+    let assistant: NSWindow? = NSWindow(
+      contentViewController: AssistantSettingsController(settings: AssistantSettings()) { _ in })
     let quick = try QuickPanelController(context: SheetPreferences.standard.evaluationContext())
 
-    for window in [controller.window, settingsWindow, quick.window].compactMap({ $0 }) {
+    for window in [controller.window, settingsWindow, assistant, quick.window].compactMap({ $0 }) {
       window.layoutIfNeeded()
       #expect(clipped(in: window.contentView!) == [], "\(type(of: window))")
     }

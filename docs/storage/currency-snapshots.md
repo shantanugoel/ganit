@@ -78,7 +78,8 @@ activity, so the system can defer it and nothing polls. Turning off
 **Calculate ▸ Update Exchange Rates Automatically** cancels it; manual updates
 still work. Accepted rates replace each open sheet's context and re-evaluate
 it; a failed request leaves the last-known-good rates in use. The app has the
-`com.apple.security.network.client` entitlement for this request only.
+`com.apple.security.network.client` entitlement for this request and for the
+[assistant](../adr/0012-assistant-fallback.md), which is off until set up.
 
 ## Privacy verification
 
@@ -90,6 +91,6 @@ headers, `User-Agent: Ganit` and `Accept-Language: *` in place of the system
 defaults that name the OS version and preferred languages, and no user name,
 host name, OS version, or locale anywhere. The request is a constant, so it
 cannot carry sheet text, titles, or identifiers. A source scan also fails if
-any file other than `RateDownloader.swift` uses networking APIs, and the store
-tests check that eight retained snapshots stay far below the 5 MB cache
-budget.
+any file other than `RateDownloader.swift` and `Assistant.swift` uses
+networking APIs, and the store tests check that eight retained snapshots stay
+far below the 5 MB cache budget.

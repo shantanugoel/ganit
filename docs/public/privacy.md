@@ -14,7 +14,7 @@ Your sheets, Quick Ganit text, definitions, backups, and preferences are
 stored only in Ganit's sandbox container. Ganit writes no logs of your
 calculations. Nothing is synced.
 
-## The one network request
+## The network requests Ganit makes
 
 To convert currencies, Ganit downloads the European Central Bank's public
 euro reference rates, at most once a day plus when you choose **Calculate ▸
@@ -23,6 +23,15 @@ sheet, title, account, device, language, or operating-system details. You can
 turn automatic updates off with **Calculate ▸ Update Exchange Rates
 Automatically**; conversions then use the last rates Ganit accepted or rates
 you declare.
+
+The other is the assistant, and it is off. Nothing is sent until you fill in
+an address and a model under **Ganit ▸ Assistant…** and turn it on. From then
+on, a line Ganit could not work out — and only such a line, one at a time,
+after you stop typing on it — is sent to the address you chose, with nothing
+else: not the rest of the sheet, its title, or anything about your Mac. What
+comes back is written in purple, because a model's answer is a guess and a
+calculation is not. Your key is kept in the keychain. Pointing the address at
+a model running on your Mac keeps even these lines at home.
 
 ## Spotlight, services, and other apps
 

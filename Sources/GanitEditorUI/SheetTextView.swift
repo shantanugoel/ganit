@@ -107,6 +107,9 @@ final class SheetTextView: NSTextView {
     if cell.isFailure {
       return VisualStyle.Color.failure
     }
+    if cell.isAssisted {
+      return VisualStyle.Color.assisted
+    }
     return writesAnswersInline ? VisualStyle.Color.secondary : VisualStyle.Color.primary
   }
 
