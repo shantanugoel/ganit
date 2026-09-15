@@ -64,7 +64,7 @@ let package = Package(
     ),
     .target(
       name: "GanitDocuments",
-      dependencies: ["GanitEngine"]
+      dependencies: ["GanitData", "GanitEngine"]
     ),
     .target(name: "GanitData"),
     .target(
@@ -127,8 +127,12 @@ let package = Package(
       path: "Tests/GanitStorageStressHelper"
     ),
     .testTarget(
+      name: "GanitDataTests",
+      dependencies: ["GanitData"]
+    ),
+    .testTarget(
       name: "GanitDocumentsTests",
-      dependencies: ["GanitDocuments", "GanitEngine", "GanitStorageStressHelper"]
+      dependencies: ["GanitData", "GanitDocuments", "GanitEngine", "GanitStorageStressHelper"]
     ),
     .testTarget(
       name: "GanitEditorUITests",
