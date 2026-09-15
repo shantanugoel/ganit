@@ -1128,7 +1128,7 @@ Exit criteria:
 - [x] Publish privacy statement, data-source attribution, grammar reference, compatibility corpus highlights and performance methodology. See docs/public/, linked from the README.
 - [x] Provide in-app update path appropriate to distribution. Ganit ▸ Check for Updates… opens the latest GitHub release (ADR 0011); in-place installation waits for notarized releases.
 - [x] Maintain a release train with regression tests for every fixed parser issue. See docs/release/release-train.md, CONTRIBUTING.md, and CHANGELOG.md.
-- [ ] Track anonymized-by-design product learning through voluntary feedback, support themes and opt-in studies—not automatic expression analytics.
+- [x] Track anonymized-by-design product learning through voluntary feedback, support themes and opt-in studies—not automatic expression analytics. See docs/quality/product-learning.md; no studies have been run yet.
 
 ---
 
