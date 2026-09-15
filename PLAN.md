@@ -1083,6 +1083,11 @@ Exit criteria:
 **Status:** Every task is done. It ran ahead of the Phase 9 usability
 sessions, which remain unrun by owner decision.
 
+Two section 5.4 P1 features are still unbuilt and have no task here: scrubbing
+a selected numeric literal with Option-drag and its keyboard alternative, and
+custom display formats. Significant figures exist as a per-sheet setting, and
+tags were deliberately not added, as the selection-aggregates task records.
+
 **Goal:** Extend reach while preserving one engine and one mental model.
 
 Tasks in priority order:
@@ -1095,6 +1100,7 @@ Tasks in priority order:
 - [x] Quick Look, print/PDF/CSV/HTML exports. Exported `.ganit` packages embed Quick Look previews shown by the system package previewer; see docs/workspace/library.md.
 - [x] CLI linked to the same engine. `ganit` answers an expression or a sheet from standard input through `ExpressionCalculation` and ships in `Contents/Helpers`; see docs/integration/headless-answers.md.
 - [x] Optional title-only Spotlight index. Off by default; indexes active sheet titles only and opens results; see docs/workspace/library.md.
+- [x] Statistics over values a line lists itself. `sum`, `total`, `average`, `avg`, `median`, and `count` take an explicit list, such as `median(3, 9, 4)`, using the same arithmetic and the same refusals as the aggregates that read the lines above; `min` and `max` already did. See docs/grammar/references.md.
 
 Exit criteria:
 

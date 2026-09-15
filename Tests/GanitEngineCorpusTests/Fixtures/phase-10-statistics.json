@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "statistics: sum adds a list",
+      "expression": "sum(1, 2, 3)",
+      "expected": {
+        "status": "value",
+        "display": "6",
+        "fullPrecision": "6",
+        "approximate": false
+      }
+    },
+    {
+      "name": "statistics: total is the same as sum",
+      "expression": "total(1, 2, 3)",
+      "expected": {
+        "status": "value",
+        "display": "6",
+        "fullPrecision": "6",
+        "approximate": false
+      }
+    },
+    {
+      "name": "statistics: avg divides the sum by the count",
+      "expression": "avg(2, 4)",
+      "expected": {
+        "status": "value",
+        "display": "3",
+        "fullPrecision": "3",
+        "approximate": false
+      }
+    },
+    {
+      "name": "statistics: average is the same as avg",
+      "expression": "average(2, 4)",
+      "expected": {
+        "status": "value",
+        "display": "3",
+        "fullPrecision": "3",
+        "approximate": false
+      }
+    },
+    {
+      "name": "statistics: median of an odd list is the middle value",
+      "expression": "median(3, 9, 4)",
+      "expected": {
+        "status": "value",
+        "display": "4",
+        "fullPrecision": "4",
+        "approximate": false
+      }
+    },
+    {
+      "name": "statistics: median of an even list is the mean of the middle two",
+      "expression": "median(1, 2, 3, 4)",
+      "expected": {
+        "status": "value",
+        "display": "2.5",
+        "fullPrecision": "5/2",
+        "approximate": false
+      }
+    },
+    {
+      "name": "statistics: count is how many values were listed",
+      "expression": "count(4, 5, 9)",
+      "expected": {
+        "status": "value",
+        "display": "3",
+        "fullPrecision": "3",
+        "approximate": false
+      }
+    },
+    {
+      "name": "statistics: a money list answers in its currency",
+      "expression": "total(10 USD, 5 USD)",
+      "expected": {
+        "status": "value",
+        "display": "$15.00",
+        "fullPrecision": "15 USD",
+        "approximate": false
+      }
+    },
+    {
+      "name": "statistics: a quantity list answers in its unit",
+      "expression": "average(1 kg, 3 kg)",
+      "expected": {
+        "status": "value",
+        "display": "2 kg",
+        "fullPrecision": "2 kg",
+        "approximate": false
+      }
+    },
+    {
+      "name": "statistics: median converts quantities before comparing them",
+      "expression": "median(2 km, 300 m, 1 km)",
+      "expected": {
+        "status": "value",
+        "display": "1 km",
+        "fullPrecision": "1 km",
+        "approximate": false
+      }
+    },
+    {
+      "name": "statistics: percentages average as percentages",
+      "expression": "avg(10%, 20%)",
+      "expected": {
+        "status": "value",
+        "display": "15%",
+        "fullPrecision": "15%",
+        "approximate": false
+      }
+    },
+    {
+      "name": "statistics: a mixed list is refused",
+      "expression": "sum(1 kg, 2 USD)",
+      "expected": {
+        "status": "evaluationFailure",
+        "code": "evaluation.typeMismatch",
+        "messageKey": "error.evaluation.typeMismatch",
+        "message": "This operation cannot combine these value types.",
+        "lowerBound": 0,
+        "upperBound": 16
+      }
+    },
+    {
+      "name": "statistics: an empty list has nothing to summarize",
+      "expression": "avg()",
+      "expected": {
+        "status": "evaluationFailure",
+        "code": "evaluation.argumentCountMismatch",
+        "messageKey": "error.evaluation.argumentCountMismatch",
+        "message": "The function received the wrong number of arguments.",
+        "lowerBound": 0,
+        "upperBound": 3
+      }
+    },
+    {
+      "name": "statistics: a list statistic composes like any value",
+      "expression": "median(3, 9, 4) * 2",
+      "expected": {
+        "status": "value",
+        "display": "8",
+        "fullPrecision": "8",
+        "approximate": false
+      }
+    }
+  ]
+}

@@ -966,6 +966,14 @@ private struct EvaluationWorker {
       try requireArguments(expected, of: name, given: arguments.count, at: nameRange)
       return try evaluateFinance(finance, arguments, nameRange: nameRange)
     }
+    if let statistics = StatisticsFunction(rawValue: name) {
+      try requireArguments(
+        1...limits.maximumFunctionArguments, of: name, given: arguments.count, at: nameRange)
+      return try evaluate(
+        statistics.aggregate,
+        of: try arguments.map { try evaluate($0) }
+      )
+    }
     guard let function = BuiltInFunction(rawValue: name) else {
       throw EngineError(code: .unknownFunction, ranges: [nameRange])
     }

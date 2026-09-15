@@ -12,6 +12,7 @@ struct GoldenCorpusTests {
     "phase-2-ambiguities",
     "phase-7-dates",
     "phase-10-finance",
+    "phase-10-statistics",
     "phase-11-compatibility",
   ])
   func matchesVersionedCorpus(named fixture: String) throws {

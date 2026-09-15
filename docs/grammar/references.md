@@ -13,6 +13,9 @@ downward, so a sheet cannot contain a reference cycle.
 | `median` | the middle result, or the mean of the two middle results |
 | `count` | the number of results |
 
+Each of these also takes an explicit list of values, such as `median(3, 9, 4)`;
+see [listing the values](#listing-the-values-instead).
+
 `line N` counts physical sheet lines, including blank lines, comments, and
 headings. It follows the text: inserting a line above shifts which line a
 number names.
@@ -55,6 +58,18 @@ block are `0`.
 
 The parser treats references as numbers when choosing phrase grammar, so use
 parentheses or a variable for percentage phrases over a referenced percentage.
+
+## Listing the values instead
+
+The same statistics take an explicit list, for values that are not the lines
+above: `sum(1, 2, 3)`, `total(rent, 7)`, `avg(2, 4)`, `average(2, 4)`,
+`median(3, 9, 4)`, and `count(4, 5, 9)`. `min` and `max` have always taken
+lists this way.
+
+A list follows the rules above: `total(10 USD, 5 USD)` answers in dollars,
+`average(1 kg, 3 kg)` in kilograms, and `sum(1 kg, 2 USD)` fails with
+`evaluation.typeMismatch`. An empty list fails, because there is nothing to
+summarize; a bare `sum` still reads the block above it.
 
 ## Selecting lines instead
 

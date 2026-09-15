@@ -1,7 +1,7 @@
 # Correctness corpus highlights
 
 Ganit's answers are pinned by a versioned golden corpus that runs on every
-change: 193 expressions with their exact displayed answer, full-precision
+change: 207 expressions with their exact displayed answer, full-precision
 answer, or diagnostic code, message, and source range. It is run again under
 Address Sanitizer, alongside property tests and parser fuzzing.
 
@@ -10,9 +10,10 @@ Address Sanitizer, alongside property tests and parser fuzzing.
 | `phase-1-golden` | 11 | Exact integers, fractions, decimals, approximation marks, errors |
 | `phase-2-percentages` | 8 | Percentage phrases and precedence |
 | `phase-2-conversions` | 11 | Unit conversions and compound units |
-| `phase-2-ambiguities` | 55 | Every rule in the ambiguity registry |
+| `phase-2-ambiguities` | 55 | The five registry rules one expression can show; the two about how a line's name is read are pinned by unit tests |
 | `phase-7-dates` | 50 | Leap years, month ends, daylight saving, zone history, relative dates |
 | `phase-10-finance` | 10 | Future value, present value, and loan payments |
+| `phase-10-statistics` | 14 | Sum, average, median, and count over a listed set of values |
 | `phase-11-compatibility` | 48 | Answers other calculators also publish or compute |
 
 Some examples:

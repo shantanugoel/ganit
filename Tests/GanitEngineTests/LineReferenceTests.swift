@@ -51,6 +51,44 @@ struct LineReferenceTests {
   }
 
   @Test
+  func takesTheSameStatisticsOverValuesALineListsItself() throws {
+    let results = try sheetOutcomes(
+      """
+      sum(1, 2, 3)
+      total(1, 2, 3)
+      avg(2, 4)
+      average(2, 4)
+      median(3, 9, 4)
+      median(1, 2, 3, 4)
+      count(4, 5, 9)
+      rent = 3
+      total(rent, 7)
+      """
+    )
+
+    #expect(results[0] == "6")
+    #expect(results[1] == "6")
+    #expect(results[2] == "3")
+    #expect(results[3] == "3")
+    #expect(results[4] == "4")
+    #expect(results[5] == "5/2")
+    #expect(results[6] == "3")
+    #expect(results[8] == "10")
+
+    // Lists carry units and money, and refuse a mix, as the aggregates do.
+    let typed = try evaluateSheet(
+      SheetSource("average(1 kg, 3 kg)\n2 kg\ntotal(10 USD, 5 USD)\n15 USD")
+    )
+    #expect(typed[0].result == typed[1].result)
+    #expect(typed[2].result == typed[3].result)
+    #expect(try sheetOutcomes("sum(1 kg, 2 USD)").last == "error.evaluation.typeMismatch")
+    #expect(try sheetOutcomes("avg()").last == "error.evaluation.argumentCountMismatch")
+
+    // A bare aggregate still reads the lines above.
+    #expect(try sheetOutcomes("1\n2\nsum").last == "3")
+  }
+
+  @Test
   func blankLinesHeadingsAndDividersEndBlocks() throws {
     #expect(try sheetOutcomes("1\n2\n\n3\nsum").last == "3")
     #expect(try sheetOutcomes("1\n# Next\n3\nsum").last == "3")
