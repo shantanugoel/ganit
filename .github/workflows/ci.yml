@@ -51,6 +51,9 @@ jobs:
           swift package dump-package >/dev/null
           swift test --parallel
 
+      - name: Lay out windows with double-length strings
+        run: GANIT_PSEUDOLOCALIZATION=1 swift test --filter PseudolocalizationTests
+
       - name: Exercise internal engine harness
         run: |
           output=$(printf '1 + 2 * 3\n1 / 0\n' | swift run GanitEngineHarness)

@@ -38,7 +38,7 @@ Last updated: 2026-09-15.
 | CJK marked text and composed characters | Automated | `mirrorsMarkedTextCompositionAndCommit`, `evaluatesAfterCompositionCommitsAndShowsTheNewestGeneration` |
 | Localized digits, separators, minus signs | Automated | Engine lexer tests, `ResultFormatterTests` (`tr-TR`, `de-DE`) |
 | Currencies and plural rules | Automated (currency display) | `formatsMoneyInLocaleStyleRoundedToMinorUnits` |
-| Pseudolocalization and truncation | Not implemented | Phase 9 item 3 |
+| Pseudolocalization and truncation | Automated (double-length strings); Needs a person (right-to-left review) | `PseudolocalizationTests.doubleLengthStringsFitWithoutClipping` lays out the workspace window, Quick Ganit, and shortcut settings with `NSDoubleLocalizedStrings`; `scripts/run-pseudolocalized.sh` opens the app doubled and right-to-left |
 
 ## 9.3 macOS behavior
 
@@ -62,6 +62,6 @@ Last updated: 2026-09-15.
 | Reduce Motion | Needs a person |
 | 100%, 150%, 200% editor text | Automated (scaling); Needs a person (visual check) |
 | VoiceOver and keyboard-only | Needs a person |
-| English, pseudolocalized, Arabic/Hebrew, CJK input, comma-decimal locale | Automated (engine and editor offsets); Needs a person (pseudolocale, real IMEs) |
+| English, pseudolocalized, Arabic/Hebrew, CJK input, comma-decimal locale | Automated (engine and editor offsets, double-length layout); Needs a person (right-to-left review, real IMEs) |
 | Offline, stale rate, malformed rate, no network | Automated | `RateRefresherTests`, `ECBRateValidatorTests`, `RateProvenanceTests` |
 | Fresh install, upgrade/migration, restore from backup | Automated (backup restore, recovery); Needs a person (fresh install) | GanitDocuments tests |
