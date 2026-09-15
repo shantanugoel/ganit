@@ -5,6 +5,25 @@ import Testing
 @Suite
 struct LexerTests {
   @Test
+  func lexesUnitProductsDegreeAliasesAndSuperscripts() {
+    let result = Lexer(source: "kg·m/s² °C").lex()
+
+    #expect(result.diagnostics.isEmpty)
+    #expect(
+      result.tokens.map(\.kind) == [
+        .identifier("kg"),
+        .multiply,
+        .identifier("m"),
+        .divide,
+        .identifier("s"),
+        .superscript(2),
+        .identifier("°C"),
+        .endOfFile,
+      ]
+    )
+  }
+
+  @Test
   func lexesArithmeticNumbersAndProgrammerLiterals() throws {
     let result = Lexer(source: "12 + 3.50e-2 × 0xff").lex()
 

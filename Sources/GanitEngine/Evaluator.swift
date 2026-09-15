@@ -22,12 +22,14 @@ private struct EvaluationWorker {
   let context: EvaluationContext
   let limits: EvaluationLimits
   let operations: NumericOperations
+  let unitAlgebra: UnitAlgebra
   var visitedOperations = 0
 
   init(context: EvaluationContext, limits: EvaluationLimits) {
     self.context = context
     self.limits = limits
     operations = NumericOperations(context: context, limits: limits)
+    unitAlgebra = UnitAlgebra(context: context, limits: limits)
   }
 
   mutating func evaluate(_ expression: Expression) throws -> EngineValue {
@@ -127,6 +129,34 @@ private struct EvaluationWorker {
           )
         }
 
+      case .quantity(let magnitude, let unitSyntax, _):
+        let value = try evaluate(magnitude)
+        let number = try requireNumber(value, at: magnitude.range)
+        let unit = try located(at: unitSyntax.range) {
+          try evaluate(unitSyntax)
+        }
+        return .quantity(
+          QuantityValue(magnitude: number, unit: unit)
+        )
+
+      case .conversion(let valueExpression, let targetSyntax, _, _):
+        let value = try evaluate(valueExpression)
+        guard case .quantity(let quantity) = value else {
+          throw typeMismatch(
+            expected: .quantity,
+            actual: value.kind,
+            range: valueExpression.range
+          )
+        }
+        let target = try located(at: targetSyntax.range) {
+          try evaluate(targetSyntax)
+        }
+        return .quantity(
+          try located(at: targetSyntax.range) {
+            try unitAlgebra.converted(quantity, to: target)
+          }
+        )
+
       case .grouped(let nested, _):
         return try evaluate(nested)
       }
@@ -151,7 +181,18 @@ private struct EvaluationWorker {
           )
         )
       )
-    case .quantity, .rate:
+    case .quantity(let quantity):
+      return .quantity(
+        QuantityValue(
+          magnitude: try operations.applying(
+            unaryOperator,
+            to: quantity.magnitude
+          ),
+          unit: quantity.unit,
+          kind: quantity.kind
+        )
+      )
+    case .rate:
       throw typeMismatch(expected: .number, actual: value.kind)
     }
   }
@@ -239,10 +280,133 @@ private struct EvaluationWorker {
         throw typeMismatch(expected: .number, actual: .percentage)
       }
 
+    case (.quantity(let lhs), .quantity(let rhs)):
+      switch binaryOperator {
+      case .add:
+        return .quantity(try unitAlgebra.adding(lhs, rhs))
+      case .subtract:
+        return .quantity(try unitAlgebra.subtracting(lhs, rhs))
+      case .multiply:
+        return .quantity(try unitAlgebra.multiplying(lhs, rhs))
+      case .divide:
+        return .quantity(try unitAlgebra.dividing(lhs, rhs))
+      case .power:
+        throw typeMismatch(expected: .number, actual: .quantity)
+      }
+
+    case (.quantity(let quantity), .number(let scalar)):
+      switch binaryOperator {
+      case .multiply, .divide:
+        guard quantity.kind == .relative else {
+          throw EngineError(code: .invalidAbsoluteQuantityOperation)
+        }
+        return .quantity(
+          QuantityValue(
+            magnitude: try operations.applying(
+              binaryOperator,
+              left: quantity.magnitude,
+              right: scalar
+            ),
+            unit: quantity.unit,
+            kind: .relative
+          )
+        )
+      case .power:
+        guard quantity.kind == .relative else {
+          throw EngineError(code: .invalidAbsoluteQuantityOperation)
+        }
+        let exponent = try integerExponent(scalar)
+        return .quantity(
+          QuantityValue(
+            magnitude: try operations.applying(
+              .power,
+              left: quantity.magnitude,
+              right: scalar
+            ),
+            unit: try unitAlgebra.raised(quantity.unit, to: exponent),
+            kind: .relative
+          )
+        )
+      case .add, .subtract:
+        throw typeMismatch(expected: .quantity, actual: .number)
+      }
+
+    case (.number(let scalar), .quantity(let quantity)):
+      switch binaryOperator {
+      case .multiply:
+        guard quantity.kind == .relative else {
+          throw EngineError(code: .invalidAbsoluteQuantityOperation)
+        }
+        return .quantity(
+          QuantityValue(
+            magnitude: try operations.applying(
+              .multiply,
+              left: scalar,
+              right: quantity.magnitude
+            ),
+            unit: quantity.unit,
+            kind: .relative
+          )
+        )
+      case .divide:
+        guard quantity.kind == .relative else {
+          throw EngineError(code: .invalidAbsoluteQuantityOperation)
+        }
+        return .quantity(
+          QuantityValue(
+            magnitude: try operations.applying(
+              .divide,
+              left: scalar,
+              right: quantity.magnitude
+            ),
+            unit: try unitAlgebra.raised(quantity.unit, to: -1),
+            kind: .relative
+          )
+        )
+      case .add, .subtract, .power:
+        throw typeMismatch(expected: .number, actual: .quantity)
+      }
+
     default:
       let actual = left.kind == .number ? right.kind : left.kind
       throw typeMismatch(expected: .number, actual: actual)
     }
+  }
+
+  private func evaluate(_ syntax: UnitSyntax) throws -> UnitExpression {
+    switch syntax {
+    case .named(let entry, let prefix, _):
+      let definition =
+        try prefix.map {
+          try unitAlgebra.applying($0.prefix, to: entry.definition)
+        } ?? entry.definition
+      return try unitAlgebra.unit(definition)
+    case .multiplied(let left, let right, _):
+      return try unitAlgebra.multiplied(
+        evaluate(left),
+        by: evaluate(right)
+      )
+    case .divided(let left, let right, _):
+      return try unitAlgebra.divided(
+        evaluate(left),
+        by: evaluate(right)
+      )
+    case .raised(let unit, let exponent, _):
+      return try unitAlgebra.raised(evaluate(unit), to: exponent)
+    }
+  }
+
+  private func integerExponent(_ value: NumericValue) throws -> Int {
+    guard case .integer(let integer) = value,
+      let exponent = Int(integer.canonicalDigits),
+      exponent.magnitude <= Dimension.maximumExponentMagnitude
+    else {
+      throw EngineError(
+        code: .resourceLimitExceeded,
+        context: .resourceLimit(.dimensionExponent)
+      )
+    }
+    return exponent
   }
 
   private func apply(

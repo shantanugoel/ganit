@@ -21,6 +21,27 @@ public enum PercentageOperator: Equatable, Sendable {
   case reverseOn
 }
 
+public indirect enum UnitSyntax: Equatable, Sendable {
+  case named(
+    UnitCatalogEntry,
+    prefix: UnitPrefixEntry?,
+    range: SourceRange
+  )
+  case multiplied(UnitSyntax, UnitSyntax, range: SourceRange)
+  case divided(UnitSyntax, UnitSyntax, range: SourceRange)
+  case raised(UnitSyntax, exponent: Int, range: SourceRange)
+
+  public var range: SourceRange {
+    switch self {
+    case .named(_, _, let range),
+      .multiplied(_, _, let range),
+      .divided(_, _, let range),
+      .raised(_, _, let range):
+      return range
+    }
+  }
+}
+
 public indirect enum Expression: Equatable, Sendable {
   case literal(NumericLiteral, range: SourceRange)
   case identifier(String, range: SourceRange)
@@ -55,6 +76,17 @@ public indirect enum Expression: Equatable, Sendable {
     operatorRange: SourceRange,
     range: SourceRange
   )
+  case quantity(
+    magnitude: Expression,
+    unit: UnitSyntax,
+    range: SourceRange
+  )
+  case conversion(
+    value: Expression,
+    target: UnitSyntax,
+    keywordRange: SourceRange,
+    range: SourceRange
+  )
   case grouped(Expression, range: SourceRange)
 
   public var range: SourceRange {
@@ -66,6 +98,8 @@ public indirect enum Expression: Equatable, Sendable {
       .call(_, _, _, let range),
       .percentage(_, _, let range),
       .percentageOperation(_, _, _, _, let range),
+      .quantity(_, _, let range),
+      .conversion(_, _, _, let range),
       .grouped(_, let range):
       return range
     }

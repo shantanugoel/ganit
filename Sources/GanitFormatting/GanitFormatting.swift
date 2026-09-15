@@ -597,6 +597,26 @@ public struct DiagnosticFormatter: Sendable {
         "syntax.expectedPercentagePhrase",
         defaultValue: "Complete the percentage phrase."
       )
+    case .expectedConversionUnit:
+      return localized(
+        "syntax.expectedConversionUnit",
+        defaultValue: "Enter a unit to convert to."
+      )
+    case .unknownUnit:
+      return localized(
+        "syntax.unknownUnit",
+        defaultValue: "This unit is not recognized."
+      )
+    case .invalidUnitExponent:
+      return localized(
+        "syntax.invalidUnitExponent",
+        defaultValue: "Use a bounded signed integer unit exponent."
+      )
+    case .expectedUnitClosingParenthesis:
+      return localized(
+        "syntax.expectedUnitClosingParenthesis",
+        defaultValue: "Add a closing parenthesis to the unit."
+      )
     case .expectedClosingParenthesis:
       return localized(
         "syntax.expectedClosingParenthesis",

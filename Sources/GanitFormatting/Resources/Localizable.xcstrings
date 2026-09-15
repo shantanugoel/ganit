@@ -199,6 +199,11 @@
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Add a closing parenthesis." } }
       }
     },
+    "syntax.expectedConversionUnit" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Enter a unit to convert to." } }
+      }
+    },
     "syntax.expectedExpression" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Enter an expression here." } }
@@ -212,6 +217,16 @@
     "syntax.exponentOutOfRange" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "The exponent is too large." } }
+      }
+    },
+    "syntax.expectedUnitClosingParenthesis" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add a closing parenthesis to the unit." } }
+      }
+    },
+    "syntax.invalidUnitExponent" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Use a bounded signed integer unit exponent." } }
       }
     },
     "syntax.invalidRadixDigit" : {
@@ -252,6 +267,11 @@
     "syntax.unexpectedToken" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "This part of the expression is unexpected." } }
+      }
+    },
+    "syntax.unknownUnit" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This unit is not recognized." } }
       }
     }
   },

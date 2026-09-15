@@ -112,6 +112,11 @@ private struct Scanner {
         continue
       }
 
+      if character == "°" {
+        scanDegreeUnit()
+        continue
+      }
+
       if isIdentifierStart(character) {
         scanIdentifier()
         continue
@@ -123,12 +128,16 @@ private struct Scanner {
         append(.plus, from: start)
       case "-", "−":
         append(.minus, from: start)
-      case "*", "×":
+      case "*", "×", "·":
         append(.multiply, from: start)
       case "/", "÷":
         append(.divide, from: start)
       case "^":
         append(.power, from: start)
+      case "²":
+        append(.superscript(2), from: start)
+      case "³":
+        append(.superscript(3), from: start)
       case "%":
         append(.percent, from: start)
       case "(":
@@ -204,6 +213,15 @@ private struct Scanner {
 
     let identifier = String(characters[start..<cursor])
     append(.identifier(identifier), from: start)
+  }
+
+  private mutating func scanDegreeUnit() {
+    let start = cursor
+    advance()
+    while let character = current, isIdentifierContinuation(character) {
+      advance()
+    }
+    append(.identifier(String(characters[start..<cursor])), from: start)
   }
 
   private mutating func scanNumber() {
@@ -536,6 +554,9 @@ private struct Scanner {
   }
 
   private func isIdentifierContinuation(_ character: Character) -> Bool {
+    if character == "·" || character == "²" || character == "³" {
+      return false
+    }
     if character == "_" {
       return true
     }

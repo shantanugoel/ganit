@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "distance conversion",
+      "expression": "12 km in miles",
+      "expected": {
+        "status": "value",
+        "display": "31,250/4,191 mi",
+        "fullPrecision": "31250/4191 mi",
+        "approximate": false
+      }
+    },
+    {
+      "name": "full expression conversion precedence",
+      "expression": "1 m + 1 ft in cm",
+      "expected": {
+        "status": "value",
+        "display": "3,262/25 cm",
+        "fullPrecision": "3262/25 cm",
+        "approximate": false
+      }
+    },
+    {
+      "name": "affine conversion",
+      "expression": "0 °C as °F",
+      "expected": {
+        "status": "value",
+        "display": "32 °F",
+        "fullPrecision": "32 °F",
+        "approximate": false
+      }
+    },
+    {
+      "name": "compound prefixed quantity",
+      "expression": "75 MB/s",
+      "expected": {
+        "status": "value",
+        "display": "75 MB/s",
+        "fullPrecision": "75 MB/s",
+        "approximate": false
+      }
+    },
+    {
+      "name": "incompatible conversion",
+      "expression": "1 m to s",
+      "expected": {
+        "status": "evaluationFailure",
+        "code": "evaluation.incompatibleDimensions",
+        "messageKey": "error.evaluation.incompatibleDimensions",
+        "message": "These quantities have incompatible dimensions.",
+        "lowerBound": 7,
+        "upperBound": 8
+      }
+    },
+    {
+      "name": "incomplete conversion",
+      "expression": "1 m in",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "expectedConversionUnit",
+        "messageKey": "syntax.expectedConversionUnit",
+        "message": "Enter a unit to convert to.",
+        "lowerBound": 4,
+        "upperBound": 6
+      }
+    },
+    {
+      "name": "unknown conversion unit",
+      "expression": "1 m into furlongs",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "unknownUnit",
+        "messageKey": "syntax.unknownUnit",
+        "message": "This unit is not recognized.",
+        "lowerBound": 9,
+        "upperBound": 17
+      }
+    }
+  ]
+}

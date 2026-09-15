@@ -1,5 +1,7 @@
 import Foundation
 
+package let builtInMinimalUnitCatalog = try! UnitCatalog.minimal()
+
 public enum UnitDefinitionExactness: String, Hashable, Sendable {
   case exact
   case approximate
@@ -67,6 +69,11 @@ public struct UnitPrefixEntry: Hashable, Sendable {
 }
 
 public struct UnitCatalog: Sendable {
+  public struct ResolvedUnit: Hashable, Sendable {
+    public let entry: UnitCatalogEntry
+    public let prefix: UnitPrefixEntry?
+  }
+
   public let entries: [UnitCatalogEntry]
   public let prefixes: [UnitPrefixEntry]
   public let sources: [UnitSourceMetadata]
@@ -115,6 +122,28 @@ public struct UnitCatalog: Sendable {
 
   public func prefix(matching alias: String) -> UnitPrefixEntry? {
     prefixesByAlias[alias]
+  }
+
+  /// Resolves exact unit aliases before considering an attached prefix.
+  public func resolveUnit(matching alias: String) -> ResolvedUnit? {
+    if let exact = unit(matching: alias) {
+      return ResolvedUnit(entry: exact, prefix: nil)
+    }
+    for prefixAlias in prefixesByAlias.keys.sorted(by: {
+      $0.count > $1.count
+    }) where alias.hasPrefix(prefixAlias) {
+      let unitAlias = String(alias.dropFirst(prefixAlias.count))
+      guard
+        !unitAlias.isEmpty,
+        let prefix = prefix(matching: prefixAlias),
+        let entry = unit(matching: unitAlias),
+        entry.definition.allowedPrefixFamilies.contains(prefix.prefix.family)
+      else {
+        continue
+      }
+      return ResolvedUnit(entry: entry, prefix: prefix)
+    }
+    return nil
   }
 
   public var attributionMarkdown: String {

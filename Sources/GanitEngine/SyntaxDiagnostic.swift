@@ -9,6 +9,10 @@ public struct SyntaxDiagnostic: Hashable, Sendable {
     case exponentOutOfRange
     case expectedExpression
     case expectedPercentagePhrase
+    case expectedConversionUnit
+    case unknownUnit
+    case invalidUnitExponent
+    case expectedUnitClosingParenthesis
     case expectedClosingParenthesis
     case expectedArgumentSeparator
     case unexpectedToken

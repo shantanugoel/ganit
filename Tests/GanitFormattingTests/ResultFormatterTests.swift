@@ -7,6 +7,35 @@ import Testing
 @Suite
 struct ResultFormatterTests {
   @Test
+  func preservesExplicitConversionTargetUnits() throws {
+    let evaluationContext = try context()
+    let engine = CalculationEngine()
+    let formatter = ResultFormatter(context: evaluationContext)
+    let cases = [
+      ("12 km in miles", "31,250/4,191 mi", "31250/4191 mi"),
+      ("1 m + 1 ft in cm", "3,262/25 cm", "3262/25 cm"),
+      ("0 °C as °F", "32 °F", "32 °F"),
+      ("75 MB/s", "75 MB/s", "75 MB/s"),
+      ("1 kg·m/s²", "1 kg·m/s^2", "1 kg·m/s^2"),
+    ]
+
+    for (source, display, fullPrecision) in cases {
+      guard
+        case .value(let value) = engine.evaluate(
+          source,
+          context: evaluationContext
+        )
+      else {
+        Issue.record("Expected formatted quantity for \(source)")
+        continue
+      }
+      let formatted = try formatter.format(value)
+      #expect(formatted.display == display)
+      #expect(formatted.fullPrecision == fullPrecision)
+    }
+  }
+
+  @Test
   func formatsTypedPercentagesUsingLocalePlacement() throws {
     let value = EngineValue.percentage(
       PercentageValue(points: .integer(IntegerValue(20)))

@@ -7,13 +7,16 @@ public enum CalculationResult: Hashable, Sendable {
 public struct CalculationEngine: Sendable {
   private let syntaxLimits: SyntaxLimits
   private let evaluationLimits: EvaluationLimits
+  private let unitCatalog: UnitCatalog
 
   public init(
     syntaxLimits: SyntaxLimits = .default,
-    evaluationLimits: EvaluationLimits = .default
+    evaluationLimits: EvaluationLimits = .default,
+    unitCatalog: UnitCatalog? = nil
   ) {
     self.syntaxLimits = syntaxLimits
     self.evaluationLimits = evaluationLimits
+    self.unitCatalog = unitCatalog ?? builtInMinimalUnitCatalog
   }
 
   public func evaluate(
@@ -48,7 +51,8 @@ public struct CalculationEngine: Sendable {
     Parser(
       source: source,
       configuration: context.lexingConfiguration,
-      limits: syntaxLimits
+      limits: syntaxLimits,
+      catalog: unitCatalog
     ).parse()
   }
 }

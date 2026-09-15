@@ -51,6 +51,31 @@ struct GoldenCorpusTests {
       )
     }
   }
+
+  @Test
+  func matchesVersionedConversionCorpus() throws {
+    let corpus = try loadFixture(
+      GoldenCorpus.self,
+      named: "phase-2-conversions"
+    )
+    #expect(corpus.schemaVersion == 1)
+    let context = try fixedContext()
+    let engine = CalculationEngine()
+    let formatter = ResultFormatter(context: context)
+
+    for testCase in corpus.cases {
+      let actual = try outcome(
+        for: testCase.expression,
+        engine: engine,
+        formatter: formatter,
+        context: context
+      )
+      #expect(
+        actual == testCase.expected,
+        "Conversion golden case failed: \(testCase.name)"
+      )
+    }
+  }
 }
 
 @Suite
@@ -318,7 +343,8 @@ struct ParserFuzzSmokeTests {
     var generator = SeededGenerator(seed: 0x4655_5A5A_5048_3101)
     let fragments = [
       "0", "1", "9", ".", ",", "+", "-", "*", "/", "^", "(", ")", ";",
-      "e", "π", "sqrt", "root", "١", "२", "９", "é", "\u{301}", "💯",
+      "e", "π", "sqrt", "root", "m", "kg", "°C", "·", "²", "³",
+      "in", "into", "١", "२", "９", "é", "\u{301}", "💯",
       "\u{200D}", "\u{202E}", "\r", "\n", " ",
     ]
     for _ in 0..<1_000 {
