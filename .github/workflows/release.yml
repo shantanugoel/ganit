@@ -1,0 +1,97 @@
+name: Release
+
+# Pushing a version tag publishes that version. A Mac app nobody can open is
+# not a release, so this signs and notarizes before it publishes, and fails
+# rather than offering a build Gatekeeper will refuse.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish ${{ github.ref_name }}
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.5.app/Contents/Developer
+      GANIT_NOTARY_PROFILE: ganit-notary
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Verify pinned toolchain
+        run: |
+          test "$(uname -m)" = "arm64"
+          expected_xcode=$(<.xcode-version)
+          actual_xcode=$(xcodebuild -version | awk 'NR == 1 { print $2 }')
+          test "$actual_xcode" = "$expected_xcode"
+
+      - name: Check the tag against the app's version
+        run: |
+          version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' App/Info.plist)
+          if [[ "$GITHUB_REF_NAME" != "v$version" ]]; then
+            echo "Tag $GITHUB_REF_NAME does not match App/Info.plist version $version." >&2
+            exit 1
+          fi
+
+      - name: Test packages
+        run: swift test --parallel
+
+      - name: Unlock the signing identity
+        env:
+          CERTIFICATE: ${{ secrets.GANIT_SIGNING_CERTIFICATE }}
+          CERTIFICATE_PASSWORD: ${{ secrets.GANIT_SIGNING_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.GANIT_APPLE_ID }}
+          TEAM_ID: ${{ secrets.GANIT_TEAM_ID }}
+          NOTARY_PASSWORD: ${{ secrets.GANIT_NOTARY_PASSWORD }}
+        run: |
+          # A keychain that exists for this run only, and is the one every
+          # tool reaches for while it does.
+          password=$(uuidgen)
+          security create-keychain -p "$password" release.keychain
+          security set-keychain-settings -lut 3600 release.keychain
+          security unlock-keychain -p "$password" release.keychain
+          security default-keychain -s release.keychain
+          security list-keychains -d user -s release.keychain login.keychain
+
+          printf '%s' "$CERTIFICATE" | base64 --decode >certificate.p12
+          security import certificate.p12 -k release.keychain \
+            -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          rm certificate.p12
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$password" release.keychain >/dev/null
+
+          xcrun notarytool store-credentials "$GANIT_NOTARY_PROFILE" \
+            --apple-id "$APPLE_ID" --team-id "$TEAM_ID" --password "$NOTARY_PASSWORD"
+
+          identity=$(security find-identity -v -p codesigning release.keychain |
+            sed -n 's/.*"\(Developer ID Application:.*\)"/\1/p' | head -1)
+          test -n "$identity"
+          echo "GANIT_SIGNING_IDENTITY=$identity" >>"$GITHUB_ENV"
+
+      - name: Build, sign, and notarize
+        run: |
+          ./scripts/release.sh | tee release.log
+          echo "GANIT_DISK_IMAGE=$(tail -1 release.log)" >>"$GITHUB_ENV"
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" "$GANIT_DISK_IMAGE" \
+            --title "Ganit ${GITHUB_REF_NAME#v}" \
+            --generate-notes
+
+      - name: Forget the signing identity
+        if: always()
+        run: security delete-keychain release.keychain || true

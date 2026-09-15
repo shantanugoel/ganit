@@ -42,11 +42,41 @@ saying anything. That is how `73bea03` was found, after every automated check
 had passed. Also open a sheet with money in it and show where a rate came from,
 which reads from the same string catalog.
 
+## Publish by pushing a tag
+
+`.github/workflows/release.yml` runs on a `v*` tag. It refuses a tag that does
+not match `CFBundleShortVersionString` in `App/Info.plist`, runs the tests,
+puts the Developer ID identity in a keychain that exists only for that run,
+runs `scripts/release.sh`, and publishes the notarized disk image as the
+release for that tag with generated notes.
+
+So a release is:
+
+```bash
+# App/Info.plist already says 0.2.0, and main is green
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+The workflow needs five repository secrets. Without them it fails rather than
+publishing a build Gatekeeper would refuse:
+
+| Secret | What it is |
+|---|---|
+| `GANIT_SIGNING_CERTIFICATE` | The Developer ID Application certificate and key, exported as `.p12` and base64-encoded |
+| `GANIT_SIGNING_CERTIFICATE_PASSWORD` | The password set when exporting it |
+| `GANIT_APPLE_ID` | The Apple ID that notarizes |
+| `GANIT_TEAM_ID` | Its team identifier |
+| `GANIT_NOTARY_PASSWORD` | An app-specific password for that Apple ID |
+
+```bash
+base64 -i Ganit-DeveloperID.p12 | pbcopy   # the value for the first secret
+```
+
 ## Updates
 
 **Ganit ▸ Check for Updates…** opens the latest release on GitHub
-([ADR 0011](../adr/0011-update-path.md)). Publish each notarized disk image as
-a GitHub release so that link finds it.
+([ADR 0011](../adr/0011-update-path.md)), which is what the tag push above
+publishes, so that link finds it.
 
 ## Status
 
