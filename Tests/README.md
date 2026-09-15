@@ -15,6 +15,8 @@ Phase 1 adds three deterministic layers beyond focused unit tests:
 - `UnitPropertyTests` checks seeded exact round trips, conversion
   composition, dimensional addition, compound products/powers, family-wide
   incompatible-dimension failures, and affine temperature round trips.
+- `phase-7-dates.json` pins leap-year, month-end, daylight-saving, and
+  zone-history outcomes, and relative phrases against the frozen clock.
 - `parser-fuzz-seeds.json` plus `ParserFuzzSmokeTests` exercises malformed and
   mixed-script Unicode input, generated from a fixed seed under strict syntax
   limits. Every diagnostic range is checked against the original source.

@@ -10,6 +10,7 @@ struct GoldenCorpusTests {
     "phase-2-percentages",
     "phase-2-conversions",
     "phase-2-ambiguities",
+    "phase-7-dates",
   ])
   func matchesVersionedCorpus(named fixture: String) throws {
     let corpus = try loadFixture(GoldenCorpus.self, named: fixture)
@@ -302,6 +303,8 @@ struct ParserFuzzSmokeTests {
       "in", "into", ":", "#", "//", "=", "x", "total", "prev", "line ", "١", "२", "９", "é",
       "\u{301}", "💯",
       "\u{200D}", "\u{202E}", "\r", "\n", " ",
+      "2024-03-10", "T02:30", "12:00", "Z", "-05:00", "pm", "ago", "from now", "today", "next",
+      "friday", "March", "days", "America/New_York", "Tokyo",
     ]
     for _ in 0..<1_000 {
       let count = generator.integer(in: 0...80)

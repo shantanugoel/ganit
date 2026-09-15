@@ -1025,7 +1025,7 @@ Tasks:
 - [x] Add common English date phrases and ISO input.
 - [x] Add named IANA zone parsing with conservative alias data.
 - [x] Implement DST gap/overlap clarification and interpretation detail.
-- [ ] Add frozen-context tests across leap/month-end/DST/zone-history cases.
+- [x] Add frozen-context tests across leap/month-end/DST/zone-history cases.
 - [ ] Schedule time-dependent recalculation only at required boundaries.
 
 Exit criteria:

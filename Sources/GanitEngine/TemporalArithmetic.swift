@@ -187,7 +187,7 @@ struct TemporalArithmetic {
   func today() throws -> DateValue {
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = context.timeZone
-    return try dateValue(calendar.dateComponents([.year, .month, .day], from: context.now))
+    return try dateValue(calendar.dateComponents([.era, .year, .month, .day], from: context.now))
   }
 
   func negated(_ period: CalendarPeriodValue) throws -> CalendarPeriodValue {
@@ -215,7 +215,7 @@ struct TemporalArithmetic {
     else {
       throw EngineError(code: .dateOutOfRange)
     }
-    return try dateValue(calendar.dateComponents([.year, .month, .day], from: end))
+    return try dateValue(calendar.dateComponents([.era, .year, .month, .day], from: end))
   }
 
   private func days(from earlier: DateValue, to later: DateValue) throws -> Int {
@@ -229,7 +229,11 @@ struct TemporalArithmetic {
     return days
   }
 
+  /// A date from Gregorian components; years before 1 are in era 0.
   private func dateValue(_ components: DateComponents) throws -> DateValue {
+    guard components.era == 1 else {
+      throw EngineError(code: .dateOutOfRange)
+    }
     do {
       return try DateValue(year: components.year!, month: components.month!, day: components.day!)
     } catch {

@@ -1,0 +1,525 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "leap: Feb 29 plus a year clamps to Feb 28",
+      "expression": "2024-02-29 + 1 year",
+      "expected": {
+        "status": "value",
+        "display": "Feb 28, 2025",
+        "fullPrecision": "2025-02-28",
+        "approximate": false
+      }
+    },
+    {
+      "name": "leap: Feb 29 plus four years stays Feb 29",
+      "expression": "2024-02-29 + 4 years",
+      "expected": {
+        "status": "value",
+        "display": "Feb 29, 2028",
+        "fullPrecision": "2028-02-29",
+        "approximate": false
+      }
+    },
+    {
+      "name": "leap: common year February ends on the 28th",
+      "expression": "2023-02-28 + 1 day",
+      "expected": {
+        "status": "value",
+        "display": "Mar 1, 2023",
+        "fullPrecision": "2023-03-01",
+        "approximate": false
+      }
+    },
+    {
+      "name": "leap: leap year February has a 29th",
+      "expression": "2024-02-28 + 1 day",
+      "expected": {
+        "status": "value",
+        "display": "Feb 29, 2024",
+        "fullPrecision": "2024-02-29",
+        "approximate": false
+      }
+    },
+    {
+      "name": "leap: century years are common",
+      "expression": "1900-02-28 + 1 day",
+      "expected": {
+        "status": "value",
+        "display": "Mar 1, 1900",
+        "fullPrecision": "1900-03-01",
+        "approximate": false
+      }
+    },
+    {
+      "name": "leap: years divisible by 400 are leap years",
+      "expression": "2000-02-28 + 1 day",
+      "expected": {
+        "status": "value",
+        "display": "Feb 29, 2000",
+        "fullPrecision": "2000-02-29",
+        "approximate": false
+      }
+    },
+    {
+      "name": "leap: Feb 29 in a common year does not exist",
+      "expression": "2023-02-29",
+      "expected": {
+        "status": "evaluationFailure",
+        "code": "evaluation.invalidDate",
+        "messageKey": "error.evaluation.invalidDate",
+        "message": "This date does not exist.",
+        "lowerBound": 0,
+        "upperBound": 10
+      }
+    },
+    {
+      "name": "leap: February 2024 has 29 days",
+      "expression": "2024-03-01 - 2024-02-01",
+      "expected": {
+        "status": "value",
+        "display": "29 days",
+        "fullPrecision": "P29D",
+        "approximate": false
+      }
+    },
+    {
+      "name": "leap: a year after a leap day is 365 days",
+      "expression": "2025-03-01 - 2024-03-01",
+      "expected": {
+        "status": "value",
+        "display": "365 days",
+        "fullPrecision": "P365D",
+        "approximate": false
+      }
+    },
+    {
+      "name": "month end: Jan 31 plus a month clamps to Feb 29",
+      "expression": "2024-01-31 + 1 month",
+      "expected": {
+        "status": "value",
+        "display": "Feb 29, 2024",
+        "fullPrecision": "2024-02-29",
+        "approximate": false
+      }
+    },
+    {
+      "name": "month end: Jan 31 plus a month clamps to Feb 28",
+      "expression": "2023-01-31 + 1 month",
+      "expected": {
+        "status": "value",
+        "display": "Feb 28, 2023",
+        "fullPrecision": "2023-02-28",
+        "approximate": false
+      }
+    },
+    {
+      "name": "month end: subtracting a month clamps too",
+      "expression": "2024-03-31 - 1 month",
+      "expected": {
+        "status": "value",
+        "display": "Feb 29, 2024",
+        "fullPrecision": "2024-02-29",
+        "approximate": false
+      }
+    },
+    {
+      "name": "month end: a quarter clamps to Nov 30",
+      "expression": "2024-08-31 + 1 quarter",
+      "expected": {
+        "status": "value",
+        "display": "Nov 30, 2024",
+        "fullPrecision": "2024-11-30",
+        "approximate": false
+      }
+    },
+    {
+      "name": "month end: clamping is kept by later steps",
+      "expression": "2024-01-31 + 1 month + 1 month",
+      "expected": {
+        "status": "value",
+        "display": "Mar 29, 2024",
+        "fullPrecision": "2024-03-29",
+        "approximate": false
+      }
+    },
+    {
+      "name": "month end: two months at once do not clamp",
+      "expression": "2024-01-31 + 2 months",
+      "expected": {
+        "status": "value",
+        "display": "Mar 31, 2024",
+        "fullPrecision": "2024-03-31",
+        "approximate": false
+      }
+    },
+    {
+      "name": "range: after year 9999 is out of range",
+      "expression": "9999-12-31 + 1 day",
+      "expected": {
+        "status": "evaluationFailure",
+        "code": "evaluation.dateOutOfRange",
+        "messageKey": "error.evaluation.dateOutOfRange",
+        "message": "The date is outside the supported range.",
+        "lowerBound": 11,
+        "upperBound": 12
+      }
+    },
+    {
+      "name": "range: before year 1 is out of range",
+      "expression": "0001-01-01 - 1 day",
+      "expected": {
+        "status": "evaluationFailure",
+        "code": "evaluation.dateOutOfRange",
+        "messageKey": "error.evaluation.dateOutOfRange",
+        "message": "The date is outside the supported range.",
+        "lowerBound": 11,
+        "upperBound": 12
+      }
+    },
+    {
+      "name": "dst: New York spring-forward gap",
+      "expression": "2024-03-10T02:30 America/New_York",
+      "expected": {
+        "status": "evaluationFailure",
+        "code": "evaluation.nonexistentLocalTime",
+        "messageKey": "error.evaluation.nonexistentLocalTime",
+        "message": "This time is skipped when clocks move forward in this time zone.",
+        "lowerBound": 0,
+        "upperBound": 33
+      }
+    },
+    {
+      "name": "dst: New York fall-back overlap",
+      "expression": "2024-11-03T01:30 America/New_York",
+      "expected": {
+        "status": "evaluationFailure",
+        "code": "evaluation.ambiguousLocalTime",
+        "messageKey": "error.evaluation.ambiguousLocalTime",
+        "message": "This time happens twice when clocks move back. Add a UTC offset.",
+        "lowerBound": 0,
+        "upperBound": 33
+      }
+    },
+    {
+      "name": "dst: an offset picks one overlap instant",
+      "expression": "2024-11-03T01:30-04:00 America/New_York",
+      "expected": {
+        "status": "value",
+        "display": "Nov 3, 2024 at 1:30 AM America/New_York",
+        "fullPrecision": "2024-11-03T01:30:00-04:00[America/New_York]",
+        "approximate": false
+      }
+    },
+    {
+      "name": "dst: London spring-forward gap",
+      "expression": "2024-03-31T01:30 Europe/London",
+      "expected": {
+        "status": "evaluationFailure",
+        "code": "evaluation.nonexistentLocalTime",
+        "messageKey": "error.evaluation.nonexistentLocalTime",
+        "message": "This time is skipped when clocks move forward in this time zone.",
+        "lowerBound": 0,
+        "upperBound": 30
+      }
+    },
+    {
+      "name": "dst: London fall-back overlap",
+      "expression": "2024-10-27T01:30 Europe/London",
+      "expected": {
+        "status": "evaluationFailure",
+        "code": "evaluation.ambiguousLocalTime",
+        "messageKey": "error.evaluation.ambiguousLocalTime",
+        "message": "This time happens twice when clocks move back. Add a UTC offset.",
+        "lowerBound": 0,
+        "upperBound": 30
+      }
+    },
+    {
+      "name": "dst: Sydney springs forward in October",
+      "expression": "2024-10-06T02:30 Australia/Sydney",
+      "expected": {
+        "status": "evaluationFailure",
+        "code": "evaluation.nonexistentLocalTime",
+        "messageKey": "error.evaluation.nonexistentLocalTime",
+        "message": "This time is skipped when clocks move forward in this time zone.",
+        "lowerBound": 0,
+        "upperBound": 33
+      }
+    },
+    {
+      "name": "dst: the spring-forward day lasts 23 hours",
+      "expression": "2024-03-11T00:00 America/New_York - 2024-03-10T00:00 America/New_York",
+      "expected": {
+        "status": "value",
+        "display": "23 h",
+        "fullPrecision": "23 h",
+        "approximate": false
+      }
+    },
+    {
+      "name": "dst: a calendar day keeps the wall-clock time",
+      "expression": "2024-03-09T12:00 America/New_York + 1 day",
+      "expected": {
+        "status": "value",
+        "display": "Mar 10, 2024 at 12:00 PM America/New_York",
+        "fullPrecision": "2024-03-10T12:00:00-04:00[America/New_York]",
+        "approximate": false
+      }
+    },
+    {
+      "name": "dst: a 24-hour duration does not",
+      "expression": "2024-03-09T12:00 America/New_York + 24 h",
+      "expected": {
+        "status": "value",
+        "display": "Mar 10, 2024 at 1:00 PM America/New_York",
+        "fullPrecision": "2024-03-10T13:00:00-04:00[America/New_York]",
+        "approximate": false
+      }
+    },
+    {
+      "name": "dst: arithmetic into an overlap uses the earlier offset",
+      "expression": "2024-11-02T01:30 America/New_York + 1 day",
+      "expected": {
+        "status": "value",
+        "display": "Nov 3, 2024 at 1:30 AM America/New_York",
+        "fullPrecision": "2024-11-03T01:30:00-04:00[America/New_York]",
+        "approximate": false
+      }
+    },
+    {
+      "name": "zone history: Samoa skipped Dec 30, 2011",
+      "expression": "2011-12-30T12:00 Pacific/Apia",
+      "expected": {
+        "status": "evaluationFailure",
+        "code": "evaluation.nonexistentLocalTime",
+        "messageKey": "error.evaluation.nonexistentLocalTime",
+        "message": "This time is skipped when clocks move forward in this time zone.",
+        "lowerBound": 0,
+        "upperBound": 29
+      }
+    },
+    {
+      "name": "zone history: a day after Dec 29, 2011 in Samoa is Dec 31",
+      "expression": "2011-12-29T12:00 Pacific/Apia + 1 day",
+      "expected": {
+        "status": "value",
+        "display": "Dec 31, 2011 at 12:00 PM Pacific/Apia",
+        "fullPrecision": "2011-12-31T12:00:00+14:00[Pacific/Apia]",
+        "approximate": false
+      }
+    },
+    {
+      "name": "zone history: Moscow used +04:00 in 2012",
+      "expression": "2012-06-01T12:00Z in Europe/Moscow",
+      "expected": {
+        "status": "value",
+        "display": "Jun 1, 2012 at 4:00 PM Europe/Moscow",
+        "fullPrecision": "2012-06-01T16:00:00+04:00[Europe/Moscow]",
+        "approximate": false
+      }
+    },
+    {
+      "name": "zone history: Moscow uses +03:00 since 2014",
+      "expression": "2015-06-01T12:00Z in Europe/Moscow",
+      "expected": {
+        "status": "value",
+        "display": "Jun 1, 2015 at 3:00 PM Europe/Moscow",
+        "fullPrecision": "2015-06-01T15:00:00+03:00[Europe/Moscow]",
+        "approximate": false
+      }
+    },
+    {
+      "name": "zone history: Sao Paulo observed daylight saving in 2018",
+      "expression": "2018-11-04T12:00Z in America/Sao_Paulo",
+      "expected": {
+        "status": "value",
+        "display": "Nov 4, 2018 at 10:00 AM America/Sao_Paulo",
+        "fullPrecision": "2018-11-04T10:00:00-02:00[America/Sao_Paulo]",
+        "approximate": false
+      }
+    },
+    {
+      "name": "zone history: Sao Paulo dropped daylight saving in 2019",
+      "expression": "2019-11-04T12:00Z in America/Sao_Paulo",
+      "expected": {
+        "status": "value",
+        "display": "Nov 4, 2019 at 9:00 AM America/Sao_Paulo",
+        "fullPrecision": "2019-11-04T09:00:00-03:00[America/Sao_Paulo]",
+        "approximate": false
+      }
+    },
+    {
+      "name": "zone history: India used war time in 1945",
+      "expression": "1945-08-15T12:00Z in Asia/Kolkata",
+      "expected": {
+        "status": "value",
+        "display": "Aug 15, 1945 at 6:30 PM Asia/Kolkata",
+        "fullPrecision": "1945-08-15T18:30:00+06:30[Asia/Kolkata]",
+        "approximate": false
+      }
+    },
+    {
+      "name": "frozen now: today",
+      "expression": "today",
+      "expected": {
+        "status": "value",
+        "display": "Nov 14, 2023",
+        "fullPrecision": "2023-11-14",
+        "approximate": false
+      }
+    },
+    {
+      "name": "frozen now: tomorrow",
+      "expression": "tomorrow",
+      "expected": {
+        "status": "value",
+        "display": "Nov 15, 2023",
+        "fullPrecision": "2023-11-15",
+        "approximate": false
+      }
+    },
+    {
+      "name": "frozen now: yesterday",
+      "expression": "yesterday",
+      "expected": {
+        "status": "value",
+        "display": "Nov 13, 2023",
+        "fullPrecision": "2023-11-13",
+        "approximate": false
+      }
+    },
+    {
+      "name": "frozen now: now",
+      "expression": "now",
+      "expected": {
+        "status": "value",
+        "display": "Nov 14, 2023 at 10:13:20 PM GMT",
+        "fullPrecision": "2023-11-14T22:13:20Z[GMT]",
+        "approximate": false
+      }
+    },
+    {
+      "name": "frozen now: next friday",
+      "expression": "next friday",
+      "expected": {
+        "status": "value",
+        "display": "Nov 17, 2023",
+        "fullPrecision": "2023-11-17",
+        "approximate": false
+      }
+    },
+    {
+      "name": "frozen now: last weekday excludes today",
+      "expression": "last tuesday",
+      "expected": {
+        "status": "value",
+        "display": "Nov 7, 2023",
+        "fullPrecision": "2023-11-07",
+        "approximate": false
+      }
+    },
+    {
+      "name": "frozen now: next weekday excludes today",
+      "expression": "next tuesday",
+      "expected": {
+        "status": "value",
+        "display": "Nov 21, 2023",
+        "fullPrecision": "2023-11-21",
+        "approximate": false
+      }
+    },
+    {
+      "name": "frozen now: a month-name date uses the current year",
+      "expression": "Feb 29",
+      "expected": {
+        "status": "evaluationFailure",
+        "code": "evaluation.invalidDate",
+        "messageKey": "error.evaluation.invalidDate",
+        "message": "This date does not exist.",
+        "lowerBound": 0,
+        "upperBound": 6
+      }
+    },
+    {
+      "name": "frozen now: days until a month-name date",
+      "expression": "Dec 31 - today",
+      "expected": {
+        "status": "value",
+        "display": "47 days",
+        "fullPrecision": "P47D",
+        "approximate": false
+      }
+    },
+    {
+      "name": "frozen now: days ago",
+      "expression": "3 days ago",
+      "expected": {
+        "status": "value",
+        "display": "Nov 11, 2023",
+        "fullPrecision": "2023-11-11",
+        "approximate": false
+      }
+    },
+    {
+      "name": "frozen now: months from now",
+      "expression": "2 months from now",
+      "expected": {
+        "status": "value",
+        "display": "Jan 14, 2024",
+        "fullPrecision": "2024-01-14",
+        "approximate": false
+      }
+    },
+    {
+      "name": "frozen now: a duration ago is an instant",
+      "expression": "90 min ago",
+      "expected": {
+        "status": "value",
+        "display": "Nov 14, 2023 at 8:43:20 PM GMT",
+        "fullPrecision": "2023-11-14T20:43:20Z[GMT]",
+        "approximate": false
+      }
+    },
+    {
+      "name": "frozen now: now in another zone",
+      "expression": "now in Tokyo",
+      "expected": {
+        "status": "value",
+        "display": "Nov 15, 2023 at 7:13:20 AM Asia/Tokyo",
+        "fullPrecision": "2023-11-15T07:13:20+09:00[Asia/Tokyo]",
+        "approximate": false
+      }
+    },
+    {
+      "name": "time: adding wraps past midnight",
+      "expression": "23:30 + 45 min",
+      "expected": {
+        "status": "value",
+        "display": "12:15 AM",
+        "fullPrecision": "00:15:00",
+        "approximate": false
+      }
+    },
+    {
+      "name": "time: subtracting wraps before midnight",
+      "expression": "00:15 - 30 min",
+      "expected": {
+        "status": "value",
+        "display": "11:45 PM",
+        "fullPrecision": "23:45:00",
+        "approximate": false
+      }
+    },
+    {
+      "name": "time: time differences are durations",
+      "expression": "23:30 - 00:15",
+      "expected": {
+        "status": "value",
+        "display": "1,395 min",
+        "fullPrecision": "1395 min",
+        "approximate": false
+      }
+    }
+  ]
+}
