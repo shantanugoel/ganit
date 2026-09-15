@@ -963,7 +963,7 @@ Tasks:
 - [x] Embed `NSTextView` with correct IME, bidi, selection, responder-chain and undo behavior.
 - [x] Render aligned answers without inserting answer text into source storage.
 - [x] Add syntax/state decoration using exact source ranges.
-- [ ] Add result selection/copy and interpretation/error UI.
+- [x] Add result selection/copy and interpretation/error UI.
 - [ ] Add standard menus and commands; Return/newline and ⌘Return behavior.
 - [ ] Add text scaling, appearance, contrast and accessibility semantics.
 - [ ] Instrument edit-to-answer and layout latency.

@@ -28,7 +28,8 @@ public final class SheetEditorViewController: NSViewController {
   private let sheetTextView = SheetTextView(usingTextLayoutManager: true)
   private let storageObserver = StorageObserver()
   private(set) var scheduler: SheetEvaluationScheduler?
-  private var formattedAnswers: [LineID: (value: EngineValue, text: String)] = [:]
+  /// Formatted values by line, reused until a line's value changes.
+  private var formattedValues: [LineID: (value: EngineValue, formatted: FormattedResult)] = [:]
   /// Each line's UTF-16 start offset, in line order.
   private var cachedUTF16Starts: [Int]?
   /// The text and result of each line in the newest shown evaluation.
@@ -53,9 +54,22 @@ public final class SheetEditorViewController: NSViewController {
     storageObserver.controller = self
     textView.textStorage?.delegate = storageObserver
     textView.delegate = storageObserver
-    sheetTextView.lineID = { [unowned self] offset in
+    sheetTextView.lineID = { [weak self] offset in
+      guard let self else {
+        return nil
+      }
       let index = lineIndex(atUTF16: offset)
       return utf16Starts()[index] == offset ? sheet.lines[index].id : nil
+    }
+    sheetTextView.line = { [weak self] offset in
+      guard let self else {
+        return nil
+      }
+      let index = lineIndex(atUTF16: offset)
+      return (index + 1, sheet.lines[index].id)
+    }
+    sheetTextView.lineNumber = { [weak self] id in
+      self?.sheet.lines.firstIndex { $0.id == id }.map { $0 + 1 }
     }
     editingLine = sheet.lines.first?.id
     scheduler = SheetEvaluationScheduler(context: context) { [weak self] snapshot, evaluation in
@@ -164,35 +178,118 @@ public final class SheetEditorViewController: NSViewController {
     editingLine = line
     for index in sheet.lines.indices where [previous, line].contains(sheet.lines[index].id) {
       decorate(index)
+      sheetTextView.answers[sheet.lines[index].id] = answerCell(for: sheet.lines[index])
     }
   }
 
   private func show(_ evaluation: SheetEvaluation, of snapshot: SheetSource) {
-    let formatter = ResultFormatter(context: context)
-    var answers: [LineID: (value: EngineValue, text: String)] = [:]
-    for line in evaluation.lines {
-      guard case .value(let value) = line.result else {
-        continue
-      }
-      if let formatted = formattedAnswers[line.id], formatted.value == value {
-        answers[line.id] = formatted
-      } else if let text = try? formatter.format(value).display {
-        answers[line.id] = (value, text)
-      }
-    }
-    formattedAnswers = answers
     latestEvaluation = evaluation
-    sheetTextView.answers = answers.mapValues(\.text)
-
     shownLines = Dictionary(
       uniqueKeysWithValues: zip(snapshot.lines, evaluation.lines).map {
         ($1.id, ($0.text, $1))
       }
     )
+    formattedValues = formattedValues.filter { shownLines[$0.key] != nil }
     decorations = decorations.filter { shownLines[$0.key] != nil }
     sheetTextView.underlines = sheetTextView.underlines.filter { shownLines[$0.key] != nil }
+
+    var answers: [LineID: AnswerCell] = [:]
     for index in sheet.lines.indices {
       decorate(index)
+      answers[sheet.lines[index].id] = answerCell(for: sheet.lines[index])
+    }
+    sheetTextView.answers = answers
+  }
+
+  /// The formatted value of a line, or the message of a failure that its
+  /// decoration currently flags.
+  private func answerCell(for line: SheetLine) -> AnswerCell? {
+    guard let shown = shownLines[line.id] else {
+      return nil
+    }
+    var expression: String?
+    if case .calculation(_, _, let range?, _) = shown.result.syntax {
+      let utf8 = shown.text.utf8
+      let lower = utf8.index(utf8.startIndex, offsetBy: range.lowerBound)
+      expression = String(shown.text[lower..<utf8.index(lower, offsetBy: range.utf8Length)])
+    }
+    let expressionDetail = expression.map {
+      AnswerCell.Detail(label: localized("interpretation.expression", "Expression"), value: $0)
+    }
+
+    switch shown.result.result {
+    case nil:
+      return nil
+    case .value(let value):
+      let formatted: FormattedResult
+      if let cached = formattedValues[line.id], cached.value == value {
+        formatted = cached.formatted
+      } else if let result = try? ResultFormatter(context: context).format(value) {
+        formatted = result
+        formattedValues[line.id] = (value, result)
+      } else {
+        return nil
+      }
+      let details = [
+        expressionDetail,
+        AnswerCell.Detail(
+          label: localized("interpretation.result", "Result"), value: formatted.display),
+        AnswerCell.Detail(
+          label: localized("interpretation.fullPrecision", "Full precision"),
+          value: formatted.fullPrecision
+        ),
+        AnswerCell.Detail(label: localized("interpretation.kind", "Kind"), value: kindName(value)),
+        AnswerCell.Detail(
+          label: localized("interpretation.exactness", "Exactness"),
+          value: formatted.isApproximate
+            ? localized("interpretation.approximate", "Approximate")
+            : localized("interpretation.exact", "Exact")
+        ),
+      ]
+      return AnswerCell(
+        text: formatted.display,
+        fullPrecision: formatted.fullPrecision,
+        details: details.compactMap { $0 }
+      )
+    case .syntaxFailure, .evaluationFailure:
+      guard shown.text == line.text,
+        let flagged = decorations[line.id]?.runs.contains(where: { $0.style.underlineColor != nil }
+        ),
+        flagged
+      else {
+        return nil
+      }
+      let diagnostic: FormattedDiagnostic
+      let formatter = DiagnosticFormatter(context: context)
+      switch shown.result.result {
+      case .syntaxFailure(let diagnostics) where !diagnostics.isEmpty:
+        diagnostic = formatter.format(diagnostics[0])
+      case .evaluationFailure(let error):
+        diagnostic = formatter.format(error)
+      default:
+        return nil
+      }
+      let details = [
+        expressionDetail,
+        AnswerCell.Detail(
+          label: localized("interpretation.problem", "Problem"), value: diagnostic.message),
+        AnswerCell.Detail(label: localized("interpretation.code", "Code"), value: diagnostic.code),
+      ]
+      return AnswerCell(
+        text: diagnostic.message, fullPrecision: nil, details: details.compactMap { $0 })
+    }
+  }
+
+  private func kindName(_ value: EngineValue) -> String {
+    switch value {
+    case .number:
+      return localized("interpretation.kind.number", "Number")
+    case .percentage:
+      return localized("interpretation.kind.percentage", "Percentage")
+    case .quantity:
+      return localized("interpretation.kind.quantity", "Quantity")
+    case .rate:
+      return localized("interpretation.kind.rate", "Rate")
     }
   }
 
@@ -303,4 +400,8 @@ private final class StorageObserver: NSObject, @preconcurrency NSTextStorageDele
   func undoManager(for view: NSTextView) -> UndoManager? {
     controller?.documentUndoManager
   }
+}
+
+private func localized(_ key: StaticString, _ defaultValue: String.LocalizationValue) -> String {
+  String(localized: key, defaultValue: defaultValue, bundle: .main)
 }

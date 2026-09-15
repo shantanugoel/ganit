@@ -74,3 +74,28 @@ baseline. A line is redecorated only when its decoration changes or it was
 edited since, because edits and undo can leave inserted text without rendering
 attributes; an edited line's underlines are removed immediately so they never
 drift onto new text.
+
+## Answers, errors, and interpretation
+
+The answer column shows a line's formatted result. When a line's decoration
+flags a failure, the column shows its concise localized message in red instead;
+the message text is the non-color cue. Incomplete input therefore shows its
+message only after the insertion point leaves the line.
+
+| Interaction | Effect |
+|---|---|
+| Click an answer | Selects it; Copy copies the displayed answer |
+| Double-click an answer above the insertion point | Inserts `line N` at the insertion point |
+| Option-double-click an answer | Copies the displayed answer |
+| Space on a selected answer | Opens its interpretation card |
+| Escape or typing | Clears the answer selection |
+
+`copyResult:`, `copyFullPrecision:`, and `showInterpretation:` are responder
+actions that act on the selected answer or, without one, the insertion point's
+line, so menus and keyboard shortcuts can reach them. Copy Result has nothing
+to copy for a failure.
+
+The interpretation card is a transient popover listing the expression, result,
+full precision, value kind, and exactness; for a failure it lists the
+expression, message, and stable diagnostic code. Unit conversions, provenance,
+time zones, and references join the card as those details become available.

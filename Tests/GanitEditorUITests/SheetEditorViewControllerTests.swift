@@ -121,7 +121,13 @@ struct SheetEditorViewControllerTests {
     let textView = try #require(editor.textView as? SheetTextView)
     let ids = editor.sheet.lines.map(\.id)
     #expect(textView.string == source)
-    #expect(textView.answers == [ids[0]: "31,250/4,191 mi", ids[3]: "2,100"])
+    #expect(
+      textView.answers.mapValues(\.text) == [
+        ids[0]: "31,250/4,191 mi",
+        ids[2]: "Enter an expression here.",
+        ids[3]: "2,100",
+      ]
+    )
   }
 
   @Test
@@ -147,7 +153,7 @@ struct SheetEditorViewControllerTests {
     await editor.scheduler?.waitUntilIdle()
 
     #expect(editor.latestEvaluation?.lines.map(\.id) == editor.sheet.lines.map(\.id))
-    #expect(textView.answers.values.first == "12,346")
+    #expect(textView.answers.values.first?.text == "12,346")
   }
 
   @Test
