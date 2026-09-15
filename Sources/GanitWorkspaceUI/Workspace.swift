@@ -46,6 +46,16 @@ public final class Workspace {
     return controller
   }
 
+  /// Opens a window with the most recently modified active sheet, or with a
+  /// new sheet in an empty library.
+  @discardableResult
+  public func openMostRecentSheet() throws -> WorkspaceWindowController {
+    guard let recent = try library.index.summaries().first(where: { $0.state == .active }) else {
+      return try openNewSheet(source: "")
+    }
+    return openWindow(showing: recent.id)
+  }
+
   /// Saves text as a new sheet, such as a promoted Quick Ganit buffer, and
   /// opens it in a window.
   @discardableResult

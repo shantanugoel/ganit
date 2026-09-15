@@ -13,6 +13,8 @@ behave like any Mac panel.
 - It is non-activating, so it takes keyboard focus above the frontmost app
   without bringing Ganit's other windows forward.
 - It floats and does not hide when Ganit is inactive.
+- It opens on the active Space, including over full-screen apps, instead of
+  switching Spaces.
 - Showing it centers it on the screen with the pointer, slightly above center,
   and focuses its text.
 - Escape hides it; the text stays for next time.
@@ -29,6 +31,15 @@ Window ▸ Quick Ganit always opens the panel.
 - **Keep as Sheet** (⌘S, or the title-bar button) saves the buffer as a new
   library sheet, opens it in a workspace window, and activates Ganit. The
   buffer is then emptied and the panel hides.
+
+## Activation and the Dock
+
+Showing, using, copying from, or dismissing Quick Ganit does not activate
+Ganit, so the app that was frontmost keeps focus when the panel hides. Only
+Keep as Sheet or opening the workspace activates Ganit. Closing the last
+workspace window does not quit Ganit, so the shortcut keeps working; clicking
+the Dock icon without workspace windows opens the most recently modified active
+sheet, or a new sheet in an empty library.
 
 ## Global shortcut
 

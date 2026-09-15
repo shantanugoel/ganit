@@ -18,10 +18,18 @@ struct QuickPanelTests {
     #expect(panel.styleMask.contains(.titled) && panel.styleMask.contains(.nonactivatingPanel))
     #expect(panel.isFloatingPanel && panel.level == .floating && !panel.hidesOnDeactivate)
     #expect(panel.canBecomeKey)
+    #expect(panel.collectionBehavior.isSuperset(of: [.moveToActiveSpace, .fullScreenAuxiliary]))
 
     controller.show()
     #expect(controller.isShown)
     #expect(panel.firstResponder === controller.editor.textView)
+    let pointerScreen = NSScreen.screens.first {
+      NSMouseInRect(NSEvent.mouseLocation, $0.frame, false)
+    }
+    if let pointerScreen {
+      #expect(
+        pointerScreen.visibleFrame.contains(NSPoint(x: panel.frame.midX, y: panel.frame.midY)))
+    }
     controller.editor.textView.insertText(
       "6 * 7", replacementRange: NSRange(location: 0, length: 0))
 

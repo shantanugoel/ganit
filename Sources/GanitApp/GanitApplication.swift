@@ -55,15 +55,43 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     {
       try? hotKey.register(shortcut)
     }
-    if let workspace, workspace.windows.isEmpty {
-      let recent = try? workspace.library.index.summaries().first { $0.state == .active }
-      if let recent {
-        workspace.openWindow(showing: recent.id)
-      } else {
-        newSheet(nil)
-      }
+    if workspace?.windows.isEmpty == true {
+      openMostRecentSheet()
     }
     NSApplication.shared.activate()
+  }
+
+  /// Ganit keeps running without windows so Quick Ganit's shortcut works.
+  func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+    false
+  }
+
+  /// Clicking the Dock icon without workspace windows opens the most recent
+  /// sheet.
+  func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool
+  {
+    if workspace?.windows.isEmpty == true {
+      openMostRecentSheet()
+    }
+    return true
+  }
+
+  private func openMostRecentSheet() {
+    do {
+      try workspace?.openMostRecentSheet()
+    } catch {
+      NSApplication.shared.presentError(error)
+    }
+  }
+
+  /// Opens a window with a new sheet when no workspace window handles the
+  /// command.
+  @objc func newSheet(_ sender: Any?) {
+    do {
+      try workspace?.openNewSheet(source: "")
+    } catch {
+      NSApplication.shared.presentError(error)
+    }
   }
 
   /// Imports sheets opened from Finder and shows each in a window.
@@ -128,20 +156,5 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
 
   func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
     true
-  }
-
-  /// Opens a window with a new sheet when no workspace window handles the
-  /// command.
-  @objc func newSheet(_ sender: Any?) {
-    guard let workspace else {
-      return
-    }
-    do {
-      let metadata = try workspace.library.create(
-        preferences: SheetPreferences.standard)
-      workspace.openWindow(showing: metadata.id)
-    } catch {
-      NSApplication.shared.presentError(error)
-    }
   }
 }

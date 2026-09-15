@@ -212,6 +212,22 @@ struct WorkspaceWindowControllerTests {
   }
 
   @Test
+  func reopensTheMostRecentActiveSheetOrANewOne() throws {
+    let library = try SheetLibrary(root: root)
+    let empty = Workspace(library: library)
+    let created = try empty.openMostRecentSheet()
+    defer { close(empty) }
+    #expect(created.sheetID != nil)
+
+    let (workspace, ids) = try makeWorkspace(["older", "newer"], library: library)
+    defer { close(workspace) }
+    try library.update(ids[1]) { $0.state = .archived }
+    let reopened = try workspace.openMostRecentSheet()
+    #expect(reopened.sheetID == ids[0] || reopened.sheetID == created.sheetID)
+    #expect(reopened.sheetID != ids[1])
+  }
+
+  @Test
   func searchNarrowsTheListedSheets() throws {
     let (workspace, ids) = try makeWorkspace(["hotel = 85", "rent = 2100"])
     defer { close(workspace) }

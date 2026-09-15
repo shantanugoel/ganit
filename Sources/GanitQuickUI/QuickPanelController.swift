@@ -5,8 +5,10 @@ import GanitEngine
 /// Quick Ganit: a standard floating panel with a disposable multiline sheet.
 ///
 /// The panel is titled, resizable, and non-activating, so it takes keyboard
-/// focus over the frontmost app without bringing Ganit's windows forward.
-/// Hiding it keeps its text.
+/// focus over the frontmost app without activating Ganit or bringing its
+/// windows forward, and focus returns to that app when it hides. It opens on
+/// the active Space, including over full-screen apps, on the screen with the
+/// pointer. Hiding it keeps its text.
 @MainActor
 public final class QuickPanelController: NSWindowController, NSWindowDelegate {
   public let editor: SheetEditorViewController
@@ -27,6 +29,7 @@ public final class QuickPanelController: NSWindowController, NSWindowDelegate {
     panel.isFloatingPanel = true
     panel.level = .floating
     panel.hidesOnDeactivate = false
+    panel.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
     panel.becomesKeyOnlyIfNeeded = false
     panel.isReleasedWhenClosed = false
     panel.contentMinSize = NSSize(width: 320, height: 120)
@@ -68,7 +71,7 @@ public final class QuickPanelController: NSWindowController, NSWindowDelegate {
     guard let panel = window else {
       return
     }
-    if !panel.isVisible {
+    if !panel.isVisible || !panel.isOnActiveSpace {
       let screen =
         NSScreen.screens.first { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) }
         ?? NSScreen.main
