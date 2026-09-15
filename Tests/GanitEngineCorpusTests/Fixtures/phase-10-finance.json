@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "future value compounds a plain number",
+      "expression": "fv(1000, 10%, 2)",
+      "expected": {
+        "status": "value",
+        "display": "1,210",
+        "fullPrecision": "1210",
+        "approximate": false
+      }
+    },
+    {
+      "name": "future value keeps the currency and flags the rounding",
+      "expression": "fv(10000 USD, 5%, 10)",
+      "expected": {
+        "status": "value",
+        "display": "\u2248 $16,288.95",
+        "fullPrecision": "16679880978201/1024000000 USD",
+        "approximate": true
+      }
+    },
+    {
+      "name": "present value undoes the compounding",
+      "expression": "pv(1210, 10%, 2)",
+      "expected": {
+        "status": "value",
+        "display": "1,000",
+        "fullPrecision": "1000",
+        "approximate": false
+      }
+    },
+    {
+      "name": "present value discounts money twelve periods out",
+      "expression": "pv(1000 USD, 0.5%, 12)",
+      "expected": {
+        "status": "value",
+        "display": "\u2248 $941.91",
+        "fullPrecision": "4096000000000000000000000000000/4348632317396990233762642401 USD",
+        "approximate": true
+      }
+    },
+    {
+      "name": "a thirty-year mortgage payment rounds to cents",
+      "expression": "pmt(300000 USD, 0.5%, 360)",
+      "expected": {
+        "status": "value",
+        "display": "\u2248 $1,798.65",
+        "fullPrecision": "21216411515937480925852945000917772298924201124730431018082793574256389172957171481051320668621385573927627173331224494603355061253365905301533934504758143353538082161832585335388459842186155703761598831305013842218126566471200812534322518272498430946199032595376601625645380047252446287101121132899186103415699667300171157889439826418562782180451761044300294531497016530028380191349741758156397399264266495579276862016568081822299168727405009197522001705063443504529886633983039266614917262883569219120129844814656622702907439372484982270577716011960226335015720696963402787656466630712883949734332365439054153544326666254420166442515753324671791087123990646736600107034314395012583689761801772014002370696967425066847469021250986185904083545834105572565167102354261042183369113023784574869316290991007622369349334771843717308001500/11795731761184487389345816070489177838573784867578634141347904744638717090190172543903848114029488346253149806220816329735570040835577270201022623003172095569025388107888390223592306561457437135841065887536675894812084377647467208356215012181665620630799355063584401083763586698168297524734080755266124068943799778200114105259626550945708521453634507362866863020998011020018920127566494505437598266176177663719517908011045387881532779151603339465014667803375629003019924422655359511076611508589046146080086563209771081801938292914989988180385144007973484223343813797975601858437644420475255966489554910292702769029551110836280110961677168883114527391415993764491066738022876263341722459841201181342668247131311616711231646014167324123936055697222737048376778068236174028122246075349189716579544193994005081579566223181229144872001 USD",
+        "approximate": true
+      }
+    },
+    {
+      "name": "a zero rate splits the amount evenly",
+      "expression": "pmt(1200, 0%, 12)",
+      "expected": {
+        "status": "value",
+        "display": "100",
+        "fullPrecision": "100",
+        "approximate": false
+      }
+    },
+    {
+      "name": "a monthly rate comes from dividing the annual one",
+      "expression": "fv(1000, 6% / 12, 24)",
+      "expected": {
+        "status": "value",
+        "display": "1,127.15977620539",
+        "fullPrecision": "18910603031909517609304823750309063692518962297803044801/16777216000000000000000000000000000000000000000000000",
+        "approximate": false
+      }
+    },
+    {
+      "name": "a fractional period has no meaning",
+      "expression": "fv(1000, 5%, 1.5)",
+      "expected": {
+        "status": "evaluationFailure",
+        "code": "evaluation.invalidDomain",
+        "messageKey": "error.evaluation.invalidDomain",
+        "message": "This operation is not defined for the given value.",
+        "lowerBound": 13,
+        "upperBound": 16
+      }
+    },
+    {
+      "name": "a length is not an amount",
+      "expression": "fv(1 m, 5%, 2)",
+      "expected": {
+        "status": "evaluationFailure",
+        "code": "evaluation.typeMismatch",
+        "messageKey": "error.evaluation.typeMismatch",
+        "message": "This operation cannot combine these value types.",
+        "lowerBound": 3,
+        "upperBound": 6
+      }
+    },
+    {
+      "name": "every argument is required",
+      "expression": "fv(1000, 5%)",
+      "expected": {
+        "status": "evaluationFailure",
+        "code": "evaluation.argumentCountMismatch",
+        "messageKey": "error.evaluation.argumentCountMismatch",
+        "message": "The function received the wrong number of arguments.",
+        "lowerBound": 0,
+        "upperBound": 2
+      }
+    }
+  ]
+}

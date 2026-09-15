@@ -37,6 +37,8 @@ In comma-decimal locales, use a semicolon between function arguments (`max(1; 2)
 - `sqrt(x)` is equivalent to `root(x, 2)`. `root(x, degree)` requires a positive exact integer degree.
 - `sin`, `cos`, and `tan` use the injected angle mode. `asin`, `acos`, and `atan` return angles in that mode.
 - `ln(x)` is the natural logarithm; `log(x)` and `log10(x)` are base 10. `exp(x)` computes eˣ.
+- `fv`, `pv`, and `pmt` are the [finance functions](finance-functions.md), the
+  only functions that take and return money.
 - Perfect powers and roots remain exact. Other roots become explicitly approximate.
 - `0^0` is rejected as an invalid domain. A zero base with a negative exponent is division by zero.
 - Even roots of negative values are invalid. Odd roots preserve the sign.

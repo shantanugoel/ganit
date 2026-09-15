@@ -141,6 +141,46 @@
         }
       }
     },
+    "interpretation.assumption" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assumption"
+          }
+        }
+      }
+    },
+    "interpretation.assumption.futureValue" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The rate is per period and compounds once each period."
+          }
+        }
+      }
+    },
+    "interpretation.assumption.payment" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Equal payments at the end of each period, at the rate for one period."
+          }
+        }
+      }
+    },
+    "interpretation.assumption.presentValue" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The rate is per period and discounts once each period."
+          }
+        }
+      }
+    },
     "interpretation.code" : {
       "localizations" : {
         "en" : {

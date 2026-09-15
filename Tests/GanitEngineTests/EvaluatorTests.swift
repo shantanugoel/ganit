@@ -212,7 +212,7 @@ struct EvaluatorTests {
     #expect(argumentCount.code == .argumentCountMismatch)
     #expect(
       argumentCount.context
-        == .argumentCount(function: .squareRoot, expected: 1...1, actual: 2)
+        == .argumentCount(function: "sqrt", expected: 1...1, actual: 2)
     )
   }
 

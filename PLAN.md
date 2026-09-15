@@ -1086,7 +1086,7 @@ Tasks in priority order:
 - [x] Service and App Intent for pure expression calculation. Evaluate Expression and Calculate Expression share one bounded evaluation; see docs/integration/headless-answers.md. The Open Sheet intent is not part of pure calculation and is still to do.
 - [x] Global definitions/custom units. A shared definitions sheet (Window ▸ Definitions, ⌘⇧D) exports its variables and `1 bag = 25 kg` units to every sheet and Quick Ganit; see docs/grammar/definitions.md.
 - [x] Selection aggregates; tags not implemented. Selecting lines shows their count, total, and average in a bar below the sheet; see docs/editor/text-view.md. Section 5.4 makes tags conditional on sections and totals proving insufficient, and headings, dividers, subtotals, and now selections cover grouping, so no tag syntax was added.
-- [ ] Generic transparent finance functions.
+- [x] Generic transparent finance functions. `fv`, `pv`, and `pmt` compound one per-period rate over whole periods exactly, keep money in its currency, and list their assumptions in answer details; see docs/grammar/finance-functions.md.
 - [ ] URL callbacks with input/security limits.
 - [ ] Quick Look, print/PDF/CSV/HTML exports.
 - [ ] CLI linked to the same engine.

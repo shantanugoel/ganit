@@ -54,6 +54,19 @@ struct AnswerInteractionTests {
   }
 
   @Test
+  func detailsLabelWhatAFinanceAnswerAssumed() async throws {
+    let (editor, textView) = try await makeEditor("pmt(300000, 0.5%, 360)\n2 + 2")
+    let ids = editor.sheet.lines.map(\.id)
+
+    let rows = textView.interpretation(ids[0])
+    #expect(rows.last?.label == "Assumption")
+    #expect(
+      rows.last?.value
+        == "Equal payments at the end of each period, at the rate for one period.")
+    #expect(!textView.interpretation(ids[1]).contains { $0.label == "Assumption" })
+  }
+
+  @Test
   func detailsShowExchangeRateProvenance() async throws {
     let (editor, textView) = try await makeEditor("1 USD = 83 INR\n10 USD in INR\n10 INR")
     let ids = editor.sheet.lines.map(\.id)

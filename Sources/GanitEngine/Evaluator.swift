@@ -73,6 +73,8 @@ public struct Evaluator: Sendable {
 struct EvaluationTrace: Sendable {
   var clock: ClockResolution?
   var rateUses: Set<CurrencyRateUse> = []
+  /// The finance functions a result used, whose assumptions it is shown with.
+  var financeUses: Set<FinanceFunction> = []
 }
 
 /// How finely a result depends on the evaluation clock: a result that read
@@ -130,7 +132,7 @@ private struct EvaluationWorker {
       case .infix(let left, let binaryOperator, let right, let operatorRange, _):
         return try evaluateInfix(left, binaryOperator, right, operatorRange: operatorRange)
       case .call(let name, let nameRange, let arguments, _):
-        return .number(try evaluateCall(name: name, nameRange: nameRange, arguments: arguments))
+        return try evaluateCall(name: name, nameRange: nameRange, arguments: arguments)
       case .percentage(let points, _, _):
         return try evaluatePercentage(points)
       case .percentageOperation(let percentageOperator, let left, let right, let operatorRange, _):
@@ -914,24 +916,45 @@ private struct EvaluationWorker {
     name: String,
     nameRange: SourceRange,
     arguments: [Expression]
-  ) throws -> NumericValue {
-    guard let function = BuiltInFunction(rawValue: name) else {
-      throw EngineError(code: .unknownFunction, ranges: [nameRange])
-    }
+  ) throws -> EngineValue {
     guard arguments.count <= limits.maximumFunctionArguments else {
       throw limitError(.functionArguments, range: nameRange)
     }
-    guard function.argumentRange.contains(arguments.count) else {
-      throw EngineError(
-        code: .argumentCountMismatch,
-        ranges: [nameRange],
-        context: .argumentCount(
-          function: function,
-          expected: function.argumentRange,
-          actual: arguments.count
-        )
-      )
+    if let finance = FinanceFunction(rawValue: name) {
+      let expected = FinanceFunction.argumentCount...FinanceFunction.argumentCount
+      try requireArguments(expected, of: name, given: arguments.count, at: nameRange)
+      return try evaluateFinance(finance, arguments, nameRange: nameRange)
     }
+    guard let function = BuiltInFunction(rawValue: name) else {
+      throw EngineError(code: .unknownFunction, ranges: [nameRange])
+    }
+    try requireArguments(
+      function.argumentRange, of: name, given: arguments.count, at: nameRange)
+    return .number(try evaluateNumeric(function, arguments, nameRange: nameRange))
+  }
+
+  private func requireArguments(
+    _ expected: ClosedRange<Int>,
+    of name: String,
+    given: Int,
+    at nameRange: SourceRange
+  ) throws {
+    guard !expected.contains(given) else {
+      return
+    }
+    throw EngineError(
+      code: .argumentCountMismatch,
+      ranges: [nameRange],
+      context: .argumentCount(function: name, expected: expected, actual: given)
+    )
+  }
+
+  @inline(never)
+  private mutating func evaluateNumeric(
+    _ function: BuiltInFunction,
+    _ arguments: [Expression],
+    nameRange: SourceRange
+  ) throws -> NumericValue {
 
     let values = try arguments.map { argument in
       try requireNumber(try evaluate(argument), at: argument.range)
@@ -988,6 +1011,72 @@ private struct EvaluationWorker {
         return try operations.transcendental(function, value: values[0])
       }
     }
+  }
+
+  /// Compounding one rate over whole periods, which is exact arithmetic on
+  /// the amount's own kind, so money stays money in its currency.
+  @inline(never)
+  private mutating func evaluateFinance(
+    _ function: FinanceFunction,
+    _ arguments: [Expression],
+    nameRange: SourceRange
+  ) throws -> EngineValue {
+    let amount = try evaluate(arguments[0])
+    switch amount {
+    case .number, .money:
+      break
+    default:
+      throw typeMismatch(expected: .money, actual: amount.kind, range: arguments[0].range)
+    }
+    let rate = try requireRate(try evaluate(arguments[1]), at: arguments[1].range)
+    let periods = try requirePeriods(try evaluate(arguments[2]), at: arguments[2].range)
+    trace.financeUses.insert(function)
+
+    let one = NumericValue.integer(IntegerValue(1))
+    return try located(at: nameRange) {
+      let growth = try operations.applying(
+        .power,
+        left: try operations.applying(.add, left: one, right: rate),
+        right: .integer(IntegerValue(periods))
+      )
+      switch function {
+      case .futureValue:
+        return try apply(.multiply, left: amount, right: .number(growth))
+      case .presentValue:
+        return try apply(.divide, left: amount, right: .number(growth))
+      case .payment:
+        guard !rate.isZero else {
+          return try apply(
+            .divide, left: amount, right: .number(.integer(IntegerValue(periods))))
+        }
+        let discounted = try operations.applying(
+          .subtract, left: one, right: try operations.applying(.divide, left: one, right: growth))
+        return try apply(
+          .multiply,
+          left: amount,
+          right: .number(try operations.applying(.divide, left: rate, right: discounted))
+        )
+      }
+    }
+  }
+
+  /// A rate for one period, written as a percentage or a plain fraction.
+  private func requireRate(_ value: EngineValue, at range: SourceRange) throws -> NumericValue {
+    if case .percentage(let percentage) = value {
+      return try percentageRate(percentage)
+    }
+    return try requireNumber(value, at: range)
+  }
+
+  /// A whole number of periods, at least one. A fraction of a period would
+  /// mean a compounding rule the caller did not state.
+  private func requirePeriods(_ value: EngineValue, at range: SourceRange) throws -> Int {
+    guard case .number(.integer(let periods)) = value, let count = Int(exactly: periods.storage),
+      count > 0, count <= limits.maximumPowerExponent
+    else {
+      throw EngineError(code: .invalidDomain, ranges: [range])
+    }
+    return count
   }
 
   private func evaluateRoot(

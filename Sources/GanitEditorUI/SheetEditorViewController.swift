@@ -446,6 +446,13 @@ public final class SheetEditorViewController: NSViewController {
           ),
         ]
       }
+      // A finance answer means nothing without what it assumed.
+      details += FinanceFunction.allCases.filter(shown.result.financeUses.contains).map {
+        AnswerCell.Detail(
+          label: localized("interpretation.assumption", "Assumption"),
+          value: assumption(of: $0)
+        )
+      }
       // Rate status depends on the current day, not the evaluation's.
       details += RateProvenanceFormatter(context: context.at(Date()))
         .details(for: shown.result.rateUses)
@@ -466,6 +473,27 @@ public final class SheetEditorViewController: NSViewController {
         AnswerCell.Detail(label: localized("interpretation.code", "Code"), value: diagnostic.code))
     }
     return details
+  }
+
+  /// What a finance function took for granted, which its answer depends on.
+  private func assumption(of function: FinanceFunction) -> String {
+    switch function {
+    case .futureValue:
+      return localized(
+        "interpretation.assumption.futureValue",
+        "The rate is per period and compounds once each period."
+      )
+    case .presentValue:
+      return localized(
+        "interpretation.assumption.presentValue",
+        "The rate is per period and discounts once each period."
+      )
+    case .payment:
+      return localized(
+        "interpretation.assumption.payment",
+        "Equal payments at the end of each period, at the rate for one period."
+      )
+    }
   }
 
   private func kindName(_ value: EngineValue) -> String {

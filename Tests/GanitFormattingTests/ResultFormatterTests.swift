@@ -105,6 +105,39 @@ struct ResultFormatterTests {
     }
   }
 
+  /// A monthly payment is an exact fraction with hundreds of digits above and
+  /// below the line, and a currency total can outgrow any fixed-width decimal.
+  /// Both still have to read as amounts of money.
+  @Test
+  func roundsMoneyWiderThanAFixedWidthDecimal() throws {
+    let formatter = ResultFormatter(context: try context())
+    let payment = try rationalDigits(
+      String(repeating: "7", count: 60),
+      String(repeating: "3", count: 58)
+    )
+    let wide = NumericValue.integer(try IntegerValue(String(repeating: "9", count: 40)))
+
+    let rounded = try formatter.format(.money(money(payment, "USD")))
+    #expect(rounded.display == "≈ $233.33")
+    #expect(rounded.isApproximate)
+
+    // Past the currency formatter's reach the digits stay and the symbol goes.
+    let total = try formatter.format(.money(money(wide, "USD")))
+    #expect(
+      total.display == "9,999,999,999,999,999,999,999,999,999,999,999,999,999.00 USD"
+    )
+    #expect(!total.isApproximate)
+  }
+
+  private func rationalDigits(_ numerator: String, _ denominator: String) throws -> NumericValue {
+    .rational(
+      try RationalValue(
+        numerator: try IntegerValue(numerator),
+        denominator: try IntegerValue(denominator)
+      )
+    )
+  }
+
   private func money(_ amount: NumericValue, _ currency: String) -> MoneyValue {
     MoneyValue(amount: amount, currency: currency)
   }

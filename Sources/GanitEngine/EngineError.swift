@@ -70,7 +70,7 @@ public enum EngineErrorContext: Hashable, Sendable {
   case rootRadicand
   case evaluationContext(EvaluationContextField)
   case argumentCount(
-    function: BuiltInFunction,
+    function: String,
     expected: ClosedRange<Int>,
     actual: Int
   )

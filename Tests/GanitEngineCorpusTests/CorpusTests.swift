@@ -11,6 +11,7 @@ struct GoldenCorpusTests {
     "phase-2-conversions",
     "phase-2-ambiguities",
     "phase-7-dates",
+    "phase-10-finance",
   ])
   func matchesVersionedCorpus(named fixture: String) throws {
     let corpus = try loadFixture(GoldenCorpus.self, named: fixture)

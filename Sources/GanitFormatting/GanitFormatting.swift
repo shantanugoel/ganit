@@ -167,7 +167,7 @@ public struct NumericResultFormatter: Sendable {
     return digits
   }
 
-  private func canonicalDecimal(_ value: DecimalValue) throws -> String {
+  func canonicalDecimal(_ value: DecimalValue) throws -> String {
     let coefficient = try canonicalInteger(value.coefficient)
     let isNegative = coefficient.first == "-"
     let magnitude = isNegative ? String(coefficient.dropFirst()) : coefficient
@@ -206,7 +206,7 @@ public struct NumericResultFormatter: Sendable {
     return (isNegative ? localeMinusSign : "") + localizeDigits(grouped)
   }
 
-  private func localizeDecimal(_ canonical: String) throws -> String {
+  func localizeDecimal(_ canonical: String) throws -> String {
     let isNegative = canonical.first == "-"
     let unsigned = isNegative ? String(canonical.dropFirst()) : canonical
     let parts = unsigned.split(
@@ -440,7 +440,7 @@ public struct ResultFormatter: Sendable {
       return try checked(display: periodDisplay(period), fullPrecision: periodISO(period))
     case .money(let money):
       let exact = try numericFormatter.format(money.amount)
-      let (display, isRounded) = moneyDisplay(money)
+      let (display, isRounded) = try moneyDisplay(money)
       let isApproximate = exact.isApproximate || isRounded
       let result = try checked(
         display: (isApproximate ? "≈ " : "") + display,
@@ -513,36 +513,44 @@ public struct ResultFormatter: Sendable {
 
   /// The amount in the locale's currency style, rounded half away from zero
   /// to the currency's minor units, and whether rounding changed it.
-  private func moneyDisplay(_ money: MoneyValue) -> (String, isRounded: Bool) {
-    func decimal(_ integer: IntegerValue) -> Decimal {
-      Decimal(string: integer.canonicalDigits) ?? .nan
-    }
-    var value: Decimal
-    switch money.amount {
-    case .integer(let integer):
-      value = decimal(integer)
-    case .rational(let rational):
-      value = decimal(rational.numerator) / decimal(rational.denominator)
-    case .decimal(let number):
-      value =
-        decimal(number.coefficient) * Decimal(sign: .plus, exponent: -number.scale, significand: 1)
-    case .approximate(let approximate):
-      value = Decimal(approximate.estimate)
-    }
+  private func moneyDisplay(_ money: MoneyValue) throws -> (String, isRounded: Bool) {
     let digits = CurrencyCatalog.minorUnits[money.currency] ?? 2
-    var rounded = Decimal()
-    NSDecimalRound(&rounded, &value, digits, .plain)
+    let plain: String
+    let isRounded: Bool
+    switch money.amount {
+    case .approximate(let approximate):
+      plain = String(format: "%.\(digits)f", approximate.estimate)
+      isRounded = Double(plain) != approximate.estimate
+    default:
+      let (rounded, changed) = try money.amount.rounded(fractionDigits: digits)
+      plain = try numericFormatter.canonicalDecimal(rounded)
+      isRounded = changed
+    }
+
     let formatter = NumberFormatter()
     formatter.locale = locale
     formatter.numberStyle = .currency
     formatter.currencyCode = money.currency
     formatter.minimumFractionDigits = digits
     formatter.maximumFractionDigits = digits
-    let text =
-      formatter.string(from: NSDecimalNumber(decimal: rounded))
-      ?? "\(rounded) \(money.currency)"
-    return (text, rounded != value)
+    guard
+      plain.count <= Self.currencyDigitCapacity,
+      let value = Decimal(string: plain),
+      let text = formatter.string(from: NSDecimalNumber(decimal: value))
+    else {
+      // A wider amount than Foundation's decimal holds keeps every digit and
+      // gives up only the locale's currency symbol.
+      return (
+        try numericFormatter.localizeDecimal(plain) + " " + money.currency,
+        isRounded
+      )
+    }
+    return (text, isRounded)
   }
+
+  /// Foundation's `Decimal` holds 38 significant digits and silently drops
+  /// the rest, so wider amounts do not go through it.
+  private static let currencyDigitCapacity = 38
 
   /// ISO 8601 duration notation with signed components, such as `P1Y2M3D`.
   private func periodISO(_ period: CalendarPeriodValue) -> String {

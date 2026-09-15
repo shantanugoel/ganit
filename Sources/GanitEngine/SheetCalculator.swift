@@ -25,6 +25,11 @@ public struct SheetLineResult: Hashable, Sendable {
   public var rateUses: Set<CurrencyRateUse> {
     evaluation?.rateUses ?? []
   }
+  /// The finance functions this line's answer used, whose assumptions it is
+  /// shown with.
+  public var financeUses: Set<FinanceFunction> {
+    evaluation?.financeUses ?? []
+  }
 
   public static func == (lhs: Self, rhs: Self) -> Bool {
     lhs.id == rhs.id && lhs.syntax == rhs.syntax && lhs.result == rhs.result
@@ -266,6 +271,8 @@ private final class LineEvaluation: Sendable {
   let clockInterval: DateInterval?
   /// The kinds of exchange rate the result used.
   let rateUses: Set<CurrencyRateUse>
+  /// The finance functions the result used.
+  let financeUses: Set<FinanceFunction>
 
   init(
     source: LineSource,
@@ -288,6 +295,7 @@ private final class LineEvaluation: Sendable {
       unit = nil
       clockInterval = nil
       rateUses = []
+      financeUses = []
       return
     }
     let parsing =
@@ -309,6 +317,7 @@ private final class LineEvaluation: Sendable {
       unit = nil
       clockInterval = nil
       rateUses = []
+      financeUses = []
       return
     }
     references = expression.references
@@ -327,6 +336,7 @@ private final class LineEvaluation: Sendable {
         Self.checkedRate(evaluated, from: $0, range: expressionRange)
       } ?? evaluated
     rateUses = trace.rateUses
+    financeUses = trace.financeUses
     clockInterval = trace.clock.map { resolution in
       switch resolution {
       case .day:

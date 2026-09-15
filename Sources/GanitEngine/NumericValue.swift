@@ -164,6 +164,10 @@ func roundedQuotient(
       return awayFromZero
     }
     return quotient % 2 == 0 ? quotient : awayFromZero
+  case .toNearestOrAwayFromZero:
+    return remainder.magnitude * 2 < denominator.magnitude
+      ? quotient
+      : awayFromZero
   default:
     throw EngineError(code: .invalidDomain)
   }
@@ -260,6 +264,48 @@ public struct ApproximateValue: Hashable, Sendable {
 }
 
 extension NumericValue {
+  /// This value rounded to `fractionDigits` digits after the decimal point,
+  /// and whether rounding changed it.
+  ///
+  /// Money displays at its currency's minor units. A monthly payment is an
+  /// exact fraction with hundreds of digits, so the rounding runs on the
+  /// value itself rather than on a binary or fixed-width copy of it.
+  public func rounded(
+    fractionDigits: Int,
+    rule: FloatingPointRoundingRule = .toNearestOrAwayFromZero
+  ) throws -> (value: DecimalValue, isRounded: Bool) {
+    guard fractionDigits >= 0 else {
+      throw EngineError(code: .invalidDecimalScale)
+    }
+    let numerator: BigInt
+    let denominator: BigInt
+    switch self {
+    case .integer(let integer):
+      (numerator, denominator) = (integer.storage, 1)
+    case .rational(let rational):
+      (numerator, denominator) = (
+        rational.numerator.storage, rational.denominator.storage
+      )
+    case .decimal(let decimal):
+      (numerator, denominator) =
+        decimal.scale >= 0
+        ? (decimal.coefficient.storage, powerOfTen(decimal.scale))
+        : (decimal.coefficient.storage * powerOfTen(-decimal.scale), 1)
+    case .approximate:
+      throw EngineError(code: .invalidDomain)
+    }
+
+    let scaled = numerator * powerOfTen(fractionDigits)
+    let coefficient = try roundedQuotient(scaled, denominator, rule: rule)
+    return (
+      try DecimalValue(
+        coefficient: IntegerValue(storage: coefficient),
+        scale: fractionDigits
+      ),
+      coefficient * denominator != scaled
+    )
+  }
+
   public var isNegative: Bool {
     switch self {
     case .integer(let integer):

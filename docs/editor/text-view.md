@@ -99,8 +99,9 @@ line, so menus and keyboard shortcuts can reach them. Copy Result has nothing
 to copy for a failure.
 
 The interpretation card is a transient popover listing the expression, result,
-full precision, value kind, and exactness; for a failure it lists the
-expression, message, and stable diagnostic code. Unit conversions, provenance,
+full precision, value kind, and exactness, then one Assumption row for each
+[finance function](../grammar/finance-functions.md) the answer used; for a
+failure it lists the expression, message, and stable diagnostic code. Unit conversions, provenance,
 time zones, and references join the card as those details become available.
 
 ## Selection summary

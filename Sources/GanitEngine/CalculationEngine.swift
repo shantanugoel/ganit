@@ -125,6 +125,7 @@ public struct CalculationEngine: Sendable {
       guard case .identifier(let word) = token.kind,
         !reservedIdentifiers.contains(word),
         BuiltInFunction(rawValue: word) == nil,
+        FinanceFunction(rawValue: word) == nil,
         unitCatalog.resolveUnit(matching: word) == nil || redefinable.contains(word),
         CurrencyCatalog.minorUnits[word] == nil
       else {
