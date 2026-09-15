@@ -334,19 +334,46 @@ public struct UnitCatalog: Sendable {
         families: [.decimal]),
       try entry("inch", "in", .length, 254, 10_000, ["in", "inch", "inches"], nist),
       try entry("foot", "ft", .length, 381, 1_250, ["ft", "foot", "feet"], nist),
+      try entry("yard", "yd", .length, 9_144, 10_000, ["yd", "yard", "yards"], nist),
       try entry(
         "mile", "mi", .length, 201_168, 125, ["mi", "mile", "miles"], nist),
       try entry(
-        "liter", "L", .volume, 1, 1_000, ["L", "liter", "liters", "litre", "litres"], bipm,
+        "hectare", "ha", .area, 10_000, ["ha", "hectare", "hectares"], bipm),
+      try entry(
+        "acre", "ac", .area, 40_468_564_224, 10_000_000, ["ac", "acre", "acres"], nist),
+      try entry(
+        "liter", "L", .volume, 1, 1_000,
+        ["L", "l", "liter", "liters", "litre", "litres"], bipm,
         families: [.decimal]),
       try entry(
         "gallon", "gal", .volume, 3_785_411_784, 1_000_000_000_000,
         ["gal", "gallon", "gallons"], nist),
+      try entry(
+        "quart", "qt", .volume, 3_785_411_784, 4_000_000_000_000,
+        ["qt", "quart", "quarts"], nist),
+      try entry(
+        "pint", "pt", .volume, 3_785_411_784, 8_000_000_000_000,
+        ["pt", "pint", "pints"], nist),
+      try entry(
+        "cup", "cup", .volume, 3_785_411_784, 16_000_000_000_000,
+        ["cup", "cups"], nist),
+      try entry(
+        "fluid-ounce", "floz", .volume, 3_785_411_784, 128_000_000_000_000,
+        ["floz", "fluidounce", "fluidounces"], nist),
+      try entry(
+        "tablespoon", "tbsp", .volume, 3_785_411_784, 256_000_000_000_000,
+        ["tbsp", "tablespoon", "tablespoons"], nist),
+      try entry(
+        "teaspoon", "tsp", .volume, 3_785_411_784, 768_000_000_000_000,
+        ["tsp", "teaspoon", "teaspoons"], nist),
       try entry("kilogram", "kg", .mass, 1, ["kg", "kilogram", "kilograms"], bipm),
+      try entry("tonne", "t", .mass, 1_000, ["t", "tonne", "tonnes"], bipm),
       try entry(
         "pound", "lb", .mass, 45_359_237, 100_000_000, ["lb", "lbs", "pound", "pounds"], nist),
       try entry(
         "ounce", "oz", .mass, 45_359_237, 1_600_000_000, ["oz", "ounce", "ounces"], nist),
+      try entry(
+        "stone", "st", .mass, 635_029_318, 100_000_000, ["st", "stone", "stones"], nist),
       try entry(
         "gram", "g", .mass, 1, 1_000, ["g", "gram", "grams"], bipm,
         families: [.decimal]),
@@ -373,7 +400,21 @@ public struct UnitCatalog: Sendable {
         "pascal", "Pa", .pressure, 1, ["Pa", "pascal", "pascals"], bipm,
         families: [.decimal]),
       try entry(
+        "bar", "bar", .pressure, 100_000, ["bar", "bars"], bipm,
+        families: [.decimal]),
+      try entry(
+        "atmosphere", "atm", .pressure, 101_325, ["atm", "atmosphere", "atmospheres"], nist),
+      try entry(
+        "pound-per-square-inch", "psi", .pressure, 44_482_216_152_605, 6_451_600_000, ["psi"],
+        nist),
+      try entry(
         "joule", "J", .energy, 1, ["J", "joule", "joules"], bipm,
+        families: [.decimal]),
+      try entry(
+        "calorie", "cal", .energy, 523, 125, ["cal", "calorie", "calories"], nist,
+        families: [.decimal]),
+      try entry(
+        "watt-hour", "Wh", .energy, 3_600, ["Wh"], bipm,
         families: [.decimal]),
       try entry(
         "watt", "W", .power, 1, ["W", "watt", "watts"], bipm,

@@ -10,7 +10,7 @@ struct UnitCatalogTests {
     let catalog = try UnitCatalog.minimal()
     let sourceIdentifiers = Set(catalog.sources.map(\.identifier))
 
-    #expect(catalog.entries.count == 26)
+    #expect(catalog.entries.count == 42)
     #expect(catalog.prefixes.count == 34)
     #expect(catalog.sources.count == 3)
     for entry in catalog.entries {
@@ -35,6 +35,62 @@ struct UnitCatalogTests {
     #expect(catalog.unit(matching: "Meter") == nil)
     #expect(catalog.unit(matching: "miles")?.definition.symbol == "mi")
     #expect(catalog.unit(matching: "lbs")?.definition.symbol == "lb")
+  }
+
+  @Test
+  func spellsLitersInLowercaseAndTakesMilliFromThePrefix() throws {
+    let catalog = try UnitCatalog.minimal()
+
+    for alias in ["L", "l", "liter", "litres"] {
+      #expect(catalog.resolveUnit(matching: alias)?.entry.definition.symbol == "L")
+      #expect(catalog.resolveUnit(matching: alias)?.prefix == nil)
+    }
+    for alias in ["ml", "mL", "milliliter", "millilitres"] {
+      let resolved = try #require(catalog.resolveUnit(matching: alias))
+      #expect(resolved.entry.definition.symbol == "L")
+      #expect(resolved.prefix?.prefix.symbol == "m")
+    }
+
+    // An exact alias still wins over a prefix reading, so a gallon is not
+    // a gram of liters and a pint is not a pico-tonne.
+    #expect(catalog.resolveUnit(matching: "gal")?.prefix == nil)
+    #expect(catalog.resolveUnit(matching: "pt")?.entry.definition.symbol == "pt")
+  }
+
+  @Test
+  func convertsBetweenTheUnitsPeopleMeasureEverydayThingsIn() throws {
+    let catalog = try UnitCatalog.minimal()
+    let algebra = try unitAlgebra()
+
+    func unit(_ alias: String) throws -> UnitExpression {
+      let resolved = try #require(catalog.resolveUnit(matching: alias))
+      guard let prefix = resolved.prefix else {
+        return try algebra.unit(resolved.entry.definition)
+      }
+      return try algebra.unit(
+        try algebra.applying(prefix.prefix, to: resolved.entry.definition)
+      )
+    }
+
+    func converted(_ magnitude: Int, _ from: String, to target: String) throws -> NumericValue {
+      try algebra.converted(
+        QuantityValue(magnitude: integer(magnitude), unit: try unit(from)),
+        to: try unit(target)
+      ).magnitude
+    }
+
+    #expect(try converted(1, "L", to: "ml") == integer(1_000))
+    #expect(try converted(1, "gal", to: "cup") == integer(16))
+    #expect(try converted(1, "cup", to: "tbsp") == integer(16))
+    #expect(try converted(1, "tbsp", to: "tsp") == integer(3))
+    #expect(try converted(1, "qt", to: "pt") == integer(2))
+    #expect(try converted(1, "t", to: "kg") == integer(1_000))
+    #expect(try converted(1, "st", to: "lb") == integer(14))
+    #expect(try converted(1, "yd", to: "ft") == integer(3))
+    #expect(try converted(1, "bar", to: "Pa") == integer(100_000))
+    #expect(try converted(1, "atm", to: "Pa") == integer(101_325))
+    #expect(try converted(1, "kcal", to: "cal") == integer(1_000))
+    #expect(try converted(1, "kWh", to: "J") == integer(3_600_000))
   }
 
   @Test
@@ -112,9 +168,23 @@ struct UnitCatalogTests {
       ("m", .length, integer(1)),
       ("in", .length, try fraction(127, 5_000)),
       ("ft", .length, try fraction(381, 1_250)),
+      ("yd", .length, try fraction(9_144, 10_000)),
       ("mi", .length, try fraction(201_168, 125)),
+      ("ha", .area, integer(10_000)),
+      ("ac", .area, try fraction(40_468_564_224, 10_000_000)),
       ("L", .volume, try fraction(1, 1_000)),
+      ("gal", .volume, try fraction(3_785_411_784, 1_000_000_000_000)),
+      ("qt", .volume, try fraction(3_785_411_784, 4_000_000_000_000)),
+      ("pt", .volume, try fraction(3_785_411_784, 8_000_000_000_000)),
+      ("cup", .volume, try fraction(3_785_411_784, 16_000_000_000_000)),
+      ("floz", .volume, try fraction(3_785_411_784, 128_000_000_000_000)),
+      ("tbsp", .volume, try fraction(3_785_411_784, 256_000_000_000_000)),
+      ("tsp", .volume, try fraction(3_785_411_784, 768_000_000_000_000)),
       ("kg", .mass, integer(1)),
+      ("t", .mass, integer(1_000)),
+      ("lb", .mass, try fraction(45_359_237, 100_000_000)),
+      ("oz", .mass, try fraction(45_359_237, 1_600_000_000)),
+      ("st", .mass, try fraction(635_029_318, 100_000_000)),
       ("g", .mass, try fraction(1, 1_000)),
       ("s", .time, integer(1)),
       ("min", .time, integer(60)),
@@ -123,11 +193,27 @@ struct UnitCatalogTests {
       ("rad", .angle, integer(1)),
       ("N", .force, integer(1)),
       ("Pa", .pressure, integer(1)),
+      ("bar", .pressure, integer(100_000)),
+      ("atm", .pressure, integer(101_325)),
+      ("psi", .pressure, try fraction(44_482_216_152_605, 6_451_600_000)),
       ("J", .energy, integer(1)),
+      ("cal", .energy, try fraction(523, 125)),
+      ("Wh", .energy, integer(3_600)),
       ("W", .power, integer(1)),
+      ("mph", .speed, try fraction(44_704, 100_000)),
       ("bit", .data, integer(1)),
+      ("bps", .dataRate, integer(1)),
       ("B", .data, integer(8)),
     ]
+
+    // Every ratio unit is locked above; only the affine and approximate
+    // entries are absent.
+    let locked = Set(expected.map(\.0))
+    let unlocked = catalog.entries.filter { entry in
+      entry.exactness == .exact && entry.definition.transform.isRatio
+        && !entry.aliases.contains(where: locked.contains)
+    }
+    #expect(unlocked.isEmpty)
 
     for (alias, dimension, scale) in expected {
       let definition = try definition(alias, in: catalog)
@@ -240,6 +326,15 @@ struct UnitCatalogTests {
         timeZone: timeZone
       )
     )
+  }
+}
+
+extension UnitTransform {
+  fileprivate var isRatio: Bool {
+    if case .ratio = self {
+      return true
+    }
+    return false
   }
 }
 

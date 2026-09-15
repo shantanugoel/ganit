@@ -8,9 +8,16 @@ Celsius/Fahrenheit, angles, and decimal and binary data units.
 Pounds, ounces, gallons, `mph`, and `bps` joined it after the
 [answer comparison](../quality/compatibility.md) found that a US-customary
 weight or volume, a speed in miles per hour, and a bandwidth in bits per
-second had no answer at all. A named speed or data-rate unit carries the
-compound dimension but not its factors, so `60 mph * 2 hours` answers
+second had no answer at all. A named speed, data-rate, or energy unit carries
+the compound dimension but not its factors, so `60 mph * 2 hours` answers
 `120 h·mph` where `60 mi/h * 2 hours` answers `120 mi`.
+
+The everyday units a person reaches for outside engineering followed: the
+yard; the hectare and acre; the quart, pint, cup, fluid ounce, tablespoon, and
+teaspoon; the tonne and stone; the bar, atmosphere, and `psi`; the
+thermochemical calorie and the watt-hour. The liter also answers to `l`, so
+`ml`, `cl`, and `dl` read as a decimal prefix on it, and `milliliters` reads as
+the prefix's long name. Every one of them is an exact rational conversion.
 
 Each entry records:
 

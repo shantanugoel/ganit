@@ -19,7 +19,7 @@ struct SheetCalculatorTests {
   @Test
   func recalculatesClockReadingLinesOnlyAtTheirBoundaries() throws {
     var calculator = SheetCalculator()
-    let sheet = SheetSource("a = 1\nt = today\nnow\nt + 1 day\na + 1")
+    let sheet = SheetSource("a = 1\nstart = today\nnow\nstart + 1 day\na + 1")
     let ids = sheet.lines.map(\.id)
     let context = try sheetContext().at(Date(timeIntervalSince1970: 1_700_000_000.25))
 

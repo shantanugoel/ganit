@@ -7,16 +7,19 @@ import Testing
 struct UnitPropertyTests {
   /// Exact units grouped by dimension. Every family has a distinct dimension.
   private static let families: [String: [String]] = [
-    "length": ["m", "km", "mm", "in", "ft", "mi"],
-    "mass": ["kg", "g", "mg"],
+    "length": ["m", "km", "mm", "in", "ft", "yd", "mi"],
+    "area": ["m^2", "cm²", "ha", "ac", "ft²"],
+    "mass": ["kg", "g", "mg", "t", "lb", "st"],
     "time": ["s", "ms", "min", "h"],
-    "volume": ["L", "mL", "m^3", "cm³"],
+    "volume": [
+      "L", "l", "mL", "ml", "m^3", "cm³", "gal", "qt", "pt", "cup", "floz", "tbsp", "tsp",
+    ],
     "data": ["bit", "B", "kB", "KiB", "Mb", "MiB"],
     "speed": ["m/s", "km/h", "mi/h", "ft/min"],
     "acceleration": ["m/s²", "ft/s^2", "km/(h·s)"],
     "force": ["N", "kN", "kg·m/s²", "g·cm/s^2"],
-    "pressure": ["Pa", "kPa", "N/m²", "N/mm^2"],
-    "energy": ["J", "kJ", "W·h", "kW·h", "N·m", "kg·m²/s²"],
+    "pressure": ["Pa", "kPa", "N/m²", "mbar", "bar", "atm", "psi"],
+    "energy": ["J", "kJ", "W·h", "Wh", "kWh", "cal", "kcal", "N·m", "kg·m²/s²"],
     "power": ["W", "kW", "J/s", "MJ/h"],
     "data rate": ["bit/s", "MB/s", "Mb/s", "KiB/min"],
   ]
