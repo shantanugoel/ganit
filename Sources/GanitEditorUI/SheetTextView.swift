@@ -156,6 +156,13 @@ final class SheetTextView: NSTextView {
   }
 
   override func keyDown(with event: NSEvent) {
+    // Command-Return copies the current result; Return stays a newline.
+    if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+      event.charactersIgnoringModifiers == "\r"
+    {
+      copyResult(nil)
+      return
+    }
     guard selectedAnswer != nil else {
       super.keyDown(with: event)
       return
@@ -219,6 +226,11 @@ final class SheetTextView: NSTextView {
       return targetAnswer != nil
     case #selector(copyFullPrecision(_:)):
       return targetAnswer?.cell.fullPrecision != nil
+    case #selector(insertReference(_:)):
+      return referenceTarget != nil
+    case #selector(insertSubtotal(_:)), #selector(toggleHeading(_:)),
+      #selector(toggleComment(_:)), #selector(insertDivider(_:)):
+      return isEditable
     default:
       return super.validateUserInterfaceItem(item)
     }
@@ -228,6 +240,94 @@ final class SheetTextView: NSTextView {
   private var targetAnswer: (line: LineID, cell: AnswerCell)? {
     let id = selectedAnswer ?? line(selectedRange().location)?.id
     return id.flatMap { id in answers[id].map { (id, $0) } }
+  }
+
+  /// Inserts a reference to the selected answer when it is above the
+  /// insertion point, or else to the nearest result above.
+  @objc func insertReference(_ sender: Any?) {
+    guard let target = referenceTarget else {
+      NSSound.beep()
+      return
+    }
+    insertReference(to: target)
+  }
+
+  /// Inserts `subtotal` on a new line after the insertion point's line.
+  @objc func insertSubtotal(_ sender: Any?) {
+    insertLineAfterCurrent("subtotal")
+  }
+
+  @objc func insertDivider(_ sender: Any?) {
+    insertLineAfterCurrent("---")
+  }
+
+  /// Adds or removes a `# ` prefix on every selected line.
+  @objc func toggleHeading(_ sender: Any?) {
+    togglePrefix("#")
+  }
+
+  /// Adds or removes a `// ` prefix on every selected line.
+  @objc func toggleComment(_ sender: Any?) {
+    togglePrefix("//")
+  }
+
+  private var referenceTarget: LineID? {
+    guard let caret = line(selectedRange().location) else {
+      return nil
+    }
+    if let selectedAnswer, let number = lineNumber(selectedAnswer), number < caret.number {
+      return selectedAnswer
+    }
+    let string = self.string as NSString
+    var location = string.lineRange(for: NSRange(location: selectedRange().location, length: 0))
+      .location
+    while location > 0 {
+      let previous = string.lineRange(for: NSRange(location: location - 1, length: 0))
+      if let id = lineID(previous.location), answers[id]?.isFailure == false {
+        return id
+      }
+      location = previous.location
+    }
+    return nil
+  }
+
+  private func insertLineAfterCurrent(_ text: String) {
+    let string = self.string as NSString
+    let lineRange = string.lineRange(for: selectedRange())
+    var contentsEnd = 0
+    string.getLineStart(nil, end: nil, contentsEnd: &contentsEnd, for: lineRange)
+    let inserted = "\n" + text
+    insertText(inserted, replacementRange: NSRange(location: contentsEnd, length: 0))
+    setSelectedRange(NSRange(location: contentsEnd + (inserted as NSString).length, length: 0))
+  }
+
+  /// Toggles a marker on the selected lines as one edit: removes it when
+  /// every non-blank line starts with it, and adds it otherwise.
+  private func togglePrefix(_ marker: String) {
+    let string = self.string as NSString
+    let block = string.lineRange(for: selectedRange())
+    let lines = string.substring(with: block).components(separatedBy: "\n")
+    let contentLines = lines.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+    let removing =
+      !contentLines.isEmpty
+      && contentLines.allSatisfy { $0.drop(while: \.isWhitespace).hasPrefix(marker) }
+    let toggled = lines.map { line -> String in
+      guard !line.trimmingCharacters(in: .whitespaces).isEmpty else {
+        return line
+      }
+      let indent = line.prefix(while: \.isWhitespace)
+      var rest = line.dropFirst(indent.count)
+      guard removing else {
+        return indent + marker + " " + rest
+      }
+      rest = rest.dropFirst(marker.count)
+      if rest.first == " " {
+        rest = rest.dropFirst()
+      }
+      return String(indent + rest)
+    }.joined(separator: "\n")
+    insertText(toggled, replacementRange: block)
+    setSelectedRange(NSRange(location: block.location, length: (toggled as NSString).length))
   }
 
   /// Inserts `line N` for an answer above the insertion point's line.

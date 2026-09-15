@@ -964,7 +964,7 @@ Tasks:
 - [x] Render aligned answers without inserting answer text into source storage.
 - [x] Add syntax/state decoration using exact source ranges.
 - [x] Add result selection/copy and interpretation/error UI.
-- [ ] Add standard menus and commands; Return/newline and ⌘Return behavior.
+- [x] Add standard menus and commands; Return/newline and ⌘Return behavior.
 - [ ] Add text scaling, appearance, contrast and accessibility semantics.
 - [ ] Instrument edit-to-answer and layout latency.
 

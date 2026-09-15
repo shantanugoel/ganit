@@ -44,6 +44,12 @@ final class SheetEvaluationScheduler {
     }
   }
 
+  /// Cancels the running generation, leaving the last shown evaluation.
+  func cancel() {
+    task?.cancel()
+    latestRequest += 1
+  }
+
   /// Waits for the newest scheduled generation to finish or be superseded.
   func waitUntilIdle() async {
     while let current = task {

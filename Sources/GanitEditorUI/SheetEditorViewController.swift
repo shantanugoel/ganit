@@ -169,6 +169,16 @@ public final class SheetEditorViewController: NSViewController {
     scheduler?.schedule(sheet)
   }
 
+  /// Evaluates the current source again.
+  @objc public func recalculate(_ sender: Any?) {
+    scheduler?.schedule(sheet)
+  }
+
+  /// Stops the running evaluation; answers stay at the last completed one.
+  @objc public func stopCalculation(_ sender: Any?) {
+    scheduler?.cancel()
+  }
+
   fileprivate func selectionDidChange() {
     let line = sheet.lines[lineIndex(atUTF16: textView.selectedRange().location)].id
     guard line != editingLine else {
