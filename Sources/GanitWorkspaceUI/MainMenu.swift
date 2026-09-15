@@ -293,6 +293,17 @@ public enum MainMenu {
             localized("menu.comment", "Comment"), #selector(SheetCommands.toggleComment(_:)), "/"),
           item(localized("menu.divider", "Divider"), #selector(SheetCommands.insertDivider(_:))),
           .separator(),
+          item(
+            localized("menu.stepNumberUp", "Step Number Up"),
+            #selector(SheetCommands.stepNumberUp(_:)),
+            upArrow,
+            [.control]),
+          item(
+            localized("menu.stepNumberDown", "Step Number Down"),
+            #selector(SheetCommands.stepNumberDown(_:)),
+            downArrow,
+            [.control]),
+          .separator(),
           submenuItem(localized("menu.numberFormat", "Number Format"), numberFormatItems()),
           item(
             localized("menu.groupDigits", "Group Digits"),
@@ -351,6 +362,9 @@ public enum MainMenu {
     item.submenu = menu(title, items)
     return item
   }
+
+  private static let upArrow = String(UnicodeScalar(UInt16(NSUpArrowFunctionKey))!)
+  private static let downArrow = String(UnicodeScalar(UInt16(NSDownArrowFunctionKey))!)
 
   private static func item(
     _ title: String,

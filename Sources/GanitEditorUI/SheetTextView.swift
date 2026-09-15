@@ -46,6 +46,8 @@ final class SheetTextView: NSTextView {
     didSet { answerOverlay().needsDisplay = true }
   }
   /// The line starting at a UTF-16 offset of the current source, if any.
+  /// How the sheet's grammar reads numbers, for finding the one a scrub steps.
+  var lexingConfiguration = LexingConfiguration.englishUnitedStates
   var lineID: (Int) -> LineID? = { _ in nil }
   /// The one-based number of the line containing a UTF-16 offset, and its ID.
   var line: (Int) -> (number: Int, id: LineID)? = { _ in nil }
@@ -328,6 +330,9 @@ final class SheetTextView: NSTextView {
         .first(where: { $0.rect.insetBy(dx: -4, dy: 0).contains(point) })
     else {
       selectedAnswer = nil
+      if event.modifierFlags.contains(.option), beginScrub(at: point) {
+        return
+      }
       super.mouseDown(with: event)
       return
     }
@@ -340,6 +345,167 @@ final class SheetTextView: NSTextView {
         insertReference(to: hit.line)
       }
     }
+  }
+
+  // MARK: Scrubbing a number
+
+  /// How far a pointer travels for one step. Digits move at a pace a person
+  /// can follow and stop on, rather than flickering past.
+  static let pointsPerScrubStep: CGFloat = 4
+
+  private struct Scrub {
+    let number: ScrubbableNumber
+    /// The line's start in the sheet, in UTF-16 code units.
+    let lineStart: Int
+    /// Where the drag began, so every step counts from the number as written
+    /// rather than compounding a rounding of it.
+    let anchor: CGFloat
+    var written: String
+  }
+
+  private var scrub: Scrub?
+  private var showsScrubCursor = false
+
+  override func mouseDragged(with event: NSEvent) {
+    guard scrub != nil else {
+      super.mouseDragged(with: event)
+      return
+    }
+    step(to: convert(event.locationInWindow, from: nil), event.modifierFlags)
+  }
+
+  override func mouseUp(with event: NSEvent) {
+    guard scrub != nil else {
+      super.mouseUp(with: event)
+      return
+    }
+    scrub = nil
+    undoManager?.endUndoGrouping()
+  }
+
+  /// The pointer shows the drag while Option is held over a number, so the
+  /// gesture can be found without being described.
+  override func flagsChanged(with event: NSEvent) {
+    super.flagsChanged(with: event)
+    guard scrub == nil, let window else {
+      return
+    }
+    let point = convert(window.mouseLocationOutsideOfEventStream, from: nil)
+    let scrubbable =
+      event.modifierFlags.contains(.option) && bounds.contains(point)
+      && number(at: characterIndexForInsertion(at: point)) != nil
+    if scrubbable {
+      NSCursor.resizeLeftRight.set()
+      showsScrubCursor = true
+    } else if showsScrubCursor {
+      NSCursor.iBeam.set()
+      showsScrubCursor = false
+    }
+  }
+
+  @objc func stepNumberUp(_ sender: Any?) {
+    stepNumberAtInsertionPoint(by: 1)
+  }
+
+  @objc func stepNumberDown(_ sender: Any?) {
+    stepNumberAtInsertionPoint(by: -1)
+  }
+
+  private func beginScrub(at point: NSPoint) -> Bool {
+    let offset = characterIndexForInsertion(at: point)
+    guard isEditable, let found = number(at: offset) else {
+      return false
+    }
+    scrub = Scrub(
+      number: found.number,
+      lineStart: found.lineStart,
+      anchor: point.x,
+      written: found.number.text
+    )
+    undoManager?.beginUndoGrouping()
+    undoManager?.setActionName(localized("scrub.undo", "Change Number"))
+    NSCursor.resizeLeftRight.set()
+    showsScrubCursor = true
+    return true
+  }
+
+  private func step(to point: NSPoint, _ modifiers: NSEvent.ModifierFlags) {
+    guard var state = scrub else {
+      return
+    }
+    // Shift steps ten of the number's last place at a time and Command a tenth
+    // of it, as they coarsen and refine elsewhere.
+    let scale =
+      state.number.scale + (modifiers.contains(.command) ? 1 : 0)
+      - (modifiers.contains(.shift) ? 1 : 0)
+    let steps = Int((point.x - state.anchor) / Self.pointsPerScrubStep)
+    guard
+      let stepped = state.number.stepped(
+        by: steps,
+        scale: scale,
+        configuration: lexingConfiguration
+      ), stepped != state.written
+    else {
+      return
+    }
+    let range = NSRange(
+      location: state.lineStart + state.number.range.location,
+      length: state.written.utf16.count
+    )
+    guard write(stepped, in: range) else {
+      return
+    }
+    state.written = stepped
+    scrub = state
+  }
+
+  private func stepNumberAtInsertionPoint(by steps: Int) {
+    guard isEditable, let found = number(at: selectedRange().location),
+      let stepped = found.number.stepped(
+        by: steps,
+        scale: found.number.scale,
+        configuration: lexingConfiguration
+      )
+    else {
+      NSSound.beep()
+      return
+    }
+    let start = found.lineStart + found.number.range.location
+    let range = NSRange(location: start, length: found.number.range.length)
+    guard write(stepped, in: range) else {
+      return
+    }
+    // The insertion point stays in the number, so stepping again steps it.
+    setSelectedRange(NSRange(location: start + stepped.utf16.count, length: 0))
+  }
+
+  private func write(_ text: String, in range: NSRange) -> Bool {
+    guard shouldChangeText(in: range, replacementString: text) else {
+      return false
+    }
+    textStorage?.replaceCharacters(in: range, with: text)
+    didChangeText()
+    return true
+  }
+
+  /// The number written at an offset in the sheet, with the start of the line
+  /// holding it.
+  private func number(at offset: Int) -> (number: ScrubbableNumber, lineStart: Int)? {
+    let text = string as NSString
+    guard offset <= text.length else {
+      return nil
+    }
+    let line = text.paragraphRange(for: NSRange(location: offset, length: 0))
+    guard
+      let number = ScrubbableNumber(
+        in: text.substring(with: line),
+        at: offset - line.location,
+        configuration: lexingConfiguration
+      )
+    else {
+      return nil
+    }
+    return (number, line.location)
   }
 
   override func keyDown(with event: NSEvent) {
@@ -434,6 +600,8 @@ final class SheetTextView: NSTextView {
     case #selector(insertSubtotal(_:)), #selector(toggleHeading(_:)),
       #selector(toggleComment(_:)), #selector(insertDivider(_:)):
       return isEditable
+    case #selector(stepNumberUp(_:)), #selector(stepNumberDown(_:)):
+      return isEditable && number(at: selectedRange().location) != nil
     default:
       return super.validateUserInterfaceItem(item)
     }

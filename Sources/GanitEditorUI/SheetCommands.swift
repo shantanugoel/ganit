@@ -15,6 +15,8 @@ import AppKit
   func toggleHeading(_ sender: Any?)
   func toggleComment(_ sender: Any?)
   func insertDivider(_ sender: Any?)
+  func stepNumberUp(_ sender: Any?)
+  func stepNumberDown(_ sender: Any?)
   func recalculate(_ sender: Any?)
   func stopCalculation(_ sender: Any?)
   func increaseTextSize(_ sender: Any?)

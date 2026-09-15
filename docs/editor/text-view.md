@@ -123,6 +123,29 @@ The bar is static text labeled "Selection summary" for accessibility, with no
 action of its own; a sheet's own `total`, `average`, and `subtotal` lines
 remain the way to keep a sum.
 
+## Scrubbing a number
+
+Holding Option over a number in a line turns the pointer into a left-right
+arrow, and dragging sideways steps the number while every answer that depends on
+it follows. A step is one unit of the place the number was written to, so `2.50`
+moves by hundredths and `2,100` by ones; Shift steps ten of that place at a time
+and Command a tenth of it, which adds a decimal the number did not have. A drag
+counts from where it started rather than from what its last step wrote, so
+dragging back returns the number it began with, and the whole drag undoes as one
+change named "Change Number".
+
+Step Number Up ⌃↑ and Step Number Down ⌃↓ do the same to the number at the
+insertion point, so the feature is not one only a pointer can reach; the
+insertion point stays in the number so it can be stepped again. Both are
+disabled when no number is there.
+
+Scrubbing changes the digits a person points at, which is why it works on the
+literal the lexer found rather than on the value a line computes. Dragging right
+raises those digits and dragging left lowers them, stopping at zero, because a
+sign in front of a number belongs to the expression. A number written as a power
+of ten, or in hexadecimal, binary, or octal, is left alone: stepping it would
+have to guess how the result should be written.
+
 ## Text size, appearance, and accessibility
 
 View ▸ Bigger, Smaller, and Actual Size step the editor's text scale through

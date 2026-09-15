@@ -89,6 +89,7 @@ public final class SheetEditorViewController: NSViewController {
     super.init(nibName: nil, bundle: nil)
 
     configureTextView(text: text)
+    sheetTextView.lexingConfiguration = context.lexingConfiguration
     storageObserver.controller = self
     textView.textStorage?.delegate = storageObserver
     textView.delegate = storageObserver

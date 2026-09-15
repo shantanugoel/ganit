@@ -1161,6 +1161,26 @@
         }
       }
     },
+    "menu.stepNumberDown" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Step Number Down"
+          }
+        }
+      }
+    },
+    "menu.stepNumberUp" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Step Number Up"
+          }
+        }
+      }
+    },
     "menu.stop" : {
       "localizations" : {
         "en" : {
@@ -1347,6 +1367,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Restore Previous Version"
+          }
+        }
+      }
+    },
+    "scrub.undo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change Number"
           }
         }
       }

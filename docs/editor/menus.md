@@ -11,7 +11,7 @@ enabled only when the focused editor or window can perform it.
 | File | New Sheet ⌘N, Close ⌘W, Print… ⌘P |
 | Edit | Undo ⌘Z, Redo ⇧⌘Z, Cut ⌘X, Copy ⌘C, Paste ⌘V, Delete, Select All ⌘A, Find ▸ (Find… ⌘F, Find and Replace… ⌥⌘F, Find Next ⌘G, Find Previous ⇧⌘G, Use Selection for Find ⌘E) |
 | Calculate | Copy Result ⇧⌘C, Copy Full Precision ⌥⇧⌘C, Show Interpretation, Insert Reference ⌘\, Insert Subtotal ⌘T, Recalculate ⌘R, Stop ⌘. |
-| Format | Heading, Comment ⌘/, Divider, Number Format, Group Digits |
+| Format | Heading, Comment ⌘/, Divider, Step Number Up ⌃↑, Step Number Down ⌃↓, Number Format, Group Digits |
 | View | Bigger ⌘+, Smaller ⌘-, Actual Size ⌘0, Enter Full Screen ⌃⌘F |
 | Window | Minimize ⌘M, Zoom, Definitions ⌘⇧D, Quick Ganit items, Bring All to Front, and the window list |
 | Help | menu search |
@@ -21,6 +21,9 @@ reference, and formatting commands; the editor controller, next in the
 responder chain, handles Recalculate and Stop. New Sheet opens a workspace
 window with an empty sheet.
 
+- **Step Number Up** and **Step Number Down** step the number at the insertion
+  point by one unit of its last decimal place, and are what a person who does
+  not drag uses instead of scrubbing; see docs/editor/text-view.md.
 - **Number Format** and **Group Digits** say how the open sheet writes its
   answers. The workspace window handles them, because the choice stays with the
   sheet; see docs/engine/result-formatting.md.
