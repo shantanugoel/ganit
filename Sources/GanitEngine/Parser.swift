@@ -3,24 +3,28 @@ public struct Parser: Sendable {
   private let configuration: LexingConfiguration
   private let limits: SyntaxLimits
   private let catalog: UnitCatalog
+  private let origin: SourceLocation
 
   public init(
     source: String,
     configuration: LexingConfiguration = .englishUnitedStates,
     limits: SyntaxLimits = .default,
-    catalog: UnitCatalog? = nil
+    catalog: UnitCatalog? = nil,
+    origin: SourceLocation = .start
   ) {
     self.source = source
     self.configuration = configuration
     self.limits = limits
     self.catalog = catalog ?? builtInMinimalUnitCatalog
+    self.origin = origin
   }
 
   public func parse() -> ParsingResult {
     let lexingResult = Lexer(
       source: source,
       configuration: configuration,
-      limits: limits
+      limits: limits,
+      origin: origin
     ).lex()
     if lexingResult.diagnostics.contains(where: {
       $0.code == .resourceLimitExceeded

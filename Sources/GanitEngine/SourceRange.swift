@@ -1,3 +1,17 @@
+/// A position measured in UTF-8 code units and extended grapheme clusters.
+public struct SourceLocation: Hashable, Sendable {
+  public static let start = SourceLocation(utf8Offset: 0, graphemeOffset: 0)
+
+  public let utf8Offset: Int
+  public let graphemeOffset: Int
+
+  package init(utf8Offset: Int, graphemeOffset: Int) {
+    precondition(utf8Offset >= 0 && graphemeOffset >= 0)
+    self.utf8Offset = utf8Offset
+    self.graphemeOffset = graphemeOffset
+  }
+}
+
 public struct SourceRange: Hashable, Sendable {
   /// Half-open lower bound measured in UTF-8 code units.
   public let lowerBound: Int

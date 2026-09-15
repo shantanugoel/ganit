@@ -299,7 +299,7 @@ struct ParserFuzzSmokeTests {
     let fragments = [
       "0", "1", "9", ".", ",", "+", "-", "*", "/", "^", "(", ")", ";",
       "e", "π", "sqrt", "root", "m", "kg", "°C", "·", "²", "³",
-      "in", "into", "١", "२", "９", "é", "\u{301}", "💯",
+      "in", "into", ":", "#", "//", "١", "२", "９", "é", "\u{301}", "💯",
       "\u{200D}", "\u{202E}", "\r", "\n", " ",
     ]
     for _ in 0..<1_000 {
@@ -312,28 +312,45 @@ struct ParserFuzzSmokeTests {
     }
 
     for source in inputs {
-      switch engine.evaluate(source, context: context) {
-      case .value(let result):
-        _ = try? formatter.format(result)
-      case .syntaxFailure(let diagnostics):
-        #expect(!diagnostics.isEmpty)
-        for diagnostic in diagnostics {
-          expectValid(
-            diagnostic.range,
-            in: source
-          )
-          #expect(!diagnostic.messageKey.isEmpty)
-        }
-      case .evaluationFailure(let error):
-        #expect(error.code != EngineErrorCode.internalFailure)
-        #expect(!error.messageKey.isEmpty)
-        #expect(!error.ranges.isEmpty)
-        for range in error.ranges {
-          expectValid(
-            range,
-            in: source
-          )
-        }
+      for line in engine.evaluate(SheetSource(source), context: context) {
+        expectValidResult(line.result, in: source, formatter: formatter)
+      }
+      expectValidResult(
+        engine.evaluate(source, context: context),
+        in: source,
+        formatter: formatter
+      )
+    }
+  }
+
+  private func expectValidResult(
+    _ result: CalculationResult?,
+    in source: String,
+    formatter: ResultFormatter
+  ) {
+    switch result {
+    case nil:
+      break
+    case .value(let result):
+      _ = try? formatter.format(result)
+    case .syntaxFailure(let diagnostics):
+      #expect(!diagnostics.isEmpty)
+      for diagnostic in diagnostics {
+        expectValid(
+          diagnostic.range,
+          in: source
+        )
+        #expect(!diagnostic.messageKey.isEmpty)
+      }
+    case .evaluationFailure(let error):
+      #expect(error.code != EngineErrorCode.internalFailure)
+      #expect(!error.messageKey.isEmpty)
+      #expect(!error.ranges.isEmpty)
+      for range in error.ranges {
+        expectValid(
+          range,
+          in: source
+        )
       }
     }
   }

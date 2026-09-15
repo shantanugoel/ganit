@@ -941,7 +941,7 @@ Exit criteria:
 Tasks:
 
 - [x] Implement stable line IDs and line segmentation.
-- [ ] Add explicit comments, labels, headings, blank sections and dividers.
+- [x] Add explicit comments, labels, headings, blank sections and dividers.
 - [ ] Add variables, multi-word names, declarations and conservative unknown-identifier errors.
 - [ ] Add upward references, previous, totals/average/median/count and subtotals.
 - [ ] Build dependency tracking, invalidation, generation IDs and cancellation.

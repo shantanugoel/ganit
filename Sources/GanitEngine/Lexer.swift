@@ -2,32 +2,38 @@ public struct Lexer: Sendable {
   private let source: String
   private let configuration: LexingConfiguration
   private let limits: SyntaxLimits
+  private let origin: SourceLocation
 
+  /// `origin` is the location of `source` within a larger document, such as
+  /// a sheet. Every produced range is expressed in that document's offsets.
   public init(
     source: String,
     configuration: LexingConfiguration = .englishUnitedStates,
-    limits: SyntaxLimits = .default
+    limits: SyntaxLimits = .default,
+    origin: SourceLocation = .start
   ) {
     self.source = source
     self.configuration = configuration
     self.limits = limits
+    self.origin = origin
   }
 
   public func lex() -> LexingResult {
     let utf8Length = source.utf8.count
     if utf8Length > limits.maximumSourceUTF8Length {
-      let graphemeLength = source.count
+      let utf8End = origin.utf8Offset + utf8Length
+      let graphemeEnd = origin.graphemeOffset + source.count
       let sourceRange = SourceRange(
-        lowerBound: 0,
-        upperBound: utf8Length,
-        graphemeLowerBound: 0,
-        graphemeUpperBound: graphemeLength
+        lowerBound: origin.utf8Offset,
+        upperBound: utf8End,
+        graphemeLowerBound: origin.graphemeOffset,
+        graphemeUpperBound: graphemeEnd
       )
       let endRange = SourceRange(
-        lowerBound: utf8Length,
-        upperBound: utf8Length,
-        graphemeLowerBound: graphemeLength,
-        graphemeUpperBound: graphemeLength
+        lowerBound: utf8End,
+        upperBound: utf8End,
+        graphemeLowerBound: graphemeEnd,
+        graphemeUpperBound: graphemeEnd
       )
       return LexingResult(
         tokens: [Token(kind: .endOfFile, range: endRange)],
@@ -40,7 +46,8 @@ public struct Lexer: Sendable {
     var scanner = Scanner(
       source: source,
       configuration: configuration,
-      maximumTokenCount: limits.maximumTokenCount
+      maximumTokenCount: limits.maximumTokenCount,
+      origin: origin
     )
     return scanner.scan()
   }
@@ -61,6 +68,7 @@ private struct Scanner {
   private let utf8Offsets: [Int]
   private let configuration: LexingConfiguration
   private let maximumTokenCount: Int
+  private let graphemeOrigin: Int
   private var cursor = 0
   private var tokens: [Token] = []
   private var diagnostics: [SyntaxDiagnostic] = []
@@ -69,13 +77,15 @@ private struct Scanner {
   init(
     source: String,
     configuration: LexingConfiguration,
-    maximumTokenCount: Int
+    maximumTokenCount: Int,
+    origin: SourceLocation
   ) {
     characters = Array(source)
     self.configuration = configuration
     self.maximumTokenCount = maximumTokenCount
+    graphemeOrigin = origin.graphemeOffset
 
-    var offsets = [0]
+    var offsets = [origin.utf8Offset]
     offsets.reserveCapacity(characters.count + 1)
     for character in characters {
       offsets.append(offsets[offsets.count - 1] + character.utf8.count)
@@ -180,8 +190,8 @@ private struct Scanner {
     SourceRange(
       lowerBound: utf8Offsets[start],
       upperBound: utf8Offsets[end ?? cursor],
-      graphemeLowerBound: start,
-      graphemeUpperBound: end ?? cursor
+      graphemeLowerBound: graphemeOrigin + start,
+      graphemeUpperBound: graphemeOrigin + (end ?? cursor)
     )
   }
 
