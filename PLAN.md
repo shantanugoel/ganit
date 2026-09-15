@@ -1106,7 +1106,7 @@ Tasks:
 
 - [ ] Expand compatibility corpus by testing Numi, Soulver, Apple Math Notes and Ganit on matching semantics.
 - [ ] Recruit mixed-domain beta users; collect reports without automatic sheet upload.
-- [ ] Run parser fuzzing continuously and triage every crash/hang.
+- [x] Run parser fuzzing continuously and triage every crash/hang. A nightly Address Sanitizer workflow fuzzes 50,000 inputs with a new seed and fails on slow inputs; 180,000 local inputs found no crash or hang. See Tests/README.md.
 - [ ] Conduct backup restore day and migration rehearsal.
 - [ ] Audit sandbox, entitlements, URL/Service/import limits and data provenance.
 - [ ] Run performance suite on clean machines and compare with competitors.

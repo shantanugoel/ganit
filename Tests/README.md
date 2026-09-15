@@ -21,6 +21,13 @@ Phase 1 adds three deterministic layers beyond focused unit tests:
   mixed-script Unicode input, generated from a fixed seed under strict syntax
   limits. Every diagnostic range is checked against the original source.
 
+`GANIT_FUZZ_SEED` and `GANIT_FUZZ_ITERATIONS` widen the fuzz run. The nightly
+`Nightly fuzz` workflow runs 50,000 inputs under Address Sanitizer with a new
+seed each night and prints the seed; any input slower than two seconds fails
+with its seed and source, so a hang is reported like a crash. A failure is
+triaged by rerunning with that seed, adding the input to
+`parser-fuzz-seeds.json`, and fixing it with a regression test.
+
 Run these suites directly:
 
 ```sh

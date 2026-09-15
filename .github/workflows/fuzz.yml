@@ -1,0 +1,28 @@
+name: Nightly fuzz
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    name: Fuzz parser and evaluator
+    runs-on: macos-26
+    timeout-minutes: 90
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.5.app/Contents/Developer
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Fuzz with a new seed under Address Sanitizer
+        run: |
+          seed=$(( $(date +%s) ^ GITHUB_RUN_ID ))
+          echo "Seed: $seed"
+          GANIT_FUZZ_SEED=$seed GANIT_FUZZ_ITERATIONS=50000 \
+            swift test --sanitize address --filter ParserFuzzSmokeTests

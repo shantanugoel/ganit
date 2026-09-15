@@ -281,8 +281,13 @@ struct ArithmeticPropertyTests {
 
 @Suite
 struct ParserFuzzSmokeTests {
+  /// `GANIT_FUZZ_SEED` and `GANIT_FUZZ_ITERATIONS` widen the run, as the
+  /// nightly fuzz workflow does; CI on every push uses the fixed defaults.
   @Test
   func corpusAndSeededUnicodeInputsNeverTrapOrEscapeRanges() throws {
+    let environment = ProcessInfo.processInfo.environment
+    let seed = environment["GANIT_FUZZ_SEED"].flatMap { UInt64($0) } ?? 0x4655_5A5A_5048_3101
+    let iterations = environment["GANIT_FUZZ_ITERATIONS"].flatMap { Int($0) } ?? 1_000
     let corpus = try loadFixture([String].self, named: "parser-fuzz-seeds")
     let context = try fixedContext()
     let engine = CalculationEngine(
@@ -297,7 +302,7 @@ struct ParserFuzzSmokeTests {
       limits: FormattingLimits(maximumCharacters: 2_048)
     )
     var inputs = corpus
-    var generator = SeededGenerator(seed: 0x4655_5A5A_5048_3101)
+    var generator = SeededGenerator(seed: seed)
     let fragments = [
       "0", "1", "9", ".", ",", "+", "-", "*", "/", "^", "(", ")", ";",
       "e", "π", "sqrt", "root", "m", "kg", "°C", "·", "²", "³",
@@ -306,9 +311,9 @@ struct ParserFuzzSmokeTests {
       "\u{200D}", "\u{202E}", "\r", "\n", " ",
       "2024-03-10", "T02:30", "12:00", "Z", "-05:00", "pm", "ago", "from now", "today", "next",
       "friday", "March", "days", "America/New_York", "Tokyo", "$", "€", "US$", "USD", "in EUR",
-      "1 USD = ",
+      "1 USD = ", "fv(", "pmt(", "5%", "1 bag = ", "---", "subtotal",
     ]
-    for _ in 0..<1_000 {
+    for _ in 0..<iterations {
       let count = generator.integer(in: 0...80)
       var source = ""
       for _ in 0..<count {
@@ -318,6 +323,13 @@ struct ParserFuzzSmokeTests {
     }
 
     for source in inputs {
+      let started = ContinuousClock.now
+      defer {
+        // A slow input is a hang in waiting; report it with the seed that made it.
+        #expect(
+          ContinuousClock.now - started < .seconds(2),
+          "seed \(seed): slow input \(source.debugDescription)")
+      }
       let sheet = SheetSource(source)
       var calculator = SheetCalculator(engine: engine)
       for (line, result) in zip(sheet.lines, try calculator.evaluate(sheet, context: context).lines)
