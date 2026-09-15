@@ -26,6 +26,18 @@ public final class SheetEditorViewController: NSViewController {
   /// Receives the time from an edit until its answers were drawn, for each
   /// generation that reaches the screen.
   public var editToAnswerHandler: ((Duration) -> Void)?
+  /// Where result commands copy.
+  public var resultPasteboard: NSPasteboard {
+    get { sheetTextView.pasteboard }
+    set { sheetTextView.pasteboard = newValue }
+  }
+
+  /// Copies the insertion point's result, or else the sheet's last result,
+  /// and returns whether one was copied.
+  public func copyCurrentOrLastResult() -> Bool {
+    sheetTextView.copyCurrentOrLastResult()
+  }
+
   /// Called after each committed source edit, for saving.
   public var sourceDidChange: (() -> Void)?
 

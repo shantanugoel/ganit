@@ -8,6 +8,12 @@ import GanitEditorUI
   func showQuickGanitShortcut(_ sender: Any?)
 }
 
+/// Actions handled by the Quick Ganit panel while it is key.
+@MainActor
+@objc public protocol QuickGanitCommands {
+  func keepAsSheet(_ sender: Any?)
+}
+
 /// Library and sheet actions handled by workspace windows. The application
 /// delegate also handles New Sheet when no window is open.
 @MainActor
@@ -99,6 +105,9 @@ public enum MainMenu {
             "n",
             [.command, .shift]
           ),
+          item(
+            localized("menu.keepAsSheet", "Keep as Sheet"),
+            #selector(QuickGanitCommands.keepAsSheet(_:)), "s"),
           item(
             localized("menu.openInNewWindow", "Open in New Window"),
             #selector(WorkspaceCommands.openInNewWindow(_:))

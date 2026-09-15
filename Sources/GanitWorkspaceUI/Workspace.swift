@@ -46,6 +46,15 @@ public final class Workspace {
     return controller
   }
 
+  /// Saves text as a new sheet, such as a promoted Quick Ganit buffer, and
+  /// opens it in a window.
+  @discardableResult
+  public func openNewSheet(source: String) throws -> WorkspaceWindowController {
+    let metadata = try library.save(
+      source: source, metadata: library.create(preferences: .standard))
+    return openWindow(showing: metadata.id)
+  }
+
   /// Imports a `.ganit` package or text file and returns the new sheet's ID.
   public func importSheet(from url: URL) throws -> UUID {
     let accessing = url.startAccessingSecurityScopedResource()

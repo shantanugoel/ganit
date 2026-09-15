@@ -150,3 +150,75 @@ struct QuickPanelTests {
     )
   }
 }
+
+@MainActor
+@Suite
+struct QuickPanelCommandTests {
+  @Test
+  func commandReturnCopiesTheCurrentOrLastResultAndDismisses() async throws {
+    let controller = QuickPanelController(context: try standardContext())
+    let pasteboard = NSPasteboard(name: NSPasteboard.Name("GanitQuickTests-\(UUID().uuidString)"))
+    controller.editor.resultPasteboard = pasteboard
+    let panel = try #require(controller.window)
+    controller.show()
+    defer { controller.hide() }
+    controller.editor.textView.insertText(
+      "6 * 7\n2 + 2\n", replacementRange: NSRange(location: 0, length: 0))
+    try await waitForAnswers(controller)
+
+    // The insertion point is on the empty last line, so the last result is copied.
+    #expect(panel.performKeyEquivalent(with: try commandReturn(panel)))
+    #expect(pasteboard.string(forType: .string) == "4")
+    #expect(!controller.isShown)
+
+    controller.show()
+    controller.editor.textView.setSelectedRange(NSRange(location: 1, length: 0))
+    _ = panel.performKeyEquivalent(with: try commandReturn(panel))
+    #expect(pasteboard.string(forType: .string) == "42")
+  }
+
+  @Test
+  func keepsTheBufferAsASheetAndStartsEmpty() throws {
+    let controller = QuickPanelController(context: try standardContext())
+    var promoted: [String] = []
+    controller.promote = { promoted.append($0) }
+    controller.show()
+    controller.editor.textView.insertText(
+      "rent = 2100", replacementRange: NSRange(location: 0, length: 0))
+
+    controller.keepAsSheet(nil)
+
+    #expect(promoted == ["rent = 2100"])
+    #expect(controller.editor.textView.string.isEmpty)
+    #expect(!controller.isShown)
+  }
+
+  private func waitForAnswers(_ controller: QuickPanelController) async throws {
+    let deadline = ContinuousClock.now + .seconds(5)
+    while controller.editor.latestEvaluation?.lines.count != 3, ContinuousClock.now < deadline {
+      try await Task.sleep(for: .milliseconds(20))
+    }
+  }
+
+  private func commandReturn(_ window: NSWindow) throws -> NSEvent {
+    try #require(
+      NSEvent.keyEvent(
+        with: .keyDown, location: .zero, modifierFlags: .command, timestamp: 0,
+        windowNumber: window.windowNumber, context: nil, characters: "\r",
+        charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: UInt16(kVK_Return)
+      )
+    )
+  }
+}
+
+private func standardContext() throws -> EvaluationContext {
+  try EvaluationContext(
+    localeIdentifier: "en-US",
+    lexingConfiguration: .englishUnitedStates,
+    angleMode: .radians,
+    precision: PrecisionContext(significantDecimalDigits: 15),
+    now: Date(timeIntervalSince1970: 0),
+    calendar: Calendar(identifier: .gregorian),
+    timeZone: try #require(TimeZone(identifier: "UTC"))
+  )
+}

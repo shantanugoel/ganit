@@ -10,6 +10,8 @@ import GanitEngine
 @MainActor
 public final class QuickPanelController: NSWindowController, NSWindowDelegate {
   public let editor: SheetEditorViewController
+  /// Keeps the buffer as a new sheet; the app provides it.
+  public var promote: (String) throws -> Void = { _ in }
 
   public init(context: EvaluationContext) {
     editor = SheetEditorViewController(context: context)
@@ -32,6 +34,23 @@ public final class QuickPanelController: NSWindowController, NSWindowDelegate {
     panel.setAccessibilityLabel(panel.title)
     super.init(window: panel)
     panel.delegate = self
+    panel.commandReturn = { [weak self] in self?.copyResultAndDismiss() }
+
+    let keep = NSButton(
+      title: String(localized: "quick.keepAsSheet", defaultValue: "Keep as Sheet", bundle: .main),
+      target: self,
+      action: #selector(keepAsSheet(_:))
+    )
+    keep.bezelStyle = .accessoryBarAction
+    keep.controlSize = .small
+    let accessory = NSTitlebarAccessoryViewController()
+    accessory.layoutAttribute = .trailing
+    accessory.view = NSView(
+      frame: NSRect(x: 0, y: 0, width: keep.fittingSize.width + 12, height: 28))
+    keep.frame.origin = NSPoint(x: 0, y: (28 - keep.fittingSize.height) / 2)
+    keep.setFrameSize(keep.fittingSize)
+    accessory.view.addSubview(keep)
+    panel.addTitlebarAccessoryViewController(accessory)
   }
 
   @available(*, unavailable)
@@ -82,10 +101,51 @@ public final class QuickPanelController: NSWindowController, NSWindowDelegate {
   @objc public func cancel(_ sender: Any?) {
     hide()
   }
+
+  /// Copies the insertion point's result, or else the last result, and hides
+  /// the panel. Without a result it beeps and stays open.
+  func copyResultAndDismiss() {
+    guard editor.copyCurrentOrLastResult() else {
+      NSSound.beep()
+      return
+    }
+    hide()
+  }
+
+  /// Saves the buffer as a new sheet, then clears the buffer and hides.
+  @objc public func keepAsSheet(_ sender: Any?) {
+    let text = editor.textView.string
+    guard !text.isEmpty else {
+      NSSound.beep()
+      return
+    }
+    do {
+      try promote(text)
+      editor.textView.insertText(
+        "", replacementRange: NSRange(location: 0, length: (text as NSString).length))
+      editor.documentUndoManager.removeAllActions()
+      hide()
+    } catch {
+      window?.presentError(error)
+    }
+  }
 }
 
-/// A panel that can take key focus and hides on Escape instead of closing.
+/// A panel that can take key focus, hides on Escape instead of closing, and
+/// routes Command-Return to copy-and-dismiss before the text view sees it.
 private final class QuickPanel: NSPanel {
+  var commandReturn: () -> Void = {}
+
+  override func performKeyEquivalent(with event: NSEvent) -> Bool {
+    if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
+      event.charactersIgnoringModifiers == "\r"
+    {
+      commandReturn()
+      return true
+    }
+    return super.performKeyEquivalent(with: event)
+  }
+
   override var canBecomeKey: Bool {
     true
   }

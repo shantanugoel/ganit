@@ -118,6 +118,10 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   private func quickGanit() -> QuickPanelController? {
     if quickPanel == nil {
       quickPanel = try? QuickPanelController(context: SheetPreferences.standard.evaluationContext())
+      quickPanel?.promote = { [weak self] source in
+        try self?.workspace?.openNewSheet(source: source)
+        NSApplication.shared.activate()
+      }
     }
     return quickPanel
   }

@@ -418,8 +418,15 @@ final class SheetTextView: NSTextView {
       return selectedAnswer
     }
     let string = self.string as NSString
-    var location = string.lineRange(for: NSRange(location: selectedRange().location, length: 0))
-      .location
+    return nearestResult(
+      before: string.lineRange(for: NSRange(location: selectedRange().location, length: 0)).location
+    )
+  }
+
+  /// The nearest line with a result among the lines ending before `location`.
+  private func nearestResult(before location: Int) -> LineID? {
+    let string = self.string as NSString
+    var location = location
     while location > 0 {
       let previous = string.lineRange(for: NSRange(location: location - 1, length: 0))
       if let id = lineID(previous.location), answer(id)?.isFailure == false {
@@ -428,6 +435,19 @@ final class SheetTextView: NSTextView {
       location = previous.location
     }
     return nil
+  }
+
+  /// Copies the insertion point's result, or else the sheet's last result.
+  /// Returns whether a result was copied.
+  func copyCurrentOrLastResult() -> Bool {
+    let id =
+      targetAnswer.flatMap { $0.cell.isFailure ? nil : $0.line }
+      ?? nearestResult(before: (string as NSString).length)
+    guard let cell = id.flatMap(answer) else {
+      return false
+    }
+    copyToPasteboard(cell.text)
+    return true
   }
 
   private func insertLineAfterCurrent(_ text: String) {

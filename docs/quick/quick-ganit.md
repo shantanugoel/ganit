@@ -19,6 +19,17 @@ behave like any Mac panel.
 
 Window ▸ Quick Ganit always opens the panel.
 
+## Keys and promotion
+
+- Return inserts a newline; lines evaluate as they do in sheets, each with its
+  own answer.
+- ⌘Return copies the insertion point's displayed result, or the buffer's last
+  result when that line has none, and hides the panel. Without any result it
+  beeps and stays open.
+- **Keep as Sheet** (⌘S, or the title-bar button) saves the buffer as a new
+  library sheet, opens it in a workspace window, and activates Ganit. The
+  buffer is then emptied and the panel hides.
+
 ## Global shortcut
 
 As decided in [ADR 0008](../adr/0008-global-shortcut.md), Ganit has no default

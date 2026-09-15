@@ -200,6 +200,18 @@ struct WorkspaceWindowControllerTests {
   }
 
   @Test
+  func opensPromotedTextAsANewSheet() throws {
+    let (workspace, _) = try makeWorkspace([])
+    defer { close(workspace) }
+
+    let controller = try workspace.openNewSheet(source: "# Quick\n6 * 7")
+
+    let id = try #require(controller.sheetID)
+    #expect(try workspace.library.store.load(id: id).source == "# Quick\n6 * 7")
+    #expect(controller.window?.title == "Quick")
+  }
+
+  @Test
   func searchNarrowsTheListedSheets() throws {
     let (workspace, ids) = try makeWorkspace(["hotel = 85", "rent = 2100"])
     defer { close(workspace) }

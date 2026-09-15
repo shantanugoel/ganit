@@ -581,6 +581,16 @@
         }
       }
     },
+    "menu.keepAsSheet" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep as Sheet"
+          }
+        }
+      }
+    },
     "menu.minimize" : {
       "localizations" : {
         "en" : {
@@ -897,6 +907,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Zoom"
+          }
+        }
+      }
+    },
+    "quick.keepAsSheet" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keep as Sheet"
           }
         }
       }
