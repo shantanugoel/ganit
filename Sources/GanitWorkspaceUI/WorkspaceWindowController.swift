@@ -39,6 +39,7 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     )
     window.contentMinSize = NSSize(width: 640, height: 400)
     window.tabbingMode = .preferred
+    window.collectionBehavior = [.fullScreenPrimary]
     window.isReleasedWhenClosed = false
     window.identifier = NSUserInterfaceItemIdentifier("workspace")
     window.isRestorable = true

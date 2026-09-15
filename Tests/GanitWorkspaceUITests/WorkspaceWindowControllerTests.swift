@@ -1,9 +1,9 @@
 import AppKit
 import Foundation
 import GanitDocuments
-import GanitEditorUI
 import Testing
 
+@testable import GanitEditorUI
 @testable import GanitWorkspaceUI
 
 @MainActor
@@ -27,6 +27,24 @@ struct WorkspaceWindowControllerTests {
     #expect(controller.editor?.view.superview != nil)
     #expect(window.title == "Untitled")
     #expect(controller.sidebar.sheets.map(\.id) == ids)
+  }
+
+  @Test
+  func fitsSidebarSourceAndAnswersAtMinimumSizeAndSupportsFullScreen() throws {
+    let (workspace, ids) = try makeWorkspace(["monthly rent = 2,100\nmonthly rent * 12"])
+    defer { close(workspace) }
+    let controller = workspace.openWindow(showing: ids[0])
+    let window = try #require(controller.window)
+    window.setContentSize(window.contentMinSize)
+    window.layoutIfNeeded()
+
+    #expect(window.contentView?.frame.size == window.contentMinSize)
+    #expect(controller.sidebar.view.frame.width >= 200)
+    let textView = try #require(controller.editor?.textView as? SheetTextView)
+    #expect(textView.answerColumnWidth >= SheetTextView.answerColumnWidthRange.lowerBound)
+    #expect(textView.bounds.width - textView.answerColumnWidth >= textView.answerColumnWidth)
+    #expect(window.collectionBehavior.contains(.fullScreenPrimary))
+    #expect(window.tabbingMode == .preferred)
   }
 
   @Test

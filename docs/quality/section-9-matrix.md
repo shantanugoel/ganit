@@ -54,14 +54,18 @@ Last updated: 2026-09-15.
 
 ## 11.5 Manual release matrix
 
-| Row | Status |
-| --- | --- |
-| Minimum (macOS 14) and latest macOS | Needs a person — only the latest macOS has been run |
-| Apple silicon | Automated on CI and development Macs |
-| Light/Dark × Increase Contrast × Reduce Transparency | Needs a person |
-| Reduce Motion | Needs a person |
-| 100%, 150%, 200% editor text | Automated (scaling); Needs a person (visual check) |
-| VoiceOver and keyboard-only | Needs a person |
-| English, pseudolocalized, Arabic/Hebrew, CJK input, comma-decimal locale | Automated (engine and editor offsets, double-length layout); Needs a person (right-to-left review, real IMEs) |
+| Row | Status | Evidence |
+| --- | --- | --- |
+| Minimum window size | Automated | `fitsSidebarSourceAndAnswersAtMinimumSizeAndSupportsFullScreen` at 640×400 keeps 200 pt of sidebar and a source column at least as wide as the answers; `keepsSourceWiderThanAnswersAtItsMinimumSize` does the same for Quick Ganit at 320×120 |
+| Multiple displays | Automated (placement); Needs a person (real displays) | `QuickPanelGeometryTests.opensOnTheDisplayWithThePointerAndStaysOnIt`: Quick Ganit opens on the pointer's display, including displays at negative coordinates, and stays fully on small displays |
+| Full screen and Spaces | Automated (window behaviors); Needs a person (entering full screen, switching Spaces) | Workspace windows declare `fullScreenPrimary`; Quick Ganit is `moveToActiveSpace` and `fullScreenAuxiliary` (`isAStandardFocusableFloatingPanelThatKeepsTextWhenHidden`) |
+| State restoration | Automated | `restoresTheWindowsSheetSelectionAndSidebar` |
+| Minimum (macOS 14) and latest macOS | Needs a person | Only the latest macOS has been run |
+| Apple silicon | Automated | CI and development Macs are Apple silicon |
+| Light/Dark × Increase Contrast × Reduce Transparency | Needs a person | |
+| Reduce Motion | Needs a person | |
+| 100%, 150%, 200% editor text | Automated (scaling); Needs a person (visual check) | `TextAccessibilityTests.scalesSourceAnswersAndColumnTogether` |
+| VoiceOver and keyboard-only | Needs a person | |
+| English, pseudolocalized, Arabic/Hebrew, CJK input, comma-decimal locale | Automated (engine and editor offsets, double-length layout); Needs a person (right-to-left review, real IMEs) | `PseudolocalizationTests`, editor offset tests, `ResultFormatterTests` |
 | Offline, stale rate, malformed rate, no network | Automated | `RateRefresherTests`, `ECBRateValidatorTests`, `RateProvenanceTests` |
 | Fresh install, upgrade/migration, restore from backup | Automated (backup restore, recovery); Needs a person (fresh install) | GanitDocuments tests |

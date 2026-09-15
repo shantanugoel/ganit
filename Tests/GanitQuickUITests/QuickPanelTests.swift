@@ -5,6 +5,7 @@ import GanitDocuments
 import GanitEngine
 import Testing
 
+@testable import GanitEditorUI
 @testable import GanitQuickUI
 
 @MainActor
@@ -157,6 +158,58 @@ struct QuickPanelTests {
       calendar: Calendar(identifier: .gregorian),
       timeZone: try #require(TimeZone(identifier: "UTC"))
     )
+  }
+}
+
+@MainActor
+@Suite
+struct QuickPanelGeometryTests {
+  @Test
+  func opensOnTheDisplayWithThePointerAndStaysOnIt() {
+    // A main display and a smaller one to its left, below the menu bar line.
+    let screens: [(frame: NSRect, visibleFrame: NSRect)] = [
+      (
+        NSRect(x: 0, y: 0, width: 1_512, height: 982), NSRect(x: 0, y: 0, width: 1_512, height: 944)
+      ),
+      (
+        NSRect(x: -1_280, y: -200, width: 1_280, height: 800),
+        NSRect(x: -1_280, y: -200, width: 1_280, height: 775)
+      ),
+    ]
+    let left = QuickPanelController.visibleFrame(
+      containing: NSPoint(x: -600, y: 100), screens: screens)
+    #expect(left == screens[1].visibleFrame)
+    #expect(
+      QuickPanelController.visibleFrame(containing: NSPoint(x: 5_000, y: 0), screens: screens)
+        == nil)
+
+    let size = NSSize(width: 520, height: 220)
+    let origin = QuickPanelController.origin(for: size, in: screens[1].visibleFrame)
+    #expect(screens[1].visibleFrame.contains(NSRect(origin: origin, size: size)))
+    #expect(origin.x == -900)
+
+    // A panel resized taller than a small display keeps its title bar visible.
+    let small = NSRect(x: 0, y: 0, width: 800, height: 500)
+    let tall = QuickPanelController.origin(for: NSSize(width: 1_000, height: 600), in: small)
+    #expect(tall == NSPoint(x: 0, y: 0))
+    #expect(
+      QuickPanelController.origin(for: NSSize(width: 400, height: 480), in: small)
+        == NSPoint(x: 200, y: 20))
+  }
+
+  @Test
+  func keepsSourceWiderThanAnswersAtItsMinimumSize() throws {
+    let controller = QuickPanelController(context: try standardContext())
+    let panel = try #require(controller.window)
+    controller.show()
+    defer { controller.hide() }
+    panel.setContentSize(panel.contentMinSize)
+    panel.layoutIfNeeded()
+
+    let textView = try #require(controller.editor.textView as? SheetTextView)
+    let answers = textView.answerColumnWidth
+    #expect(answers >= SheetTextView.answerColumnWidthRange.lowerBound)
+    #expect(textView.bounds.width - answers >= answers)
   }
 }
 

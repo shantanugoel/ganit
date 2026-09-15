@@ -92,6 +92,24 @@ public final class QuickPanelController: NSWindowController, NSWindowDelegate {
     window?.isVisible == true
   }
 
+  /// The usable area of the display containing a point, such as the pointer.
+  static func visibleFrame(
+    containing point: NSPoint, screens: [(frame: NSRect, visibleFrame: NSRect)]
+  ) -> NSRect? {
+    screens.first { NSMouseInRect(point, $0.frame, false) }?.visibleFrame
+  }
+
+  /// A panel origin centered horizontally and above center in `visible`,
+  /// kept inside it so the panel is never partly off a small display.
+  static func origin(for size: NSSize, in visible: NSRect) -> NSPoint {
+    let x = visible.midX - size.width / 2
+    let y = visible.midY - size.height / 2 + visible.height / 6
+    return NSPoint(
+      x: max(visible.minX, min(x, visible.maxX - size.width)),
+      y: max(visible.minY, min(y, visible.maxY - size.height))
+    )
+  }
+
   /// Shows the panel near the center of the screen with the pointer, focused
   /// on its text.
   public func show() {
@@ -104,18 +122,13 @@ public final class QuickPanelController: NSWindowController, NSWindowDelegate {
         replacementRange: NSRange(location: 0, length: (editor.textView.string as NSString).length))
       editor.documentUndoManager.removeAllActions()
     }
-    if !panel.isVisible || !panel.isOnActiveSpace {
-      let screen =
-        NSScreen.screens.first { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) }
-        ?? NSScreen.main
-      if let visible = screen?.visibleFrame {
-        panel.setFrameOrigin(
-          NSPoint(
-            x: visible.midX - panel.frame.width / 2,
-            y: visible.midY - panel.frame.height / 2 + visible.height / 6
-          )
-        )
-      }
+    if !panel.isVisible || !panel.isOnActiveSpace,
+      let visible = Self.visibleFrame(
+        containing: NSEvent.mouseLocation,
+        screens: NSScreen.screens.map { ($0.frame, $0.visibleFrame) }
+      ) ?? NSScreen.main?.visibleFrame
+    {
+      panel.setFrameOrigin(Self.origin(for: panel.frame.size, in: visible))
     }
     panel.makeKeyAndOrderFront(nil)
     panel.makeFirstResponder(editor.textView)

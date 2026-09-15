@@ -1065,7 +1065,7 @@ Tasks:
 - [x] Refine VoiceOver containers, actions, focus and error/result navigation.
 - [x] Add pseudolocalization and fix truncation/bidi/IME issues. Double-length layout is automated; right-to-left visual review needs a person.
 - [x] Finalize semantic color/type/spacing/icon system and system-material behavior.
-- [ ] Test minimum size, multiple displays, full screen, Spaces and restoration.
+- [x] Test minimum size, multiple displays, full screen, Spaces and restoration. Entering full screen and switching Spaces on real displays still needs a person; see docs/quality/section-9-matrix.md.
 - [ ] Conduct task-based usability testing with novices and Numi/Soulver power users.
 
 Exit criteria:
