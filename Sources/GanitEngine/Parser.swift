@@ -140,7 +140,15 @@ private struct TokenParser {
       return nil
     }
 
+    // Each node wrapping `left` deepens the tree without recursing here, so it
+    // counts toward the depth limit. This bounds every recursive walk of the
+    // tree, including evaluation, for chains such as `1 + 1 + ... + 1`.
+    var depth = depth
     while true {
+      guard depth <= maximumParseDepth else {
+        diagnose(.resourceLimitExceeded, at: current.range)
+        return nil
+      }
       if current.kind == .percent {
         guard 40 >= minimumBindingPower else {
           break
@@ -155,6 +163,7 @@ private struct TokenParser {
           percentRange: percent.range,
           range: left.range.union(percent.range)
         )
+        depth += 1
         continue
       }
 
@@ -170,6 +179,7 @@ private struct TokenParser {
           return left
         }
         left = ratio
+        depth += 1
         continue
       }
 
@@ -193,6 +203,7 @@ private struct TokenParser {
           return left
         }
         left = reverse
+        depth += 1
         continue
       }
 
@@ -207,6 +218,7 @@ private struct TokenParser {
           return left
         }
         left = operation
+        depth += 1
         continue
       }
 
@@ -220,6 +232,7 @@ private struct TokenParser {
           return left
         }
         left = quantity
+        depth += 1
         continue
       }
 
@@ -232,6 +245,7 @@ private struct TokenParser {
           return left
         }
         left = conversion
+        depth += 1
         continue
       }
 
@@ -278,6 +292,7 @@ private struct TokenParser {
         operatorRange: operatorRange,
         range: left.range.union(right.range)
       )
+      depth += 1
     }
 
     return left

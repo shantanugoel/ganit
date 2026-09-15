@@ -66,6 +66,9 @@ private struct EvaluationWorker {
     unitAlgebra = UnitAlgebra(context: context, limits: limits)
   }
 
+  // Evaluation recurses once per AST level. The dispatcher stays small and
+  // each case lives in a non-inlined method, so a level's stack frame holds
+  // only that case's values and deep expressions fit secondary-thread stacks.
   mutating func evaluate(_ expression: Expression) throws -> EngineValue {
     try visit(expression.range)
 
@@ -73,142 +76,166 @@ private struct EvaluationWorker {
       switch expression {
       case .literal(let literal, let range):
         return .number(try evaluate(literal, range: range))
-
       case .identifier(let name, let range):
-        if let variable = variables[name] {
-          guard let value = variable else {
-            throw EngineError(code: .unavailableReference, ranges: [range])
-          }
-          return value
-        }
-        switch name {
-        case "π", "pi":
-          return .number(
-            .approximate(
-              try ApproximateValue(
-                estimate: .pi,
-                source: .mathematicalConstant,
-                precision: .requestedSignificantDecimalDigits(
-                  context.precision.transcendentalSignificantDigits
-                )
-              )
-            ))
-        case "e":
-          return .number(
-            .approximate(
-              try ApproximateValue(
-                estimate: Foundation.exp(1),
-                source: .mathematicalConstant,
-                precision: .requestedSignificantDecimalDigits(
-                  context.precision.transcendentalSignificantDigits
-                )
-              )
-            ))
-        default:
-          throw EngineError(code: .unknownIdentifier, ranges: [range])
-        }
-
-      case .prefix(
-        let unaryOperator,
-        let operand,
-        let operatorRange,
-        _
-      ):
-        let value = try evaluate(operand)
-        return try located(at: operatorRange) {
-          try apply(unaryOperator, to: value)
-        }
-
-      case .infix(
-        let left,
-        let binaryOperator,
-        let right,
-        let operatorRange,
-        _
-      ):
-        let lhs = try evaluate(left)
-        let rhs = try evaluate(right)
-        let errorRange =
-          binaryOperator == .divide || binaryOperator == .power
-          ? right.range
-          : operatorRange
-        return try located(at: errorRange) {
-          try apply(binaryOperator, left: lhs, right: rhs)
-        }
-
+        return try evaluateIdentifier(name, range: range)
+      case .prefix(let unaryOperator, let operand, let operatorRange, _):
+        return try evaluatePrefix(unaryOperator, operand, operatorRange: operatorRange)
+      case .infix(let left, let binaryOperator, let right, let operatorRange, _):
+        return try evaluateInfix(left, binaryOperator, right, operatorRange: operatorRange)
       case .call(let name, let nameRange, let arguments, _):
-        return .number(
-          try evaluateCall(
-            name: name,
-            nameRange: nameRange,
-            arguments: arguments
-          ))
-
+        return .number(try evaluateCall(name: name, nameRange: nameRange, arguments: arguments))
       case .percentage(let points, _, _):
-        let value = try evaluate(points)
-        return .percentage(
-          PercentageValue(points: try requireNumber(value, at: points.range))
+        return try evaluatePercentage(points)
+      case .percentageOperation(let percentageOperator, let left, let right, let operatorRange, _):
+        return try evaluatePercentageOperation(
+          percentageOperator,
+          left,
+          right,
+          operatorRange: operatorRange
         )
-
-      case .percentageOperation(
-        let percentageOperator,
-        let left,
-        let right,
-        let operatorRange,
-        _
-      ):
-        let lhs = try evaluate(left)
-        let rhs = try evaluate(right)
-        return try located(at: operatorRange) {
-          try apply(
-            percentageOperator,
-            left: lhs,
-            leftRange: left.range,
-            right: rhs,
-            rightRange: right.range
-          )
-        }
-
       case .quantity(let magnitude, let unitSyntax, _):
-        let value = try evaluate(magnitude)
-        let number = try requireNumber(value, at: magnitude.range)
-        let unit = try located(at: unitSyntax.range) {
-          try evaluate(unitSyntax)
-        }
-        return .quantity(
-          QuantityValue(magnitude: number, unit: unit)
-        )
-
+        return try evaluateQuantity(magnitude, unitSyntax)
       case .conversion(let valueExpression, let targetSyntax, _, _):
-        let value = try evaluate(valueExpression)
-        guard case .quantity(let quantity) = value else {
-          throw typeMismatch(
-            expected: .quantity,
-            actual: value.kind,
-            range: valueExpression.range
-          )
-        }
-        let target = try located(at: targetSyntax.range) {
-          try evaluate(targetSyntax)
-        }
-        return .quantity(
-          try located(at: targetSyntax.range) {
-            try unitAlgebra.converted(quantity, to: target)
-          }
-        )
-
+        return try evaluateConversion(valueExpression, to: targetSyntax)
       case .grouped(let nested, _):
         return try evaluate(nested)
-
-      case .reference(.aggregate(let aggregate), _):
-        return try evaluate(aggregate, of: lines.values(for: aggregate))
-
       case .reference(let reference, _):
-        return try lines.value(of: reference)
+        return try evaluateReference(reference)
       }
     } catch let error as EngineError where error.ranges.isEmpty {
       throw error.located(at: expression.range)
     }
+  }
+
+  @inline(never)
+  private func evaluateIdentifier(_ name: String, range: SourceRange) throws -> EngineValue {
+    if let variable = variables[name] {
+      guard let value = variable else {
+        throw EngineError(code: .unavailableReference, ranges: [range])
+      }
+      return value
+    }
+    let estimate: Double
+    switch name {
+    case "π", "pi":
+      estimate = .pi
+    case "e":
+      estimate = Foundation.exp(1)
+    default:
+      throw EngineError(code: .unknownIdentifier, ranges: [range])
+    }
+    return .number(
+      .approximate(
+        try ApproximateValue(
+          estimate: estimate,
+          source: .mathematicalConstant,
+          precision: .requestedSignificantDecimalDigits(
+            context.precision.transcendentalSignificantDigits
+          )
+        )
+      ))
+  }
+
+  @inline(never)
+  private mutating func evaluatePrefix(
+    _ unaryOperator: UnaryOperator,
+    _ operand: Expression,
+    operatorRange: SourceRange
+  ) throws -> EngineValue {
+    let value = try evaluate(operand)
+    return try located(at: operatorRange) {
+      try apply(unaryOperator, to: value)
+    }
+  }
+
+  @inline(never)
+  private mutating func evaluateInfix(
+    _ left: Expression,
+    _ binaryOperator: BinaryOperator,
+    _ right: Expression,
+    operatorRange: SourceRange
+  ) throws -> EngineValue {
+    let lhs = try evaluate(left)
+    let rhs = try evaluate(right)
+    let errorRange =
+      binaryOperator == .divide || binaryOperator == .power
+      ? right.range
+      : operatorRange
+    return try located(at: errorRange) {
+      try apply(binaryOperator, left: lhs, right: rhs)
+    }
+  }
+
+  @inline(never)
+  private mutating func evaluatePercentage(_ points: Expression) throws -> EngineValue {
+    let value = try evaluate(points)
+    return .percentage(
+      PercentageValue(points: try requireNumber(value, at: points.range))
+    )
+  }
+
+  @inline(never)
+  private mutating func evaluatePercentageOperation(
+    _ percentageOperator: PercentageOperator,
+    _ left: Expression,
+    _ right: Expression,
+    operatorRange: SourceRange
+  ) throws -> EngineValue {
+    let lhs = try evaluate(left)
+    let rhs = try evaluate(right)
+    return try located(at: operatorRange) {
+      try apply(
+        percentageOperator,
+        left: lhs,
+        leftRange: left.range,
+        right: rhs,
+        rightRange: right.range
+      )
+    }
+  }
+
+  @inline(never)
+  private mutating func evaluateQuantity(
+    _ magnitude: Expression,
+    _ unitSyntax: UnitSyntax
+  ) throws -> EngineValue {
+    let value = try evaluate(magnitude)
+    let number = try requireNumber(value, at: magnitude.range)
+    let unit = try located(at: unitSyntax.range) {
+      try evaluate(unitSyntax)
+    }
+    return .quantity(QuantityValue(magnitude: number, unit: unit))
+  }
+
+  @inline(never)
+  private mutating func evaluateConversion(
+    _ valueExpression: Expression,
+    to targetSyntax: UnitSyntax
+  ) throws -> EngineValue {
+    let value = try evaluate(valueExpression)
+    guard case .quantity(let quantity) = value else {
+      throw typeMismatch(
+        expected: .quantity,
+        actual: value.kind,
+        range: valueExpression.range
+      )
+    }
+    let target = try located(at: targetSyntax.range) {
+      try evaluate(targetSyntax)
+    }
+    return .quantity(
+      try located(at: targetSyntax.range) {
+        try unitAlgebra.converted(quantity, to: target)
+      }
+    )
+  }
+
+  @inline(never)
+  private func evaluateReference(_ reference: LineReference) throws -> EngineValue {
+    guard case .aggregate(let aggregate) = reference else {
+      return try lines.value(of: reference)
+    }
+    return try evaluate(aggregate, of: lines.values(for: aggregate))
   }
 
   private func apply(
@@ -675,6 +702,7 @@ private struct EvaluationWorker {
     }
   }
 
+  @inline(never)
   private mutating func evaluateCall(
     name: String,
     nameRange: SourceRange,

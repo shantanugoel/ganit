@@ -287,7 +287,7 @@ struct ParserFuzzSmokeTests {
       syntaxLimits: SyntaxLimits(
         maximumSourceUTF8Length: 512,
         maximumTokenCount: 256,
-        maximumParseDepth: 32
+        maximumParseDepth: 16
       )
     )
     let formatter = ResultFormatter(

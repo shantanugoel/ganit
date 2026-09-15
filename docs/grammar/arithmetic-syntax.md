@@ -50,7 +50,9 @@ Bitwise syntax is not part of this arithmetic grammar yet, while output-radix co
 
 Syntax failures carry a stable machine code and exact half-open UTF-8 and grapheme source range. The current codes cover unexpected characters, mixed digit scripts, missing or invalid radix digits, incomplete decimal fractions/exponents, exponent bounds, missing expressions or parentheses, missing argument separators, unexpected tokens, and resource limits.
 
-One parse accepts at most 1 MiB of UTF-8 source, 100,000 tokens/lexical diagnostics, and 256 recursive Pratt-parser levels. Crossing a limit returns a ranged `resourceLimitExceeded` diagnostic instead of continuing into unbounded allocation or stack growth.
+One parse accepts at most 1 MiB of UTF-8 source, 100,000 tokens/lexical diagnostics, and an expression tree 128 levels deep. Every grouping, prefix, call argument, and operand nests one level, and so does each operator or phrase that extends a chain: `1 + 1 + ... + 1` may have at most 128 terms. Crossing a limit returns a ranged `resourceLimitExceeded` diagnostic instead of continuing into unbounded allocation or stack growth.
+
+The depth limit bounds every recursive walk of the tree: parsing, evaluation, reference collection, comparison, and deallocation. Release builds use roughly 1.4 KiB of stack per parse level and 3 KiB per evaluation level on Apple silicon, so an expression at the limit fits the 512 KiB stack of a secondary thread; `StackSafetyTests` evaluates the deepest shape of each kind on such a thread.
 
 Localized user-facing explanations, severity while typing, and fix-its are added with the typed-error task. A failed lex or parse returns no AST to evaluation.
 

@@ -6,7 +6,7 @@ public struct SyntaxLimits: Equatable, Sendable {
   public init(
     maximumSourceUTF8Length: Int = 1_048_576,
     maximumTokenCount: Int = 100_000,
-    maximumParseDepth: Int = 256
+    maximumParseDepth: Int = 128
   ) {
     precondition(maximumSourceUTF8Length > 0)
     precondition(maximumTokenCount > 0)
