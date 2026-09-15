@@ -1066,7 +1066,7 @@ Tasks:
 - [x] Add pseudolocalization and fix truncation/bidi/IME issues. Double-length layout is automated; right-to-left visual review needs a person.
 - [x] Finalize semantic color/type/spacing/icon system and system-material behavior.
 - [x] Test minimum size, multiple displays, full screen, Spaces and restoration. Entering full screen and switching Spaces on real displays still needs a person; see docs/quality/section-9-matrix.md.
-- [ ] Conduct task-based usability testing with novices and Numi/Soulver power users.
+- [ ] Conduct task-based usability testing with novices and Numi/Soulver power users. Skipped by owner decision on 2026-09-15; the five-novice and five-power-user exit criterion is therefore unmet. A dry run of the section 15.2 tasks found one P0 comprehension blocker, improper fractions as answers, which is fixed.
 
 Exit criteria:
 
@@ -1076,6 +1076,8 @@ Exit criteria:
 - At least five novice and five power-user sessions reveal no repeated P0 comprehension blocker.
 
 ## Phase 10 — System integration and P1 power
+
+**Status:** Started while the Phase 9 usability sessions remain unrun.
 
 **Goal:** Extend reach while preserving one engine and one mental model.
 
