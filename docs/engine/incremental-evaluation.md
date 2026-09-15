@@ -55,5 +55,16 @@ each is valid for the inputs it recorded. A caller commits an evaluation to the
 UI only when its generation is the newest one it started, so stale generations
 never replace newer answers.
 
+## Clock boundaries
+
+A line whose evaluation read the clock records the interval its result stays
+correct for: the current second in the context's zone for `now` and durations
+`ago`, or the current day for `today`, weekday phrases, month-name dates
+without a year, and periods `ago`. A context that differs only in `now` keeps
+the cache, so a later generation re-evaluates just the lines whose interval no
+longer contains `now`, plus the lines that read their changed results.
+`SheetEvaluation.nextRecalculation` is the earliest interval end, or `nil` when
+no line read the clock.
+
 Ranges in results are relative to each line's text. Edits above a line shift its
 sheet position without invalidating its cached result or ranges.

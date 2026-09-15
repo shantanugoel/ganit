@@ -48,8 +48,11 @@ line's layout fragment, and truncates it when it exceeds the column. Answer text
 is never inserted into the text storage.
 
 New workspace sheets use an `en-US` context with the current time zone until
-sheet locale preferences exist, and `now` is fixed when the sheet opens because
-no expression depends on it before dates are added.
+sheet locale preferences exist. Each evaluation generation freezes `now` at the
+moment it starts. When an answer read the clock, the scheduler sleeps once until
+the earliest moment one can change — the next second for `now`, the next
+midnight in the context's zone for `today` — and evaluates again, reusing every
+line that did not read the clock. Sheets without such answers never wake.
 
 ## Decoration
 

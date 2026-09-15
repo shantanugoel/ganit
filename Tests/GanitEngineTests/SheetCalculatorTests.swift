@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 
 @testable import GanitEngine
@@ -13,6 +14,53 @@ struct SheetCalculatorTests {
 
     #expect(evaluation.generation == 1)
     #expect(evaluation.evaluatedLineIDs == [1, 2, 5].map { sheet.lines[$0].id })
+  }
+
+  @Test
+  func recalculatesClockReadingLinesOnlyAtTheirBoundaries() throws {
+    var calculator = SheetCalculator()
+    let sheet = SheetSource("a = 1\nt = today\nnow\nt + 1 day\na + 1")
+    let ids = sheet.lines.map(\.id)
+    let context = try sheetContext().at(Date(timeIntervalSince1970: 1_700_000_000.25))
+
+    let first = try calculator.evaluate(sheet, context: context)
+    #expect(first.nextRecalculation == Date(timeIntervalSince1970: 1_700_000_001))
+
+    let sameSecond = try calculator.evaluate(
+      sheet, context: context.at(Date(timeIntervalSince1970: 1_700_000_000.75)))
+    #expect(sameSecond.evaluatedLineIDs.isEmpty)
+
+    let nextSecond = try calculator.evaluate(
+      sheet, context: context.at(Date(timeIntervalSince1970: 1_700_000_001)))
+    #expect(nextSecond.evaluatedLineIDs == [ids[2]])
+    #expect(nextSecond.nextRecalculation == Date(timeIntervalSince1970: 1_700_000_002))
+
+    // Midnight UTC after the frozen day re-evaluates `today` and its dependent.
+    let nextDay = try calculator.evaluate(
+      sheet, context: context.at(Date(timeIntervalSince1970: 1_700_006_400)))
+    #expect(nextDay.evaluatedLineIDs == [ids[1], ids[2], ids[3]])
+  }
+
+  @Test
+  func schedulesDayBoundariesInTheContextZoneAndNothingWithoutClockReads() throws {
+    var calculator = SheetCalculator()
+    let tokyo = try EvaluationContext(
+      localeIdentifier: "en-US",
+      lexingConfiguration: .englishUnitedStates,
+      angleMode: .radians,
+      precision: PrecisionContext(significantDecimalDigits: 15),
+      now: Date(timeIntervalSince1970: 1_700_000_000),
+      calendar: Calendar(identifier: .gregorian),
+      timeZone: try #require(TimeZone(identifier: "Asia/Tokyo"))
+    )
+    let dated = try calculator.evaluate(SheetSource("next friday\n3 days ago"), context: tokyo)
+    // Midnight on Nov 16, 2023 in Tokyo.
+    #expect(dated.nextRecalculation == Date(timeIntervalSince1970: 1_700_060_400))
+
+    let plain = SheetSource("1 + 1\n2024-03-09")
+    #expect(try calculator.evaluate(plain, context: tokyo).nextRecalculation == nil)
+    let later = try calculator.evaluate(plain, context: tokyo.at(.distantFuture))
+    #expect(later.evaluatedLineIDs.isEmpty)
   }
 
   @Test

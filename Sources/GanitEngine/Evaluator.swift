@@ -33,14 +33,29 @@ public struct Evaluator: Sendable {
   }
 
   public func evaluate(_ expression: Expression) throws -> EngineValue {
+    try evaluateReadingClock(expression).result.get()
+  }
+
+  /// The result and the finest clock unit that evaluation read.
+  func evaluateReadingClock(_ expression: Expression) -> (
+    result: Result<EngineValue, any Error>, clock: ClockResolution?
+  ) {
     var worker = EvaluationWorker(
       context: context,
       limits: limits,
       variables: variables,
       lines: lines
     )
-    return try worker.evaluate(expression)
+    let result = Result { try worker.evaluate(expression) }
+    return (result, worker.clock)
   }
+}
+
+/// How finely a result depends on the evaluation clock: a result that read
+/// `today` can change only at midnight, and one that read `now` every second.
+enum ClockResolution: Comparable, Sendable {
+  case day
+  case second
 }
 
 private struct EvaluationWorker {
@@ -52,6 +67,7 @@ private struct EvaluationWorker {
   let variables: [String: EngineValue?]
   let lines: LineOutcomes
   var visitedOperations = 0
+  private(set) var clock: ClockResolution?
 
   init(
     context: EvaluationContext,
@@ -101,7 +117,7 @@ private struct EvaluationWorker {
       case .period(let count, let unit, _):
         return try evaluatePeriod(count, unit)
       case .temporal(let literal, let range):
-        return try temporal.value(of: literal, at: range)
+        return try evaluateTemporal(literal, at: range)
       case .relative(let offset, let isPast, _):
         return try evaluateRelative(offset, isPast: isPast)
       case .zoneConversion(let value, let zone, _):
@@ -241,13 +257,34 @@ private struct EvaluationWorker {
   }
 
   @inline(never)
+  private mutating func evaluateTemporal(_ literal: TemporalLiteral, at range: SourceRange) throws
+    -> EngineValue
+  {
+    switch literal {
+    case .now:
+      readClock(.second)
+    case .relativeDay, .weekday, .date(year: nil, _, _):
+      readClock(.day)
+    case .date, .time, .dateTime:
+      break
+    }
+    return try temporal.value(of: literal, at: range)
+  }
+
+  private mutating func readClock(_ resolution: ClockResolution) {
+    clock = max(clock ?? resolution, resolution)
+  }
+
+  @inline(never)
   private mutating func evaluateRelative(_ offset: Expression, isPast: Bool) throws -> EngineValue {
     let value = try evaluate(offset)
     let start: EngineValue
     switch value {
     case .period:
+      readClock(.day)
       start = .date(try temporal.today())
     case .quantity:
+      readClock(.second)
       start = .instant(temporal.now)
     default:
       throw typeMismatch(expected: .period, actual: value.kind, range: offset.range)

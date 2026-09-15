@@ -25,4 +25,4 @@ The current approximate backend is `Double`. A precision request accepts 1 throu
 
 The context-aware evaluator supports `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `ln`, `log`/`log10`, and `exp`. `log` is base 10; `ln` is natural logarithm. Invalid real domains and nonrepresentable approximate results are typed, ranged errors.
 
-Date, calendar, and time-zone values are injected now so later date grammar cannot introduce ambient state. Their expression syntax and date arithmetic remain Phase 7 work.
+Date, calendar, and time-zone values are injected so date grammar cannot introduce ambient state; see [temporal values](temporal-values.md) and [date and time syntax](../grammar/date-syntax.md). `at(_:)` returns the same context at another moment, which callers use to evaluate a sheet at the current time.

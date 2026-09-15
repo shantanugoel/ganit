@@ -27,7 +27,7 @@ public struct CalculationEngine: Sendable {
     guard let expression = parsing.expression else {
       return .syntaxFailure(parsing.diagnostics)
     }
-    return evaluate(expression, context: context, variables: [:], lines: LineOutcomes())
+    return evaluate(expression, context: context, variables: [:], lines: LineOutcomes()).result
   }
 
   /// Parses an expression located at `origin`, resolving the given visible
@@ -53,21 +53,21 @@ public struct CalculationEngine: Sendable {
     context: EvaluationContext,
     variables: [String: EngineValue?],
     lines: LineOutcomes
-  ) -> CalculationResult {
-    do {
-      return .value(
-        try Evaluator(
-          context: context,
-          limits: evaluationLimits,
-          variables: variables,
-          lines: lines
-        ).evaluate(expression)
-      )
-    } catch let error as EngineError {
-      return .evaluationFailure(error)
-    } catch {
-      return .evaluationFailure(
-        EngineError(code: .internalFailure, ranges: [expression.range])
+  ) -> (result: CalculationResult, clock: ClockResolution?) {
+    let (result, clock) = Evaluator(
+      context: context,
+      limits: evaluationLimits,
+      variables: variables,
+      lines: lines
+    ).evaluateReadingClock(expression)
+    switch result {
+    case .success(let value):
+      return (.value(value), clock)
+    case .failure(let error as EngineError):
+      return (.evaluationFailure(error), clock)
+    case .failure:
+      return (
+        .evaluationFailure(EngineError(code: .internalFailure, ranges: [expression.range])), clock
       )
     }
   }

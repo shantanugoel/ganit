@@ -60,7 +60,7 @@ public struct EvaluationContext: Hashable, Sendable {
   public let lexingConfiguration: LexingConfiguration
   public let angleMode: AngleMode
   public let precision: PrecisionContext
-  public let now: Date
+  public private(set) var now: Date
   public let calendar: Calendar
   public let timeZone: TimeZone
 
@@ -109,6 +109,14 @@ public struct EvaluationContext: Hashable, Sendable {
     normalizedCalendar.timeZone = timeZone
     self.calendar = normalizedCalendar
     self.timeZone = timeZone
+  }
+
+  /// The same context at another finite moment.
+  public func at(_ now: Date) -> EvaluationContext {
+    precondition(now.timeIntervalSinceReferenceDate.isFinite)
+    var context = self
+    context.now = now
+    return context
   }
 
   private static func isStructurallyValidBCP47(_ identifier: String) -> Bool {

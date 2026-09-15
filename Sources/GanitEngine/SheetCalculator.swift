@@ -1,7 +1,9 @@
+import Foundation
+
 public struct SheetLineResult: Hashable, Sendable {
   public let id: LineID
   private let source: LineSource
-  private let evaluation: LineEvaluation?
+  fileprivate let evaluation: LineEvaluation?
 
   fileprivate init(id: LineID, source: LineSource, evaluation: LineEvaluation?) {
     self.id = id
@@ -36,6 +38,9 @@ public struct SheetEvaluation: Hashable, Sendable {
   public let evaluatedLineIDs: [LineID]
   /// Lines that were also lexed and parsed, a subset of `evaluatedLineIDs`.
   public let parsedLineIDs: [LineID]
+  /// The earliest moment a result that read the clock can change, or `nil`
+  /// when no result depends on the time.
+  public let nextRecalculation: Date?
 }
 
 /// Evaluates sheets incrementally.
@@ -45,7 +50,9 @@ public struct SheetEvaluation: Hashable, Sendable {
 /// A line's previous result is reused when its text, the visible variables
 /// its words could name, and the outcomes its references read are unchanged,
 /// so an edit re-evaluates only the lines it affects. A line whose text and
-/// variable kinds are unchanged reuses its parsed expression.
+/// variable kinds are unchanged reuses its parsed expression. A line that
+/// read the clock is also reused until the next midnight or second it
+/// depends on; a context that differs only in `now` keeps the cache.
 public struct SheetCalculator: Sendable {
   public private(set) var generation: UInt64 = 0
   private let engine: CalculationEngine
@@ -64,10 +71,10 @@ public struct SheetCalculator: Sendable {
     context: EvaluationContext
   ) throws -> SheetEvaluation {
     generation += 1
-    if context != self.context {
+    if context.at(self.context?.now ?? context.now) != self.context {
       cache.removeAll()
-      self.context = context
     }
+    self.context = context
 
     var scope = VariableScope()
     var outcomes = LineOutcomes()
@@ -86,7 +93,7 @@ public struct SheetCalculator: Sendable {
 
       if case .calculation(_, _, let expressionRange?, _) = source.syntax {
         let names = scope.values(named: source.words)
-        if evaluation?.isValid(names: names, outcomes: outcomes) != true {
+        if evaluation?.isValid(names: names, outcomes: outcomes, now: context.now) != true {
           let reusable = evaluation?.parsing(for: names)
           evaluation = LineEvaluation(
             source: source,
@@ -139,7 +146,8 @@ public struct SheetCalculator: Sendable {
       generation: generation,
       lines: results,
       evaluatedLineIDs: evaluated,
-      parsedLineIDs: parsed
+      parsedLineIDs: parsed,
+      nextRecalculation: results.compactMap { $0.evaluation?.clockInterval?.end }.min()
     )
   }
 }
@@ -189,6 +197,8 @@ private final class LineEvaluation: Sendable {
   let references: Set<LineReference>
   let inputs: [LineReference: [LineOutcomes.Outcome]?]
   let result: CalculationResult
+  /// For a result that read the clock, the moments it stays correct for.
+  let clockInterval: DateInterval?
 
   init(
     source: LineSource,
@@ -206,6 +216,7 @@ private final class LineEvaluation: Sendable {
       references = []
       inputs = [:]
       result = nameFailure
+      clockInterval = nil
       return
     }
     let parsing =
@@ -224,17 +235,32 @@ private final class LineEvaluation: Sendable {
       references = []
       inputs = [:]
       result = .syntaxFailure(parsing.diagnostics)
+      clockInterval = nil
       return
     }
     references = expression.references
     inputs = Dictionary(
       uniqueKeysWithValues: references.map { ($0, outcomes.inputs(for: $0)) }
     )
-    result = engine.evaluate(expression, context: context, variables: names, lines: outcomes)
+    let clock: ClockResolution?
+    (result, clock) = engine.evaluate(
+      expression, context: context, variables: names, lines: outcomes)
+    clockInterval = clock.map { resolution in
+      switch resolution {
+      case .day:
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = context.timeZone
+        return calendar.dateInterval(of: .day, for: context.now)!
+      case .second:
+        let start = context.now.timeIntervalSinceReferenceDate.rounded(.down)
+        return DateInterval(start: Date(timeIntervalSinceReferenceDate: start), duration: 1)
+      }
+    }
   }
 
-  func isValid(names: [String: EngineValue?], outcomes: LineOutcomes) -> Bool {
+  func isValid(names: [String: EngineValue?], outcomes: LineOutcomes, now: Date) -> Bool {
     self.names == names
+      && clockInterval.map { $0.start <= now && now < $0.end } != false
       && inputs.allSatisfy { outcomes.inputs(for: $0.key) == $0.value }
   }
 

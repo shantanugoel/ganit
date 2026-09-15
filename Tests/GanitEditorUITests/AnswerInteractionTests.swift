@@ -54,6 +54,31 @@ struct AnswerInteractionTests {
   }
 
   @Test
+  func waitsForAClockBoundaryOnlyWhenAResultReadsTheClock() async throws {
+    let (editor, textView) = try await makeEditor("1 + 1")
+    #expect(editor.scheduler?.recalculation == nil)
+
+    textView.insertText("\ntoday", replacementRange: NSRange(location: 5, length: 0))
+    await editor.scheduler?.waitUntilIdle()
+    #expect(editor.scheduler?.recalculation != nil)
+
+    editor.stopCalculation(nil)
+    #expect(editor.scheduler?.recalculation == nil)
+  }
+
+  @Test
+  func recalculatesAnswersThatReadNowWhenTheSecondChanges() async throws {
+    let (editor, textView) = try await makeEditor("now")
+    let id = try #require(editor.sheet.lines.first?.id)
+    let first = try #require(textView.answer(id)?.text)
+
+    try await Task.sleep(for: .milliseconds(1_100))
+    await editor.scheduler?.waitUntilIdle()
+
+    #expect(textView.answer(id)?.text != first)
+  }
+
+  @Test
   func copiesDisplayedAndFullPrecisionResults() async throws {
     let (_, textView) = try await makeEditor("sqrt(2)\n1 m + 1 s")
     textView.setSelectedRange(NSRange(location: 0, length: 0))

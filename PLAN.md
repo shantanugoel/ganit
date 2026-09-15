@@ -1026,7 +1026,7 @@ Tasks:
 - [x] Add named IANA zone parsing with conservative alias data.
 - [x] Implement DST gap/overlap clarification and interpretation detail.
 - [x] Add frozen-context tests across leap/month-end/DST/zone-history cases.
-- [ ] Schedule time-dependent recalculation only at required boundaries.
+- [x] Schedule time-dependent recalculation only at required boundaries.
 
 Exit criteria:
 
