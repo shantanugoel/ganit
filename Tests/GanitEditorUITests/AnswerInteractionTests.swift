@@ -35,6 +35,25 @@ struct AnswerInteractionTests {
   }
 
   @Test
+  func detailsShowResolvedZonesAndDaylightSavingSuggestions() async throws {
+    let (editor, textView) = try await makeEditor(
+      "2024-03-09T12:00 Asia/Kolkata\n2024-11-03T01:30 America/New_York")
+    let ids = editor.sheet.lines.map(\.id)
+
+    let instant = textView.interpretation(ids[0])
+    #expect(instant.map(\.label).suffix(2) == ["Time zone", "UTC offset"])
+    #expect(instant.map(\.value).suffix(2) == ["Asia/Kolkata", "+05:30"])
+
+    let overlap = textView.interpretation(ids[1])
+    #expect(
+      overlap.filter { $0.label == "Suggestion" }.map(\.value) == [
+        "2024-11-03T01:30:00-04:00 America/New_York", "2024-11-03T01:30:00-05:00 America/New_York",
+      ]
+    )
+    #expect(overlap.last?.value == "evaluation.ambiguousLocalTime")
+  }
+
+  @Test
   func copiesDisplayedAndFullPrecisionResults() async throws {
     let (_, textView) = try await makeEditor("sqrt(2)\n1 m + 1 s")
     textView.setSelectedRange(NSRange(location: 0, length: 0))

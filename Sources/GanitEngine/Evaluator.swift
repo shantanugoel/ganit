@@ -100,12 +100,12 @@ private struct EvaluationWorker {
         return try evaluateQuantity(magnitude, unitSyntax)
       case .period(let count, let unit, _):
         return try evaluatePeriod(count, unit)
-      case .temporal(let literal, _):
-        return try temporal.value(of: literal)
+      case .temporal(let literal, let range):
+        return try temporal.value(of: literal, at: range)
       case .relative(let offset, let isPast, _):
         return try evaluateRelative(offset, isPast: isPast)
       case .zoneConversion(let value, let zone, _):
-        return try temporal.converted(evaluate(value), toZone: zone)
+        return try evaluateZoneConversion(value, zone)
       case .conversion(let valueExpression, let targetSyntax, _, _):
         return try evaluateConversion(valueExpression, to: targetSyntax)
       case .grouped(let nested, _):
@@ -231,6 +231,13 @@ private struct EvaluationWorker {
       throw EngineError(code: .dateOutOfRange, ranges: [countExpression.range])
     }
     return .period(period)
+  }
+
+  @inline(never)
+  private mutating func evaluateZoneConversion(_ value: Expression, _ zone: String) throws
+    -> EngineValue
+  {
+    try temporal.converted(evaluate(value), toZone: zone)
   }
 
   @inline(never)

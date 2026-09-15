@@ -70,34 +70,15 @@ struct TemporalArithmetic {
     }
   }
 
-  func value(of literal: TemporalLiteral) throws -> EngineValue {
+  /// The value of a literal written at `range`, which fix-its replace.
+  func value(of literal: TemporalLiteral, at range: SourceRange) throws -> EngineValue {
     switch literal {
     case .date(let year, let month, let day):
       return .date(try DateValue(year: year ?? today().year, month: month, day: day))
     case .time(let hour, let minute, let second):
       return .time(try LocalTimeValue(hour: hour, minute: minute, second: second))
-    case .dateTime(let year, let month, let day, let hour, let minute, let second, let zoneName):
-      let date = try DateValue(year: year, month: month, day: day)
-      _ = try LocalTimeValue(hour: hour, minute: minute, second: second)
-      let zone =
-        switch zoneName {
-        case nil: context.timeZone
-        case .offset(let seconds): TimeZone(secondsFromGMT: seconds)
-        case .named(let identifier): TimeZone(identifier: identifier)
-        }
-      guard let zone else {
-        throw EngineError(code: .invalidTime)
-      }
-      var calendar = Calendar(identifier: .gregorian)
-      calendar.timeZone = zone
-      let components = DateComponents(
-        year: date.year, month: date.month, day: date.day,
-        hour: hour, minute: minute, second: second)
-      guard let instant = calendar.date(from: components) else {
-        throw EngineError(code: .dateOutOfRange)
-      }
-      let identifier = if case .named(let name) = zoneName { name } else { zone.identifier }
-      return .instant(InstantValue(date: instant, timeZoneIdentifier: identifier))
+    case .dateTime(let literal):
+      return .instant(try instant(literal, at: range))
     case .relativeDay(let days):
       return .date(try add(CalendarPeriodValue(days: days), to: today()))
     case .now:
@@ -108,6 +89,84 @@ struct TemporalArithmetic {
       let days = isNext ? (weekday - current + 6) % 7 + 1 : -((current - weekday + 6) % 7 + 1)
       return .date(try add(CalendarPeriodValue(days: days), to: today))
     }
+  }
+
+  /// Resolves a wall-clock date and time. In a zone, a time skipped by a
+  /// daylight-saving gap is an error, and a time repeated by an overlap is an
+  /// ambiguity unless its offset picks one; fix-its spell out the choices.
+  private func instant(_ literal: DateTimeLiteral, at range: SourceRange) throws -> InstantValue {
+    let date = try DateValue(year: literal.year, month: literal.month, day: literal.day)
+    let time = try LocalTimeValue(
+      hour: literal.hour, minute: literal.minute, second: literal.second)
+    let wall = startOfDay(date).addingTimeInterval(TimeInterval(time.secondsSinceMidnight))
+    guard
+      let identifier = literal.zone ?? (literal.offset == nil ? context.timeZoneIdentifier : nil)
+    else {
+      guard let zone = TimeZone(secondsFromGMT: literal.offset!) else {
+        throw EngineError(code: .invalidTime)
+      }
+      return InstantValue(
+        date: wall.addingTimeInterval(-TimeInterval(literal.offset!)),
+        timeZoneIdentifier: zone.identifier)
+    }
+    guard let zone = TimeZone(identifier: identifier) else {
+      throw EngineError(code: .invalidTime)
+    }
+    let candidates = instants(showing: wall, in: zone)
+    if let offset = literal.offset {
+      let chosen = wall.addingTimeInterval(-TimeInterval(offset))
+      guard candidates.contains(chosen) else {
+        throw EngineError(code: .offsetMismatch, ranges: [range])
+      }
+      return InstantValue(date: chosen, timeZoneIdentifier: identifier)
+    }
+    switch candidates.count {
+    case 1:
+      return InstantValue(date: candidates[0], timeZoneIdentifier: identifier)
+    case 0:
+      // The offset in effect before the gap moves the time past it.
+      let before = zone.secondsFromGMT(for: wall.addingTimeInterval(-86_400))
+      let shifted = wall.addingTimeInterval(-TimeInterval(before))
+      throw EngineError(
+        code: .nonexistentLocalTime,
+        ranges: [range],
+        fixIts: [fixIt(shifted, zone: zone, identifier: identifier, range: range, key: "afterGap")]
+      )
+    default:
+      throw EngineError(
+        code: .ambiguousLocalTime,
+        severity: .ambiguity,
+        ranges: [range],
+        fixIts: [
+          fixIt(
+            candidates[0], zone: zone, identifier: identifier, range: range, key: "earlierOffset"),
+          fixIt(
+            candidates[1], zone: zone, identifier: identifier, range: range, key: "laterOffset"),
+        ]
+      )
+    }
+  }
+
+  /// The instants at which a zone's clocks show a wall-clock time, given as a
+  /// UTC date with the same fields: none in a gap, two in an overlap.
+  private func instants(showing wall: Date, in zone: TimeZone) -> [Date] {
+    let offsets = Set(
+      [-86_400.0, 0, 86_400].map { zone.secondsFromGMT(for: wall.addingTimeInterval($0)) })
+    return offsets.map { wall.addingTimeInterval(-TimeInterval($0)) }
+      .filter { zone.secondsFromGMT(for: $0) == Int(wall.timeIntervalSince($0)) }
+      .sorted()
+  }
+
+  private func fixIt(
+    _ instant: Date, zone: TimeZone, identifier: String, range: SourceRange, key: String
+  ) -> DiagnosticFixIt {
+    let formatter = ISO8601DateFormatter()
+    formatter.timeZone = zone
+    formatter.formatOptions = [.withInternetDateTime, .withColonSeparatorInTimeZone]
+    // ISO 8601 writes UTC as `Z`; an explicit offset keeps the zone name valid.
+    let text = formatter.string(from: instant).replacingOccurrences(of: "Z", with: "+00:00")
+    return DiagnosticFixIt(
+      range: range, replacement: "\(text) \(identifier)", messageKey: "fixIt.\(key)")
   }
 
   /// The same moment shown in another zone.

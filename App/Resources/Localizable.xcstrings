@@ -261,6 +261,36 @@
         }
       }
     },
+    "interpretation.suggestion" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suggestion"
+          }
+        }
+      }
+    },
+    "interpretation.timeZone" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Time zone"
+          }
+        }
+      }
+    },
+    "interpretation.utcOffset" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "UTC offset"
+          }
+        }
+      }
+    },
     "menu.about" : {
       "localizations" : {
         "en" : {

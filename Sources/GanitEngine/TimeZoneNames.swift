@@ -43,6 +43,10 @@ enum TimeZoneNames {
   /// letter case, or for an alias whose words are joined by single spaces.
   static func identifier(for name: String) -> String? {
     let lowercased = name.lowercased()
-    return aliases[lowercased] ?? (name.contains("/") ? identifiers[lowercased] : nil)
+    guard name.contains("/") else {
+      return aliases[lowercased]
+    }
+    // The known list omits some current names, such as `Asia/Kolkata`.
+    return TimeZone(identifier: name) != nil ? name : identifiers[lowercased]
   }
 }

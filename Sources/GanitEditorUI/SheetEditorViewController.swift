@@ -345,15 +345,36 @@ public final class SheetEditorViewController: NSViewController {
             : localized("interpretation.exact", "Exact")
         ),
       ]
+      if case .instant(let instant) = value,
+        let zone = TimeZone(identifier: instant.timeZoneIdentifier)
+      {
+        let offset = zone.secondsFromGMT(for: instant.date)
+        details += [
+          AnswerCell.Detail(
+            label: localized("interpretation.timeZone", "Time zone"),
+            value: instant.timeZoneIdentifier),
+          AnswerCell.Detail(
+            label: localized("interpretation.utcOffset", "UTC offset"),
+            value: String(
+              format: "%@%02d:%02d", offset < 0 ? "-" : "+", abs(offset) / 3_600,
+              abs(offset) / 60 % 60)
+          ),
+        ]
+      }
     case .syntaxFailure, .evaluationFailure:
       guard let diagnostic = flaggedDiagnostic(result, isEditing: false) else {
         return details
       }
       details += [
         AnswerCell.Detail(
-          label: localized("interpretation.problem", "Problem"), value: diagnostic.message),
-        AnswerCell.Detail(label: localized("interpretation.code", "Code"), value: diagnostic.code),
+          label: localized("interpretation.problem", "Problem"), value: diagnostic.message)
       ]
+      details += diagnostic.fixIts.map {
+        AnswerCell.Detail(
+          label: localized("interpretation.suggestion", "Suggestion"), value: $0.replacement)
+      }
+      details.append(
+        AnswerCell.Detail(label: localized("interpretation.code", "Code"), value: diagnostic.code))
     }
     return details
   }

@@ -537,23 +537,24 @@ private struct Scanner {
       }
       let (hour, minute, second) = timeFields(at: start + 11)
       cursor = start + 11 + time
-      var zone: TemporalZone?
+      var offset: Int?
       if current == "Z" {
-        zone = .offset(0)
+        offset = 0
         advance()
       } else if current == "+" || current == "-",
         let offsetHours = asciiNumber(at: cursor + 1, digits: 2), character(at: cursor + 3) == ":",
         let offsetMinutes = asciiNumber(at: cursor + 4, digits: 2),
         asciiNumber(at: cursor + 6, digits: 1) == nil
       {
-        zone = .offset((current == "-" ? -1 : 1) * (offsetHours * 3_600 + offsetMinutes * 60))
+        offset = (current == "-" ? -1 : 1) * (offsetHours * 3_600 + offsetMinutes * 60)
         cursor += 6
       }
       append(
         .temporal(
           .dateTime(
-            year: year, month: month, day: day, hour: hour, minute: minute, second: second,
-            zone: zone)),
+            DateTimeLiteral(
+              year: year, month: month, day: day, hour: hour, minute: minute, second: second,
+              offset: offset))),
         from: start
       )
       return true

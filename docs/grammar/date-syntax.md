@@ -56,6 +56,28 @@ or regions. `UTC` and `GMT` are accepted. The result keeps the zone's
 identifier, and full precision shows the resolved offset:
 `2023-11-15T07:13:20+09:00[Asia/Tokyo]`.
 
+## Daylight-saving changes
+
+A wall-clock time in a zone, including the evaluation zone, must name exactly
+one instant:
+
+- A time skipped when clocks move forward, such as
+  `2024-03-10T02:30 America/New_York`, fails with
+  `evaluation.nonexistentLocalTime`. Its fix-it moves the time past the gap:
+  `2024-03-10T03:30:00-04:00 America/New_York`.
+- A time repeated when clocks move back, such as
+  `2024-11-03T01:30 America/New_York`, is reported with ambiguity severity as
+  `evaluation.ambiguousLocalTime`. Its two fix-its add each offset, earlier
+  first.
+- An offset and a zone together pick one instant, as in
+  `2024-11-03T01:30-05:00 America/New_York`. An offset the zone does not use
+  at that time fails with `evaluation.offsetMismatch`.
+
+The interpretation card lists the fix-its as suggestions and shows every
+instant's time zone and UTC offset. Calendar arithmetic on instants does not
+ask: adding a period that lands in a gap moves past it, and one that lands in
+an overlap uses the earlier offset.
+
 ## Keywords
 
 `today`, `tomorrow`, `yesterday`, `now`, and `ago` are keywords. Month names,

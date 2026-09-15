@@ -218,11 +218,56 @@ struct TemporalValueTests {
       try evaluate("2024-03-10T02:00 tokyo - 2024-03-09T12:00 New York")
         == .quantity(try duration(0))
     )
+    #expect(
+      try evaluate("now in Asia/Kolkata")
+        == .instant(InstantValue(date: frozenNow, timeZoneIdentifier: "Asia/Kolkata"))
+    )
     #expect(try error("today in Tokyo").code == .typeMismatch)
     for source in ["now in EST", "now in Mars", "now in Asia/Atlantis", "now in"] {
       #expect(Parser(source: source).parse().diagnostics.map(\.code) == [.unknownTimeZone])
     }
     #expect(Set(TimeZoneNames.aliases.values).allSatisfy { TimeZone(identifier: $0) != nil })
+  }
+
+  @Test
+  func clarifiesWallClockTimesInDaylightSavingGapsAndOverlaps() throws {
+    let gapSource = "2024-03-10T02:30 America/New_York"
+    let gap = try error(gapSource)
+    #expect(gap.code == .nonexistentLocalTime)
+    #expect(gap.severity == .error)
+    #expect(gap.ranges.map(\.utf8Length) == [gapSource.utf8.count])
+    #expect(gap.fixIts.map(\.replacement) == ["2024-03-10T03:30:00-04:00 America/New_York"])
+    #expect(gap.fixIts.map(\.messageKey) == ["fixIt.afterGap"])
+    #expect(try error("2024-03-10T02:30", zone: "America/New_York").code == .nonexistentLocalTime)
+
+    let overlap = try error("2024-11-03T01:30 New York")
+    #expect(overlap.code == .ambiguousLocalTime)
+    #expect(overlap.severity == .ambiguity)
+    #expect(
+      overlap.fixIts.map(\.replacement) == [
+        "2024-11-03T01:30:00-04:00 America/New_York", "2024-11-03T01:30:00-05:00 America/New_York",
+      ]
+    )
+    for (fixIt, seconds) in zip(overlap.fixIts, [1_730_611_800, 1_730_615_400]) {
+      #expect(
+        try evaluate(fixIt.replacement)
+          == .instant(
+            InstantValue(
+              date: Date(timeIntervalSince1970: TimeInterval(seconds)),
+              timeZoneIdentifier: "America/New_York"))
+      )
+    }
+    #expect(try error("2024-11-03T01:30-06:00 America/New_York").code == .offsetMismatch)
+    #expect(try error("2024-03-10T02:30-05:00 America/New_York").code == .offsetMismatch)
+
+    // Calendar arithmetic that lands in a gap moves past it.
+    #expect(
+      try evaluate("2024-03-09T02:30 America/New_York + 1 day")
+        == .instant(
+          InstantValue(
+            date: Date(timeIntervalSince1970: 1_710_055_800),
+            timeZoneIdentifier: "America/New_York"))
+    )
   }
 
   private func evaluate(
@@ -241,11 +286,11 @@ struct TemporalValueTests {
     ).evaluate(try #require(parsing.expression))
   }
 
-  private func error(_ source: String, _ values: [String: EngineValue?] = [:]) throws
-    -> EngineError
-  {
+  private func error(
+    _ source: String, _ values: [String: EngineValue?] = [:], zone: String = "UTC"
+  ) throws -> EngineError {
     do {
-      let value = try evaluate(source, values)
+      let value = try evaluate(source, values, zone: zone)
       Issue.record("Expected an error for \(source), got \(value)")
       throw EngineError(code: .invalidDomain)
     } catch let error as EngineError {

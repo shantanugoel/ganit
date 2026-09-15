@@ -876,6 +876,21 @@ public struct DiagnosticFormatter: Sendable {
         "error.evaluation.dateOutOfRange",
         defaultValue: "The date is outside the supported range."
       )
+    case .nonexistentLocalTime:
+      return localized(
+        "error.evaluation.nonexistentLocalTime",
+        defaultValue: "This time is skipped when clocks move forward in this time zone."
+      )
+    case .ambiguousLocalTime:
+      return localized(
+        "error.evaluation.ambiguousLocalTime",
+        defaultValue: "This time happens twice when clocks move back. Add a UTC offset."
+      )
+    case .offsetMismatch:
+      return localized(
+        "error.evaluation.offsetMismatch",
+        defaultValue: "This UTC offset is not used in the time zone at this time."
+      )
     case .resourceLimitExceeded:
       return resourceLimitMessage(for: error.context)
     case .approximationOutOfRange:

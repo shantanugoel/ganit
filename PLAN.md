@@ -1024,7 +1024,7 @@ Tasks:
 - [x] Implement distinct date/time/instant/calendar-period/duration values.
 - [x] Add common English date phrases and ISO input.
 - [x] Add named IANA zone parsing with conservative alias data.
-- [ ] Implement DST gap/overlap clarification and interpretation detail.
+- [x] Implement DST gap/overlap clarification and interpretation detail.
 - [ ] Add frozen-context tests across leap/month-end/DST/zone-history cases.
 - [ ] Schedule time-dependent recalculation only at required boundaries.
 

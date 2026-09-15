@@ -238,26 +238,12 @@ private struct TokenParser {
         continue
       }
 
-      if 29 >= minimumBindingPower,
-        case .literal(.integer(let digits, .decimal), let range) = left, digits.count <= 2,
-        let word = identifier(at: 0), variables[word] == nil,
-        let month = monthNames[word.lowercased()]
-      {
-        let monthRange = advance().range
-        left = parseYear(month: month, day: Int(digits)!, range: range.union(monthRange))
-        depth += 1
-        continue
-      }
-
-      if 1 >= minimumBindingPower,
-        identifier(at: 0) == "ago" || (identifier(at: 0) == "from" && identifier(at: 1) == "now")
-      {
-        let isPast = identifier(at: 0) == "ago"
-        var end = advance().range
-        if !isPast {
-          end = advance().range
+      let diagnosticCount = diagnostics.count
+      if let suffixed = parseTemporalSuffix(of: left, minimumBindingPower: minimumBindingPower) {
+        guard diagnostics.count == diagnosticCount else {
+          return left
         }
-        left = .relative(offset: left, isPast: isPast, range: left.range.union(end))
+        left = suffixed
         depth += 1
         continue
       }
@@ -283,29 +269,6 @@ private struct TokenParser {
           return left
         }
         left = quantity
-        depth += 1
-        continue
-      }
-
-      if 1 >= minimumBindingPower,
-        let keyword = identifier(at: 0),
-        ["in", "to", "as", "into"].contains(keyword),
-        timeZone(at: 1) != nil || inferredKind(of: left) == .instant
-      {
-        let keywordRange = advance().range
-        guard let (zone, tokenCount) = timeZone(at: 0) else {
-          if current.isEndOfInput {
-            diagnose(.unknownTimeZone, at: keywordRange.union(current.range), severity: .incomplete)
-          } else {
-            diagnose(.unknownTimeZone, at: advance().range)
-          }
-          return left
-        }
-        var end = current.range
-        for _ in 0..<tokenCount {
-          end = advance().range
-        }
-        left = .zoneConversion(value: left, zone: zone, range: left.range.union(end))
         depth += 1
         continue
       }
@@ -378,27 +341,8 @@ private struct TokenParser {
     case .number(let literal):
       return .literal(literal, range: token.range)
 
-    case .temporal(
-      .dateTime(let year, let month, let day, let hour, let minute, let second, nil)):
-      guard let (zone, tokenCount) = timeZone(at: 0) else {
-        return .temporal(
-          .dateTime(
-            year: year, month: month, day: day, hour: hour, minute: minute, second: second,
-            zone: nil),
-          range: token.range)
-      }
-      var end = token.range
-      for _ in 0..<tokenCount {
-        end = advance().range
-      }
-      return .temporal(
-        .dateTime(
-          year: year, month: month, day: day, hour: hour, minute: minute, second: second,
-          zone: .named(zone)),
-        range: token.range.union(end))
-
     case .temporal(let literal):
-      return parseMeridiem(literal, range: token.range)
+      return parseTemporal(literal, range: token.range)
 
     case .identifier(let name):
       if variables[name] == nil, let phrase = parseDatePhrase(name, range: token.range) {
@@ -980,6 +924,7 @@ private struct TokenParser {
   }
 
   /// `today`, `now`, `next friday`, or a month-name date such as `March 9`.
+  @inline(never)
   private mutating func parseDatePhrase(_ word: String, range: SourceRange) -> Expression? {
     let lowercased = word.lowercased()
     if let days = relativeDays[lowercased] {
@@ -1018,9 +963,70 @@ private struct TokenParser {
       .date(year: Int(digits)!, month: month, day: day), range: range.union(advance().range))
   }
 
-  /// A 12-hour time such as `3:30 pm`.
-  private mutating func parseMeridiem(_ literal: TemporalLiteral, range: SourceRange) -> Expression
+  // Temporal parsing lives in non-inlined methods so the recursive
+  // `parseExpression` and `parsePrefix` frames stay small.
+
+  /// A date phrase or zone that follows `left`: `9 March`, `3 days ago`,
+  /// `2 h from now`, or `now in Asia/Tokyo`. Reports an unknown zone after an
+  /// instant.
+  @inline(never)
+  private mutating func parseTemporalSuffix(
+    of left: Expression,
+    minimumBindingPower: Int
+  ) -> Expression? {
+    if 29 >= minimumBindingPower,
+      case .literal(.integer(let digits, .decimal), let range) = left, digits.count <= 2,
+      let word = identifier(at: 0), variables[word] == nil,
+      let month = monthNames[word.lowercased()]
+    {
+      let monthRange = advance().range
+      return parseYear(month: month, day: Int(digits)!, range: range.union(monthRange))
+    }
+    guard 1 >= minimumBindingPower, let keyword = identifier(at: 0) else {
+      return nil
+    }
+    if keyword == "ago" || (keyword == "from" && identifier(at: 1) == "now") {
+      var end = advance().range
+      if keyword == "from" {
+        end = advance().range
+      }
+      return .relative(offset: left, isPast: keyword == "ago", range: left.range.union(end))
+    }
+    guard ["in", "to", "as", "into"].contains(keyword),
+      timeZone(at: 1) != nil || inferredKind(of: left) == .instant
+    else {
+      return nil
+    }
+    let keywordRange = advance().range
+    guard let (zone, tokenCount) = timeZone(at: 0) else {
+      if current.isEndOfInput {
+        diagnose(.unknownTimeZone, at: keywordRange.union(current.range), severity: .incomplete)
+      } else {
+        diagnose(.unknownTimeZone, at: advance().range)
+      }
+      return left
+    }
+    var end = current.range
+    for _ in 0..<tokenCount {
+      end = advance().range
+    }
+    return .zoneConversion(value: left, zone: zone, range: left.range.union(end))
+  }
+
+  /// A temporal token with the zone or `am`/`pm` that follows it.
+  @inline(never)
+  private mutating func parseTemporal(_ literal: TemporalLiteral, range: SourceRange) -> Expression
   {
+    if case .dateTime(var dateTime) = literal {
+      var range = range
+      if let (zone, tokenCount) = timeZone(at: 0) {
+        dateTime.zone = zone
+        for _ in 0..<tokenCount {
+          range = range.union(advance().range)
+        }
+      }
+      return .temporal(.dateTime(dateTime), range: range)
+    }
     guard case .time(let hour, let minute, let second) = literal,
       let word = identifier(at: 0)?.lowercased(), word == "am" || word == "pm"
     else {

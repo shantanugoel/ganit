@@ -19,6 +19,11 @@
         "tr" : { "stringUnit" : { "state" : "translated", "value" : "yıl" } }
       }
     },
+    "error.evaluation.ambiguousLocalTime" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This time happens twice when clocks move back. Add a UTC offset." } }
+      }
+    },
     "error.evaluation.approximationOutOfRange" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "This value cannot be approximated safely." } }
@@ -52,6 +57,16 @@
     "error.evaluation.nonConvergence" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "The calculation did not converge." } }
+      }
+    },
+    "error.evaluation.nonexistentLocalTime" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This time is skipped when clocks move forward in this time zone." } }
+      }
+    },
+    "error.evaluation.offsetMismatch" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This UTC offset is not used in the time zone at this time." } }
       }
     },
     "error.evaluation.overflow" : {
