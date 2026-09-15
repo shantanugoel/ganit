@@ -112,7 +112,7 @@ public final class SheetEditorViewController: NSViewController {
     textView.allowsUndo = true
     textView.usesFindBar = true
     textView.isIncrementalSearchingEnabled = true
-    textView.font = .systemFont(ofSize: 14)
+    textView.font = .systemFont(ofSize: SheetTextView.baseFontSize)
     textView.baseWritingDirection = .natural
     textView.textContainerInset = NSSize(width: 8, height: 8)
     // Substitutions would silently change calculation source, such as `--`

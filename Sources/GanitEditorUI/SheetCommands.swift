@@ -15,4 +15,7 @@ import AppKit
   func insertDivider(_ sender: Any?)
   func recalculate(_ sender: Any?)
   func stopCalculation(_ sender: Any?)
+  func increaseTextSize(_ sender: Any?)
+  func decreaseTextSize(_ sender: Any?)
+  func resetTextSize(_ sender: Any?)
 }

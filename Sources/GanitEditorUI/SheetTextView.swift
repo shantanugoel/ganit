@@ -19,6 +19,17 @@ final class SheetTextView: NSTextView {
   static let answerColumnFraction: CGFloat = 0.35
   static let answerColumnWidthRange: ClosedRange<CGFloat> = 140...360
   static let columnGap: CGFloat = 16
+  static let baseFontSize: CGFloat = 14
+  /// Text size steps; 1 is the standard 14 pt.
+  static let textScales: [CGFloat] = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3]
+
+  /// Scales source, answers, and the answer column together.
+  private(set) var textScale: CGFloat = 1 {
+    didSet {
+      font = .systemFont(ofSize: Self.baseFontSize * textScale)
+      setFrameSize(frame.size)
+    }
+  }
 
   /// Answer cells by line; lines without an entry show nothing.
   var answers: [LineID: AnswerCell] = [:] {
@@ -50,19 +61,23 @@ final class SheetTextView: NSTextView {
 
   private var overlay: AnswerOverlayView?
 
-  fileprivate static let answerFont = NSFont.monospacedDigitSystemFont(ofSize: 14, weight: .regular)
-
-  fileprivate func attributes(for cell: AnswerCell, selected: Bool) -> [NSAttributedString.Key: Any]
-  {
+  func attributes(for cell: AnswerCell, selected: Bool) -> [NSAttributedString.Key: Any] {
     let color: NSColor =
       selected ? .selectedTextColor : cell.isFailure ? .systemRed : .labelColor
-    return [.font: Self.answerFont, .foregroundColor: color]
+    return [
+      .font: NSFont.monospacedDigitSystemFont(
+        ofSize: Self.baseFontSize * textScale, weight: .regular),
+      .foregroundColor: color,
+    ]
   }
 
   var answerColumnWidth: CGFloat {
     min(
-      max(bounds.width * Self.answerColumnFraction, Self.answerColumnWidthRange.lowerBound),
-      Self.answerColumnWidthRange.upperBound
+      max(
+        bounds.width * Self.answerColumnFraction,
+        Self.answerColumnWidthRange.lowerBound * textScale
+      ),
+      Self.answerColumnWidthRange.upperBound * textScale
     )
   }
 
@@ -129,6 +144,111 @@ final class SheetTextView: NSTextView {
           height: row.typographicBounds.height
         )
       )
+    }
+  }
+
+  // MARK: Text size, appearance, and accessibility
+
+  @objc func increaseTextSize(_ sender: Any?) {
+    textScale = Self.textScales.first { $0 > textScale } ?? textScale
+  }
+
+  @objc func decreaseTextSize(_ sender: Any?) {
+    textScale = Self.textScales.last { $0 < textScale } ?? textScale
+  }
+
+  @objc func resetTextSize(_ sender: Any?) {
+    textScale = 1
+  }
+
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    NSWorkspace.shared.notificationCenter.removeObserver(self)
+    guard window != nil else {
+      return
+    }
+    NSWorkspace.shared.notificationCenter.addObserver(
+      self,
+      selector: #selector(displayOptionsDidChange(_:)),
+      name: NSWorkspace.accessibilityDisplayOptionsDidChangeNotification,
+      object: nil
+    )
+  }
+
+  override func viewDidChangeEffectiveAppearance() {
+    super.viewDidChangeEffectiveAppearance()
+    answerOverlay().needsDisplay = true
+  }
+
+  @objc private func displayOptionsDidChange(_ notification: Notification) {
+    answerOverlay().needsDisplay = true
+  }
+
+  /// Visible answers and failure messages, as static text elements after the
+  /// text view's own children.
+  override func accessibilityChildren() -> [Any]? {
+    let answerElements = answerLayout(in: visibleRect).map { line, cell, rect in
+      let number = lineNumber(line) ?? 0
+      let label =
+        cell.isFailure
+        ? String(
+          format: String(
+            localized: "accessibility.lineError", defaultValue: "Line %lld error", bundle: .main),
+          number
+        )
+        : String(
+          format: String(
+            localized: "accessibility.lineResult", defaultValue: "Line %lld result", bundle: .main),
+          number
+        )
+      let frame = window?.convertToScreen(convert(rect, to: nil)) ?? rect
+      let element =
+        NSAccessibilityElement.element(
+          withRole: .staticText,
+          frame: frame,
+          label: label,
+          parent: self
+        ) as! NSAccessibilityElement
+      element.setAccessibilityValue(cell.text)
+      return element
+    }
+    return (super.accessibilityChildren() ?? []) + answerElements
+  }
+
+  /// Keyboard and VoiceOver equivalents of answer mouse interactions.
+  override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
+    let actions: [(String, Selector)] = [
+      (
+        String(localized: "menu.copyResult", defaultValue: "Copy Result", bundle: .main),
+        #selector(copyResult(_:))
+      ),
+      (
+        String(
+          localized: "menu.copyFullPrecision", defaultValue: "Copy Full Precision", bundle: .main),
+        #selector(copyFullPrecision(_:))
+      ),
+      (
+        String(
+          localized: "menu.showInterpretation", defaultValue: "Show Interpretation", bundle: .main),
+        #selector(showInterpretation(_:))
+      ),
+      (
+        String(localized: "menu.insertReference", defaultValue: "Insert Reference", bundle: .main),
+        #selector(insertReference(_:))
+      ),
+    ]
+    return actions.map { name, action in
+      NSAccessibilityCustomAction(name: name) { [weak self] in
+        guard let self else {
+          return false
+        }
+        let item = NSMenuItem(title: name, action: action, keyEquivalent: "")
+        guard validateUserInterfaceItem(item) else {
+          return false
+        }
+        perform(action, with: nil)
+        return true
+      }
     }
   }
 
@@ -228,6 +348,12 @@ final class SheetTextView: NSTextView {
       return targetAnswer?.cell.fullPrecision != nil
     case #selector(insertReference(_:)):
       return referenceTarget != nil
+    case #selector(decreaseTextSize(_:)):
+      return textScale > Self.textScales[0]
+    case #selector(increaseTextSize(_:)):
+      return textScale < Self.textScales[Self.textScales.count - 1]
+    case #selector(resetTextSize(_:)):
+      return textScale != 1
     case #selector(insertSubtotal(_:)), #selector(toggleHeading(_:)),
       #selector(toggleComment(_:)), #selector(insertDivider(_:)):
       return isEditable
@@ -379,7 +505,7 @@ final class SheetTextView: NSTextView {
                 x: segment.minX + textContainerOrigin.x,
                 y: segment.minY + baseline + textContainerOrigin.y + 2,
                 width: segment.width,
-                height: 1.5
+                height: NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast ? 2.5 : 1.5
               ),
               underline.color
             )

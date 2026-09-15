@@ -965,7 +965,7 @@ Tasks:
 - [x] Add syntax/state decoration using exact source ranges.
 - [x] Add result selection/copy and interpretation/error UI.
 - [x] Add standard menus and commands; Return/newline and ⌘Return behavior.
-- [ ] Add text scaling, appearance, contrast and accessibility semantics.
+- [x] Add text scaling, appearance, contrast and accessibility semantics.
 - [ ] Instrument edit-to-answer and layout latency.
 
 Exit criteria:

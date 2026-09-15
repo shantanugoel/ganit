@@ -12,7 +12,7 @@ enabled only when the focused editor or window can perform it.
 | Edit | Undo ⌘Z, Redo ⇧⌘Z, Cut ⌘X, Copy ⌘C, Paste ⌘V, Delete, Select All ⌘A, Find ▸ (Find… ⌘F, Find and Replace… ⌥⌘F, Find Next ⌘G, Find Previous ⇧⌘G, Use Selection for Find ⌘E) |
 | Calculate | Copy Result ⇧⌘C, Copy Full Precision ⌥⇧⌘C, Show Interpretation, Insert Reference ⌘\, Insert Subtotal ⌘T, Recalculate ⌘R, Stop ⌘. |
 | Format | Heading, Comment ⌘/, Divider |
-| View | Enter Full Screen ⌃⌘F |
+| View | Bigger ⌘+, Smaller ⌘-, Actual Size ⌘0, Enter Full Screen ⌃⌘F |
 | Window | Minimize ⌘M, Zoom, Bring All to Front, and the window list |
 | Help | menu search |
 

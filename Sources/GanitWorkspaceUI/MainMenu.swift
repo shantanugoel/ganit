@@ -144,11 +144,21 @@ public enum MainMenu {
         localized("menu.view", "View"),
         [
           item(
+            localized("menu.biggerText", "Bigger"), #selector(SheetCommands.increaseTextSize(_:)),
+            "+"),
+          item(
+            localized("menu.smallerText", "Smaller"), #selector(SheetCommands.decreaseTextSize(_:)),
+            "-"),
+          item(
+            localized("menu.actualSize", "Actual Size"), #selector(SheetCommands.resetTextSize(_:)),
+            "0"),
+          .separator(),
+          item(
             localized("menu.enterFullScreen", "Enter Full Screen"),
             #selector(NSWindow.toggleFullScreen(_:)),
             "f",
             [.command, .control]
-          )
+          ),
         ]
       ),
       window,

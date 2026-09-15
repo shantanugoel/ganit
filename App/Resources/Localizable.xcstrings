@@ -1,6 +1,26 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "accessibility.lineError" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Line %lld error"
+          }
+        }
+      }
+    },
+    "accessibility.lineResult" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Line %lld result"
+          }
+        }
+      }
+    },
     "editor.accessibilityLabel" : {
       "localizations" : {
         "en" : {
@@ -147,6 +167,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "About Ganit"
+          }
+        }
+      }
+    },
+    "menu.actualSize" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Actual Size"
+          }
+        }
+      }
+    },
+    "menu.biggerText" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bigger"
           }
         }
       }
@@ -507,6 +547,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Show Interpretation"
+          }
+        }
+      }
+    },
+    "menu.smallerText" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Smaller"
           }
         }
       }

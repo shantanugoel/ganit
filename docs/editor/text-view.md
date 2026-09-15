@@ -99,3 +99,23 @@ The interpretation card is a transient popover listing the expression, result,
 full precision, value kind, and exactness; for a failure it lists the
 expression, message, and stable diagnostic code. Unit conversions, provenance,
 time zones, and references join the card as those details become available.
+
+## Text size, appearance, and accessibility
+
+View ▸ Bigger, Smaller, and Actual Size step the editor's text scale through
+75%, 100%, 125%, 150%, 175%, 200%, 250%, and 300% of 14 pt. Source text,
+answers, and the answer column's width bounds scale together.
+
+All editor colors are semantic system colors resolved at draw time, so Light
+and Dark appearances, accent colors, and Increase Contrast apply without
+Ganit-specific palettes; the overlay redraws when the effective appearance or
+accessibility display options change. With Increase Contrast, failure
+underlines are thicker. The editor has no animation and no custom material, so
+Reduce Motion and Reduce Transparency need no special handling.
+
+For accessibility, the text view appends one static-text element per visible
+answer to its children, labeled "Line N result" or "Line N error" with the
+answer or message as its value and its on-screen frame. Custom actions offer
+Copy Result, Copy Full Precision, Show Interpretation, and Insert Reference, so
+every mouse interaction with answers has a VoiceOver and keyboard equivalent.
+Answers are not announced as they change while typing.
