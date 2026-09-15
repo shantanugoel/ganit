@@ -282,6 +282,8 @@ struct ParserTests {
         "(\(shape(left)) \(percentageSymbol(percentageOperator)) \(shape(right)))"
     case .quantity(let magnitude, let unit, _):
       return "\(shape(magnitude)) \(unitShape(unit))"
+    case .period(let count, let unit, _):
+      return "\(shape(count)) \(unit.rawValue)"
     case .conversion(let value, let target, _, _):
       return "(\(shape(value)) -> \(unitShape(target)))"
     case .grouped(let expression, _):

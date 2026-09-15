@@ -81,6 +81,35 @@ struct ResultFormatterTests {
   }
 
   @Test
+  func formatsTemporalValuesWithISOFullPrecision() throws {
+    let formatter = ResultFormatter(context: try context())
+    let cases: [(EngineValue, String, String)] = [
+      (.date(try DateValue(year: 2024, month: 2, day: 29)), "Feb 29, 2024", "2024-02-29"),
+      (.time(try LocalTimeValue(hour: 14, minute: 5)), "2:05\u{202F}PM", "14:05:00"),
+      (.time(try LocalTimeValue(hour: 9, minute: 0, second: 7)), "9:00:07\u{202F}AM", "09:00:07"),
+      (
+        .instant(
+          InstantValue(
+            date: Date(timeIntervalSince1970: 1_710_003_600),
+            timeZoneIdentifier: "America/New_York"
+          )
+        ),
+        "Mar 9, 2024 at 12:00\u{202F}PM America/New_York",
+        "2024-03-09T12:00:00-05:00[America/New_York]"
+      ),
+      (.period(CalendarPeriodValue(months: 14, days: 3)), "1 year, 2 months, 3 days", "P1Y2M3D"),
+      (.period(CalendarPeriodValue()), "0 days", "P0D"),
+    ]
+
+    for (value, display, fullPrecision) in cases {
+      let result = try formatter.format(value)
+      #expect(result.display == display)
+      #expect(result.fullPrecision == fullPrecision)
+      #expect(!result.isApproximate)
+    }
+  }
+
+  @Test
   func formatsDimensionedRatesWithoutFlatteningTheirAmounts() throws {
     let evaluationContext = try context()
     let catalog = try UnitCatalog.minimal()

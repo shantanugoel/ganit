@@ -97,6 +97,12 @@ public indirect enum Expression: Equatable, Sendable {
     unit: UnitSyntax,
     range: SourceRange
   )
+  /// A whole count of calendar days, weeks, months, quarters, or years.
+  case period(
+    count: Expression,
+    unit: CalendarPeriodUnit,
+    range: SourceRange
+  )
   case conversion(
     value: Expression,
     target: UnitSyntax,
@@ -116,6 +122,7 @@ public indirect enum Expression: Equatable, Sendable {
       .percentage(_, _, let range),
       .percentageOperation(_, _, _, _, let range),
       .quantity(_, _, let range),
+      .period(_, _, let range),
       .conversion(_, _, _, let range),
       .grouped(_, let range),
       .reference(_, let range):
@@ -133,6 +140,7 @@ public indirect enum Expression: Equatable, Sendable {
     case .prefix(_, let operand, _, _),
       .percentage(let operand, _, _),
       .quantity(let operand, _, _),
+      .period(let operand, _, _),
       .conversion(let operand, _, _, _),
       .grouped(let operand, _):
       return operand.references

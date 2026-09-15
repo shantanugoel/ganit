@@ -124,6 +124,26 @@
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Absolute quantities cannot be used in this arithmetic operation." } }
       }
     },
+    "error.evaluation.invalidDate" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This date does not exist." } }
+      }
+    },
+    "error.evaluation.invalidTime" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Times need a valid hour, minute, and whole seconds." } }
+      }
+    },
+    "error.evaluation.fractionalCalendarPeriod" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Calendar periods need whole numbers." } }
+      }
+    },
+    "error.evaluation.dateOutOfRange" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The date is outside the supported range." } }
+      }
+    },
     "error.evaluation.incompatibleRatePeriods" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Calendar rate periods cannot be converted to fixed unit periods." } }

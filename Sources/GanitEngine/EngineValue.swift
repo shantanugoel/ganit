@@ -3,6 +3,10 @@ public enum EngineValue: Hashable, Sendable {
   case percentage(PercentageValue)
   case quantity(QuantityValue)
   case rate(RateValue)
+  case date(DateValue)
+  case time(LocalTimeValue)
+  case instant(InstantValue)
+  case period(CalendarPeriodValue)
 }
 
 public struct PercentageValue: Hashable, Sendable {
@@ -24,6 +28,14 @@ extension EngineValue {
       return .quantity
     case .rate:
       return .rate
+    case .date:
+      return .date
+    case .time:
+      return .time
+    case .instant:
+      return .instant
+    case .period:
+      return .period
     }
   }
 }

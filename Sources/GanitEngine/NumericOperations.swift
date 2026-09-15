@@ -913,6 +913,27 @@ struct NumericOperations {
     return leftProduct < rightProduct ? -1 : (leftProduct > rightProduct ? 1 : 0)
   }
 
+  /// The value as an `Int` when it is exactly a whole number in range.
+  func exactInteger(_ value: NumericValue) -> Int? {
+    guard let fraction = try? exactFraction(value), fraction.denominator == 1 else {
+      return nil
+    }
+    return Int(exactly: fraction.numerator)
+  }
+
+  /// The value as a `Double`, rounding exact values to the nearest one.
+  func double(_ value: NumericValue) throws -> Double {
+    if case .approximate = value {
+      return try approximateEstimate(value)
+    }
+    let fraction = try exactFraction(value)
+    let result = Double(fraction.numerator) / Double(fraction.denominator)
+    guard result.isFinite else {
+      throw EngineError(code: .approximationOutOfRange)
+    }
+    return result
+  }
+
   private func exactFraction(_ value: NumericValue) throws -> Fraction {
     switch value {
     case .integer(let integer):

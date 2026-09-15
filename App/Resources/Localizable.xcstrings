@@ -161,6 +161,26 @@
         }
       }
     },
+    "interpretation.kind.date" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date"
+          }
+        }
+      }
+    },
+    "interpretation.kind.instant" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date and time"
+          }
+        }
+      }
+    },
     "interpretation.kind.number" : {
       "localizations" : {
         "en" : {
@@ -181,6 +201,16 @@
         }
       }
     },
+    "interpretation.kind.period" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calendar period"
+          }
+        }
+      }
+    },
     "interpretation.kind.quantity" : {
       "localizations" : {
         "en" : {
@@ -197,6 +227,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rate"
+          }
+        }
+      }
+    },
+    "interpretation.kind.time" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Time of day"
           }
         }
       }

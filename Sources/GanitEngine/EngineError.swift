@@ -22,6 +22,10 @@ public enum EngineErrorCode: String, Hashable, Sendable {
   case invalidAbsoluteQuantityOperation =
     "evaluation.invalidAbsoluteQuantityOperation"
   case incompatibleRatePeriods = "evaluation.incompatibleRatePeriods"
+  case invalidDate = "evaluation.invalidDate"
+  case invalidTime = "evaluation.invalidTime"
+  case fractionalCalendarPeriod = "evaluation.fractionalCalendarPeriod"
+  case dateOutOfRange = "evaluation.dateOutOfRange"
   case resourceLimitExceeded = "evaluation.resourceLimitExceeded"
   case approximationOutOfRange = "evaluation.approximationOutOfRange"
   case internalFailure = "evaluation.internalFailure"
@@ -73,6 +77,10 @@ public enum EngineValueKind: String, Hashable, Sendable {
   case percentage
   case quantity
   case rate
+  case date
+  case time
+  case instant
+  case period
 }
 
 public enum EvaluationContextField: String, Hashable, Sendable {

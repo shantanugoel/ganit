@@ -48,6 +48,7 @@ private struct EvaluationWorker {
   let limits: EvaluationLimits
   let operations: NumericOperations
   let unitAlgebra: UnitAlgebra
+  let temporal: TemporalArithmetic
   let variables: [String: EngineValue?]
   let lines: LineOutcomes
   var visitedOperations = 0
@@ -64,6 +65,8 @@ private struct EvaluationWorker {
     self.lines = lines
     operations = NumericOperations(context: context, limits: limits)
     unitAlgebra = UnitAlgebra(context: context, limits: limits)
+    temporal = TemporalArithmetic(
+      context: context, operations: operations, unitAlgebra: unitAlgebra)
   }
 
   // Evaluation recurses once per AST level. The dispatcher stays small and
@@ -95,6 +98,8 @@ private struct EvaluationWorker {
         )
       case .quantity(let magnitude, let unitSyntax, _):
         return try evaluateQuantity(magnitude, unitSyntax)
+      case .period(let count, let unit, _):
+        return try evaluatePeriod(count, unit)
       case .conversion(let valueExpression, let targetSyntax, _, _):
         return try evaluateConversion(valueExpression, to: targetSyntax)
       case .grouped(let nested, _):
@@ -208,6 +213,21 @@ private struct EvaluationWorker {
   }
 
   @inline(never)
+  private mutating func evaluatePeriod(
+    _ countExpression: Expression,
+    _ unit: CalendarPeriodUnit
+  ) throws -> EngineValue {
+    let number = try requireNumber(try evaluate(countExpression), at: countExpression.range)
+    guard let count = operations.exactInteger(number) else {
+      throw EngineError(code: .fractionalCalendarPeriod, ranges: [countExpression.range])
+    }
+    guard let period = unit.period(count: count) else {
+      throw EngineError(code: .dateOutOfRange, ranges: [countExpression.range])
+    }
+    return .period(period)
+  }
+
+  @inline(never)
   private mutating func evaluateConversion(
     _ valueExpression: Expression,
     to targetSyntax: UnitSyntax
@@ -265,7 +285,9 @@ private struct EvaluationWorker {
           kind: quantity.kind
         )
       )
-    case .rate:
+    case .period(let period):
+      return .period(try temporal.negated(period))
+    case .rate, .date, .time, .instant:
       throw typeMismatch(expected: .number, actual: value.kind)
     }
   }
@@ -275,6 +297,9 @@ private struct EvaluationWorker {
     left: EngineValue,
     right: EngineValue
   ) throws -> EngineValue {
+    if let result = try temporal.apply(binaryOperator, left: left, right: right) {
+      return result
+    }
     switch (left, right) {
     case (.number(let lhs), .number(let rhs)):
       return .number(

@@ -399,6 +399,35 @@ public struct ResultFormatter: Sendable {
         try numericFormatter.format(quantity.magnitude),
         symbol: quantity.unit.symbol
       )
+    case .date(let date):
+      return try checked(
+        display: temporalFormatter(date: .medium, time: .none, zone: utc).string(
+          from: utcDate(date)),
+        fullPrecision: String(format: "%04d-%02d-%02d", date.year, date.month, date.day)
+      )
+    case .time(let time):
+      return try checked(
+        display: temporalFormatter(
+          date: .none, time: time.second == 0 ? .short : .medium, zone: utc
+        )
+        .string(
+          from: Date(timeIntervalSinceReferenceDate: TimeInterval(time.secondsSinceMidnight))),
+        fullPrecision: String(format: "%02d:%02d:%02d", time.hour, time.minute, time.second)
+      )
+    case .instant(let instant):
+      let zone = TimeZone(identifier: instant.timeZoneIdentifier) ?? utc
+      let hasSeconds =
+        Calendar(identifier: .gregorian).dateComponents(in: zone, from: instant.date).second != 0
+      let iso = ISO8601DateFormatter()
+      iso.timeZone = zone
+      iso.formatOptions = [.withInternetDateTime]
+      return try checked(
+        display: temporalFormatter(date: .medium, time: hasSeconds ? .medium : .short, zone: zone)
+          .string(from: instant.date) + " " + instant.timeZoneIdentifier,
+        fullPrecision: iso.string(from: instant.date) + "[\(instant.timeZoneIdentifier)]"
+      )
+    case .period(let period):
+      return try checked(display: periodDisplay(period), fullPrecision: periodISO(period))
     case .rate(let rate):
       let amount = try format(rate.amount)
       let displayDenominator = denominatorDisplay(rate.denominator)
@@ -411,6 +440,64 @@ public struct ResultFormatter: Sendable {
         fullPrecision: "/\(canonicalDenominator)"
       )
     }
+  }
+
+  private var utc: TimeZone {
+    TimeZone(identifier: "UTC")!
+  }
+
+  private func temporalFormatter(
+    date: DateFormatter.Style,
+    time: DateFormatter.Style,
+    zone: TimeZone
+  ) -> DateFormatter {
+    let formatter = DateFormatter()
+    formatter.locale = locale
+    formatter.calendar = Calendar(identifier: .gregorian)
+    formatter.timeZone = zone
+    formatter.dateStyle = date
+    formatter.timeStyle = time
+    return formatter
+  }
+
+  private func utcDate(_ date: DateValue) -> Date {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = utc
+    return calendar.date(from: DateComponents(year: date.year, month: date.month, day: date.day))
+      ?? Date()
+  }
+
+  /// A period in years, months, and days, such as `1 year, 2 months, 3 days`.
+  private func periodDisplay(_ period: CalendarPeriodValue) -> String {
+    let formatter = DateComponentsFormatter()
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.locale = locale
+    formatter.calendar = calendar
+    formatter.unitsStyle = .full
+    formatter.allowedUnits = [.year, .month, .day]
+    formatter.zeroFormattingBehavior = .dropAll
+    let components = DateComponents(
+      year: period.months / 12,
+      month: period.months % 12,
+      day: period.days
+    )
+    return formatter.string(from: components) ?? periodISO(period)
+  }
+
+  /// ISO 8601 duration notation with signed components, such as `P1Y2M3D`.
+  private func periodISO(_ period: CalendarPeriodValue) -> String {
+    let parts = [(period.months / 12, "Y"), (period.months % 12, "M"), (period.days, "D")]
+      .filter { $0.0 != 0 }
+      .map { "\($0.0)\($0.1)" }
+    return "P" + (parts.isEmpty ? "0D" : parts.joined())
+  }
+
+  private func checked(display: String, fullPrecision: String) throws -> FormattedResult {
+    guard display.count <= limits.maximumCharacters, fullPrecision.count <= limits.maximumCharacters
+    else {
+      throw FormattingError.outputTooLong
+    }
+    return FormattedResult(display: display, fullPrecision: fullPrecision, isApproximate: false)
   }
 
   private func format(_ amount: RateAmount) throws -> FormattedResult {
@@ -756,6 +843,26 @@ public struct DiagnosticFormatter: Sendable {
       return localized(
         "error.evaluation.incompatibleRatePeriods",
         defaultValue: "Calendar rate periods cannot be converted to fixed unit periods."
+      )
+    case .invalidDate:
+      return localized(
+        "error.evaluation.invalidDate",
+        defaultValue: "This date does not exist."
+      )
+    case .invalidTime:
+      return localized(
+        "error.evaluation.invalidTime",
+        defaultValue: "Times need a valid hour, minute, and whole seconds."
+      )
+    case .fractionalCalendarPeriod:
+      return localized(
+        "error.evaluation.fractionalCalendarPeriod",
+        defaultValue: "Calendar periods need whole numbers."
+      )
+    case .dateOutOfRange:
+      return localized(
+        "error.evaluation.dateOutOfRange",
+        defaultValue: "The date is outside the supported range."
       )
     case .resourceLimitExceeded:
       return resourceLimitMessage(for: error.context)

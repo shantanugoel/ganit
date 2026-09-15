@@ -299,6 +299,12 @@ public struct UnitAlgebra: Sendable {
     )
   }
 
+  /// A relative quantity's magnitude in its dimension's canonical unit, such
+  /// as seconds for time.
+  func canonicalMagnitude(of quantity: QuantityValue) throws -> NumericValue {
+    try toCanonical(quantity.magnitude, from: quantity.unit, kind: .relative)
+  }
+
   private func toCanonical(
     _ value: NumericValue,
     from unit: UnitExpression,

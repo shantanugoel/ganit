@@ -222,6 +222,17 @@ private struct TokenParser {
         continue
       }
 
+      if 29 >= minimumBindingPower,
+        canAttachUnit(to: left),
+        let word = identifier(at: 0),
+        variables[word] == nil,
+        let unit = CalendarPeriodUnit(word: word)
+      {
+        left = .period(count: left, unit: unit, range: left.range.union(advance().range))
+        depth += 1
+        continue
+      }
+
       // Exponents are dimensionless, so a unit never attaches inside one.
       if 29 >= minimumBindingPower,
         canAttachUnit(to: left),
@@ -896,6 +907,8 @@ private struct TokenParser {
       return .number
     case .quantity, .conversion:
       return .quantity
+    case .period:
+      return .period
     case .percentage:
       return .percentage
     case .prefix(_, let operand, _, _):
@@ -907,6 +920,9 @@ private struct TokenParser {
       let rightKind = inferredKind(of: right)
       if leftKind == .quantity || rightKind == .quantity {
         return .quantity
+      }
+      if leftKind == .period || rightKind == .period {
+        return .period
       }
       switch binaryOperator {
       case .add, .subtract:

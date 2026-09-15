@@ -1021,7 +1021,7 @@ Exit criteria:
 
 Tasks:
 
-- [ ] Implement distinct date/time/instant/calendar-period/duration values.
+- [x] Implement distinct date/time/instant/calendar-period/duration values.
 - [ ] Add common English date phrases and ISO input.
 - [ ] Add named IANA zone parsing with conservative alias data.
 - [ ] Implement DST gap/overlap clarification and interpretation detail.
