@@ -63,7 +63,6 @@ struct AccessibilityAuditTests {
     let controller = workspace.openWindow(showing: ids[0])
     defer { controller.window?.orderOut(nil) }
     let sidebar = controller.sidebar
-    controller.window?.makeKeyAndOrderFront(nil)
 
     var contextActions: Set<Selector> = []
     for collection in [SheetCollection.all, .archive, .trash] {
