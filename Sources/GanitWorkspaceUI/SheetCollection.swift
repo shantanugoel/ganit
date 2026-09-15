@@ -2,7 +2,7 @@ import Foundation
 import GanitDocuments
 
 /// A group of sheets shown in the sidebar.
-public enum SheetCollection: Hashable, Sendable {
+public enum SheetCollection: Codable, Hashable, Sendable {
   case all
   case recent
   case favorites

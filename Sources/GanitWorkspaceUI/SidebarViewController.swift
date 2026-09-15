@@ -21,6 +21,7 @@ final class SidebarViewController: NSViewController {
   private let now: () -> Date
   private var items: [SidebarItem] = []
   private var collectionsHeight: NSLayoutConstraint!
+  private var isSelectingProgrammatically = false
 
   init(library: SheetLibrary, now: @escaping () -> Date = Date.init) {
     self.library = library
@@ -150,8 +151,10 @@ final class SidebarViewController: NSViewController {
   /// Selects a sheet's row, if it is listed, without opening it again.
   func select(sheet id: UUID?) {
     let row = sheets.firstIndex { $0.id == id }
+    isSelectingProgrammatically = true
     sheetsView.selectRowIndexes(
       row.map { IndexSet(integer: $0) } ?? [], byExtendingSelection: false)
+    isSelectingProgrammatically = false
     row.map(sheetsView.scrollRowToVisible)
   }
 
@@ -220,6 +223,10 @@ extension SidebarViewController: NSMenuDelegate {
     }
     switch sheet.state {
     case .active:
+      add(
+        localized("menu.openInNewWindow", "Open in New Window"),
+        #selector(WorkspaceCommands.openInNewWindow(_:)))
+      menu.addItem(.separator())
       add(localized("menu.renameSheet", "Rename…"), #selector(WorkspaceCommands.renameSheet(_:)))
       add(
         localized("menu.duplicateSheet", "Duplicate"),
@@ -365,7 +372,7 @@ extension SidebarViewController: NSTableViewDataSource, NSTableViewDelegate {
   }
 
   func tableViewSelectionDidChange(_ notification: Notification) {
-    guard sheets.indices.contains(sheetsView.selectedRow) else {
+    guard !isSelectingProgrammatically, sheets.indices.contains(sheetsView.selectedRow) else {
       return
     }
     didSelectSheet(sheets[sheetsView.selectedRow].id)

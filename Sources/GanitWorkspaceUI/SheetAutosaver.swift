@@ -28,6 +28,12 @@ final class SheetAutosaver {
     self.didFail = didFail
   }
 
+  /// Takes metadata changed elsewhere, such as a new folder or state, so a
+  /// later save keeps it.
+  func adopt(_ metadata: SheetMetadata) {
+    self.metadata = metadata
+  }
+
   func sourceDidChange() {
     hasUnsavedChanges = true
     pendingSave?.cancel()

@@ -985,7 +985,7 @@ Tasks:
 - [x] Implement derived index and rebuild flow.
 - [x] Add autosave, backups, restore and migration framework (migrations wait for a second schema; see docs/storage/autosave-and-backups.md).
 - [x] Build sidebar/folders, sheet CRUD, favorite, archive, trash and search.
-- [ ] Add multiwindow and per-document undo/state restoration.
+- [x] Add multiwindow and per-document undo/state restoration.
 - [ ] Add plain-text import/export and define public `.ganit` format.
 - [ ] Test injected process kills, corruption, disk-full and restore.
 

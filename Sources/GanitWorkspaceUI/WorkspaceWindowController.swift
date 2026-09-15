@@ -1,13 +1,12 @@
 import AppKit
 import GanitDocuments
 import GanitEditorUI
-import GanitEngine
 
 /// A library window: the sidebar of collections and sheets beside the open
-/// sheet's editor, which saves as it changes.
+/// sheet's editor.
 @MainActor
 public final class WorkspaceWindowController: NSWindowController, WorkspaceCommands,
-  NSMenuItemValidation
+  NSMenuItemValidation, NSWindowDelegate
 {
   /// Preferences for new sheets until sheet preference settings exist.
   public nonisolated static let newSheetPreferences = SheetPreferences(
@@ -16,21 +15,28 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     significantDecimalDigits: 15
   )
 
-  public private(set) var editor: SheetEditorViewController?
   let sidebar: SidebarViewController
-  private let library: SheetLibrary
+  private unowned let workspace: Workspace
   private let splitViewController = NSSplitViewController()
   private let content = NSViewController()
   private let searchItem = NSSearchToolbarItem(itemIdentifier: .searchSheets)
-  private var autosaver: SheetAutosaver?
+  private var sheet: OpenSheet?
 
-  public var sheetID: UUID? {
-    autosaver?.metadata.id
+  public var editor: SheetEditorViewController? {
+    sheet?.editor
   }
 
-  public init(library: SheetLibrary, sheet: StoredSheet?) throws {
-    self.library = library
-    sidebar = SidebarViewController(library: library)
+  public var sheetID: UUID? {
+    sheet?.autosaver.metadata.id
+  }
+
+  private var library: SheetLibrary {
+    workspace.library
+  }
+
+  init(workspace: Workspace) {
+    self.workspace = workspace
+    sidebar = SidebarViewController(library: workspace.library)
     let window = NSWindow(
       contentRect: NSRect(x: 0, y: 0, width: 1_100, height: 680),
       styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -40,13 +46,18 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     window.contentMinSize = NSSize(width: 640, height: 400)
     window.tabbingMode = .preferred
     window.isReleasedWhenClosed = false
+    window.identifier = NSUserInterfaceItemIdentifier("workspace")
+    window.isRestorable = true
+    window.restorationClass = WorkspaceRestoration.self
     super.init(window: window)
+    window.delegate = self
 
     content.view = NSView()
     let sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebar)
     sidebarItem.canCollapse = true
     sidebarItem.minimumThickness = 200
     splitViewController.splitViewItems = [sidebarItem, NSSplitViewItem(viewController: content)]
+    splitViewController.splitView.autosaveName = "WorkspaceSplit"
     window.contentViewController = splitViewController
 
     let toolbar = NSToolbar(identifier: "workspace")
@@ -60,11 +71,7 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
       guard self?.sheetID != id else {
         return
       }
-      self?.open(id)
-    }
-    for name in [NSWindow.didResignKeyNotification, NSWindow.willCloseNotification] {
-      NotificationCenter.default.addObserver(
-        self, selector: #selector(saveNow(_:)), name: name, object: window)
+      self?.show(id)
     }
     NotificationCenter.default.addObserver(
       self,
@@ -72,11 +79,7 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
       name: NSApplication.willTerminateNotification,
       object: nil
     )
-    if let sheet {
-      try show(sheet)
-    } else {
-      updateTitle()
-    }
+    updateTitle()
     window.center()
   }
 
@@ -87,64 +90,66 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
 
   // MARK: Showing sheets
 
-  /// Saves the open sheet, then opens another in the editor.
-  func show(_ sheet: StoredSheet) throws {
-    saveNow(nil)
-    let editor = SheetEditorViewController(
-      text: sheet.source,
-      context: try Self.context(for: sheet.metadata.preferences)
-    )
-    editor.textView.isEditable = sheet.metadata.state != .trashed
-    let autosaver = SheetAutosaver(
-      library: library,
-      metadata: sheet.metadata,
-      source: { [editor] in editor.sheet.text },
-      didSave: { [weak self] _ in
-        self?.updateTitle()
-        self?.sidebar.reload()
-      },
-      didFail: { [weak window] error in window?.presentError(error) }
-    )
-    editor.sourceDidChange = { [weak autosaver] in autosaver?.sourceDidChange() }
-    setEditor(editor, autosaver: autosaver)
-    sidebar.select(sheet: sheet.metadata.id)
-    window?.makeFirstResponder(editor.textView)
-  }
-
-  private func open(_ id: UUID) {
+  /// Shows a sheet in this window, or brings forward the window already
+  /// showing it.
+  func show(_ id: UUID) {
     do {
-      try show(library.store.load(id: id))
+      let next = try workspace.sheet(id)
+      if let other = next.window, other !== self {
+        other.showWindow(nil)
+        sidebar.select(sheet: sheetID)
+        return
+      }
+      saveNow(nil)
+      sheet?.window = nil
+      sheet?.editor.view.removeFromSuperview()
+      sheet?.editor.removeFromParent()
+      sheet = next
+      next.window = self
+      content.addChild(next.editor)
+      next.editor.view.frame = content.view.bounds
+      next.editor.view.autoresizingMask = [.width, .height]
+      content.view.addSubview(next.editor.view)
+      sidebar.select(sheet: id)
+      window?.makeFirstResponder(next.editor.textView)
     } catch {
       window?.presentError(error)
     }
-  }
-
-  private func setEditor(_ editor: SheetEditorViewController?, autosaver: SheetAutosaver?) {
-    self.editor?.view.removeFromSuperview()
-    self.editor?.removeFromParent()
-    self.editor = editor
-    self.autosaver = autosaver
-    if let editor {
-      content.addChild(editor)
-      editor.view.frame = content.view.bounds
-      editor.view.autoresizingMask = [.width, .height]
-      content.view.addSubview(editor.view)
-    }
     updateTitle()
+    window?.invalidateRestorableState()
   }
 
-  /// Opens the first sheet listed, or clears the editor when none is.
-  private func showFirstListedSheet() {
+  /// Shows the first listed sheet other than `excluded`, or clears the
+  /// editor.
+  func showFirstListedSheet(excluding excluded: UUID? = nil) {
     sidebar.reload()
-    if let first = sidebar.sheets.first {
-      open(first.id)
+    if let first = sidebar.sheets.first(where: { $0.id != excluded && $0.id != sheetID }) {
+      show(first.id)
     } else {
-      setEditor(nil, autosaver: nil)
+      sheet?.window = nil
+      sheet?.editor.view.removeFromSuperview()
+      sheet?.editor.removeFromParent()
+      sheet = nil
+      updateTitle()
+    }
+  }
+
+  /// Refreshes the sidebar and title after a sheet was saved or organized.
+  func libraryDidChange() {
+    sidebar.reload()
+    updateTitle()
+    if let sheetID, !sidebar.sheets.contains(where: { $0.id == sheetID }),
+      let metadata = sheet?.autosaver.metadata, metadata.state != .active
+    {
+      // The open sheet left the listed collection, as when it was archived here.
+      if sidebar.collection != .archive && sidebar.collection != .trash {
+        showFirstListedSheet(excluding: sheetID)
+      }
     }
   }
 
   private func updateTitle() {
-    guard let metadata = autosaver?.metadata else {
+    guard let metadata = sheet?.autosaver.metadata else {
       window?.title = "Ganit"
       return
     }
@@ -152,14 +157,79 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
       metadata.title.isEmpty ? localized("sheet.untitled", "Untitled") : metadata.title
   }
 
+  public func windowDidResignKey(_ notification: Notification) {
+    saveNow(nil)
+  }
+
+  public func windowWillClose(_ notification: Notification) {
+    saveNow(nil)
+    sheet?.window = nil
+    workspace.windowWillClose(self)
+  }
+
+  // MARK: Restoration
+
+  private struct RestorableState: Codable {
+    var sheetID: UUID?
+    var collection: SheetCollection
+    var search: String
+    var selection: [Int]
+    var scrollOffset: Double
+    var isSidebarCollapsed: Bool
+  }
+
+  private static let restorableStateKey = "workspaceWindow"
+
+  public func window(_ window: NSWindow, willEncodeRestorableState state: NSCoder) {
+    let textView = editor?.textView
+    let restorable = RestorableState(
+      sheetID: sheetID,
+      collection: sidebar.collection,
+      search: sidebar.search,
+      selection: textView.map { [$0.selectedRange().location, $0.selectedRange().length] } ?? [],
+      scrollOffset: Double(textView?.enclosingScrollView?.contentView.bounds.minY ?? 0),
+      isSidebarCollapsed: splitViewController.splitViewItems[0].isCollapsed
+    )
+    if let data = try? JSONEncoder().encode(restorable) {
+      state.encode(data, forKey: Self.restorableStateKey)
+    }
+  }
+
+  public func window(_ window: NSWindow, didDecodeRestorableState state: NSCoder) {
+    guard
+      let data = state.decodeObject(of: NSData.self, forKey: Self.restorableStateKey) as Data?,
+      let restorable = try? JSONDecoder().decode(RestorableState.self, from: data)
+    else {
+      return
+    }
+    sidebar.show(restorable.collection)
+    sidebar.search = restorable.search
+    searchItem.searchField.stringValue = restorable.search
+    splitViewController.splitViewItems[0].isCollapsed = restorable.isSidebarCollapsed
+    guard let id = restorable.sheetID, (try? library.store.load(id: id)) != nil else {
+      showFirstListedSheet()
+      return
+    }
+    show(id)
+    guard let textView = editor?.textView, restorable.selection.count == 2 else {
+      return
+    }
+    let length = (textView.string as NSString).length
+    let location = min(restorable.selection[0], length)
+    textView.setSelectedRange(
+      NSRange(location: location, length: min(restorable.selection[1], length - location))
+    )
+    textView.scroll(NSPoint(x: 0, y: restorable.scrollOffset))
+  }
+
   // MARK: Commands
 
   /// Saves unsaved edits immediately.
   @objc public func saveNow(_ sender: Any?) {
-    autosaver?.saveNow()
+    sheet?.autosaver.saveNow()
   }
 
-  /// Creates a sheet in the selected folder and opens it.
+  /// Creates a sheet in the selected folder and shows it.
   @objc public func newSheet(_ sender: Any?) {
     perform {
       var metadata = try library.create(preferences: Self.newSheetPreferences)
@@ -169,8 +239,20 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
         sidebar.show(.all)
       }
       sidebar.reload()
-      try show(library.store.load(id: metadata.id))
+      show(metadata.id)
     }
+  }
+
+  /// Opens the target sheet in a new window.
+  @objc public func openInNewWindow(_ sender: Any?) {
+    guard let target = sidebar.targetSheet?.id ?? sheetID else {
+      return
+    }
+    if let other = (try? workspace.sheet(target))?.window {
+      other.showWindow(nil)
+      return
+    }
+    workspace.openWindow(showing: target)
   }
 
   @objc public func newFolder(_ sender: Any?) {
@@ -182,59 +264,69 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
   }
 
   @objc public func renameSheet(_ sender: Any?) {
-    guard let sheet = sidebar.targetSheet else {
+    guard let target = sidebar.targetSheet else {
       return
     }
-    ask(localized("sheet.rename", "Rename Sheet"), initial: sheet.title, allowsEmpty: true) {
+    ask(localized("sheet.rename", "Rename Sheet"), initial: target.title, allowsEmpty: true) {
       title in
-      self.saveNow(nil)
-      let metadata = try self.library.rename(sheet.id, to: title)
-      self.refresh(metadata)
+      try self.organize(target.id, localized("menu.renameSheet", "Rename…")) {
+        try self.library.rename(target.id, to: title)
+      }
     }
   }
 
   @objc public func duplicateSheet(_ sender: Any?) {
-    guard let sheet = sidebar.targetSheet else {
+    guard let target = sidebar.targetSheet else {
       return
     }
     perform {
-      saveNow(nil)
-      let copy = try library.duplicate(sheet.id)
+      workspace.saveAll()
+      let copy = try library.duplicate(target.id)
       sidebar.reload()
-      try show(library.store.load(id: copy.id))
+      show(copy.id)
     }
   }
 
   @objc public func toggleFavorite(_ sender: Any?) {
-    guard let sheet = sidebar.targetSheet else {
+    guard let target = sidebar.targetSheet else {
       return
     }
-    perform { refresh(try library.update(sheet.id) { $0.isFavorite.toggle() }) }
+    let name =
+      target.isFavorite
+      ? localized("menu.removeFavorite", "Remove from Favorites")
+      : localized("menu.addFavorite", "Add to Favorites")
+    perform {
+      try organize(target.id, name) { try library.update(target.id) { $0.isFavorite.toggle() } }
+    }
   }
 
   @objc public func moveSheetToFolder(_ sender: Any?) {
-    guard let sheet = sidebar.targetSheet else {
+    guard let target = sidebar.targetSheet else {
       return
     }
     let folder = (sender as? NSMenuItem)?.representedObject as? UUID
-    perform { refresh(try library.update(sheet.id) { $0.folderID = folder }) }
+    perform {
+      try organize(target.id, localized("menu.moveToFolder", "Move to Folder")) {
+        try library.update(target.id) { $0.folderID = folder }
+      }
+    }
   }
 
   @objc public func archiveSheet(_ sender: Any?) {
-    setState(.archived)
+    setState(.archived, localized("menu.archiveSheet", "Archive"))
   }
 
   @objc public func moveSheetToTrash(_ sender: Any?) {
-    setState(.trashed)
+    setState(.trashed, localized("menu.moveToTrash", "Move to Trash"))
   }
 
   /// Returns an archived or trashed sheet to the library.
   @objc public func restoreSheet(_ sender: Any?) {
-    setState(.active)
+    setState(.active, localized("menu.putBack", "Put Back"))
   }
 
   @objc public func deleteSheetImmediately(_ sender: Any?) {
-    guard let sheet = sidebar.targetSheet, sheet.state == .trashed else {
+    guard let target = sidebar.targetSheet, target.state == .trashed else {
       return
     }
     confirm(
@@ -243,10 +335,8 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
         "sheet.deleteImmediately.detail",
         "The sheet and its backups are deleted. You can't undo this.")
     ) {
-      if self.sheetID == sheet.id {
-        self.setEditor(nil, autosaver: nil)
-      }
-      try self.library.deletePermanently(sheet.id)
+      self.workspace.discard(target.id)
+      try self.library.deletePermanently(target.id)
       self.showFirstListedSheet()
     }
   }
@@ -258,8 +348,8 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
         "trash.empty.detail",
         "Every sheet in the Trash and its backups are deleted. You can't undo this.")
     ) {
-      if self.autosaver?.metadata.state == .trashed {
-        self.setEditor(nil, autosaver: nil)
+      for summary in try self.library.index.summaries() where summary.state == .trashed {
+        self.workspace.discard(summary.id)
       }
       try self.library.emptyTrash()
       self.showFirstListedSheet()
@@ -281,6 +371,7 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
       return
     }
     perform {
+      workspace.saveAll()
       try library.deleteFolder(folder.id)
       sidebar.reload()
     }
@@ -292,57 +383,49 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
 
   @objc private func searchFieldChanged(_ sender: NSSearchField) {
     sidebar.search = sender.stringValue
+    window?.invalidateRestorableState()
   }
 
   public func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-    let sheet = sidebar.targetSheet
+    let target = sidebar.targetSheet
     switch menuItem.action {
     case #selector(renameSheet(_:)), #selector(duplicateSheet(_:)),
-      #selector(moveSheetToFolder(_:)),
-      #selector(archiveSheet(_:)):
-      return sheet?.state == .active
+      #selector(moveSheetToFolder(_:)), #selector(archiveSheet(_:)), #selector(openInNewWindow(_:)):
+      return target?.state == .active
     case #selector(toggleFavorite(_:)):
       menuItem.title =
-        sheet?.isFavorite == true
+        target?.isFavorite == true
         ? localized("menu.removeFavorite", "Remove from Favorites")
         : localized("menu.addFavorite", "Add to Favorites")
-      return sheet?.state == .active
+      return target?.state == .active
     case #selector(moveSheetToTrash(_:)):
-      return sheet != nil && sheet?.state != .trashed
+      return target != nil && target?.state != .trashed
     case #selector(restoreSheet(_:)):
-      return sheet != nil && sheet?.state != .active
+      return target != nil && target?.state != .active
     case #selector(deleteSheetImmediately(_:)):
-      return sheet?.state == .trashed
+      return target?.state == .trashed
     case #selector(renameFolder(_:)), #selector(deleteFolder(_:)):
       return sidebar.targetFolder != nil
     case #selector(restorePreviousVersion(_:)):
-      return autosaver != nil
+      return sheet != nil
     default:
       return true
     }
   }
 
-  private func setState(_ state: SheetState) {
-    guard let sheet = sidebar.targetSheet else {
+  private func setState(_ state: SheetState, _ actionName: String) {
+    guard let target = sidebar.targetSheet else {
       return
     }
     perform {
-      saveNow(nil)
-      try library.update(sheet.id) { $0.state = state }
-      if sheetID == sheet.id {
-        showFirstListedSheet()
-      } else {
-        sidebar.reload()
-      }
+      try organize(target.id, actionName) { try library.update(target.id) { $0.state = state } }
     }
   }
 
-  /// Updates the open sheet's metadata when it changed, and the sidebar.
-  private func refresh(_ metadata: SheetMetadata) {
-    if sheetID == metadata.id {
-      open(metadata.id)
-    }
-    sidebar.reload()
+  private func organize(_ id: UUID, _ actionName: String, _ change: () throws -> SheetMetadata)
+    throws
+  {
+    try workspace.organize(id, named: actionName, undoManager: window?.undoManager, change)
   }
 
   private func perform(_ action: () throws -> Void) {
@@ -379,7 +462,9 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     }
   }
 
-  private func confirm(_ message: String, _ detail: String, _ action: @escaping () throws -> Void) {
+  private func confirm(
+    _ message: String, _ detail: String, _ action: @escaping () throws -> Void
+  ) {
     guard let window else {
       return
     }
@@ -450,19 +535,6 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
       textView.undoManager?.setActionName(localized("restore.undo", "Restore Previous Version"))
       saveNow(nil)
     }
-  }
-
-  private static func context(for preferences: SheetPreferences) throws -> EvaluationContext {
-    try EvaluationContext(
-      localeIdentifier: preferences.localeIdentifier,
-      // English grammar with `en-US` separators is the only lexing syntax so far.
-      lexingConfiguration: .englishUnitedStates,
-      angleMode: preferences.angleMode,
-      precision: PrecisionContext(significantDecimalDigits: preferences.significantDecimalDigits),
-      now: Date(),
-      calendar: Calendar(identifier: .gregorian),
-      timeZone: TimeZone(identifier: TimeZone.current.identifier) ?? .gmt
-    )
   }
 }
 

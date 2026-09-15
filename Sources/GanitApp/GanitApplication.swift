@@ -10,8 +10,7 @@ import GanitWorkspaceUI
 @MainActor
 final class GanitApplication: NSObject, NSApplicationDelegate {
   private static var retainedDelegate: GanitApplication?
-  private var library: SheetLibrary?
-  private var workspaceWindowControllers: [WorkspaceWindowController] = []
+  private var workspace: Workspace?
 
   static func main() {
     let application = NSApplication.shared
@@ -25,7 +24,8 @@ final class GanitApplication: NSObject, NSApplicationDelegate {
     retainedDelegate = nil
   }
 
-  func applicationDidFinishLaunching(_ notification: Notification) {
+  /// Opens the library before AppKit restores windows that need it.
+  func applicationWillFinishLaunching(_ notification: Notification) {
     do {
       let root = try FileManager.default.url(
         for: .applicationSupportDirectory,
@@ -34,50 +34,42 @@ final class GanitApplication: NSObject, NSApplicationDelegate {
         create: true
       ).appending(
         path: Bundle.main.bundleIdentifier ?? "com.shantanugoel.Ganit", directoryHint: .isDirectory)
-      let library = try SheetLibrary(root: root)
-      self.library = library
-      if let recent = try library.index.summaries().first(where: { $0.state == .active }) {
-        try open(library.store.load(id: recent.id))
-      } else {
-        newSheet(nil)
-      }
+      workspace = Workspace(library: try SheetLibrary(root: root))
     } catch {
       NSApplication.shared.presentError(error)
       NSApplication.shared.terminate(nil)
     }
+  }
+
+  /// Opens the most recent sheet when no window was restored.
+  func applicationDidFinishLaunching(_ notification: Notification) {
+    if let workspace, workspace.windows.isEmpty {
+      let recent = try? workspace.library.index.summaries().first { $0.state == .active }
+      if let recent {
+        workspace.openWindow(showing: recent.id)
+      } else {
+        newSheet(nil)
+      }
+    }
     NSApplication.shared.activate()
+  }
+
+  func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
+    true
   }
 
   /// Opens a window with a new sheet when no workspace window handles the
   /// command.
   @objc func newSheet(_ sender: Any?) {
-    guard let library else {
+    guard let workspace else {
       return
     }
     do {
-      let metadata = try library.create(preferences: WorkspaceWindowController.newSheetPreferences)
-      try open(library.store.load(id: metadata.id))
+      let metadata = try workspace.library.create(
+        preferences: WorkspaceWindowController.newSheetPreferences)
+      workspace.openWindow(showing: metadata.id)
     } catch {
       NSApplication.shared.presentError(error)
     }
-  }
-
-  private func open(_ sheet: StoredSheet) throws {
-    guard let library else {
-      return
-    }
-    let windowController = try WorkspaceWindowController(library: library, sheet: sheet)
-    workspaceWindowControllers.append(windowController)
-    NotificationCenter.default.addObserver(
-      self,
-      selector: #selector(windowWillClose(_:)),
-      name: NSWindow.willCloseNotification,
-      object: windowController.window
-    )
-    windowController.showWindow(nil)
-  }
-
-  @objc private func windowWillClose(_ notification: Notification) {
-    workspaceWindowControllers.removeAll { $0.window === notification.object as? NSWindow }
   }
 }

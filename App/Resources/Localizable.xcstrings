@@ -601,6 +601,16 @@
         }
       }
     },
+    "menu.openInNewWindow" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open in New Window"
+          }
+        }
+      }
+    },
     "menu.paste" : {
       "localizations" : {
         "en" : {

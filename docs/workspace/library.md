@@ -25,6 +25,7 @@ selected sheet, and appear in both the File menu and context menus.
 | Command | Effect |
 |---|---|
 | New Sheet ⌘N | Creates an empty sheet, in the selected folder when one is selected, and opens it |
+| Open in New Window | Opens the sheet in a new window, or brings forward the window showing it |
 | New Folder ⇧⌘N | Creates and selects a folder |
 | Rename… | Names the sheet; an empty name returns to the first-line title |
 | Duplicate ⌘D | Copies the sheet into a new sheet in the same folder and opens it |
@@ -38,3 +39,33 @@ selected sheet, and appear in both the File menu and context menus.
 
 Organizing a sheet changes only its metadata; its source and modification time
 are unchanged. Renaming sets `hasCustomTitle`, so saves keep the name.
+
+## Windows and open sheets
+
+`Workspace` owns the library, every workspace window, and the open sheets. An
+open sheet keeps its editor, text storage, answers, and undo history while Ganit
+runs, so switching a window to another sheet and back returns to the same text
+and undo stack. A sheet is shown in at most one window; selecting a sheet that
+another window shows brings that window forward.
+
+## Undo
+
+Text edits undo through each sheet's own undo manager. Rename, favorite, Move to
+Folder, Archive, Move to Trash, Unarchive, and Put Back are undoable through the
+window's undo manager: undo returns the sheet's title, favorite flag, folder,
+and state to their previous values. Creating sheets and folders is reversed by
+trashing or deleting them. Delete Immediately and Empty Trash are confirmed
+first and cannot be undone.
+
+When a sheet's metadata changes while it is open, its autosaver adopts the new
+metadata, so a later save of pending edits cannot write back an old folder,
+favorite flag, or state.
+
+## State restoration
+
+Workspace windows are restorable through `WorkspaceRestoration`. Each window
+records its sheet, collection, search text, text selection, scroll position, and
+whether the sidebar is collapsed; the split view's autosave name keeps the
+sidebar width. The library opens before restoration, and Ganit opens the most
+recent sheet only when no window was restored.
+
