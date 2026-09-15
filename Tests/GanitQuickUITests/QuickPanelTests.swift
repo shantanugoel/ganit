@@ -255,9 +255,14 @@ struct QuickPanelCommandTests {
     #expect(!controller.isShown)
   }
 
+  /// Waits for the answers themselves, not merely for an evaluation of the
+  /// right shape, and waits long enough for a machine running every other
+  /// suite beside this one.
   private func waitForAnswers(_ controller: QuickPanelController) async throws {
-    let deadline = ContinuousClock.now + .seconds(5)
-    while controller.editor.latestEvaluation?.lines.count != 3, ContinuousClock.now < deadline {
+    let deadline = ContinuousClock.now + .seconds(30)
+    while await controller.editor.exportedLines().compactMap(\.answer).count < 2,
+      ContinuousClock.now < deadline
+    {
       try await Task.sleep(for: .milliseconds(20))
     }
   }
