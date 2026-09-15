@@ -231,6 +231,12 @@ public enum MainMenu {
             localized("menu.showInterpretation", "Show Interpretation"),
             #selector(SheetCommands.showInterpretation(_:))
           ),
+          item(
+            localized("menu.nextProblem", "Next Problem"),
+            #selector(SheetCommands.nextProblem(_:)), "'"),
+          item(
+            localized("menu.previousProblem", "Previous Problem"),
+            #selector(SheetCommands.previousProblem(_:)), "'", [.command, .shift]),
           .separator(),
           item(
             localized("menu.insertReference", "Insert Reference"),

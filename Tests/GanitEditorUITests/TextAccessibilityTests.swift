@@ -51,6 +51,42 @@ struct TextAccessibilityTests {
   }
 
   @Test
+  func movesBetweenProblemsWithCommandsAndRotors() async throws {
+    let (_, textView) = try await makeEditor("1 m + 1 s\n6 * 7\nfoo\n2 + 2")
+    textView.setSelectedRange(NSRange(location: 12, length: 0))
+    let item = { (action: Selector) in NSMenuItem(title: "", action: action, keyEquivalent: "") }
+    #expect(textView.validateUserInterfaceItem(item(#selector(SheetCommands.nextProblem(_:)))))
+
+    textView.nextProblem(nil)
+    #expect(textView.selectedRange().location == 16)
+    // Next wraps around to the first problem.
+    textView.nextProblem(nil)
+    #expect(textView.selectedRange().location == 0)
+    textView.previousProblem(nil)
+    #expect(textView.selectedRange().location == 16)
+
+    let rotors = textView.accessibilityCustomRotors()
+    #expect(rotors.map(\.label) == ["Problems", "Results"])
+    let search = NSAccessibilityCustomRotor.SearchParameters()
+    search.searchDirection = .next
+    let first = try #require(rotors[0].itemSearchDelegate?.rotor(rotors[0], resultFor: search))
+    #expect(first.targetRange == NSRange(location: 0, length: 9))
+    #expect(first.customLabel == "Line 1: These quantities have incompatible dimensions.")
+    search.currentItem = first
+    let second = try #require(rotors[0].itemSearchDelegate?.rotor(rotors[0], resultFor: search))
+    #expect(second.targetRange.location == 16)
+    search.currentItem = second
+    #expect(rotors[0].itemSearchDelegate?.rotor(rotors[0], resultFor: search) == nil)
+    search.searchDirection = .previous
+    search.currentItem = nil
+    let lastResult = try #require(rotors[1].itemSearchDelegate?.rotor(rotors[1], resultFor: search))
+    #expect(lastResult.customLabel == "Line 4: 4")
+
+    let (_, clean) = try await makeEditor("6 * 7")
+    #expect(!clean.validateUserInterfaceItem(item(#selector(SheetCommands.nextProblem(_:)))))
+  }
+
+  @Test
   func offersCustomActionsForAnswerInteractions() async throws {
     let (_, textView) = try await makeEditor("6 * 7")
     textView.setSelectedRange(NSRange(location: 0, length: 0))

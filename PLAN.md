@@ -1062,7 +1062,7 @@ Exit criteria:
 Tasks:
 
 - [x] Run the complete section 9 and manual matrix. Automated audit and matrix in docs/quality/section-9-matrix.md; rows marked "Needs a person" are not run.
-- [ ] Refine VoiceOver containers, actions, focus and error/result navigation.
+- [x] Refine VoiceOver containers, actions, focus and error/result navigation.
 - [ ] Add pseudolocalization and fix truncation/bidi/IME issues.
 - [ ] Finalize semantic color/type/spacing/icon system and system-material behavior.
 - [ ] Test minimum size, multiple displays, full screen, Spaces and restoration.

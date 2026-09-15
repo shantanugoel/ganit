@@ -142,3 +142,16 @@ Section 8 keystroke-to-answer gates.
 To keep that path short, committing a generation does no per-line formatting:
 answer cells are computed only for drawn lines and cached by result, and only
 lines whose text, role, or failure state changed are redecorated.
+
+## Problem and result navigation
+
+**Calculate ▸ Next Problem** (⌘') and **Previous Problem** (⇧⌘') move the
+insertion point to the start of the next or previous line whose answer is a
+failure, wrapping around, and ask VoiceOver to announce it as
+`Line 3: This identifier is not defined.` The commands are disabled when no
+line has a problem and beep if the answers change before they run.
+
+The text view offers two VoiceOver rotors, **Problems** and **Results**. Each
+item selects its whole line and is labeled with the line number and answer
+text, so VoiceOver users can move between errors or results without reading
+every line. Answers are otherwise never announced while typing.

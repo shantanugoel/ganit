@@ -1,6 +1,16 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "accessibility.lineAnswer" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Line %lld: %@"
+          }
+        }
+      }
+    },
     "accessibility.lineError" : {
       "localizations" : {
         "en" : {
@@ -17,6 +27,26 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Line %lld result"
+          }
+        }
+      }
+    },
+    "accessibility.problemsRotor" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Problems"
+          }
+        }
+      }
+    },
+    "accessibility.resultsRotor" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Results"
           }
         }
       }
@@ -721,6 +751,16 @@
         }
       }
     },
+    "menu.nextProblem" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next Problem"
+          }
+        }
+      }
+    },
     "menu.noFolder" : {
       "localizations" : {
         "en" : {
@@ -747,6 +787,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Paste"
+          }
+        }
+      }
+    },
+    "menu.previousProblem" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Previous Problem"
           }
         }
       }

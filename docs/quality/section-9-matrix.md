@@ -18,7 +18,7 @@ Last updated: 2026-09-15.
 | Full Keyboard Access reaches every actionable element | Automated (menus); Needs a person (Tab order) | `AccessibilityAuditTests.everyContextMenuAndToolbarActionIsInTheMainMenu` |
 | No mouse-only essential action | Automated | Same test: sidebar context menus and toolbar actions all have main-menu commands (Rename/Delete Folder, Move to Folder, Show Sidebar added for this gate) |
 | VoiceOver: sidebar, text, answers, diagnostics, details | Automated (exposure); Needs a person (listening) | `TextAccessibilityTests.exposesAnswersAndFailuresToAccessibility`, `offersCustomActionsForAnswerInteractions` |
-| Rotor for error/warning lines | Not implemented | Phase 9 item 2 |
+| Rotor for error/warning lines | Automated | Problems and Results rotors, Next/Previous Problem announcing the message: `movesBetweenProblemsWithCommandsAndRotors` |
 | Hover/drag/gesture actions have menu or accessibility actions | Automated | Answer click/double-click have custom accessibility actions and menu commands |
 | No live-answer chatter | Implemented | Answers are not posted as announcements while typing |
 | Controls ≥ 20×20 pt | Automated | `AccessibilityAuditTests` workspace window and Quick Ganit audits |

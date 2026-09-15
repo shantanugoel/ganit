@@ -51,6 +51,10 @@ final class SheetTextView: NSTextView {
   var line: (Int) -> (number: Int, id: LineID)? = { _ in nil }
   /// The one-based number of a line.
   var lineNumber: (LineID) -> Int? = { _ in nil }
+  /// Every line's ID, UTF-16 start offset, and UTF-16 length, in order.
+  var lineStarts: () -> [(id: LineID, start: Int, length: Int)] = { [] }
+  private lazy var problemRotor = LineRotor(textView: self, failures: true)
+  private lazy var resultRotor = LineRotor(textView: self, failures: false)
 
   /// Redraws answers after they change and clears a selection whose answer
   /// is gone.
@@ -220,6 +224,66 @@ final class SheetTextView: NSTextView {
     return (super.accessibilityChildren() ?? []) + answerElements
   }
 
+  /// Rotors that move VoiceOver between lines with problems or results.
+  override func accessibilityCustomRotors() -> [NSAccessibilityCustomRotor] {
+    [
+      NSAccessibilityCustomRotor(
+        label: String(
+          localized: "accessibility.problemsRotor", defaultValue: "Problems", bundle: .main),
+        itemSearchDelegate: problemRotor),
+      NSAccessibilityCustomRotor(
+        label: String(
+          localized: "accessibility.resultsRotor", defaultValue: "Results", bundle: .main),
+        itemSearchDelegate: resultRotor),
+    ]
+  }
+
+  /// The lines whose answers are failures, or results, in order.
+  fileprivate func answerLines(failures: Bool) -> [(id: LineID, start: Int, length: Int)] {
+    lineStarts().filter { answer($0.id).map { $0.isFailure == failures } ?? false }
+  }
+
+  /// `Line 3: This identifier is not defined.`, for announcements and rotors.
+  fileprivate func spokenAnswer(_ id: LineID) -> String {
+    String(
+      format: String(
+        localized: "accessibility.lineAnswer", defaultValue: "Line %lld: %@", bundle: .main),
+      lineNumber(id) ?? 0, answer(id)?.text ?? ""
+    )
+  }
+
+  /// Moves the insertion point to the next line with a problem, wrapping
+  /// around, and announces the problem.
+  @objc func nextProblem(_ sender: Any?) {
+    moveToProblem(forward: true)
+  }
+
+  @objc func previousProblem(_ sender: Any?) {
+    moveToProblem(forward: false)
+  }
+
+  private func moveToProblem(forward: Bool) {
+    let problems = answerLines(failures: true)
+    let caret = selectedRange().location
+    let current = lineStarts().last { $0.start <= caret }?.start ?? 0
+    let target =
+      forward
+      ? problems.first { $0.start > current } ?? problems.first
+      : problems.last { $0.start < current } ?? problems.last
+    guard let target else {
+      NSSound.beep()
+      return
+    }
+    setSelectedRange(NSRange(location: target.start, length: 0))
+    scrollRangeToVisible(selectedRange())
+    NSAccessibility.post(
+      element: self, notification: .announcementRequested,
+      userInfo: [
+        .announcement: spokenAnswer(target.id),
+        .priority: NSAccessibilityPriorityLevel.high.rawValue,
+      ])
+  }
+
   /// Keyboard and VoiceOver equivalents of answer mouse interactions.
   override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
     let actions: [(String, Selector)] = [
@@ -361,6 +425,8 @@ final class SheetTextView: NSTextView {
       return targetAnswer?.cell.fullPrecision != nil
     case #selector(insertReference(_:)):
       return referenceTarget != nil
+    case #selector(nextProblem(_:)), #selector(previousProblem(_:)):
+      return !answerLines(failures: true).isEmpty
     case #selector(decreaseTextSize(_:)):
       return textScale > Self.textScales[0]
     case #selector(increaseTextSize(_:)):
@@ -635,5 +701,46 @@ private final class AnswerOverlayView: NSView {
         attributes: textView.attributes(for: cell, selected: isSelected)
       )
     }
+  }
+}
+
+/// Finds the next or previous line with a problem or a result for a
+/// VoiceOver rotor.
+@MainActor
+private final class LineRotor: NSObject,
+  @preconcurrency NSAccessibilityCustomRotorItemSearchDelegate
+{
+  private unowned let textView: SheetTextView
+  private let failures: Bool
+
+  init(textView: SheetTextView, failures: Bool) {
+    self.textView = textView
+    self.failures = failures
+  }
+
+  func rotor(
+    _ rotor: NSAccessibilityCustomRotor,
+    resultFor searchParameters: NSAccessibilityCustomRotor.SearchParameters
+  ) -> NSAccessibilityCustomRotor.ItemResult? {
+    let lines = textView.answerLines(failures: failures)
+    let current = searchParameters.currentItem?.targetRange.location
+    let line: (id: LineID, start: Int, length: Int)?
+    switch (searchParameters.searchDirection, current) {
+    case (.next, let current?):
+      line = lines.first { $0.start > current }
+    case (.previous, let current?):
+      line = lines.last { $0.start < current }
+    case (.next, nil):
+      line = lines.first
+    default:
+      line = lines.last
+    }
+    guard let line else {
+      return nil
+    }
+    let result = NSAccessibilityCustomRotor.ItemResult(targetElement: textView)
+    result.targetRange = NSRange(location: line.start, length: line.length)
+    result.customLabel = textView.spokenAnswer(line.id)
+    return result
   }
 }

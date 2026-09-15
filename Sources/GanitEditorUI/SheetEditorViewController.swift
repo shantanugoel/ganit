@@ -86,6 +86,12 @@ public final class SheetEditorViewController: NSViewController {
       let index = lineIndex(atUTF16: offset)
       return utf16Starts()[index] == offset ? sheet.lines[index].id : nil
     }
+    sheetTextView.lineStarts = { [weak self] in
+      guard let self else {
+        return []
+      }
+      return zip(sheet.lines, utf16Starts()).map { ($0.id, $1, $0.text.utf16.count) }
+    }
     sheetTextView.line = { [weak self] offset in
       guard let self else {
         return nil

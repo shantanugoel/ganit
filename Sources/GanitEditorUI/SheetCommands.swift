@@ -9,6 +9,8 @@ import AppKit
   func copyFullPrecision(_ sender: Any?)
   func showInterpretation(_ sender: Any?)
   func insertReference(_ sender: Any?)
+  func nextProblem(_ sender: Any?)
+  func previousProblem(_ sender: Any?)
   func insertSubtotal(_ sender: Any?)
   func toggleHeading(_ sender: Any?)
   func toggleComment(_ sender: Any?)
