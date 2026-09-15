@@ -19,9 +19,19 @@ The application is AppKit-first and targets macOS 14 or later. Pure Swift packag
 
 Accepted architectural choices are indexed in [`docs/adr`](docs/adr/README.md).
 
+## Documentation
+
+- [Grammar reference](docs/public/grammar-reference.md)
+- [Privacy](docs/public/privacy.md)
+- [Data sources and attribution](docs/public/data-sources.md)
+- [Correctness corpus highlights](docs/public/corpus-highlights.md)
+- [Performance methodology](docs/public/performance-methodology.md)
+- [Known limitations](docs/reference/known-limitations.md)
+- [Recovering your sheets](docs/storage/recovery-guide.md)
+
 ## Development status
 
-Phase 0 is complete; work now proceeds through the typed arithmetic engine in Phase 1. Each task is reviewed, tested, committed, and pushed before the next task begins. P1 and P2 capabilities are not pulled forward before P0 quality gates pass.
+Phases 0–10 are implemented, and Phase 11 hardening is under way; [`PLAN.md`](PLAN.md) records what remains, including the usability sessions, beta, competitor comparisons, and notarized release that need people or credentials. Each task is reviewed, tested, committed, and pushed before the next task begins.
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the development and testing workflow.
 

@@ -1125,7 +1125,7 @@ Exit criteria:
 
 - [ ] Notarized direct build first; evaluate Mac App Store separately against sandbox/update/business needs. `scripts/release.sh` signs, notarizes, staples, and packages a disk image (docs/release/distribution.md); it has not been run because no Developer ID identity or notary credentials are available.
 - [x] Transparent one-time purchase/trial model decision; no core subscription requirement. Decided in ADR 0009: free betas, then one purchase with a local 14-day trial and no account; the price and payment vendor remain commercial details.
-- [ ] Publish privacy statement, data-source attribution, grammar reference, compatibility corpus highlights and performance methodology.
+- [x] Publish privacy statement, data-source attribution, grammar reference, compatibility corpus highlights and performance methodology. See docs/public/, linked from the README.
 - [ ] Provide in-app update path appropriate to distribution.
 - [ ] Maintain a release train with regression tests for every fixed parser issue.
 - [ ] Track anonymized-by-design product learning through voluntary feedback, support themes and opt-in studies—not automatic expression analytics.
