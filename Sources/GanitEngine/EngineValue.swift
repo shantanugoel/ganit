@@ -1,13 +1,16 @@
+/// Large payloads are indirect: values are copied at every evaluation step,
+/// and a 171-byte multi-payload enum made the 10,000-line chained edit
+/// benchmark 45% slower than boxing the rarely copied cases.
 public enum EngineValue: Hashable, Sendable {
   case number(NumericValue)
   case percentage(PercentageValue)
-  case quantity(QuantityValue)
-  case rate(RateValue)
+  indirect case quantity(QuantityValue)
+  indirect case rate(RateValue)
   case date(DateValue)
   case time(LocalTimeValue)
-  case instant(InstantValue)
+  indirect case instant(InstantValue)
   case period(CalendarPeriodValue)
-  case money(MoneyValue)
+  indirect case money(MoneyValue)
 }
 
 public struct PercentageValue: Hashable, Sendable {
