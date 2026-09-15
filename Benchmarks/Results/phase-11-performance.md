@@ -197,3 +197,41 @@ One observation from launching it: Numi's own log shows it fetching
 `s1.numi.app/config` and `s.numi.app/rates` on every launch. Ganit answers
 everything but currency without the network, and answers currency from the
 snapshot already on disk.
+
+## Re-run after the §5.4 P1 features
+
+- Date: 2026-09-16
+- Same Mac, system, and configuration as above
+
+Scrubbing, the per-sheet display formats, and the resource-bundle fix are in
+this build, so every gate the tools cover was measured again rather than
+carried over.
+
+| Metric | Result (P95) | Gate |
+| --- | ---: | ---: |
+| Global-hotkey panel → focused (`--quick 200`) | 17.1 ms | 100 ms |
+| Keystroke → visible answer, `mixed-sheet` (1,000 lines) | 6.6 ms | 16 ms |
+| Keystroke → visible answer, `independent-sheet` (10,000 lines) | 15.9 ms | — |
+| Keystroke → visible answer, `chained-dependency-sheet` (10,000 lines) | 48.7 ms | 50 ms |
+| Simple single-expression evaluation (`--engine 2000`) | 0.016 ms | 1 ms |
+| Cold launch → Quick Ganit | 374 ms | 450 ms |
+| Cold launch → Workspace sheet | 350 ms | 700 ms |
+| Workspace idle physical footprint | 29 MB | 110 MB |
+| Installed app size | 6.4 MB | 50 MB |
+| Compressed download (UDZO image) | 2.6 MB | 20 MB |
+
+Commands: `GanitBenchmarks --editor <fixture> 100`, `GanitBenchmarks --engine
+2000`, `GanitBenchmarks --quick 200`, `scripts/measure-quick.sh 5`,
+`scripts/measure-launch.sh 5`, `hdiutil create -format UDZO`.
+
+The chained-dependency edit remains the only gate without comfortable room:
+48.7 ms against 50 ms, 1.3 ms of margin, consistent with the 2 ms measured when
+that regression was fixed. Neither new feature is in that path — scrubbing lexes
+a line only while Option is held or a step command runs, and the display format
+is applied when an answer is written rather than when it is computed — but the
+margin is thin enough that any evaluation work added later will show up here
+first.
+
+Idle CPU was not measured again. Both features add no timer, thread, or
+observer: scrubbing runs from mouse and key events, and a format change rewrites
+the answers already computed.

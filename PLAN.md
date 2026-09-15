@@ -1107,12 +1107,19 @@ Exit criteria:
 
 - No integration implements its own parser/evaluator. Met: the service, intent, URL callback, and CLI all answer through `ExpressionCalculation`, the only engine construction outside the engine, editor, and benchmark tools.
 - Headless actions are deterministic, bounded and privacy-preserving. Met: a cross-process expression is capped at 4,096 UTF-8 bytes and a sheet's lines at the default syntax limits, `now` is injected so answers are reproducible, and currency comes from the rate snapshot on disk rather than the network.
-- New features do not regress launch/idle/bundle hard gates. Met: measured again after these features, including the exports, CLI, and Spotlight index, at 461 ms sheet launch, 383 ms quick launch, 32 MB idle, and a 6.2 MB bundle; see Benchmarks/Results/phase-11-performance.md.
+- New features do not regress launch/idle/bundle hard gates. Met: measured again on 2026-09-16 with every §5.4 P1 feature in the build, at 350 ms sheet launch, 374 ms quick launch, 17.1 ms hotkey panel, 6.6 ms and 48.7 ms keystroke-to-answer on the 1,000-line and 10,000-line chained sheets, 0.016 ms per expression, 29 MB workspace idle footprint, a 6.4 MB bundle, and a 2.6 MB compressed image; see Benchmarks/Results/phase-11-performance.md. The chained-dependency edit keeps only 1.3 ms of margin.
 
 ## Phase 11 — Beta, adversarial correctness and durability
 
 **Status:** The correctness and durability work is done and evidenced; the two
 items that need people, beta recruiting and clean baseline hardware, are not.
+
+Re-measuring the gates on the built app on 2026-09-16 found a P0 that only a
+signed, sandboxed run shows: `Bundle.module` cannot find this module's strings
+inside an app, so the app stopped the first time a line failed. Every packaging
+check passed throughout, because the bundle was always in `Contents/Resources`;
+what was wrong was where the generated accessor looks. Fixed in `73bea03`, with
+a module boundary test keeping `Bundle.module` out of `Sources`.
 
 **Goal:** Prove trust before public release.
 
