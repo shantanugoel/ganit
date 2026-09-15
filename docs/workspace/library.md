@@ -7,7 +7,8 @@ Sheet, and sheet search. The title is the open sheet's title.
 ## Sidebar
 
 The upper list holds collections: **All Sheets**, **Recent** (modified in the last
-seven days), **Favorites**, **Archive**, **Trash**, and user **Folders**. It sizes to
+seven days), **Favorites**, **Archive**, **Trash**, and, once there is one to
+name, user **Folders**. It sizes to
 its rows and scrolls past 60% of the sidebar. The lower list shows the selected
 collection's sheets, most recently modified first, with each title and a
 relative modification time; toolbar search narrows it to sheets whose title or

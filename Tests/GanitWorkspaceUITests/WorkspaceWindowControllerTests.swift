@@ -36,6 +36,28 @@ struct WorkspaceWindowControllerTests {
     #expect(Set(controller.sidebar.sheets.map(\.id)) == Set([SheetLibrary.scratchID] + ids))
   }
 
+  /// An empty "Folders" heading sits immediately above the list of sheets,
+  /// where it reads as though the sheets beneath it were the folders.
+  @Test
+  func namesTheFoldersOnlyOnceThereAreSome() throws {
+    let (workspace, ids) = try makeWorkspace([""])
+    defer { close(workspace) }
+    let controller = workspace.openWindow(showing: ids[0])
+    let outline = controller.sidebar.collectionsView
+    let rows = {
+      (0..<outline.numberOfRows).compactMap {
+        (outline.view(atColumn: 0, row: $0, makeIfNecessary: true) as? NSTableCellView)?
+          .textField?.stringValue
+      }
+    }
+    let collections = ["Library", "All Sheets", "Recent", "Favorites", "Archive", "Trash"]
+
+    #expect(rows() == collections)
+    _ = try workspace.library.createFolder(named: "Travel")
+    controller.sidebar.reload()
+    #expect(rows() == collections + ["Folders", "Travel"])
+  }
+
   @Test
   func fitsSidebarSourceAndAnswersAtMinimumSizeAndSupportsFullScreen() throws {
     let (workspace, ids) = try makeWorkspace(["monthly rent = 2,100\nmonthly rent * 12"])

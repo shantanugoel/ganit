@@ -131,7 +131,9 @@ final class SidebarViewController: NSViewController {
       localized("sidebar.folders", "Folders"),
       children: folders.map { SidebarItem($0.name, VisualStyle.Symbol.folder, .folder($0.id)) }
     )
-    items = [library, folderItems]
+    // A "Folders" heading with nothing under it sits directly above the list
+    // of sheets, and reads as though the sheets were the folders.
+    items = folders.isEmpty ? [library] : [library, folderItems]
     collectionsView.reloadData()
     for item in items {
       collectionsView.expandItem(item)
