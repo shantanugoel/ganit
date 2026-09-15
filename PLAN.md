@@ -1088,7 +1088,7 @@ Tasks in priority order:
 - [x] Selection aggregates; tags not implemented. Selecting lines shows their count, total, and average in a bar below the sheet; see docs/editor/text-view.md. Section 5.4 makes tags conditional on sections and totals proving insufficient, and headings, dividers, subtotals, and now selections cover grouping, so no tag syntax was added.
 - [x] Generic transparent finance functions. `fv`, `pv`, and `pmt` compound one per-period rate over whole periods exactly, keep money in its currency, and list their assumptions in answer details; see docs/grammar/finance-functions.md.
 - [x] URL callbacks with input/security limits. `ganit://x-callback-url/calculate` answers one bounded expression to an `x-success` or `x-error` callback; see docs/integration/headless-answers.md.
-- [ ] Quick Look, print/PDF/CSV/HTML exports.
+- [x] Quick Look, print/PDF/CSV/HTML exports. Exported `.ganit` packages embed Quick Look previews shown by the system package previewer; see docs/workspace/library.md.
 - [ ] CLI linked to the same engine.
 - [ ] Optional title-only Spotlight index.
 

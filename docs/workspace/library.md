@@ -69,3 +69,24 @@ whether the sidebar is collapsed; the split view's autosave name keeps the
 sidebar width. The library opens before restoration, and Ganit opens the most
 recent sheet only when no window was restored.
 
+
+## Export, print, and Quick Look
+
+**File ▸ Export…** writes the open sheet as:
+
+- **Ganit Sheet** — a `.ganit` package, which also carries
+  `QuickLook/Preview.pdf` and `QuickLook/Thumbnail.png`. The system's package
+  previewer shows these in Finder and Quick Look, so no Quick Look extension
+  is needed; import ignores them.
+- **Plain Text** — the source exactly as written.
+- **PDF** — source beside answers, paginated like printing.
+- **CSV** — `Line,Source,Answer` rows quoted per RFC 4180. A cell that a
+  spreadsheet would run as a formula (starting with `=`, `+`, `-`, `@`, tab, or
+  return, and not a plain number) gets a leading apostrophe.
+- **HTML** — a standalone page with one escaped table row per line that loads
+  nothing.
+
+**File ▸ Print…** (⌘P) prints the same layout as the PDF. Every format uses the
+answers the editor shows once evaluation settles (`exportedLines()`), including
+exchange rates and definitions, and reports failures with their messages
+rather than hiding them. `SheetDocumentRenderer` produces all of them.

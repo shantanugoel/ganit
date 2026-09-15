@@ -26,6 +26,7 @@ import GanitEditorUI
   func openInNewWindow(_ sender: Any?)
   func importSheets(_ sender: Any?)
   func exportSheet(_ sender: Any?)
+  func printSheet(_ sender: Any?)
   func newFolder(_ sender: Any?)
   func renameSheet(_ sender: Any?)
   func duplicateSheet(_ sender: Any?)
@@ -143,6 +144,7 @@ public enum MainMenu {
             "e",
             [.command, .shift]
           ),
+          item(localized("menu.print", "Print…"), #selector(WorkspaceCommands.printSheet(_:)), "p"),
           .separator(),
           item(localized("menu.close", "Close"), #selector(NSWindow.performClose(_:)), "w"),
           .separator(),

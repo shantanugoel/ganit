@@ -285,8 +285,10 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     let formats = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 200, height: 26), pullsDown: false)
     formats.addItems(withTitles: [
       localized("export.ganit", "Ganit Sheet"), localized("export.text", "Plain Text"),
+      localized("export.pdf", "PDF"), localized("export.csv", "CSV"),
+      localized("export.html", "HTML"),
     ])
-    let types: [UTType] = [.ganitSheet, .plainText]
+    let types: [UTType] = [.ganitSheet, .plainText, .pdf, .commaSeparatedText, .html]
     panel.allowedContentTypes = [types[0]]
     panel.accessoryView = formats
     panel.nameFieldStringValue = title.isEmpty ? localized("sheet.untitled", "Untitled") : title
@@ -295,10 +297,48 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     formats.action = #selector(FormatObserver.formatChanged(_:))
     panel.beginSheetModal(for: window) { [weak self] response in
       withExtendedLifetime(observer) {}
-      guard response == .OK, let url = panel.url else {
+      guard response == .OK, let url = panel.url, let editor = self?.editor else {
         return
       }
-      self?.perform { try self?.library.exportSheet(sheetID, to: url) }
+      let type = types[formats.indexOfSelectedItem]
+      Task { @MainActor in
+        let lines = await editor.exportedLines()
+        let name = url.deletingPathExtension().lastPathComponent
+        self?.perform {
+          switch type {
+          case .pdf:
+            try SheetDocumentRenderer.pdf(lines, title: name).write(to: url, options: .atomic)
+          case .commaSeparatedText:
+            try Data(SheetDocumentRenderer.csv(lines).utf8).write(to: url, options: .atomic)
+          case .html:
+            try Data(SheetDocumentRenderer.html(lines, title: name).utf8).write(
+              to: url, options: .atomic)
+          default:
+            let pdf = try SheetDocumentRenderer.pdf(lines, title: name)
+            let quickLook =
+              type == .ganitSheet
+              ? SheetDocumentRenderer.thumbnail(ofPDF: pdf).map {
+                QuickLookPreview(pdf: pdf, thumbnailPNG: $0)
+              } : nil
+            try self?.library.exportSheet(sheetID, to: url, quickLook: quickLook)
+          }
+        }
+      }
+    }
+  }
+
+  /// Prints the sheet's source beside its answers.
+  @objc public func printSheet(_ sender: Any?) {
+    guard let window, let editor else {
+      return
+    }
+    Task { @MainActor in
+      let printInfo = SheetDocumentRenderer.printInfo()
+      let view = SheetDocumentRenderer.printableView(
+        await editor.exportedLines(), printInfo: printInfo)
+      let operation = NSPrintOperation(view: view, printInfo: printInfo)
+      operation.jobTitle = window.title
+      operation.runModal(for: window, delegate: nil, didRun: nil, contextInfo: nil)
     }
   }
 

@@ -15,13 +15,31 @@ struct SheetExchangeTests {
   private let source = "# Trip\r\nhotel = 85 * 3 // 👍🏽\rtotal\n"
 
   @Test
+  func packagesCarryQuickLookFilesThatImportIgnores() throws {
+    let library = try SheetLibrary(root: root.appending(path: "A"))
+    let sheet = try library.save(source: source, metadata: library.create(preferences: preferences))
+    let package = root.appending(path: "Trip.ganit")
+    let preview = QuickLookPreview(pdf: Data("%PDF-1.3".utf8), thumbnailPNG: Data([0x89, 0x50]))
+
+    try library.exportSheet(sheet.id, to: package, quickLook: preview)
+
+    let quickLook = package.appending(path: "QuickLook")
+    #expect(try Data(contentsOf: quickLook.appending(path: "Preview.pdf")) == preview.pdf)
+    #expect(
+      try Data(contentsOf: quickLook.appending(path: "Thumbnail.png")) == preview.thumbnailPNG)
+    let exchanged = try SheetExchange.read(from: package)
+    #expect(exchanged.source == source)
+    #expect(exchanged.isChecksumValid)
+  }
+
+  @Test
   func packagesRoundTripSourceAndPortableMetadata() throws {
     let library = try SheetLibrary(root: root.appending(path: "A"))
     var sheet = try library.save(source: source, metadata: library.create(preferences: preferences))
     sheet = try library.rename(sheet.id, to: "Holiday")
     let package = root.appending(path: "Trip.ganit")
 
-    try library.exportSheet(sheet.id, to: package)
+    try library.exportSheet(sheet.id, to: package, quickLook: nil)
 
     #expect(try Data(contentsOf: package.appending(path: "source.txt")) == Data(source.utf8))
     #expect(
@@ -52,10 +70,10 @@ struct SheetExchangeTests {
     let library = try SheetLibrary(root: root.appending(path: "A"))
     let sheet = try library.save(source: "old", metadata: library.create(preferences: preferences))
     let package = root.appending(path: "Sheet.ganit")
-    try library.exportSheet(sheet.id, to: package)
+    try library.exportSheet(sheet.id, to: package, quickLook: nil)
     try library.save(source: "new", metadata: library.store.load(id: sheet.id).metadata)
 
-    try library.exportSheet(sheet.id, to: package)
+    try library.exportSheet(sheet.id, to: package, quickLook: nil)
 
     #expect(try SheetExchange.read(from: package).source == "new")
     #expect(
@@ -69,7 +87,7 @@ struct SheetExchangeTests {
     let sheet = try library.save(source: source, metadata: library.create(preferences: preferences))
     let text = root.appending(path: "Trip.txt")
 
-    try library.exportSheet(sheet.id, to: text)
+    try library.exportSheet(sheet.id, to: text, quickLook: nil)
     #expect(try Data(contentsOf: text) == Data(source.utf8))
 
     let imported = try library.importSheet(from: text, preferences: preferences)
@@ -91,7 +109,7 @@ struct SheetExchangeTests {
     let sheet = try library.save(
       source: "1 + 1", metadata: library.create(preferences: preferences))
     let package = root.appending(path: "Sheet.ganit")
-    try library.exportSheet(sheet.id, to: package)
+    try library.exportSheet(sheet.id, to: package, quickLook: nil)
     try Data("1 + 2".utf8).write(to: package.appending(path: "source.txt"))
     let edited = try SheetExchange.read(from: package)
     #expect(edited.source == "1 + 2")

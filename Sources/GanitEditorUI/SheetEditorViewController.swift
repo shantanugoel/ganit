@@ -355,6 +355,17 @@ public final class SheetEditorViewController: NSViewController {
 
   /// The formatted value of a line, or the message of a failure its
   /// decoration flags.
+  /// Every line with the answer it shows once evaluation settles, as if no
+  /// line were being edited, for export and printing.
+  public func exportedLines() async -> [ExportedLine] {
+    await scheduler?.waitUntilIdle()
+    return sheet.lines.map { line in
+      let cell = shownLines[line.id]?.result.result.flatMap { makeCell(for: $0, isEditing: false) }
+      return ExportedLine(
+        source: line.text, answer: cell?.text, isFailure: cell?.isFailure ?? false)
+    }
+  }
+
   private func answerCell(for id: LineID) -> AnswerCell? {
     guard let result = shownLines[id]?.result.result else {
       return nil
@@ -363,19 +374,22 @@ public final class SheetEditorViewController: NSViewController {
     if let cached = cells[id], cached.isEditing == isEditing, cached.result == result {
       return cached.cell
     }
-    let cell: AnswerCell?
+    let cell = makeCell(for: result, isEditing: isEditing)
+    cells[id] = (result, isEditing, cell)
+    return cell
+  }
+
+  private func makeCell(for result: CalculationResult, isEditing: Bool) -> AnswerCell? {
     switch result {
     case .value(let value):
-      cell = (try? resultFormatter.format(value)).map {
+      return (try? resultFormatter.format(value)).map {
         AnswerCell(text: $0.display, fullPrecision: $0.fullPrecision)
       }
     case .syntaxFailure, .evaluationFailure:
-      cell = flaggedDiagnostic(result, isEditing: isEditing).map {
+      return flaggedDiagnostic(result, isEditing: isEditing).map {
         AnswerCell(text: $0.message, fullPrecision: nil)
       }
     }
-    cells[id] = (result, isEditing, cell)
-    return cell
   }
 
   private func flaggedDiagnostic(_ result: CalculationResult, isEditing: Bool)

@@ -26,6 +26,18 @@ public struct ExchangedSheet: Equatable, Sendable {
   public let isChecksumValid: Bool
 }
 
+/// Files Quick Look shows for a `.ganit` package in Finder: a rendered
+/// preview and a thumbnail of its first page.
+public struct QuickLookPreview: Sendable {
+  public let pdf: Data
+  public let thumbnailPNG: Data
+
+  public init(pdf: Data, thumbnailPNG: Data) {
+    self.pdf = pdf
+    self.thumbnailPNG = thumbnailPNG
+  }
+}
+
 public enum SheetExchangeError: Error, Equatable {
   case invalidUTF8(URL)
   case unsupportedSchemaVersion(Int)
@@ -59,8 +71,12 @@ public enum SheetExchange {
   }
 
   /// Writes a sheet as a package when `url` has the `.ganit` extension, and as
-  /// plain source text otherwise.
-  public static func write(source: String, metadata: SheetMetadata, to url: URL) throws {
+  /// plain source text otherwise. A package also carries `quickLook`, which
+  /// the system's package previewer shows from `QuickLook/Preview.pdf` and
+  /// `QuickLook/Thumbnail.png`.
+  public static func write(
+    source: String, metadata: SheetMetadata, to url: URL, quickLook: QuickLookPreview?
+  ) throws {
     let sourceData = Data(source.utf8)
     guard url.pathExtension == packageExtension else {
       try AtomicFile.write(sourceData, to: url)
@@ -81,6 +97,12 @@ public enum SheetExchange {
     do {
       try AtomicFile.write(sourceData, to: temporary.appending(path: "source.txt"))
       try AtomicFile.write(encoder.encode(manifest), to: temporary.appending(path: "manifest.json"))
+      if let quickLook {
+        let folder = temporary.appending(path: "QuickLook", directoryHint: .isDirectory)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)
+        try AtomicFile.write(quickLook.pdf, to: folder.appending(path: "Preview.pdf"))
+        try AtomicFile.write(quickLook.thumbnailPNG, to: folder.appending(path: "Thumbnail.png"))
+      }
       if FileManager.default.fileExists(atPath: url.path) {
         guard renamex_np(temporary.path, url.path, UInt32(RENAME_SWAP)) == 0 else {
           throw DocumentStorageError.posix(operation: "renamex_np", code: errno)
@@ -145,8 +167,9 @@ extension SheetLibrary {
   }
 
   /// Exports a sheet as a `.ganit` package or, for other extensions, plain text.
-  public func exportSheet(_ id: UUID, to url: URL) throws {
+  public func exportSheet(_ id: UUID, to url: URL, quickLook: QuickLookPreview?) throws {
     let sheet = try store.load(id: id)
-    try SheetExchange.write(source: sheet.source, metadata: sheet.metadata, to: url)
+    try SheetExchange.write(
+      source: sheet.source, metadata: sheet.metadata, to: url, quickLook: quickLook)
   }
 }
