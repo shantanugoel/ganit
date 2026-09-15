@@ -41,6 +41,7 @@ let package = Package(
       dependencies: [
         "GanitDocuments",
         "GanitEditorUI",
+        "GanitEngine",
         "GanitFormatting",
       ]
     ),
@@ -120,7 +121,7 @@ let package = Package(
     ),
     .testTarget(
       name: "GanitEditorUITests",
-      dependencies: ["GanitEditorUI"]
+      dependencies: ["GanitEditorUI", "GanitEngine"]
     ),
     .testTarget(
       name: "GanitWorkspaceUITests",

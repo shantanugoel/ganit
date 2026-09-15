@@ -26,3 +26,27 @@ converts the edit's UTF-16 range to UTF-8 offsets and applies it to its
 [sheet source](../engine/sheet-source.md). Marked text is part of the text
 storage and is mirrored too; deciding when composition has committed belongs to
 evaluation scheduling.
+
+## Evaluation and answers
+
+After a committed edit, the controller schedules evaluation of the current
+`SheetSource` snapshot. While IME composition has marked text, it waits; the
+commit schedules the generation. `SheetEvaluationScheduler` runs
+`SheetCalculator` on a worker actor that owns the incremental cache, cancels
+the running generation when a newer snapshot arrives, and commits only the
+newest request's evaluation to the main actor.
+
+Answers are formatted with `ResultFormatter` using the sheet's context and
+cached per line until the line's value changes. Lines without a value, including
+incomplete and failing lines, show no answer.
+
+`SheetTextView` narrows its text container to leave a right-hand answer column
+(35% of the width, clamped to 140–360 pt, with a 16 pt gap) so source wraps
+before it. A click-through overlay view above TextKit 2's text layout views
+draws each answer right-aligned, with tabular digits, on the first row of its
+line's layout fragment, and truncates it when it exceeds the column. Answer text
+is never inserted into the text storage.
+
+New workspace sheets use an `en-US` context with the current time zone until
+sheet locale preferences exist, and `now` is fixed when the sheet opens because
+no expression depends on it before dates are added.
