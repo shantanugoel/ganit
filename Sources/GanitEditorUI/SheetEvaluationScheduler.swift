@@ -15,11 +15,15 @@ private actor CalculatorWorker {
 final class SheetEvaluationScheduler {
   private let worker = CalculatorWorker()
   private let context: EvaluationContext
-  private let commit: @MainActor (SheetEvaluation) -> Void
+  private let commit: @MainActor (SheetSource, SheetEvaluation) -> Void
   private var task: Task<Void, Never>?
   private var latestRequest = 0
 
-  init(context: EvaluationContext, commit: @escaping @MainActor (SheetEvaluation) -> Void) {
+  /// `commit` receives the evaluated snapshot with its evaluation.
+  init(
+    context: EvaluationContext,
+    commit: @escaping @MainActor (SheetSource, SheetEvaluation) -> Void
+  ) {
     self.context = context
     self.commit = commit
   }
@@ -36,7 +40,7 @@ final class SheetEvaluationScheduler {
       else {
         return
       }
-      commit(evaluation)
+      commit(sheet, evaluation)
     }
   }
 

@@ -8,7 +8,8 @@ import GanitFormatting
 /// bidirectional layout, the responder chain, Find, and undo. The controller
 /// mirrors committed text-storage edits into a `SheetSource` so stable line
 /// identities follow the text, schedules evaluation once IME composition has
-/// committed, and shows formatted answers beside the source.
+/// committed, shows formatted answers beside the source, and decorates exact
+/// source ranges with rendering attributes.
 @MainActor
 public final class SheetEditorViewController: NSViewController {
   public var textView: NSTextView {
@@ -28,7 +29,16 @@ public final class SheetEditorViewController: NSViewController {
   private let storageObserver = StorageObserver()
   private(set) var scheduler: SheetEvaluationScheduler?
   private var formattedAnswers: [LineID: (value: EngineValue, text: String)] = [:]
-  private var lineStarts: [Int: LineID]?
+  /// Each line's UTF-16 start offset, in line order.
+  private var cachedUTF16Starts: [Int]?
+  /// The text and result of each line in the newest shown evaluation.
+  private var shownLines: [LineID: (text: String, result: SheetLineResult)] = [:]
+  private var decorations: [LineID: LineDecoration] = [:]
+  /// Lines edited since they were decorated; edits can drop attributes.
+  private var editedLines: Set<LineID> = []
+  /// The line holding the insertion point, whose incomplete input is not
+  /// flagged yet.
+  private var editingLine: LineID?
   /// The text as of the last mirrored edit, for converting UTF-16 edit
   /// ranges into the sheet's UTF-8 offsets.
   private var mirroredText: String
@@ -43,9 +53,13 @@ public final class SheetEditorViewController: NSViewController {
     storageObserver.controller = self
     textView.textStorage?.delegate = storageObserver
     textView.delegate = storageObserver
-    sheetTextView.lineIDsByUTF16Start = { [unowned self] in lineIDsByUTF16Start() }
-    scheduler = SheetEvaluationScheduler(context: context) { [weak self] evaluation in
-      self?.show(evaluation)
+    sheetTextView.lineID = { [unowned self] offset in
+      let index = lineIndex(atUTF16: offset)
+      return utf16Starts()[index] == offset ? sheet.lines[index].id : nil
+    }
+    editingLine = sheet.lines.first?.id
+    scheduler = SheetEvaluationScheduler(context: context) { [weak self] snapshot, evaluation in
+      self?.show(evaluation, of: snapshot)
     }
     scheduler?.schedule(sheet)
   }
@@ -119,18 +133,41 @@ public final class SheetEditorViewController: NSViewController {
       with: String(current[replacementLower..<replacementUpper])
     )
     mirroredText = current
-    lineStarts = nil
+    cachedUTF16Starts = nil
+    for index in lineIndex(atUTF16: newRange.location)...lineIndex(atUTF16: newRange.upperBound) {
+      let id = sheet.lines[index].id
+      editedLines.insert(id)
+      // Underline ranges no longer match the edited text.
+      sheetTextView.underlines[id] = nil
+    }
+    // Undo and other programmatic edits do not send `textDidChange`.
+    textDidChange()
   }
 
+  /// Schedules evaluation unless marked text is still being composed. A
+  /// composition commit may clear its marked text only after the storage
+  /// edit, so this also runs for `textDidChange`; a repeated schedule simply
+  /// supersedes the previous one.
   fileprivate func textDidChange() {
-    // Marked text is still being composed; evaluate once it commits.
     guard !textView.hasMarkedText() else {
       return
     }
     scheduler?.schedule(sheet)
   }
 
-  private func show(_ evaluation: SheetEvaluation) {
+  fileprivate func selectionDidChange() {
+    let line = sheet.lines[lineIndex(atUTF16: textView.selectedRange().location)].id
+    guard line != editingLine else {
+      return
+    }
+    let previous = editingLine
+    editingLine = line
+    for index in sheet.lines.indices where [previous, line].contains(sheet.lines[index].id) {
+      decorate(index)
+    }
+  }
+
+  private func show(_ evaluation: SheetEvaluation, of snapshot: SheetSource) {
     let formatter = ResultFormatter(context: context)
     var answers: [LineID: (value: EngineValue, text: String)] = [:]
     for line in evaluation.lines {
@@ -146,20 +183,93 @@ public final class SheetEditorViewController: NSViewController {
     formattedAnswers = answers
     latestEvaluation = evaluation
     sheetTextView.answers = answers.mapValues(\.text)
+
+    shownLines = Dictionary(
+      uniqueKeysWithValues: zip(snapshot.lines, evaluation.lines).map {
+        ($1.id, ($0.text, $1))
+      }
+    )
+    decorations = decorations.filter { shownLines[$0.key] != nil }
+    sheetTextView.underlines = sheetTextView.underlines.filter { shownLines[$0.key] != nil }
+    for index in sheet.lines.indices {
+      decorate(index)
+    }
   }
 
-  private func lineIDsByUTF16Start() -> [Int: LineID] {
-    if let lineStarts {
-      return lineStarts
+  /// Applies a line's decoration when the shown evaluation still matches its
+  /// text and the decoration or the text's attributes may have changed.
+  private func decorate(_ index: Int) {
+    let line = sheet.lines[index]
+    guard let shown = shownLines[line.id], shown.text == line.text,
+      let layoutManager = textView.textLayoutManager,
+      let contentManager = layoutManager.textContentManager,
+      let start = contentManager.location(
+        contentManager.documentRange.location,
+        offsetBy: utf16Starts()[index]
+      ),
+      let end = contentManager.location(start, offsetBy: line.text.utf16.count),
+      let lineRange = NSTextRange(location: start, end: end)
+    else {
+      return
     }
-    var starts: [Int: LineID] = [:]
+    let decoration = LineDecoration(
+      text: line.text,
+      syntax: shown.result.syntax,
+      result: shown.result.result,
+      isEditing: line.id == editingLine
+    )
+    guard decoration != decorations[line.id] || editedLines.contains(line.id) else {
+      return
+    }
+    layoutManager.setRenderingAttributes([:], for: lineRange)
+    let underlines = decoration.runs.compactMap { run in
+      run.style.underlineColor.map { (range: run.range, color: $0) }
+    }
+    sheetTextView.underlines[line.id] = underlines.isEmpty ? nil : underlines
+    for run in decoration.runs where !run.style.attributes.isEmpty {
+      guard let runStart = contentManager.location(start, offsetBy: run.range.location),
+        let runEnd = contentManager.location(runStart, offsetBy: run.range.length),
+        let runRange = NSTextRange(location: runStart, end: runEnd)
+      else {
+        continue
+      }
+      for (key, value) in run.style.attributes {
+        layoutManager.addRenderingAttribute(key, value: value, for: runRange)
+      }
+    }
+    decorations[line.id] = decoration
+    editedLines.remove(line.id)
+  }
+
+  private func utf16Starts() -> [Int] {
+    if let cachedUTF16Starts {
+      return cachedUTF16Starts
+    }
+    var starts: [Int] = []
+    starts.reserveCapacity(sheet.lines.count)
     var offset = 0
     for line in sheet.lines {
-      starts[offset] = line.id
+      starts.append(offset)
       offset += line.text.utf16.count + (line.terminator?.rawValue.utf16.count ?? 0)
     }
-    lineStarts = starts
+    cachedUTF16Starts = starts
     return starts
+  }
+
+  /// The index of the line containing a UTF-16 offset.
+  private func lineIndex(atUTF16 offset: Int) -> Int {
+    let starts = utf16Starts()
+    var low = 0
+    var high = starts.count - 1
+    while low < high {
+      let middle = (low + high + 1) / 2
+      if starts[middle] <= offset {
+        low = middle
+      } else {
+        high = middle - 1
+      }
+    }
+    return low
   }
 }
 
@@ -184,6 +294,10 @@ private final class StorageObserver: NSObject, @preconcurrency NSTextStorageDele
 
   func textDidChange(_ notification: Notification) {
     controller?.textDidChange()
+  }
+
+  func textViewDidChangeSelection(_ notification: Notification) {
+    controller?.selectionDidChange()
   }
 
   func undoManager(for view: NSTextView) -> UndoManager? {

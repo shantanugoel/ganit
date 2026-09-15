@@ -50,3 +50,27 @@ is never inserted into the text storage.
 New workspace sheets use an `en-US` context with the current time zone until
 sheet locale preferences exist, and `now` is fixed when the sheet opens because
 no expression depends on it before dates are added.
+
+## Decoration
+
+Decoration never changes the text storage. For each line of the newest shown
+evaluation whose text still matches the editor, `LineDecoration` derives runs
+from the line's role and result, in UTF-16 ranges relative to the line:
+
+| Run | Style |
+|---|---|
+| comment, label | secondary label color |
+| divider, heading `#` marker | tertiary label color |
+| error diagnostic or evaluation-error range | dotted red underline |
+| warning or ambiguity | dotted orange underline |
+
+Incomplete input, such as `2 +`, is underlined only after the insertion point
+leaves its line. An empty diagnostic range underlines the preceding character.
+
+Colors are TextKit 2 rendering attributes, which move with edits but are not
+part of the source. TextKit 2 does not draw underline rendering attributes, so
+the answer overlay draws underlines from text-segment geometry, just below the
+baseline. A line is redecorated only when its decoration changes or it was
+edited since, because edits and undo can leave inserted text without rendering
+attributes; an edited line's underlines are removed immediately so they never
+drift onto new text.
