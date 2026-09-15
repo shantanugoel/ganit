@@ -1108,7 +1108,7 @@ Tasks:
 - [ ] Recruit mixed-domain beta users; collect reports without automatic sheet upload.
 - [x] Run parser fuzzing continuously and triage every crash/hang. A nightly Address Sanitizer workflow fuzzes 50,000 inputs with a new seed and fails on slow inputs; 180,000 local inputs found no crash or hang. See Tests/README.md.
 - [x] Conduct backup restore day and migration rehearsal. `RecoveryRehearsalTests` rehearses every instruction in docs/storage/recovery-guide.md: moving a library, export and reimport, returning to an older version with newer-format sheets, and restoring a previous version.
-- [ ] Audit sandbox, entitlements, URL/Service/import limits and data provenance.
+- [x] Audit sandbox, entitlements, URL/Service/import limits and data provenance. See docs/security/audit.md; imports are now bounded.
 - [ ] Run performance suite on clean machines and compare with competitors.
 - [ ] Freeze grammar/data/document schemas; publish known limitations.
 

@@ -53,3 +53,28 @@ func applicationModulesDoNotImportBigIntDirectly() throws {
     #expect(!source.contains("import BigInt"))
   }
 }
+
+/// App modules never log, so no expression, sheet text, or title can reach
+/// the system log. Command-line and benchmark tools print their own output.
+@Test
+func appModulesDoNotLog() throws {
+  let sources = URL(fileURLWithPath: #filePath)
+    .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    .appending(path: "Sources")
+  let tools: Set<String> = [
+    "GanitCLI", "GanitBenchmarks", "GanitEngineHarness", "GanitUnitAttributionGenerator",
+  ]
+  for module in try FileManager.default.contentsOfDirectory(atPath: sources.path)
+  where !tools.contains(module) && !module.hasPrefix(".") {
+    let files = try #require(
+      FileManager.default.enumerator(
+        at: sources.appending(path: module), includingPropertiesForKeys: nil)?
+        .compactMap { $0 as? URL }.filter { $0.pathExtension == "swift" })
+    for file in files {
+      let source = try String(contentsOf: file, encoding: .utf8)
+      for call in ["print(", "NSLog(", "os_log(", "Logger(", "debugPrint(", "dump("] {
+        #expect(!source.contains(call), "\(module)/\(file.lastPathComponent) calls \(call)")
+      }
+    }
+  }
+}

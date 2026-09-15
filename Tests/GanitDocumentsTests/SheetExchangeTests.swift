@@ -105,6 +105,16 @@ struct SheetExchangeTests {
       try SheetExchange.read(from: invalid)
     }
 
+    let huge = root.appending(path: "huge.txt")
+    try Data(repeating: 0x31, count: SheetExchange.maximumSourceBytes + 1).write(to: huge)
+    #expect(throws: SheetExchangeError.tooLarge(huge)) {
+      try SheetExchange.read(from: huge)
+    }
+    let largest = root.appending(path: "largest.txt")
+    try Data(repeating: 0x31, count: SheetExchange.maximumSourceBytes).write(to: largest)
+    #expect(
+      try SheetExchange.read(from: largest).source.utf8.count == SheetExchange.maximumSourceBytes)
+
     let library = try SheetLibrary(root: root.appending(path: "A"))
     let sheet = try library.save(
       source: "1 + 1", metadata: library.create(preferences: preferences))

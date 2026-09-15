@@ -40,6 +40,8 @@ public struct QuickLookPreview: Sendable {
 
 public enum SheetExchangeError: Error, Equatable {
   case invalidUTF8(URL)
+  /// A file larger than import accepts.
+  case tooLarge(URL)
   case unsupportedSchemaVersion(Int)
 }
 
@@ -50,12 +52,15 @@ public enum SheetExchangeError: Error, Equatable {
 /// swapped in atomically, so readers see the previous or the new package.
 public enum SheetExchange {
   public static let packageExtension = "ganit"
+  /// The engine's longest source, so an imported sheet can always evaluate.
+  public static let maximumSourceBytes = 1_048_576
+  public static let maximumManifestBytes = 65_536
 
   public static func read(from url: URL) throws -> ExchangedSheet {
     guard url.pathExtension == packageExtension else {
       return ExchangedSheet(source: try utf8(at: url), manifest: nil, isChecksumValid: true)
     }
-    let data = try Data(contentsOf: url.appending(path: "manifest.json"))
+    let data = try contents(of: url.appending(path: "manifest.json"), limit: maximumManifestBytes)
     let version = try decoder.decode(SchemaVersion.self, from: data).schemaVersion
     guard version == GanitManifest.currentSchemaVersion else {
       throw SheetExchangeError.unsupportedSchemaVersion(version)
@@ -121,12 +126,26 @@ public enum SheetExchange {
     try? FileManager.default.removeItem(at: temporary)
   }
 
+  /// A file's bytes, reading no more than `limit` of them, since an imported
+  /// file comes from outside the library.
+  private static func contents(of url: URL, limit: Int) throws -> Data {
+    let handle = try FileHandle(forReadingFrom: url)
+    defer { try? handle.close() }
+    let data = try handle.read(upToCount: limit + 1) ?? Data()
+    guard data.count <= limit else {
+      throw SheetExchangeError.tooLarge(url)
+    }
+    return data
+  }
+
   private struct SchemaVersion: Decodable {
     let schemaVersion: Int
   }
 
   private static func utf8(at url: URL) throws -> String {
-    guard let text = String(data: try Data(contentsOf: url), encoding: .utf8) else {
+    guard
+      let text = String(data: try contents(of: url, limit: maximumSourceBytes), encoding: .utf8)
+    else {
       throw SheetExchangeError.invalidUTF8(url)
     }
     return text
