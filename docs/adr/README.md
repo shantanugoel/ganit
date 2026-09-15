@@ -14,3 +14,4 @@ Architecture decision records (ADRs) capture choices that constrain Ganit's impl
 | [0008](0008-global-shortcut.md) | Explicit user-selected global shortcut |
 | [0009](0009-pricing-and-trial.md) | One-time purchase and local trial |
 | [0010](0010-locale-policy.md) | Explicit locale with English grammar |
+| [0011](0011-update-path.md) | Point to releases before in-app installation |

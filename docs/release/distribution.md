@@ -32,6 +32,12 @@ GANIT_SIGNING_IDENTITY="Developer ID Application: NAME (TEAM)" GANIT_NOTARY_PROF
 
 The disk image is about 2.5 MB, against the 15 MB download target.
 
+## Updates
+
+**Ganit ▸ Check for Updates…** opens the latest release on GitHub
+([ADR 0011](../adr/0011-update-path.md)). Publish each notarized disk image as
+a GitHub release so that link finds it.
+
 ## Status
 
 The script refuses to run without a Developer ID identity and a notary

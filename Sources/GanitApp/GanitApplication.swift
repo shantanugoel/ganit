@@ -221,6 +221,17 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       !rateRefresher.isAutomatic, forKey: Self.manualExchangeRatesDefaultsKey)
   }
 
+  // MARK: Updates
+
+  /// Where releases are published; see ADR 0011.
+  private static let releasesURL = URL(
+    string: "https://github.com/shantanugoel/ganit/releases/latest")!
+
+  /// Opens the latest release in the browser. Ganit itself makes no request.
+  @objc func checkForUpdates(_ sender: Any?) {
+    NSWorkspace.shared.open(Self.releasesURL)
+  }
+
   // MARK: Problem reports
 
   /// Saves a problem report describing the app and system. The frontmost

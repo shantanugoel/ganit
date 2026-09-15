@@ -481,6 +481,16 @@
         }
       }
     },
+    "menu.checkForUpdates" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check for Updates…"
+          }
+        }
+      }
+    },
     "menu.close" : {
       "localizations" : {
         "en" : {
