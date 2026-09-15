@@ -65,6 +65,21 @@ struct AnswerInteractionTests {
   }
 
   @Test
+  func reevaluatesWithNewExchangeRates() async throws {
+    let (editor, textView) = try await makeEditor("10 EUR in USD")
+    let id = try #require(editor.sheet.lines.first?.id)
+    #expect(textView.answer(id)?.isFailure == true)
+
+    editor.setCurrencyRates(
+      try CurrencyRates(
+        unitsPerEuro: ["USD": "1.5"], observationDate: "2026-09-14", retrievedAt: Date()))
+    await editor.scheduler?.waitUntilIdle()
+
+    #expect(textView.answer(id)?.text == "$15.00")
+    #expect(textView.interpretation(id).contains { $0.value == "ECB reference rate" })
+  }
+
+  @Test
   func waitsForAClockBoundaryOnlyWhenAResultReadsTheClock() async throws {
     let (editor, textView) = try await makeEditor("1 + 1")
     #expect(editor.scheduler?.recalculation == nil)

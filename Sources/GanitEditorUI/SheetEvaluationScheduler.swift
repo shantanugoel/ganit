@@ -21,7 +21,8 @@ private actor CalculatorWorker {
 @MainActor
 final class SheetEvaluationScheduler {
   private let worker = CalculatorWorker()
-  private let context: EvaluationContext
+  /// The context each generation evaluates in, at the current time.
+  var context: EvaluationContext
   private let commit: @MainActor (SheetSource, SheetEvaluation, SignpostedInterval) -> Void
   private var task: Task<Void, Never>?
   private(set) var recalculation: Task<Void, Never>?

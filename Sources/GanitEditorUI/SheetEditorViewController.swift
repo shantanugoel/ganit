@@ -41,7 +41,7 @@ public final class SheetEditorViewController: NSViewController {
   /// Called after each committed source edit, for saving.
   public var sourceDidChange: (() -> Void)?
 
-  private let context: EvaluationContext
+  private var context: EvaluationContext
   private let scrollView = NSScrollView()
   private let sheetTextView = SheetTextView(usingTextLayoutManager: true)
   private let storageObserver = StorageObserver()
@@ -211,6 +211,13 @@ public final class SheetEditorViewController: NSViewController {
     guard !textView.hasMarkedText() else {
       return
     }
+    scheduler?.schedule(sheet)
+  }
+
+  /// Evaluates the sheet with new exchange rates.
+  public func setCurrencyRates(_ rates: CurrencyRates) {
+    context = context.with(rates)
+    scheduler?.context = context
     scheduler?.schedule(sheet)
   }
 

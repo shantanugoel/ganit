@@ -31,11 +31,27 @@ public struct RateSnapshotStore: Sendable {
   }
 
   /// The accepted snapshot, or `nil` before the first one.
+  ///
+  /// When the named snapshot is damaged, this rolls back to the newest intact
+  /// retained snapshot and names it last-known-good. It throws only when no
+  /// retained snapshot is intact.
   public func lastKnownGood() throws -> RateSnapshot? {
     guard let data = try? Data(contentsOf: pointer) else {
       return nil
     }
-    return try load(id: String(decoding: data, as: UTF8.self))
+    let id = String(decoding: data, as: UTF8.self)
+    do {
+      return try load(id: id)
+    } catch {
+      let names = (try? FileManager.default.contentsOfDirectory(atPath: snapshots.path)) ?? []
+      for name in names.sorted(by: >) where name != id && !AtomicFile.isTemporary(name) {
+        if let snapshot = try? load(id: name) {
+          try AtomicFile.write(Data(snapshot.id.utf8), to: pointer)
+          return snapshot
+        }
+      }
+      throw error
+    }
   }
 
   public func load(id: String) throws -> RateSnapshot {

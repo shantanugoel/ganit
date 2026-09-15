@@ -33,8 +33,10 @@ public struct SheetPreferences: Codable, Equatable, Sendable {
 
 extension SheetPreferences {
   /// The evaluation context these preferences describe, with the current time
-  /// zone and `now`.
-  public func evaluationContext(now: Date = Date()) throws -> EvaluationContext {
+  /// zone, `now`, and exchange rates.
+  public func evaluationContext(now: Date = Date(), currencyRates: CurrencyRates = .none) throws
+    -> EvaluationContext
+  {
     try EvaluationContext(
       localeIdentifier: localeIdentifier,
       // English grammar with `en-US` separators is the only lexing syntax so far.
@@ -43,7 +45,8 @@ extension SheetPreferences {
       precision: PrecisionContext(significantDecimalDigits: significantDecimalDigits),
       now: now,
       calendar: Calendar(identifier: .gregorian),
-      timeZone: TimeZone(identifier: TimeZone.current.identifier) ?? .gmt
+      timeZone: TimeZone(identifier: TimeZone.current.identifier) ?? .gmt,
+      currencyRates: currencyRates
     )
   }
 }

@@ -7,6 +7,8 @@ import GanitEditorUI
   func showQuickGanit(_ sender: Any?)
   func showQuickGanitShortcut(_ sender: Any?)
   func toggleQuickGanitStartsEmpty(_ sender: Any?)
+  func updateExchangeRates(_ sender: Any?)
+  func toggleAutomaticExchangeRateUpdates(_ sender: Any?)
 }
 
 /// Actions handled by the Quick Ganit panel while it is key.
@@ -234,6 +236,14 @@ public enum MainMenu {
             localized("menu.recalculate", "Recalculate"), #selector(SheetCommands.recalculate(_:)),
             "r"),
           item(localized("menu.stop", "Stop"), #selector(SheetCommands.stopCalculation(_:)), "."),
+          .separator(),
+          item(
+            localized("menu.updateExchangeRates", "Update Exchange Rates"),
+            #selector(ApplicationCommands.updateExchangeRates(_:))),
+          item(
+            localized(
+              "menu.updateExchangeRatesAutomatically", "Update Exchange Rates Automatically"),
+            #selector(ApplicationCommands.toggleAutomaticExchangeRateUpdates(_:))),
         ]
       ),
       menu(

@@ -63,7 +63,7 @@ public struct EvaluationContext: Hashable, Sendable {
   public private(set) var now: Date
   public let calendar: Calendar
   public let timeZone: TimeZone
-  public let currencyRates: CurrencyRates
+  public private(set) var currencyRates: CurrencyRates
 
   public var calendarIdentifier: Calendar.Identifier {
     calendar.identifier
@@ -119,6 +119,13 @@ public struct EvaluationContext: Hashable, Sendable {
     precondition(now.timeIntervalSinceReferenceDate.isFinite)
     var context = self
     context.now = now
+    return context
+  }
+
+  /// The same context with other exchange rates.
+  public func with(_ currencyRates: CurrencyRates) -> EvaluationContext {
+    var context = self
+    context.currencyRates = currencyRates
     return context
   }
 

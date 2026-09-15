@@ -1,6 +1,7 @@
 import AppKit
 import GanitDocuments
 import GanitEditorUI
+import GanitEngine
 
 /// A sheet open in the app: its editor, which owns the text and undo history,
 /// and its autosaver. A sheet is shown in at most one window at a time.
@@ -27,6 +28,14 @@ public final class Workspace {
 
   public let library: SheetLibrary
   public private(set) var windows: [WorkspaceWindowController] = []
+  /// The exchange rates every open and newly opened sheet evaluates with.
+  public var currencyRates: CurrencyRates = .none {
+    didSet {
+      for sheet in sheets.values {
+        sheet.editor.setCurrencyRates(currencyRates)
+      }
+    }
+  }
   private var sheets: [UUID: OpenSheet] = [:]
 
   public init(library: SheetLibrary) {
@@ -102,7 +111,7 @@ public final class Workspace {
     let stored = try library.store.load(id: id)
     let editor = SheetEditorViewController(
       text: stored.source,
-      context: try stored.metadata.preferences.evaluationContext()
+      context: try stored.metadata.preferences.evaluationContext(currencyRates: currencyRates)
     )
     editor.textView.isEditable = stored.metadata.state != .trashed
     let autosaver = SheetAutosaver(

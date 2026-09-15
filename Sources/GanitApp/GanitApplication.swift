@@ -14,10 +14,12 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
 {
   private static let shortcutDefaultsKey = "QuickGanitShortcut"
   private static let startsEmptyDefaultsKey = "QuickGanitStartsEmpty"
+  private static let manualExchangeRatesDefaultsKey = "ExchangeRatesUpdateManually"
   private static var retainedDelegate: GanitApplication?
   private var workspace: Workspace?
   private var quickPanel: QuickPanelController?
   private var quickBufferStore: QuickBufferStore?
+  private var rateRefresher: RateRefresher?
   private var shortcutWindow: NSWindow?
   private lazy var hotKey = GlobalHotKey { [weak self] in
     self?.toggleQuickGanit()
@@ -45,8 +47,19 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
         create: true
       ).appending(
         path: Bundle.main.bundleIdentifier ?? "com.shantanugoel.Ganit", directoryHint: .isDirectory)
-      workspace = Workspace(library: try SheetLibrary(root: root))
+      let workspace = Workspace(library: try SheetLibrary(root: root))
+      self.workspace = workspace
       quickBufferStore = QuickBufferStore(url: root.appending(path: "QuickBuffer.txt"))
+      let refresher = RateRefresher(
+        store: try RateSnapshotStore(root: root.appending(path: "ExchangeRates")),
+        isAutomatic: !UserDefaults.standard.bool(forKey: Self.manualExchangeRatesDefaultsKey)
+      )
+      workspace.currencyRates = refresher.rates
+      refresher.ratesDidChange = { [weak self] rates in
+        self?.workspace?.currencyRates = rates
+        self?.quickPanel?.editor.setCurrencyRates(rates)
+      }
+      rateRefresher = refresher
     } catch {
       NSApplication.shared.presentError(error)
       NSApplication.shared.terminate(nil)
@@ -160,9 +173,33 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     }
   }
 
+  // MARK: Exchange rates
+
+  /// Requests exchange rates now, at most once a minute.
+  @objc func updateExchangeRates(_ sender: Any?) {
+    rateRefresher?.refreshNow()
+  }
+
+  /// Turns automatic daily exchange-rate updates on or off.
+  @objc func toggleAutomaticExchangeRateUpdates(_ sender: Any?) {
+    guard let rateRefresher else {
+      return
+    }
+    rateRefresher.isAutomatic.toggle()
+    UserDefaults.standard.set(
+      !rateRefresher.isAutomatic, forKey: Self.manualExchangeRatesDefaultsKey)
+  }
+
   func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
-    if menuItem.action == #selector(toggleQuickGanitStartsEmpty(_:)) {
+    switch menuItem.action {
+    case #selector(toggleQuickGanitStartsEmpty(_:)):
       menuItem.state = UserDefaults.standard.bool(forKey: Self.startsEmptyDefaultsKey) ? .on : .off
+    case #selector(toggleAutomaticExchangeRateUpdates(_:)):
+      menuItem.state = rateRefresher?.isAutomatic == true ? .on : .off
+    case #selector(updateExchangeRates(_:)):
+      return rateRefresher?.isRequesting == false
+    default:
+      break
     }
     return true
   }
@@ -175,7 +212,8 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   private func quickGanit() -> QuickPanelController? {
     if quickPanel == nil {
       quickPanel = try? QuickPanelController(
-        context: SheetPreferences.standard.evaluationContext(),
+        context: SheetPreferences.standard.evaluationContext(
+          currencyRates: rateRefresher?.rates ?? .none),
         store: quickBufferStore,
         startsEmpty: UserDefaults.standard.bool(forKey: Self.startsEmptyDefaultsKey)
       )

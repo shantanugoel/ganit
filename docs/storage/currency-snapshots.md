@@ -51,3 +51,31 @@ last-known-good one, or any currency's rate more than doubles or halves
 against it. Loading verifies the schema version, the ID, and the payload
 checksum. After each commit, only the newest eight snapshots are kept, and the
 last-known-good snapshot is never removed.
+
+## Rollback
+
+When the snapshot named by `LastKnownGood` fails to load — its payload no
+longer matches its checksum, or a file is missing or unreadable —
+`lastKnownGood()` falls back to the newest intact retained snapshot and names
+it last-known-good. It fails only when no retained snapshot is intact.
+
+## Refresh
+
+`RateRefresher` (GanitDocuments) loads the last-known-good snapshot at launch
+and publishes its rates to every open sheet and Quick Ganit. It follows
+`RateRefreshPolicy` (GanitData):
+
+- with no snapshot, a request is due at once;
+- otherwise automatic requests happen at most once per local calendar day, no
+  earlier than 16:15 in Brussels;
+- a failed request — offline, rejected by validation, or refused by the
+  store — is retried after 5 minutes, doubling up to 24 hours;
+- **Calculate ▸ Update Exchange Rates** requests at once, unless a request is
+  running or the last attempt was less than 60 seconds ago.
+
+Each automatic request is one non-repeating `NSBackgroundActivityScheduler`
+activity, so the system can defer it and nothing polls. Turning off
+**Calculate ▸ Update Exchange Rates Automatically** cancels it; manual updates
+still work. Accepted rates replace each open sheet's context and re-evaluate
+it; a failed request leaves the last-known-good rates in use. The app has the
+`com.apple.security.network.client` entitlement for this request only.

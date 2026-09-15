@@ -42,7 +42,7 @@ sorted_json() {
   ruby -rjson -e 'puts JSON.generate(JSON.parse(STDIN.read).sort.to_h)'
 }
 source_entitlements=$(plutil -convert json -o - App/Ganit.entitlements | sorted_json)
-test "$source_entitlements" = '{"com.apple.security.app-sandbox":true,"com.apple.security.files.user-selected.read-write":true}'
+test "$source_entitlements" = '{"com.apple.security.app-sandbox":true,"com.apple.security.files.user-selected.read-write":true,"com.apple.security.network.client":true}'
 signed_entitlements=$(
   codesign -d --entitlements - --xml "$application" 2>/dev/null |
     plutil -convert json -o - - | sorted_json

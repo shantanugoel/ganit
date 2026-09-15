@@ -53,14 +53,24 @@ struct RateSnapshotStoreTests {
   }
 
   @Test
-  func detectsCorruptStoredSnapshots() throws {
+  func rollsBackToTheNewestIntactSnapshot() throws {
     let store = try RateSnapshotStore(root: root)
-    let good = try snapshot(date: "2026-09-14")
-    try store.commit(good)
+    let older = try snapshot(date: "2026-09-10")
+    let previous = try snapshot(date: "2026-09-11")
+    let latest = try snapshot(date: "2026-09-14")
+    for snapshot in [older, previous, latest] {
+      try store.commit(snapshot)
+    }
     try Data("<changed/>".utf8).write(
-      to: root.appending(path: "Snapshots/\(good.id)/payload.xml"))
+      to: root.appending(path: "Snapshots/\(latest.id)/payload.xml"))
 
-    #expect(throws: RateSnapshotStoreError.corruptSnapshot(good.id)) {
+    #expect(try store.lastKnownGood() == previous)
+    #expect(try RateSnapshotStore(root: root).lastKnownGood() == previous)
+
+    for snapshot in [older, previous] {
+      try FileManager.default.removeItem(at: root.appending(path: "Snapshots/\(snapshot.id)"))
+    }
+    #expect(throws: RateSnapshotStoreError.corruptSnapshot(previous.id)) {
       try store.lastKnownGood()
     }
   }

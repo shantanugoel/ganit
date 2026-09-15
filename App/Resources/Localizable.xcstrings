@@ -961,6 +961,26 @@
         }
       }
     },
+    "menu.updateExchangeRates" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update Exchange Rates"
+          }
+        }
+      }
+    },
+    "menu.updateExchangeRatesAutomatically" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update Exchange Rates Automatically"
+          }
+        }
+      }
+    },
     "menu.useSelectionForFind" : {
       "localizations" : {
         "en" : {
