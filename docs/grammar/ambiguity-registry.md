@@ -78,4 +78,8 @@ unit meaning.
   `in = 1`, `pi = 3`, `min = 1`, `km = 5`, and `total km = 3` fail with
   `syntax.invalidVariableName`. Declaration rejects the collision instead of
   letting a variable shadow built-in meaning.
+- Reference keywords (`line`, `previous`, `prev`, `sum`, `total`, `subtotal`,
+  `average`, `avg`, `median`, `count`) cannot be a whole variable name, but a
+  declared longer name wins: with `total rent` declared, `total rent` is the
+  variable and `total` alone is the aggregate.
 

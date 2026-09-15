@@ -139,9 +139,14 @@
         "en" : { "stringUnit" : { "state" : "translated", "value" : "The compound unit has too many factors." } }
       }
     },
-    "error.evaluation.unavailableVariable" : {
+    "error.evaluation.invalidReference" : {
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "This variable's definition has an error." } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Refer to a result on a line above." } }
+      }
+    },
+    "error.evaluation.unavailableReference" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This refers to a result that has an error." } }
       }
     },
     "error.evaluation.unknownIdentifier" : {

@@ -707,10 +707,15 @@ public struct DiagnosticFormatter: Sendable {
         "error.evaluation.unknownIdentifier",
         defaultValue: "This identifier is not defined."
       )
-    case .unavailableVariable:
+    case .unavailableReference:
       return localized(
-        "error.evaluation.unavailableVariable",
-        defaultValue: "This variable's definition has an error."
+        "error.evaluation.unavailableReference",
+        defaultValue: "This refers to a result that has an error."
+      )
+    case .invalidReference:
+      return localized(
+        "error.evaluation.invalidReference",
+        defaultValue: "Refer to a result on a line above."
       )
     case .unknownFunction:
       return localized(

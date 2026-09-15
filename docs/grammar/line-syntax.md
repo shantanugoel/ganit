@@ -35,8 +35,8 @@ editor can decorate them without changing source offsets.
 
 Blank lines, headings, and dividers are the structural boundaries of a sheet.
 A blank line separates implicit blocks; a heading or divider starts an explicit
-section. A divider also resets variable scope. Aggregates use these boundaries
-as they are added.
+section. [References and aggregates](references.md) read the current block, and
+a divider also resets [variable](variables.md) scope.
 
 ## Evaluation
 

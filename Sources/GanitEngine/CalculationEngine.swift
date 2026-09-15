@@ -27,40 +27,38 @@ public struct CalculationEngine: Sendable {
   }
 
   /// Evaluates a sheet from top to bottom. Declarations are visible to later
-  /// lines until a divider resets scope. Ranges in results are sheet
-  /// coordinates.
+  /// lines until a divider resets scope, and references read results above.
+  /// Ranges in results are sheet coordinates.
   public func evaluate(
     _ sheet: SheetSource,
     context: EvaluationContext
   ) -> [SheetLineResult] {
     var variables: [String: EngineValue?] = [:]
+    var outcomes = LineOutcomes()
     return sheet.lines.map { line in
       let syntax = LineSyntax(line)
+      var result: CalculationResult?
+      var expression: Expression?
       switch syntax {
-      case .divider:
-        variables.removeAll()
-      case .calculation(_, let nameRange, let expression?, _):
-        var name: String?
-        if let nameRange {
-          name = variableName(in: text(of: nameRange, in: line), context: context)
-          guard name != nil else {
-            return SheetLineResult(
-              id: line.id,
-              syntax: syntax,
-              result: .syntaxFailure([
-                SyntaxDiagnostic(code: .invalidVariableName, range: nameRange)
-              ])
-            )
-          }
+      case .calculation(_, let nameRange, let expressionRange?, _):
+        let name = nameRange.flatMap {
+          variableName(in: text(of: $0, in: line), context: context)
         }
-        let result = evaluate(
-          text(of: expression, in: line),
+        if let nameRange, name == nil {
+          result = .syntaxFailure([
+            SyntaxDiagnostic(code: .invalidVariableName, range: nameRange)
+          ])
+          break
+        }
+        (result, expression) = evaluate(
+          text(of: expressionRange, in: line),
           context: context,
           origin: SourceLocation(
-            utf8Offset: expression.lowerBound,
-            graphemeOffset: expression.graphemeLowerBound
+            utf8Offset: expressionRange.lowerBound,
+            graphemeOffset: expressionRange.graphemeLowerBound
           ),
-          variables: variables
+          variables: variables,
+          lines: outcomes
         )
         if let name {
           if case .value(let value) = result {
@@ -69,11 +67,27 @@ public struct CalculationEngine: Sendable {
             variables[name] = .some(nil)
           }
         }
-        return SheetLineResult(id: line.id, syntax: syntax, result: result)
-      default:
+      case .divider:
+        variables.removeAll()
+      case .blank, .heading, .comment, .calculation:
         break
       }
-      return SheetLineResult(id: line.id, syntax: syntax, result: nil)
+
+      switch result {
+      case nil:
+        outcomes.append(.none)
+      case .value(let value):
+        outcomes.append(.value(value), expression: expression)
+      case .syntaxFailure, .evaluationFailure:
+        outcomes.append(.failure, expression: expression)
+      }
+      switch syntax {
+      case .blank, .heading, .divider:
+        outcomes.endBlock()
+      case .comment, .calculation:
+        break
+      }
+      return SheetLineResult(id: line.id, syntax: syntax, result: result)
     }
   }
 
@@ -81,15 +95,22 @@ public struct CalculationEngine: Sendable {
     _ source: String,
     context: EvaluationContext
   ) -> CalculationResult {
-    evaluate(source, context: context, origin: .start, variables: [:])
+    evaluate(
+      source,
+      context: context,
+      origin: .start,
+      variables: [:],
+      lines: LineOutcomes()
+    ).result
   }
 
   private func evaluate(
     _ source: String,
     context: EvaluationContext,
     origin: SourceLocation,
-    variables: [String: EngineValue?]
-  ) -> CalculationResult {
+    variables: [String: EngineValue?],
+    lines: LineOutcomes
+  ) -> (result: CalculationResult, expression: Expression?) {
     let parsing = Parser(
       source: source,
       configuration: context.lexingConfiguration,
@@ -99,28 +120,32 @@ public struct CalculationEngine: Sendable {
       variables: variables.mapValues { $0?.kind ?? .number }
     ).parse()
     guard let expression = parsing.expression else {
-      return .syntaxFailure(parsing.diagnostics)
+      return (.syntaxFailure(parsing.diagnostics), nil)
     }
 
     do {
-      return .value(
-        try Evaluator(
-          context: context,
-          limits: evaluationLimits,
-          variables: variables
-        ).evaluate(expression)
-      )
+      let value = try Evaluator(
+        context: context,
+        limits: evaluationLimits,
+        variables: variables,
+        lines: lines
+      ).evaluate(expression)
+      return (.value(value), expression)
     } catch let error as EngineError {
-      return .evaluationFailure(error)
+      return (.evaluationFailure(error), expression)
     } catch {
-      return .evaluationFailure(
-        EngineError(code: .internalFailure, ranges: [expression.range])
+      return (
+        .evaluationFailure(
+          EngineError(code: .internalFailure, ranges: [expression.range])
+        ),
+        expression
       )
     }
   }
 
   /// Returns a declaration's normalized name, or `nil` when it is not a
   /// sequence of words that are not keywords, constants, functions, or units.
+  /// A single-word name also cannot be a reference keyword.
   private func variableName(
     in source: String,
     context: EvaluationContext
@@ -141,7 +166,12 @@ public struct CalculationEngine: Sendable {
       }
       words.append(word)
     }
-    return lexing.diagnostics.isEmpty ? words.joined(separator: " ") : nil
+    guard lexing.diagnostics.isEmpty, !words.isEmpty,
+      words.count > 1 || (referenceKeywords[words[0]] == nil && words[0] != "line")
+    else {
+      return nil
+    }
+    return words.joined(separator: " ")
   }
 
   public func parse(

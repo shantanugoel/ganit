@@ -32,7 +32,7 @@ A divider (`---`) resets scope; headings do not.
 
 Using a name before it is declared fails with `evaluation.unknownIdentifier`.
 Using a variable whose declaration failed reports
-`evaluation.unavailableVariable` at the use rather than an unrelated value.
+`evaluation.unavailableReference` at the use rather than an unrelated value.
 
 The parser receives each visible variable's value kind, so a percentage
 variable participates in percentage phrases (`tax of 50`) and a quantity

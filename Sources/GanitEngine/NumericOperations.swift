@@ -148,6 +148,18 @@ struct NumericOperations {
     return try checkedInteger(rounded)
   }
 
+  /// Indices of `values` in ascending numeric order.
+  func ascendingIndices(_ values: [NumericValue]) throws -> [Int] {
+    if values.contains(where: {
+      if case .approximate = $0 { return true }
+      return false
+    }) {
+      let estimates = try values.map(approximateEstimate)
+      return values.indices.sorted { estimates[$0] < estimates[$1] }
+    }
+    return try values.indices.sorted { try compare(values[$0], values[$1]) < 0 }
+  }
+
   func extremum(
     _ values: [NumericValue],
     selectMinimum: Bool

@@ -4,24 +4,40 @@ public struct Evaluator: Sendable {
   private let context: EvaluationContext
   private let limits: EvaluationLimits
   private let variables: [String: EngineValue?]
+  private let lines: LineOutcomes
 
-  /// `variables` maps declared names to their values, or to `nil` when the
-  /// declaration failed.
   public init(
     context: EvaluationContext,
-    limits: EvaluationLimits = .default,
-    variables: [String: EngineValue?] = [:]
+    limits: EvaluationLimits = .default
+  ) {
+    self.init(
+      context: context,
+      limits: limits,
+      variables: [:],
+      lines: LineOutcomes()
+    )
+  }
+
+  /// `variables` maps declared names to their values, or to `nil` when the
+  /// declaration failed. `lines` holds the results of lines above.
+  init(
+    context: EvaluationContext,
+    limits: EvaluationLimits,
+    variables: [String: EngineValue?],
+    lines: LineOutcomes
   ) {
     self.context = context
     self.limits = limits
     self.variables = variables
+    self.lines = lines
   }
 
   public func evaluate(_ expression: Expression) throws -> EngineValue {
     var worker = EvaluationWorker(
       context: context,
       limits: limits,
-      variables: variables
+      variables: variables,
+      lines: lines
     )
     return try worker.evaluate(expression)
   }
@@ -33,16 +49,19 @@ private struct EvaluationWorker {
   let operations: NumericOperations
   let unitAlgebra: UnitAlgebra
   let variables: [String: EngineValue?]
+  let lines: LineOutcomes
   var visitedOperations = 0
 
   init(
     context: EvaluationContext,
     limits: EvaluationLimits,
-    variables: [String: EngineValue?]
+    variables: [String: EngineValue?],
+    lines: LineOutcomes
   ) {
     self.context = context
     self.limits = limits
     self.variables = variables
+    self.lines = lines
     operations = NumericOperations(context: context, limits: limits)
     unitAlgebra = UnitAlgebra(context: context, limits: limits)
   }
@@ -58,7 +77,7 @@ private struct EvaluationWorker {
       case .identifier(let name, let range):
         if let variable = variables[name] {
           guard let value = variable else {
-            throw EngineError(code: .unavailableVariable, ranges: [range])
+            throw EngineError(code: .unavailableReference, ranges: [range])
           }
           return value
         }
@@ -180,6 +199,15 @@ private struct EvaluationWorker {
 
       case .grouped(let nested, _):
         return try evaluate(nested)
+
+      case .reference(.line(let line), _):
+        return try lines.value(atLine: line)
+
+      case .reference(.previous, _):
+        return try lines.previous()
+
+      case .reference(.aggregate(let aggregate), _):
+        return try evaluate(aggregate, of: lines.values(for: aggregate))
       }
     } catch let error as EngineError where error.ranges.isEmpty {
       throw error.located(at: expression.range)
@@ -414,6 +442,61 @@ private struct EvaluationWorker {
       )
     case .raised(let unit, let exponent, _):
       return try unitAlgebra.raised(evaluate(unit), to: exponent)
+    }
+  }
+
+  private func evaluate(
+    _ aggregate: Aggregate,
+    of values: [EngineValue]
+  ) throws -> EngineValue {
+    let count = EngineValue.number(.integer(IntegerValue(values.count)))
+    guard aggregate != .count else {
+      return count
+    }
+    guard let first = values.first else {
+      guard aggregate == .sum || aggregate == .subtotal else {
+        throw EngineError(code: .invalidReference)
+      }
+      return .number(.integer(IntegerValue(0)))
+    }
+    if let mismatch = values.first(where: { $0.kind != first.kind }) {
+      throw typeMismatch(expected: first.kind, actual: mismatch.kind)
+    }
+
+    switch aggregate {
+    case .sum, .subtotal, .count:
+      return try values.dropFirst().reduce(first) {
+        try apply(.add, left: $0, right: $1)
+      }
+    case .average:
+      return try apply(
+        .divide,
+        left: evaluate(.sum, of: values),
+        right: count
+      )
+    case .median:
+      let keys = try values.map { value -> NumericValue in
+        switch (value, first) {
+        case (.number(let number), _):
+          return number
+        case (.percentage(let percentage), _):
+          return percentage.points
+        case (.quantity(let quantity), .quantity(let reference)):
+          return try unitAlgebra.converted(quantity, to: reference.unit).magnitude
+        default:
+          throw typeMismatch(expected: .number, actual: value.kind)
+        }
+      }
+      let order = try operations.ascendingIndices(keys)
+      let middle = values[order[order.count / 2]]
+      guard order.count.isMultiple(of: 2) else {
+        return middle
+      }
+      return try apply(
+        .divide,
+        left: apply(.add, left: values[order[order.count / 2 - 1]], right: middle),
+        right: .number(.integer(IntegerValue(2)))
+      )
     }
   }
 

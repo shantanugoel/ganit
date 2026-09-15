@@ -286,6 +286,8 @@ struct ParserTests {
       return "(\(shape(value)) -> \(unitShape(target)))"
     case .grouped(let expression, _):
       return "(\(shape(expression)))"
+    case .reference(let reference, _):
+      return "@\(reference)"
     }
   }
 

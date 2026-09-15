@@ -56,10 +56,23 @@ public struct Parser: Sendable {
   }
 }
 
-/// Words with grammatical meaning, which cannot name variables.
+/// Words with grammatical meaning, which cannot appear in variable names.
 let reservedIdentifiers: Set<String> = [
   "in", "to", "as", "into", "of", "off", "on", "is", "what", "after",
   "percentage", "change", "from", "pi", "π", "e",
+]
+
+/// Reference keywords. A longer declared name may start with one.
+let referenceKeywords: [String: LineReference] = [
+  "previous": .previous,
+  "prev": .previous,
+  "sum": .aggregate(.sum),
+  "total": .aggregate(.sum),
+  "subtotal": .aggregate(.subtotal),
+  "average": .aggregate(.average),
+  "avg": .aggregate(.average),
+  "median": .aggregate(.median),
+  "count": .aggregate(.count),
 ]
 
 extension Token {
@@ -808,6 +821,17 @@ private struct TokenParser {
     while words.count > 1, variables[words.joined(separator: " ")] == nil {
       words.removeLast()
     }
+    if words.count == 1, variables[first] == nil {
+      if let reference = referenceKeywords[first] {
+        return .reference(reference, range: range)
+      }
+      if first == "line",
+        case .number(.integer(let digits, .decimal)) = current.kind,
+        let number = Int(digits)
+      {
+        return .reference(.line(number), range: range.union(advance().range))
+      }
+    }
     var end = range
     for _ in 1..<words.count {
       end = advance().range
@@ -853,7 +877,7 @@ private struct TokenParser {
     switch expression {
     case .identifier(let name, _):
       return variables[name] ?? .number
-    case .literal, .call:
+    case .literal, .call, .reference:
       return .number
     case .quantity, .conversion:
       return .quantity

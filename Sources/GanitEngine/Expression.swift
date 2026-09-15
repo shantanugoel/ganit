@@ -42,6 +42,22 @@ public indirect enum UnitSyntax: Equatable, Sendable {
   }
 }
 
+/// A reference to results on lines above the current line.
+public enum LineReference: Hashable, Sendable {
+  /// A one-based sheet line number.
+  case line(Int)
+  case previous
+  case aggregate(Aggregate)
+}
+
+public enum Aggregate: String, Hashable, Sendable {
+  case sum
+  case subtotal
+  case average
+  case median
+  case count
+}
+
 public indirect enum Expression: Equatable, Sendable {
   case literal(NumericLiteral, range: SourceRange)
   case identifier(String, range: SourceRange)
@@ -88,6 +104,7 @@ public indirect enum Expression: Equatable, Sendable {
     range: SourceRange
   )
   case grouped(Expression, range: SourceRange)
+  case reference(LineReference, range: SourceRange)
 
   public var range: SourceRange {
     switch self {
@@ -100,8 +117,40 @@ public indirect enum Expression: Equatable, Sendable {
       .percentageOperation(_, _, _, _, let range),
       .quantity(_, _, let range),
       .conversion(_, _, _, let range),
-      .grouped(_, let range):
+      .grouped(_, let range),
+      .reference(_, let range):
       return range
+    }
+  }
+
+  var containsAggregate: Bool {
+    contains {
+      if case .aggregate = $0 { return true }
+      return false
+    }
+  }
+
+  var containsSubtotal: Bool {
+    contains { $0 == .aggregate(.subtotal) }
+  }
+
+  private func contains(_ predicate: (LineReference) -> Bool) -> Bool {
+    switch self {
+    case .reference(let reference, _):
+      return predicate(reference)
+    case .literal, .identifier:
+      return false
+    case .prefix(_, let operand, _, _),
+      .percentage(let operand, _, _),
+      .quantity(let operand, _, _),
+      .conversion(let operand, _, _, _),
+      .grouped(let operand, _):
+      return operand.contains(predicate)
+    case .infix(let left, _, let right, _, _),
+      .percentageOperation(_, let left, let right, _, _):
+      return left.contains(predicate) || right.contains(predicate)
+    case .call(_, _, let arguments, _):
+      return arguments.contains { $0.contains(predicate) }
     }
   }
 }
