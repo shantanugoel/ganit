@@ -1,3 +1,4 @@
+import AppIntents
 import AppKit
 import GanitDiagnostics
 import GanitDocuments
@@ -12,7 +13,7 @@ import GanitWorkspaceUI
 @main
 @MainActor
 final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationCommands,
-  NSMenuItemValidation
+  NSMenuItemValidation, SheetOpening
 {
   private static let shortcutDefaultsKey = "QuickGanitShortcut"
   private static let startsEmptyDefaultsKey = "QuickGanitStartsEmpty"
@@ -310,7 +311,18 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     guard let id = SpotlightTitleIndex.sheetID(from: userActivity), let workspace else {
       return false
     }
-    workspace.openWindow(showing: id)
+    workspace.reveal(id)
+    return true
+  }
+
+  /// Shows the sheet the Open Sheet intent names, answering whether the
+  /// library has one.
+  func revealSheet(titled title: String) -> Bool {
+    guard let workspace, let id = try? workspace.library.index.sheet(titled: title) else {
+      return false
+    }
+    workspace.reveal(id)
+    NSApplication.shared.activate()
     return true
   }
 

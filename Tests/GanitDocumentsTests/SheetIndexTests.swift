@@ -36,6 +36,26 @@ struct SheetIndexTests {
   }
 
   @Test
+  func findsTheSheetATitleNames() throws {
+    let index = try SheetIndex(url: indexURL)
+    let zurich = metadata("Trip to Zürich", modified: 30)
+    let trip = metadata("Trip", modified: 20)
+    var archived = metadata("Groceries", modified: 40)
+    archived.state = .archived
+    for sheet in [zurich, trip, archived] {
+      try index.upsert(sheet, source: "1 + 1")
+    }
+
+    // A whole-title match wins over the more recent sheet that contains it.
+    #expect(try index.sheet(titled: "trip") == trip.id)
+    #expect(try index.sheet(titled: "zurich") == zurich.id)
+    #expect(try index.sheet(titled: "Trip to") == zurich.id)
+    #expect(try index.sheet(titled: "Groceries") == nil)
+    #expect(try index.sheet(titled: "  ") == nil)
+    #expect(try index.sheet(titled: "budget") == nil)
+  }
+
+  @Test
   func deletedIndexRebuildsFromSheetFilesWithoutLosingContent() throws {
     let store = SheetStore(root: root)
     let saved = try [("Alpha", 1), ("Beta", 2)].map { title, modified in

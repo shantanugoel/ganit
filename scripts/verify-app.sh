@@ -19,7 +19,7 @@ test -f "$formatting_resources/en.lproj/Localizable.strings"
 test -f "$formatting_resources/tr.lproj/Localizable.strings"
 test ! -e "$formatting_resources/Localizable.xcstrings"
 
-# Evaluate Expression is offered to other apps, and Calculate Expression is
+# Evaluate Expression is offered to other apps, and both Shortcuts actions are
 # discoverable in Shortcuts and Spotlight.
 test "$(/usr/libexec/PlistBuddy -c 'Print :NSServices:0:NSMessage' "$application/Contents/Info.plist")" = "evaluateExpression"
 test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleURLTypes:0:CFBundleURLSchemes:0' "$application/Contents/Info.plist")" = "ganit"
@@ -30,6 +30,9 @@ ruby -rjson -e '
   intent = actions.fetch("CalculateExpressionIntent")
   abort "intent is not discoverable" unless intent["isDiscoverable"]
   abort "intent opens the app" if intent["openAppWhenRun"]
+  open_sheet = actions.fetch("OpenSheetIntent")
+  abort "Open Sheet is not discoverable" unless open_sheet["isDiscoverable"]
+  abort "Open Sheet does not open the app" unless open_sheet["openAppWhenRun"]
 ' "$intents_metadata"
 
 privacy_manifest="$application/Contents/Resources/PrivacyInfo.xcprivacy"

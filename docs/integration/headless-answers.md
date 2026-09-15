@@ -49,7 +49,25 @@ Shortcuts discovers an intent through App Intents metadata in the bundle. Xcode 
 constant values for the `GanitSystemIntegration` sources using the toolchain's
 App Intents protocol list, then `appintentsmetadataprocessor` writes
 `Contents/Resources/Metadata.appintents`. `Scripts/verify-app.sh` fails the
-build if the intent is missing, undiscoverable, or opens the app.
+build if either action is missing or undiscoverable, or if this one opens the
+app.
+
+## Open Sheet
+
+`OpenSheetIntent` is the one action about windows rather than answers, so it is
+the one with `openAppWhenRun` true. It takes a `sheetTitle` and shows that
+sheet: the window already on it comes forward, and otherwise one opens. A title
+that names no sheet fails with `NoSuchSheet` rather than opening something
+close to it.
+
+Which sheet a title names is the library index's decision, not the intent's: a
+whole title match wins, ignoring case and diacritics, and otherwise the most
+recently modified active sheet whose title contains the text. Archived sheets
+are never opened this way.
+
+Because opening a window needs the workspace, the intent asks the application
+delegate through `SheetOpening`. It reads nothing from a sheet and returns no
+value, so it discloses only whether a sheet exists.
 
 ## Calculate URL
 

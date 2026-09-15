@@ -102,6 +102,20 @@ public final class SheetIndex {
     }
   }
 
+  /// The active sheet a title names: one whose whole title matches, ignoring
+  /// case and diacritics, and otherwise the most recently modified sheet whose
+  /// title contains the text. A blank title names nothing.
+  public func sheet(titled title: String) throws -> UUID? {
+    let wanted = title.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !wanted.isEmpty else {
+      return nil
+    }
+    let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
+    let active = try summaries().filter { $0.state == .active }
+    let exact = active.first { $0.title.compare(wanted, options: options) == .orderedSame }
+    return (exact ?? active.first { $0.title.range(of: wanted, options: options) != nil })?.id
+  }
+
   /// Sheets whose title or source contains `text`, ignoring case and
   /// diacritics, most recently modified first.
   public func search(_ text: String) throws -> [UUID] {

@@ -255,6 +255,22 @@ struct WorkspaceWindowControllerTests {
     #expect(controller.sidebar.sheets.map(\.id) == [ids[0]])
   }
 
+  @Test
+  func revealingAnOpenSheetRaisesItsWindowInsteadOfOpeningAnother() throws {
+    let (workspace, ids) = try makeWorkspace(["1 + 1", "2 + 2"])
+    defer { close(workspace) }
+    let first = workspace.openWindow(showing: ids[0])
+
+    #expect(workspace.reveal(ids[0]) === first)
+    #expect(workspace.windows.count == 1)
+
+    let second = workspace.reveal(ids[1])
+
+    #expect(second !== first)
+    #expect(workspace.windows.count == 2)
+    #expect(second.sheetID == ids[1])
+  }
+
   private func makeWorkspace(
     _ sources: [String],
     library: SheetLibrary? = nil

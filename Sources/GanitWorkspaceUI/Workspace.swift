@@ -98,6 +98,18 @@ public final class Workspace {
     return controller
   }
 
+  /// Brings the window already showing a sheet to the front, and opens one
+  /// when no window shows it, so that opening the same sheet twice does not
+  /// leave two windows on it.
+  @discardableResult
+  public func reveal(_ id: UUID) -> WorkspaceWindowController {
+    guard let shown = windows.first(where: { $0.sheetID == id }) else {
+      return openWindow(showing: id)
+    }
+    shown.showWindow(nil)
+    return shown
+  }
+
   /// Opens a window with the most recently modified active sheet, or with a
   /// new sheet in an empty library.
   @discardableResult
