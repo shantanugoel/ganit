@@ -1,0 +1,447 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "in: terminal alias after a number is inches",
+      "expression": "12 in",
+      "expected": {
+        "status": "value",
+        "display": "12 in",
+        "fullPrecision": "12 in",
+        "approximate": false
+      }
+    },
+    {
+      "name": "in: attached alias is inches",
+      "expression": "12in",
+      "expected": {
+        "status": "value",
+        "display": "12 in",
+        "fullPrecision": "12 in",
+        "approximate": false
+      }
+    },
+    {
+      "name": "in: keyword after a quantity converts",
+      "expression": "12 km in miles",
+      "expected": {
+        "status": "value",
+        "display": "31,250/4,191 mi",
+        "fullPrecision": "31250/4191 mi",
+        "approximate": false
+      }
+    },
+    {
+      "name": "in: inch quantity followed by conversion keyword",
+      "expression": "12 in in cm",
+      "expected": {
+        "status": "value",
+        "display": "762/25 cm",
+        "fullPrecision": "762/25 cm",
+        "approximate": false
+      }
+    },
+    {
+      "name": "in: conversion target may be the inch alias",
+      "expression": "1 ft in in",
+      "expected": {
+        "status": "value",
+        "display": "12 in",
+        "fullPrecision": "12 in",
+        "approximate": false
+      }
+    },
+    {
+      "name": "in: inch alias accepts a unit power",
+      "expression": "12 in^2",
+      "expected": {
+        "status": "value",
+        "display": "12 in^2",
+        "fullPrecision": "12 in^2",
+        "approximate": false
+      }
+    },
+    {
+      "name": "in: keyword after a grouped quantity is an incomplete conversion",
+      "expression": "(1 m + 2 m) in",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "expectedConversionUnit",
+        "messageKey": "syntax.expectedConversionUnit",
+        "message": "Enter a unit to convert to.",
+        "lowerBound": 12,
+        "upperBound": 14
+      }
+    },
+    {
+      "name": "in: keyword after a computed quantity is an incomplete conversion",
+      "expression": "(1 m * 2) in",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "expectedConversionUnit",
+        "messageKey": "syntax.expectedConversionUnit",
+        "message": "Enter a unit to convert to.",
+        "lowerBound": 10,
+        "upperBound": 12
+      }
+    },
+    {
+      "name": "in: inch alias then a bare unit is not a conversion",
+      "expression": "1 m + 2 in cm",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "unexpectedToken",
+        "messageKey": "syntax.unexpectedToken",
+        "message": "This part of the expression is unexpected.",
+        "lowerBound": 11,
+        "upperBound": 13
+      }
+    },
+    {
+      "name": "in: bare number cannot be converted",
+      "expression": "5 in miles",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "unexpectedToken",
+        "messageKey": "syntax.unexpectedToken",
+        "message": "This part of the expression is unexpected.",
+        "lowerBound": 5,
+        "upperBound": 10
+      }
+    },
+    {
+      "name": "in: prose around in is not ignored",
+      "expression": "price in dollars",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "unexpectedToken",
+        "messageKey": "syntax.unexpectedToken",
+        "message": "This part of the expression is unexpected.",
+        "lowerBound": 6,
+        "upperBound": 8
+      }
+    },
+    {
+      "name": "%: spaced percent is still a percentage",
+      "expression": "20 %",
+      "expected": {
+        "status": "value",
+        "display": "20%",
+        "fullPrecision": "20%",
+        "approximate": false
+      }
+    },
+    {
+      "name": "%: spaced percent is never modulo",
+      "expression": "10 % 3",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "unexpectedToken",
+        "messageKey": "syntax.unexpectedToken",
+        "message": "This part of the expression is unexpected.",
+        "lowerBound": 5,
+        "upperBound": 6
+      }
+    },
+    {
+      "name": "%: attached percent is never modulo",
+      "expression": "5%3",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "unexpectedToken",
+        "messageKey": "syntax.unexpectedToken",
+        "message": "This part of the expression is unexpected.",
+        "lowerBound": 2,
+        "upperBound": 3
+      }
+    },
+    {
+      "name": "%: percent cannot repeat",
+      "expression": "50%%",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "unexpectedToken",
+        "messageKey": "syntax.unexpectedToken",
+        "message": "This part of the expression is unexpected.",
+        "lowerBound": 3,
+        "upperBound": 4
+      }
+    },
+    {
+      "name": "%: mod is not an operator yet",
+      "expression": "10 mod 3",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "unexpectedToken",
+        "messageKey": "syntax.unexpectedToken",
+        "message": "This part of the expression is unexpected.",
+        "lowerBound": 3,
+        "upperBound": 6
+      }
+    },
+    {
+      "name": "symbols: lowercase m is metre",
+      "expression": "1 m",
+      "expected": {
+        "status": "value",
+        "display": "1 m",
+        "fullPrecision": "1 m",
+        "approximate": false
+      }
+    },
+    {
+      "name": "symbols: uppercase M alone is not a unit",
+      "expression": "1 M",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "unexpectedToken",
+        "messageKey": "syntax.unexpectedToken",
+        "message": "This part of the expression is unexpected.",
+        "lowerBound": 2,
+        "upperBound": 3
+      }
+    },
+    {
+      "name": "symbols: prefix case distinguishes mega and milli",
+      "expression": "1 Mm in mm",
+      "expected": {
+        "status": "value",
+        "display": "1,000,000,000 mm",
+        "fullPrecision": "1000000000 mm",
+        "approximate": false
+      }
+    },
+    {
+      "name": "symbols: unsupported casing is not corrected",
+      "expression": "1 KM",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "unexpectedToken",
+        "messageKey": "syntax.unexpectedToken",
+        "message": "This part of the expression is unexpected.",
+        "lowerBound": 2,
+        "upperBound": 4
+      }
+    },
+    {
+      "name": "symbols: lowercase b is bit",
+      "expression": "1 Mb in B",
+      "expected": {
+        "status": "value",
+        "display": "125,000 B",
+        "fullPrecision": "125000 B",
+        "approximate": false
+      }
+    },
+    {
+      "name": "symbols: uppercase B is byte",
+      "expression": "1 MB in b",
+      "expected": {
+        "status": "value",
+        "display": "8,000,000 bit",
+        "fullPrecision": "8000000 bit",
+        "approximate": false
+      }
+    },
+    {
+      "name": "symbols: exact min alias is minute",
+      "expression": "5 min in s",
+      "expected": {
+        "status": "value",
+        "display": "300 s",
+        "fullPrecision": "300 s",
+        "approximate": false
+      }
+    },
+    {
+      "name": "symbols: min followed by parenthesis is a function",
+      "expression": "min(1, 2)",
+      "expected": {
+        "status": "value",
+        "display": "1",
+        "fullPrecision": "1",
+        "approximate": false
+      }
+    },
+    {
+      "name": "symbols: exact h alias is hour",
+      "expression": "2 h in min",
+      "expected": {
+        "status": "value",
+        "display": "120 min",
+        "fullPrecision": "120 min",
+        "approximate": false
+      }
+    },
+    {
+      "name": "symbols: exact mi alias is mile",
+      "expression": "1 mi in m",
+      "expected": {
+        "status": "value",
+        "display": "201,168/125 m",
+        "fullPrecision": "201168/125 m",
+        "approximate": false
+      }
+    },
+    {
+      "name": "symbols: ms splits to millisecond",
+      "expression": "1500 ms in s",
+      "expected": {
+        "status": "value",
+        "display": "3/2 s",
+        "fullPrecision": "3/2 s",
+        "approximate": false
+      }
+    },
+    {
+      "name": "symbols: e remains a constant, not a unit",
+      "expression": "2 e",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "unexpectedToken",
+        "messageKey": "syntax.unexpectedToken",
+        "message": "This part of the expression is unexpected.",
+        "lowerBound": 2,
+        "upperBound": 3
+      }
+    },
+    {
+      "name": "symbols: pi remains a constant under implicit multiplication",
+      "expression": "2pi",
+      "expected": {
+        "status": "value",
+        "display": "≈ 6.28318530717959",
+        "fullPrecision": "≈ 6.283185307179586",
+        "approximate": true
+      }
+    },
+    {
+      "name": "symbols: dollar is not a currency yet",
+      "expression": "$5",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "unexpectedCharacter",
+        "messageKey": "syntax.unexpectedCharacter",
+        "message": "This character is not valid in an expression.",
+        "lowerBound": 0,
+        "upperBound": 1
+      }
+    },
+    {
+      "name": "symbols: yen is not a currency yet",
+      "expression": "¥5",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "unexpectedCharacter",
+        "messageKey": "syntax.unexpectedCharacter",
+        "message": "This character is not valid in an expression.",
+        "lowerBound": 0,
+        "upperBound": 2
+      }
+    },
+    {
+      "name": "implicit multiplication: adjacent number and group",
+      "expression": "2(3 m)",
+      "expected": {
+        "status": "value",
+        "display": "6 m",
+        "fullPrecision": "6 m",
+        "approximate": false
+      }
+    },
+    {
+      "name": "implicit multiplication: adjacent quantity groups",
+      "expression": "(2 m)(3 m)",
+      "expected": {
+        "status": "value",
+        "display": "6 m^2",
+        "fullPrecision": "6 m^2",
+        "approximate": false
+      }
+    },
+    {
+      "name": "implicit multiplication: whitespace between numbers is invalid",
+      "expression": "2 3",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "unexpectedToken",
+        "messageKey": "syntax.unexpectedToken",
+        "message": "This part of the expression is unexpected.",
+        "lowerBound": 2,
+        "upperBound": 3
+      }
+    },
+    {
+      "name": "implicit multiplication: adjacent quantities are not summed",
+      "expression": "5 ft 3 in",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "unexpectedToken",
+        "messageKey": "syntax.unexpectedToken",
+        "message": "This part of the expression is unexpected.",
+        "lowerBound": 5,
+        "upperBound": 6
+      }
+    },
+    {
+      "name": "implicit multiplication: unit products must be explicit",
+      "expression": "2 kg m",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "unexpectedToken",
+        "messageKey": "syntax.unexpectedToken",
+        "message": "This part of the expression is unexpected.",
+        "lowerBound": 5,
+        "upperBound": 6
+      }
+    },
+    {
+      "name": "implicit multiplication: quantity followed by a group is invalid",
+      "expression": "2 m(3)",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "unexpectedToken",
+        "messageKey": "syntax.unexpectedToken",
+        "message": "This part of the expression is unexpected.",
+        "lowerBound": 3,
+        "upperBound": 4
+      }
+    },
+    {
+      "name": "implicit multiplication: quantity followed by a number is invalid",
+      "expression": "3 m 2",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "unexpectedToken",
+        "messageKey": "syntax.unexpectedToken",
+        "message": "This part of the expression is unexpected.",
+        "lowerBound": 4,
+        "upperBound": 5
+      }
+    },
+    {
+      "name": "implicit multiplication: computed constant does not take a unit",
+      "expression": "2π m",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "unexpectedToken",
+        "messageKey": "syntax.unexpectedToken",
+        "message": "This part of the expression is unexpected.",
+        "lowerBound": 4,
+        "upperBound": 5
+      }
+    },
+    {
+      "name": "implicit multiplication: digits inside an identifier are not split",
+      "expression": "5ft3in",
+      "expected": {
+        "status": "evaluationFailure",
+        "code": "evaluation.unknownIdentifier",
+        "messageKey": "error.evaluation.unknownIdentifier",
+        "message": "This identifier is not defined.",
+        "lowerBound": 1,
+        "upperBound": 6
+      }
+    }
+  ]
+}

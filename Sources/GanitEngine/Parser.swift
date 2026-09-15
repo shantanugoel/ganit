@@ -822,6 +822,9 @@ private struct TokenParser {
     case .infix(let left, let binaryOperator, let right, _, _):
       let leftKind = inferredKind(of: left)
       let rightKind = inferredKind(of: right)
+      if leftKind == .quantity || rightKind == .quantity {
+        return .quantity
+      }
       switch binaryOperator {
       case .add, .subtract:
         return leftKind == .percentage && rightKind == .percentage

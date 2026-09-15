@@ -34,6 +34,8 @@ treated as units, so arithmetic such as `2pi` retains its implicit
 multiplication meaning. A terminal `in` following a number is the inch alias
 (`12 in`); after an established quantity it is a conversion keyword
 (`12 km in miles`).
+The [ambiguity registry](ambiguity-registry.md) records the complete `in`,
+unit-symbol, and implicit-multiplication policies.
 
 ## Precedence and result-unit selection
 

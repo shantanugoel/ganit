@@ -4,6 +4,10 @@ Phase 1 adds three deterministic layers beyond focused unit tests:
 
 - `phase-1-golden.json` fixes representative parse, evaluation, formatting,
   approximation, error code, message key, and source-range outcomes.
+- `phase-2-percentages.json`, `phase-2-conversions.json`, and
+  `phase-2-ambiguities.json` pin percentage, conversion, and
+  [ambiguity registry](../docs/grammar/ambiguity-registry.md) outcomes in the
+  same format.
 - `ArithmeticPropertyTests` checks exact arithmetic identities, whitespace
   invariance, canonical-format round trips, differential results against
   native bounded integer arithmetic, and numeric bit-limit boundaries with

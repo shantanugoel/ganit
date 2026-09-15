@@ -5,9 +5,14 @@ import Testing
 
 @Suite
 struct GoldenCorpusTests {
-  @Test
-  func matchesVersionedGoldenCorpus() throws {
-    let corpus = try loadFixture(GoldenCorpus.self, named: "phase-1-golden")
+  @Test(arguments: [
+    "phase-1-golden",
+    "phase-2-percentages",
+    "phase-2-conversions",
+    "phase-2-ambiguities",
+  ])
+  func matchesVersionedCorpus(named fixture: String) throws {
+    let corpus = try loadFixture(GoldenCorpus.self, named: fixture)
     #expect(corpus.schemaVersion == 1)
     let context = try fixedContext()
     let engine = CalculationEngine()
@@ -22,57 +27,7 @@ struct GoldenCorpusTests {
       )
       #expect(
         actual == testCase.expected,
-        "Golden case failed: \(testCase.name)"
-      )
-    }
-  }
-
-  @Test
-  func matchesVersionedPercentageCorpus() throws {
-    let corpus = try loadFixture(
-      GoldenCorpus.self,
-      named: "phase-2-percentages"
-    )
-    #expect(corpus.schemaVersion == 1)
-    let context = try fixedContext()
-    let engine = CalculationEngine()
-    let formatter = ResultFormatter(context: context)
-
-    for testCase in corpus.cases {
-      let actual = try outcome(
-        for: testCase.expression,
-        engine: engine,
-        formatter: formatter,
-        context: context
-      )
-      #expect(
-        actual == testCase.expected,
-        "Percentage golden case failed: \(testCase.name)"
-      )
-    }
-  }
-
-  @Test
-  func matchesVersionedConversionCorpus() throws {
-    let corpus = try loadFixture(
-      GoldenCorpus.self,
-      named: "phase-2-conversions"
-    )
-    #expect(corpus.schemaVersion == 1)
-    let context = try fixedContext()
-    let engine = CalculationEngine()
-    let formatter = ResultFormatter(context: context)
-
-    for testCase in corpus.cases {
-      let actual = try outcome(
-        for: testCase.expression,
-        engine: engine,
-        formatter: formatter,
-        context: context
-      )
-      #expect(
-        actual == testCase.expected,
-        "Conversion golden case failed: \(testCase.name)"
+        "\(fixture) case failed: \(testCase.name)"
       )
     }
   }

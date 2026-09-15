@@ -924,7 +924,7 @@ Tasks:
 - [x] Seed a reviewed minimal unit catalog with source/license metadata.
 - [x] Add dimensionally typed rate quantities.
 - [x] Add explicit conversion syntax and result-unit selection.
-- [ ] Add ambiguity cases (`in`, `%`, symbols, implicit multiplication).
+- [x] Add ambiguity cases (`in`, `%`, symbols, implicit multiplication).
 - [ ] Add round-trip/dimensional property tests including compound engineering units.
 
 Exit criteria:
