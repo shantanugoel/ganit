@@ -46,7 +46,8 @@ Last updated: 2026-09-15.
 | --- | --- | --- |
 | Standard window controls, multiwindow, menus, responder chain | Automated | `WorkspaceWindowControllerTests`, `MainMenuTests`, `standardActionsReachTheTextViewThroughTheResponderChain` |
 | Services, Help menu | Automated (menus present) | `MainMenuTests` |
-| Sharing, print, Settings window, Help content | Not implemented | Later phases |
+| Print | Automated | File ▸ Print… uses `SheetDocumentRenderer`, tested by `SheetDocumentRendererTests` |
+| Sharing, Settings window, Help content | Not implemented | See docs/reference/known-limitations.md |
 | Native text editing, dead keys, Find, undo grouping | Automated (Find, undo, marked text); Needs a person (dictation) | Editor tests |
 | Customizable toolbar | Implemented | `NSToolbar` delegate with allowed items |
 | State restoration, excluding transient state | Automated | `restoresTheWindowsSheetSelectionAndSidebar` |

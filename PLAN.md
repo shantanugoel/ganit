@@ -1110,7 +1110,7 @@ Tasks:
 - [x] Conduct backup restore day and migration rehearsal. `RecoveryRehearsalTests` rehearses every instruction in docs/storage/recovery-guide.md: moving a library, export and reimport, returning to an older version with newer-format sheets, and restoring a previous version.
 - [x] Audit sandbox, entitlements, URL/Service/import limits and data provenance. See docs/security/audit.md; imports are now bounded.
 - [ ] Run performance suite on clean machines and compare with competitors.
-- [ ] Freeze grammar/data/document schemas; publish known limitations.
+- [x] Freeze grammar/data/document schemas; publish known limitations. See docs/reference/schema-freeze.md, guarded by `FrozenFormatTests`, and docs/reference/known-limitations.md.
 
 Exit criteria:
 
