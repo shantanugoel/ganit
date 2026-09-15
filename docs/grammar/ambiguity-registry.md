@@ -1,6 +1,6 @@
 # Ambiguity registry
 
-**Registry version:** 1
+**Registry version:** 2
 
 This registry records how the English grammar resolves inputs that could
 reasonably mean more than one thing. Every entry is pinned by named cases in
@@ -86,3 +86,17 @@ unit meaning.
   declared longer name wins: with `total rent` declared, `total rent` is the
   variable and `total` alone is the aggregate.
 
+## `dates` — date and time input versus arithmetic and units
+
+Added in registry version 2; see [date and time syntax](date-syntax.md).
+
+- Exactly four digits, `-`, two digits, `-`, two digits is an ISO date, not
+  subtraction: `2024-03-09` is March 9, 2024. Other digit counts stay
+  arithmetic, so `2024-3-9` is `2012`.
+- Digits, `:`, and two digits form a time of day: `10:30`. `am` and `pm` apply
+  only after such a time: `3:30 pm` is 15:30, while `3 pm` is three picometres.
+- A month name before a one- or two-digit number, or after one, is a date:
+  `May 5` and `5 May` are May 5 of the current year. A declared variable with
+  the month's name is used instead.
+- `today`, `tomorrow`, `yesterday`, `now`, and `ago` are keywords and cannot
+  be variable names.

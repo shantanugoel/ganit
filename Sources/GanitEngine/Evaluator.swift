@@ -100,6 +100,10 @@ private struct EvaluationWorker {
         return try evaluateQuantity(magnitude, unitSyntax)
       case .period(let count, let unit, _):
         return try evaluatePeriod(count, unit)
+      case .temporal(let literal, _):
+        return try temporal.value(of: literal)
+      case .relative(let offset, let isPast, _):
+        return try evaluateRelative(offset, isPast: isPast)
       case .conversion(let valueExpression, let targetSyntax, _, _):
         return try evaluateConversion(valueExpression, to: targetSyntax)
       case .grouped(let nested, _):
@@ -225,6 +229,23 @@ private struct EvaluationWorker {
       throw EngineError(code: .dateOutOfRange, ranges: [countExpression.range])
     }
     return .period(period)
+  }
+
+  @inline(never)
+  private mutating func evaluateRelative(_ offset: Expression, isPast: Bool) throws -> EngineValue {
+    let value = try evaluate(offset)
+    let start: EngineValue
+    switch value {
+    case .period:
+      start = .date(try temporal.today())
+    case .quantity:
+      start = .instant(temporal.now)
+    default:
+      throw typeMismatch(expected: .period, actual: value.kind, range: offset.range)
+    }
+    return try located(at: offset.range) {
+      try temporal.apply(isPast ? .subtract : .add, left: start, right: value)!
+    }
   }
 
   @inline(never)

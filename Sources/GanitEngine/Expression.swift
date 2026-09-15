@@ -60,6 +60,9 @@ public enum Aggregate: String, Hashable, Sendable {
 
 public indirect enum Expression: Equatable, Sendable {
   case literal(NumericLiteral, range: SourceRange)
+  case temporal(TemporalLiteral, range: SourceRange)
+  /// A period or duration before or after now: `3 days ago`, `2 h from now`.
+  case relative(offset: Expression, isPast: Bool, range: SourceRange)
   case identifier(String, range: SourceRange)
   case prefix(
     UnaryOperator,
@@ -115,6 +118,8 @@ public indirect enum Expression: Equatable, Sendable {
   public var range: SourceRange {
     switch self {
     case .literal(_, let range),
+      .temporal(_, let range),
+      .relative(_, _, let range),
       .identifier(_, let range),
       .prefix(_, _, _, let range),
       .infix(_, _, _, _, let range),
@@ -135,12 +140,13 @@ public indirect enum Expression: Equatable, Sendable {
     switch self {
     case .reference(let reference, _):
       return [reference]
-    case .literal, .identifier:
+    case .literal, .temporal, .identifier:
       return []
     case .prefix(_, let operand, _, _),
       .percentage(let operand, _, _),
       .quantity(let operand, _, _),
       .period(let operand, _, _),
+      .relative(let operand, _, _),
       .conversion(let operand, _, _, _),
       .grouped(let operand, _):
       return operand.references

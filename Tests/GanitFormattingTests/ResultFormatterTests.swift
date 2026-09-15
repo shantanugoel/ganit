@@ -99,6 +99,8 @@ struct ResultFormatterTests {
       ),
       (.period(CalendarPeriodValue(months: 14, days: 3)), "1 year, 2 months, 3 days", "P1Y2M3D"),
       (.period(CalendarPeriodValue()), "0 days", "P0D"),
+      (.period(CalendarPeriodValue(days: -298)), "-298 days", "P-298D"),
+      (.period(CalendarPeriodValue(months: 12)), "1 year", "P1Y"),
     ]
 
     for (value, display, fullPrecision) in cases {

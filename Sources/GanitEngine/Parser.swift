@@ -59,7 +59,8 @@ public struct Parser: Sendable {
 /// Words with grammatical meaning, which cannot appear in variable names.
 let reservedIdentifiers: Set<String> = [
   "in", "to", "as", "into", "of", "off", "on", "is", "what", "after",
-  "percentage", "change", "from", "pi", "π", "e",
+  "percentage", "change", "from", "pi", "π", "e", "today", "tomorrow", "yesterday", "now",
+  "ago",
 ]
 
 /// Reference keywords. A longer declared name may start with one.
@@ -74,6 +75,21 @@ let referenceKeywords: [String: LineReference] = [
   "median": .aggregate(.median),
   "count": .aggregate(.count),
 ]
+
+let monthNames: [String: Int] = [
+  "january": 1, "jan": 1, "february": 2, "feb": 2, "march": 3, "mar": 3, "april": 4, "apr": 4,
+  "may": 5, "june": 6, "jun": 6, "july": 7, "jul": 7, "august": 8, "aug": 8, "september": 9,
+  "sep": 9, "sept": 9, "october": 10, "oct": 10, "november": 11, "nov": 11, "december": 12,
+  "dec": 12,
+]
+
+let weekdayNames: [String: Int] = [
+  "sunday": 1, "sun": 1, "monday": 2, "mon": 2, "tuesday": 3, "tue": 3, "tues": 3,
+  "wednesday": 4, "wed": 4, "thursday": 5, "thu": 5, "thurs": 5, "friday": 6, "fri": 6,
+  "saturday": 7, "sat": 7,
+]
+
+let relativeDays = ["yesterday": -1, "today": 0, "tomorrow": 1]
 
 extension Token {
   fileprivate var isEndOfInput: Bool {
@@ -223,6 +239,30 @@ private struct TokenParser {
       }
 
       if 29 >= minimumBindingPower,
+        case .literal(.integer(let digits, .decimal), let range) = left, digits.count <= 2,
+        let word = identifier(at: 0), variables[word] == nil,
+        let month = monthNames[word.lowercased()]
+      {
+        let monthRange = advance().range
+        left = parseYear(month: month, day: Int(digits)!, range: range.union(monthRange))
+        depth += 1
+        continue
+      }
+
+      if 1 >= minimumBindingPower,
+        identifier(at: 0) == "ago" || (identifier(at: 0) == "from" && identifier(at: 1) == "now")
+      {
+        let isPast = identifier(at: 0) == "ago"
+        var end = advance().range
+        if !isPast {
+          end = advance().range
+        }
+        left = .relative(offset: left, isPast: isPast, range: left.range.union(end))
+        depth += 1
+        continue
+      }
+
+      if 29 >= minimumBindingPower,
         canAttachUnit(to: left),
         let word = identifier(at: 0),
         variables[word] == nil,
@@ -315,7 +355,13 @@ private struct TokenParser {
     case .number(let literal):
       return .literal(literal, range: token.range)
 
+    case .temporal(let literal):
+      return parseMeridiem(literal, range: token.range)
+
     case .identifier(let name):
+      if variables[name] == nil, let phrase = parseDatePhrase(name, range: token.range) {
+        return phrase
+      }
       if name == "percentage", identifier(at: 0) == "change" {
         return parsePercentageChange(
           startRange: token.range,
@@ -865,6 +911,63 @@ private struct TokenParser {
     return .identifier(words.joined(separator: " "), range: range.union(end))
   }
 
+  /// `today`, `now`, `next friday`, or a month-name date such as `March 9`.
+  private mutating func parseDatePhrase(_ word: String, range: SourceRange) -> Expression? {
+    let lowercased = word.lowercased()
+    if let days = relativeDays[lowercased] {
+      return .temporal(.relativeDay(days), range: range)
+    }
+    if lowercased == "now" {
+      return .temporal(.now, range: range)
+    }
+    if lowercased == "next" || lowercased == "last",
+      let name = identifier(at: 0), let weekday = weekdayNames[name.lowercased()]
+    {
+      return .temporal(
+        .weekday(weekday, isNext: lowercased == "next"), range: range.union(advance().range))
+    }
+    if let month = monthNames[lowercased],
+      case .number(.integer(let digits, .decimal)) = current.kind, digits.count <= 2
+    {
+      let dayRange = advance().range
+      return parseYear(month: month, day: Int(digits)!, range: range.union(dayRange))
+    }
+    return nil
+  }
+
+  /// A date with the year that follows, as in `March 9, 2024` or `9 March
+  /// 2024`, or in the current year.
+  private mutating func parseYear(month: Int, day: Int, range: SourceRange) -> Expression {
+    let comma = current.kind == .argumentSeparator ? 1 : 0
+    guard case .number(.integer(let digits, .decimal)) = token(at: comma).kind, digits.count == 4
+    else {
+      return .temporal(.date(year: nil, month: month, day: day), range: range)
+    }
+    if comma == 1 {
+      advance()
+    }
+    return .temporal(
+      .date(year: Int(digits)!, month: month, day: day), range: range.union(advance().range))
+  }
+
+  /// A 12-hour time such as `3:30 pm`.
+  private mutating func parseMeridiem(_ literal: TemporalLiteral, range: SourceRange) -> Expression
+  {
+    guard case .time(let hour, let minute, let second) = literal,
+      let word = identifier(at: 0)?.lowercased(), word == "am" || word == "pm"
+    else {
+      return .temporal(literal, range: range)
+    }
+    let meridiem = advance()
+    guard (1...12).contains(hour) else {
+      diagnose(.unexpectedToken, at: meridiem.range)
+      return .temporal(literal, range: range)
+    }
+    let hour24 = hour % 12 + (word == "pm" ? 12 : 0)
+    return .temporal(
+      .time(hour: hour24, minute: minute, second: second), range: range.union(meridiem.range))
+  }
+
   private func startsKnownUnit(at offset: Int) -> Bool {
     guard let alias = identifier(at: offset) else {
       return false
@@ -909,6 +1012,17 @@ private struct TokenParser {
       return .quantity
     case .period:
       return .period
+    case .temporal(let literal, _):
+      switch literal {
+      case .date, .relativeDay, .weekday:
+        return .date
+      case .time:
+        return .time
+      case .dateTime, .now:
+        return .instant
+      }
+    case .relative:
+      return .date
     case .percentage:
       return .percentage
     case .prefix(_, let operand, _, _):

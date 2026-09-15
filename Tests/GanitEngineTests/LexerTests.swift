@@ -24,6 +24,33 @@ struct LexerTests {
   }
 
   @Test
+  func lexesISODatesTimesAndDateTimes() {
+    let result = Lexer(
+      source: "2024-03-09 9:05 14:05:30 2024-03-09T12:00Z 2024-03-09T12:00:01-05:30 2024-3-9"
+    ).lex()
+
+    #expect(result.diagnostics.isEmpty)
+    #expect(
+      result.tokens.map(\.kind) == [
+        .temporal(.date(year: 2024, month: 3, day: 9)),
+        .temporal(.time(hour: 9, minute: 5, second: 0)),
+        .temporal(.time(hour: 14, minute: 5, second: 30)),
+        .temporal(
+          .dateTime(year: 2024, month: 3, day: 9, hour: 12, minute: 0, second: 0, offset: 0)),
+        .temporal(
+          .dateTime(
+            year: 2024, month: 3, day: 9, hour: 12, minute: 0, second: 1, offset: -19_800)),
+        .number(.integer(digits: "2024", radix: .decimal)),
+        .minus,
+        .number(.integer(digits: "3", radix: .decimal)),
+        .minus,
+        .number(.integer(digits: "9", radix: .decimal)),
+        .endOfFile,
+      ]
+    )
+  }
+
+  @Test
   func lexesArithmeticNumbersAndProgrammerLiterals() throws {
     let result = Lexer(source: "12 + 3.50e-2 × 0xff").lex()
 

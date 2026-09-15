@@ -484,6 +484,76 @@
         "lowerBound": 1,
         "upperBound": 6
       }
+    },
+    {
+      "name": "dates: four-two-two digits is an ISO date",
+      "expression": "2024-03-09",
+      "expected": {
+        "status": "value",
+        "display": "Mar 9, 2024",
+        "fullPrecision": "2024-03-09",
+        "approximate": false
+      }
+    },
+    {
+      "name": "dates: other digit counts are subtraction",
+      "expression": "2024-3-9",
+      "expected": {
+        "status": "value",
+        "display": "2,012",
+        "fullPrecision": "2012",
+        "approximate": false
+      }
+    },
+    {
+      "name": "dates: digits colon digits is a time of day",
+      "expression": "10:30",
+      "expected": {
+        "status": "value",
+        "display": "10:30 AM",
+        "fullPrecision": "10:30:00",
+        "approximate": false
+      }
+    },
+    {
+      "name": "dates: pm after a time is a 12-hour time",
+      "expression": "3:30 pm",
+      "expected": {
+        "status": "value",
+        "display": "3:30 PM",
+        "fullPrecision": "15:30:00",
+        "approximate": false
+      }
+    },
+    {
+      "name": "dates: pm after a number is picometres",
+      "expression": "3 pm",
+      "expected": {
+        "status": "value",
+        "display": "3 pm",
+        "fullPrecision": "3 pm",
+        "approximate": false
+      }
+    },
+    {
+      "name": "dates: month name before a day is a date this year",
+      "expression": "May 5",
+      "expected": {
+        "status": "value",
+        "display": "May 5, 2023",
+        "fullPrecision": "2023-05-05",
+        "approximate": false
+      }
+    },
+    {
+      "name": "dates: month name after a day is a date this year",
+      "expression": "5 May",
+      "expected": {
+        "status": "value",
+        "display": "May 5, 2023",
+        "fullPrecision": "2023-05-05",
+        "approximate": false
+      }
     }
   ]
 }

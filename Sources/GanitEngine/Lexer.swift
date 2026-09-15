@@ -118,6 +118,9 @@ private struct Scanner {
       }
 
       if decimalDigit(character) != nil {
+        if scanTemporal() {
+          continue
+        }
         scanNumber()
         continue
       }
@@ -516,6 +519,88 @@ private struct Scanner {
     }
 
     return DecimalDigit(value: value, script: scalar.value - UInt32(value))
+  }
+
+  /// Scans an ISO 8601 date (`2024-03-09`), time (`14:05`, `14:05:30`), or date
+  /// and time (`2024-03-09T14:05`, optionally ending in `Z` or `±HH:MM`).
+  private mutating func scanTemporal() -> Bool {
+    let start = cursor
+    if let year = asciiNumber(at: start, digits: 4), character(at: start + 4) == "-",
+      let month = asciiNumber(at: start + 5, digits: 2), character(at: start + 7) == "-",
+      let day = asciiNumber(at: start + 8, digits: 2),
+      asciiNumber(at: start + 10, digits: 1) == nil
+    {
+      guard character(at: start + 10) == "T", let time = timeLength(at: start + 11) else {
+        cursor = start + 10
+        append(.temporal(.date(year: year, month: month, day: day)), from: start)
+        return true
+      }
+      let (hour, minute, second) = timeFields(at: start + 11)
+      cursor = start + 11 + time
+      var offset: Int?
+      if current == "Z" {
+        offset = 0
+        advance()
+      } else if current == "+" || current == "-",
+        let offsetHours = asciiNumber(at: cursor + 1, digits: 2), character(at: cursor + 3) == ":",
+        let offsetMinutes = asciiNumber(at: cursor + 4, digits: 2),
+        asciiNumber(at: cursor + 6, digits: 1) == nil
+      {
+        offset = (current == "-" ? -1 : 1) * (offsetHours * 3_600 + offsetMinutes * 60)
+        cursor += 6
+      }
+      append(
+        .temporal(
+          .dateTime(
+            year: year, month: month, day: day, hour: hour, minute: minute, second: second,
+            offset: offset)),
+        from: start
+      )
+      return true
+    }
+    guard let time = timeLength(at: start) else {
+      return false
+    }
+    let (hour, minute, second) = timeFields(at: start)
+    cursor = start + time
+    append(.temporal(.time(hour: hour, minute: minute, second: second)), from: start)
+    return true
+  }
+
+  /// The length of `H:MM`, `HH:MM`, `H:MM:SS`, or `HH:MM:SS` at an index.
+  private func timeLength(at index: Int) -> Int? {
+    let hourDigits = asciiNumber(at: index + 1, digits: 1) == nil ? 1 : 2
+    guard asciiNumber(at: index, digits: hourDigits) != nil,
+      character(at: index + hourDigits) == ":",
+      asciiNumber(at: index + hourDigits + 1, digits: 2) != nil
+    else {
+      return nil
+    }
+    var length = hourDigits + 3
+    if character(at: index + length) == ":", asciiNumber(at: index + length + 1, digits: 2) != nil {
+      length += 3
+    }
+    return asciiNumber(at: index + length, digits: 1) == nil ? length : nil
+  }
+
+  private func timeFields(at index: Int) -> (hour: Int, minute: Int, second: Int) {
+    let length = timeLength(at: index)!
+    let hourDigits = length % 3 == 1 ? 1 : 2
+    let minute = asciiNumber(at: index + hourDigits + 1, digits: 2)!
+    let second = length > hourDigits + 3 ? asciiNumber(at: index + hourDigits + 4, digits: 2)! : 0
+    return (asciiNumber(at: index, digits: hourDigits)!, minute, second)
+  }
+
+  /// The value of exactly `digits` ASCII digits at an index.
+  private func asciiNumber(at index: Int, digits: Int) -> Int? {
+    var value = 0
+    for offset in 0..<digits {
+      guard let digit = character(at: index + offset)?.asciiValue, (48...57).contains(digit) else {
+        return nil
+      }
+      value = value * 10 + Int(digit - 48)
+    }
+    return value
   }
 
   private func radixDigitValue(_ character: Character?) -> Int? {

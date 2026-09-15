@@ -15,7 +15,8 @@ between words is normalized, so `monthly   rent` refers to `monthly rent`.
 Names are case-sensitive and compare Unicode canonical equivalents as equal.
 
 A word cannot be a grammar keyword (`in`, `to`, `as`, `into`, `of`, `off`, `on`,
-`is`, `what`, `after`, `percentage`, `change`, `from`), a constant (`pi`, `π`,
+`is`, `what`, `after`, `percentage`, `change`, `from`, `today`, `tomorrow`,
+`yesterday`, `now`, `ago`), a constant (`pi`, `π`,
 `e`), a built-in function name, or a unit alias including prefixed forms. A
 colliding or non-word name, such as `km = 5` or `2x = 1`, fails with
 `syntax.invalidVariableName` and declares nothing.

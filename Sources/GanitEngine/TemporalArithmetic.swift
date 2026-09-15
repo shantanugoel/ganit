@@ -70,6 +70,51 @@ struct TemporalArithmetic {
     }
   }
 
+  func value(of literal: TemporalLiteral) throws -> EngineValue {
+    switch literal {
+    case .date(let year, let month, let day):
+      return .date(try DateValue(year: year ?? today().year, month: month, day: day))
+    case .time(let hour, let minute, let second):
+      return .time(try LocalTimeValue(hour: hour, minute: minute, second: second))
+    case .dateTime(let year, let month, let day, let hour, let minute, let second, let offset):
+      let date = try DateValue(year: year, month: month, day: day)
+      _ = try LocalTimeValue(hour: hour, minute: minute, second: second)
+      guard let zone = offset.map({ TimeZone(secondsFromGMT: $0) }) ?? context.timeZone else {
+        throw EngineError(code: .invalidTime)
+      }
+      var calendar = Calendar(identifier: .gregorian)
+      calendar.timeZone = zone
+      let components = DateComponents(
+        year: date.year, month: date.month, day: date.day,
+        hour: hour, minute: minute, second: second)
+      guard let instant = calendar.date(from: components) else {
+        throw EngineError(code: .dateOutOfRange)
+      }
+      return .instant(InstantValue(date: instant, timeZoneIdentifier: zone.identifier))
+    case .relativeDay(let days):
+      return .date(try add(CalendarPeriodValue(days: days), to: today()))
+    case .now:
+      return .instant(now)
+    case .weekday(let weekday, let isNext):
+      let today = try today()
+      let current = dateCalendar.component(.weekday, from: startOfDay(today))
+      let days = isNext ? (weekday - current + 6) % 7 + 1 : -((current - weekday + 6) % 7 + 1)
+      return .date(try add(CalendarPeriodValue(days: days), to: today))
+    }
+  }
+
+  /// The current moment in the evaluation time zone.
+  var now: InstantValue {
+    InstantValue(date: context.now, timeZoneIdentifier: context.timeZoneIdentifier)
+  }
+
+  /// The current date in the evaluation time zone.
+  func today() throws -> DateValue {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = context.timeZone
+    return try dateValue(calendar.dateComponents([.year, .month, .day], from: context.now))
+  }
+
   func negated(_ period: CalendarPeriodValue) throws -> CalendarPeriodValue {
     try multiply(period, by: -1)
   }
@@ -83,36 +128,38 @@ struct TemporalArithmetic {
     return calendar
   }
 
+  private func startOfDay(_ date: DateValue) -> Date {
+    dateCalendar.date(from: DateComponents(year: date.year, month: date.month, day: date.day))!
+  }
+
   private func add(_ period: CalendarPeriodValue, to date: DateValue) throws -> DateValue {
     let calendar = dateCalendar
     guard
-      let start = calendar.date(
-        from: DateComponents(year: date.year, month: date.month, day: date.day)),
       let end = calendar.date(
-        byAdding: DateComponents(month: period.months, day: period.days), to: start)
+        byAdding: DateComponents(month: period.months, day: period.days), to: startOfDay(date))
     else {
       throw EngineError(code: .dateOutOfRange)
     }
-    let components = calendar.dateComponents([.year, .month, .day], from: end)
+    return try dateValue(calendar.dateComponents([.year, .month, .day], from: end))
+  }
+
+  private func days(from earlier: DateValue, to later: DateValue) throws -> Int {
+    guard
+      let days = dateCalendar.dateComponents(
+        [.day], from: startOfDay(earlier), to: startOfDay(later)
+      ).day
+    else {
+      throw EngineError(code: .dateOutOfRange)
+    }
+    return days
+  }
+
+  private func dateValue(_ components: DateComponents) throws -> DateValue {
     do {
       return try DateValue(year: components.year!, month: components.month!, day: components.day!)
     } catch {
       throw EngineError(code: .dateOutOfRange)
     }
-  }
-
-  private func days(from earlier: DateValue, to later: DateValue) throws -> Int {
-    let calendar = dateCalendar
-    guard
-      let start = calendar.date(
-        from: DateComponents(year: earlier.year, month: earlier.month, day: earlier.day)),
-      let end = calendar.date(
-        from: DateComponents(year: later.year, month: later.month, day: later.day)),
-      let days = calendar.dateComponents([.day], from: start, to: end).day
-    else {
-      throw EngineError(code: .dateOutOfRange)
-    }
-    return days
   }
 
   // MARK: Instants

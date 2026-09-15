@@ -10,8 +10,27 @@ public enum NumericLiteral: Equatable, Sendable {
   case decimal(digits: String, fractionalDigitCount: Int, exponent: Int)
 }
 
+/// A date or time written in ISO 8601 form, or in an English phrase. Fields
+/// are validated when evaluated.
+public enum TemporalLiteral: Equatable, Sendable {
+  /// A calendar date; a `nil` year is the current year.
+  case date(year: Int?, month: Int, day: Int)
+  case time(hour: Int, minute: Int, second: Int)
+  /// A wall-clock date and time, in the evaluation time zone unless a UTC
+  /// offset in seconds is given.
+  case dateTime(
+    year: Int, month: Int, day: Int, hour: Int, minute: Int, second: Int, offset: Int?)
+  /// Today moved by a number of days: `yesterday`, `today`, `tomorrow`.
+  case relativeDay(Int)
+  case now
+  /// The next or last weekday strictly after or before today; weekdays count
+  /// from Sunday as 1.
+  case weekday(Int, isNext: Bool)
+}
+
 public enum TokenKind: Equatable, Sendable {
   case number(NumericLiteral)
+  case temporal(TemporalLiteral)
   case identifier(String)
   case plus
   case minus

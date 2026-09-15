@@ -123,16 +123,86 @@ struct TemporalValueTests {
     #expect(try evaluate("(1/4) s") == .quantity(try duration(0.25)))
   }
 
-  private func evaluate(_ source: String, _ values: [String: EngineValue?] = [:]) throws
-    -> EngineValue
-  {
+  @Test
+  func evaluatesISOInputInTheEvaluationZoneOrItsOffset() throws {
+    let zone = "America/New_York"
+    #expect(try evaluate("2024-02-29") == .date(try DateValue(year: 2024, month: 2, day: 29)))
+    #expect(try evaluate("9:05") == .time(try LocalTimeValue(hour: 9, minute: 5)))
+    #expect(try evaluate("12:30 am") == .time(try LocalTimeValue(hour: 0, minute: 30)))
+    #expect(try evaluate("12:30 PM") == .time(try LocalTimeValue(hour: 12, minute: 30)))
+    #expect(
+      try evaluate("2024-03-09T12:00", zone: zone)
+        == .instant(
+          InstantValue(date: Date(timeIntervalSince1970: 1_710_003_600), timeZoneIdentifier: zone))
+    )
+    #expect(
+      try evaluate("2024-03-09T17:00Z")
+        == .instant(
+          InstantValue(date: Date(timeIntervalSince1970: 1_710_003_600), timeZoneIdentifier: "GMT"))
+    )
+    #expect(
+      try evaluate("2024-03-09T12:00-05:00")
+        == .instant(
+          InstantValue(
+            date: Date(timeIntervalSince1970: 1_710_003_600), timeZoneIdentifier: "GMT-0500"))
+    )
+    #expect(try error("2023-02-29").code == .invalidDate)
+    #expect(try error("24:00").code == .invalidTime)
+    #expect(try error("2024-01-01T12:00+19:00").code == .invalidTime)
+    #expect(Parser(source: "13:00 pm").parse().diagnostics.map(\.code) == [.unexpectedToken])
+  }
+
+  @Test
+  func evaluatesEnglishPhrasesAgainstTheFrozenNow() throws {
+    // The frozen now is Tuesday 2023-11-14 22:13:20 UTC, 17:13 in New York and
+    // Wednesday 07:13 in Tokyo.
+    let zone = "America/New_York"
+    #expect(try evaluate("today") == .date(try DateValue(year: 2023, month: 11, day: 14)))
+    #expect(
+      try evaluate("Today", zone: "Asia/Tokyo")
+        == .date(try DateValue(year: 2023, month: 11, day: 15)))
+    #expect(try evaluate("tomorrow") == .date(try DateValue(year: 2023, month: 11, day: 15)))
+    #expect(try evaluate("yesterday") == .date(try DateValue(year: 2023, month: 11, day: 13)))
+    #expect(
+      try evaluate("now", zone: zone)
+        == .instant(
+          InstantValue(date: Date(timeIntervalSince1970: 1_700_000_000), timeZoneIdentifier: zone))
+    )
+    #expect(try evaluate("next tuesday") == .date(try DateValue(year: 2023, month: 11, day: 21)))
+    #expect(try evaluate("next Wed") == .date(try DateValue(year: 2023, month: 11, day: 15)))
+    #expect(try evaluate("last tuesday") == .date(try DateValue(year: 2023, month: 11, day: 7)))
+    #expect(try evaluate("last sunday") == .date(try DateValue(year: 2023, month: 11, day: 12)))
+    #expect(try evaluate("March 9, 2024") == .date(try DateValue(year: 2024, month: 3, day: 9)))
+    #expect(try evaluate("mar 9 2024") == .date(try DateValue(year: 2024, month: 3, day: 9)))
+    #expect(try evaluate("9 March 2024") == .date(try DateValue(year: 2024, month: 3, day: 9)))
+    #expect(try evaluate("Dec 25") == .date(try DateValue(year: 2023, month: 12, day: 25)))
+    #expect(try evaluate("Dec 25 - today") == .period(CalendarPeriodValue(days: 41)))
+    #expect(try evaluate("3 days ago") == .date(try DateValue(year: 2023, month: 11, day: 11)))
+    #expect(
+      try evaluate("1 month + 2 weeks from now")
+        == .date(try DateValue(year: 2023, month: 12, day: 28)))
+    #expect(
+      try evaluate("90 min ago")
+        == .instant(
+          InstantValue(date: Date(timeIntervalSince1970: 1_699_994_600), timeZoneIdentifier: "GMT"))
+    )
+    #expect(try error("5 ago").code == .typeMismatch)
+    #expect(try error("Feb 30").code == .invalidDate)
+    #expect(
+      try evaluate("may * 2", ["may": .number(.integer(IntegerValue(3)))])
+        == .number(.integer(IntegerValue(6))))
+  }
+
+  private func evaluate(
+    _ source: String, _ values: [String: EngineValue?] = [:], zone: String = "UTC"
+  ) throws -> EngineValue {
     let parsing = Parser(
       source: source,
       variables: values.mapValues { $0?.kind ?? .number }
     ).parse()
     #expect(parsing.diagnostics.isEmpty, "\(source)")
     return try Evaluator(
-      context: fixedContext(),
+      context: fixedContext(zone: zone),
       limits: .default,
       variables: values,
       lines: LineOutcomes()
@@ -168,7 +238,7 @@ struct TemporalValueTests {
     UnitAlgebra(context: try fixedContext(), limits: .default)
   }
 
-  private func fixedContext() throws -> EvaluationContext {
+  private func fixedContext(zone: String = "UTC") throws -> EvaluationContext {
     try EvaluationContext(
       localeIdentifier: "en-US",
       lexingConfiguration: .englishUnitedStates,
@@ -176,7 +246,7 @@ struct TemporalValueTests {
       precision: try PrecisionContext(significantDecimalDigits: 15),
       now: Date(timeIntervalSince1970: 1_700_000_000),
       calendar: Calendar(identifier: .gregorian),
-      timeZone: try #require(TimeZone(identifier: "UTC"))
+      timeZone: try #require(TimeZone(identifier: zone))
     )
   }
 }

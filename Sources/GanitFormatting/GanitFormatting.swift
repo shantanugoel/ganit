@@ -468,20 +468,27 @@ public struct ResultFormatter: Sendable {
   }
 
   /// A period in years, months, and days, such as `1 year, 2 months, 3 days`.
+  /// Days are formatted apart from months so they never become months.
   private func periodDisplay(_ period: CalendarPeriodValue) -> String {
-    let formatter = DateComponentsFormatter()
     var calendar = Calendar(identifier: .gregorian)
     calendar.locale = locale
-    formatter.calendar = calendar
-    formatter.unitsStyle = .full
-    formatter.allowedUnits = [.year, .month, .day]
-    formatter.zeroFormattingBehavior = .dropAll
-    let components = DateComponents(
-      year: period.months / 12,
-      month: period.months % 12,
-      day: period.days
-    )
-    return formatter.string(from: components) ?? periodISO(period)
+    func format(_ components: DateComponents, units: NSCalendar.Unit) -> String? {
+      let formatter = DateComponentsFormatter()
+      formatter.calendar = calendar
+      formatter.unitsStyle = .full
+      formatter.allowedUnits = units
+      formatter.zeroFormattingBehavior = .dropAll
+      return formatter.string(from: components)
+    }
+    let months =
+      period.months == 0
+      ? nil
+      : format(
+        DateComponents(year: period.months / 12, month: period.months % 12), units: [.year, .month])
+    let days =
+      period.days == 0 && months != nil
+      ? nil : format(DateComponents(day: period.days), units: .day)
+    return [months, days].compactMap { $0 }.joined(separator: ", ")
   }
 
   /// ISO 8601 duration notation with signed components, such as `P1Y2M3D`.

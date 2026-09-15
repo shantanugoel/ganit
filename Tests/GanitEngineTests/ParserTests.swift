@@ -284,6 +284,10 @@ struct ParserTests {
       return "\(shape(magnitude)) \(unitShape(unit))"
     case .period(let count, let unit, _):
       return "\(shape(count)) \(unit.rawValue)"
+    case .temporal(let literal, _):
+      return "\(literal)"
+    case .relative(let offset, let isPast, _):
+      return "(\(shape(offset)) \(isPast ? "ago" : "from now"))"
     case .conversion(let value, let target, _, _):
       return "(\(shape(value)) -> \(unitShape(target)))"
     case .grouped(let expression, _):
