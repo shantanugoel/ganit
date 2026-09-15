@@ -48,6 +48,8 @@ final class GanitApplication: NSObject, NSApplicationDelegate {
     NSApplication.shared.activate()
   }
 
+  /// Opens a window with a new sheet when no workspace window handles the
+  /// command.
   @objc func newSheet(_ sender: Any?) {
     guard let library else {
       return

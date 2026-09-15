@@ -1,10 +1,24 @@
 import AppKit
 import GanitEditorUI
 
-/// Application-level actions handled by the application delegate.
+/// Library and sheet actions handled by workspace windows. The application
+/// delegate also handles New Sheet when no window is open.
 @MainActor
 @objc public protocol WorkspaceCommands {
   func newSheet(_ sender: Any?)
+  func newFolder(_ sender: Any?)
+  func renameSheet(_ sender: Any?)
+  func duplicateSheet(_ sender: Any?)
+  func toggleFavorite(_ sender: Any?)
+  func moveSheetToFolder(_ sender: Any?)
+  func archiveSheet(_ sender: Any?)
+  func moveSheetToTrash(_ sender: Any?)
+  func restoreSheet(_ sender: Any?)
+  func deleteSheetImmediately(_ sender: Any?)
+  func emptyTrash(_ sender: Any?)
+  func renameFolder(_ sender: Any?)
+  func deleteFolder(_ sender: Any?)
+  func searchSheets(_ sender: Any?)
   func restorePreviousVersion(_ sender: Any?)
 }
 
@@ -60,8 +74,45 @@ public enum MainMenu {
         [
           item(
             localized("menu.newSheet", "New Sheet"), #selector(WorkspaceCommands.newSheet(_:)), "n"),
+          item(
+            localized("menu.newFolder", "New Folder"),
+            #selector(WorkspaceCommands.newFolder(_:)),
+            "n",
+            [.command, .shift]
+          ),
           .separator(),
           item(localized("menu.close", "Close"), #selector(NSWindow.performClose(_:)), "w"),
+          .separator(),
+          item(
+            localized("menu.renameSheet", "Rename…"), #selector(WorkspaceCommands.renameSheet(_:))),
+          item(
+            localized("menu.duplicateSheet", "Duplicate"),
+            #selector(WorkspaceCommands.duplicateSheet(_:)), "d"),
+          item(
+            localized("menu.addFavorite", "Add to Favorites"),
+            #selector(WorkspaceCommands.toggleFavorite(_:))),
+          item(
+            localized("menu.archiveSheet", "Archive"), #selector(WorkspaceCommands.archiveSheet(_:))
+          ),
+          item(
+            localized("menu.moveToTrash", "Move to Trash"),
+            #selector(WorkspaceCommands.moveSheetToTrash(_:))),
+          item(
+            localized("menu.putBack", "Put Back"), #selector(WorkspaceCommands.restoreSheet(_:))),
+          item(
+            localized("menu.deleteImmediately", "Delete Immediately…"),
+            #selector(WorkspaceCommands.deleteSheetImmediately(_:))
+          ),
+          item(
+            localized("menu.emptyTrash", "Empty Trash…"),
+            #selector(WorkspaceCommands.emptyTrash(_:))),
+          .separator(),
+          item(
+            localized("menu.searchSheets", "Search Sheets"),
+            #selector(WorkspaceCommands.searchSheets(_:)),
+            "f",
+            [.command, .shift]
+          ),
           item(
             localized("menu.restorePreviousVersion", "Restore Previous Version…"),
             #selector(WorkspaceCommands.restorePreviousVersion(_:))
@@ -213,8 +264,4 @@ public enum MainMenu {
     item.tag = action.rawValue
     return item
   }
-}
-
-private func localized(_ key: StaticString, _ defaultValue: String.LocalizationValue) -> String {
-  String(localized: key, defaultValue: defaultValue, bundle: .main)
 }

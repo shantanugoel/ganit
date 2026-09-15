@@ -30,6 +30,9 @@ public struct SheetMetadata: Codable, Equatable, Sendable {
   public private(set) var schemaVersion = currentSchemaVersion
   public let id: UUID
   public var title: String
+  /// Whether the user named the sheet; otherwise its title follows its first
+  /// line.
+  public var hasCustomTitle = false
   public var folderID: UUID?
   public var createdAt: Date
   public var modifiedAt: Date
@@ -99,7 +102,8 @@ public struct SheetStore: Sendable {
   }
 
   /// Saves source and metadata, stamping the metadata with the source's
-  /// checksum, and returns the metadata as written.
+  /// checksum and whole-second timestamps, and returns the metadata as
+  /// written.
   @discardableResult
   public func save(source: String, metadata: SheetMetadata) throws -> SheetMetadata {
     try FileManager.default.createDirectory(at: sheetsDirectory, withIntermediateDirectories: true)
@@ -108,9 +112,27 @@ public struct SheetStore: Sendable {
     let sourceData = Data(source.utf8)
     var metadata = metadata
     metadata.sourceChecksum = checksum(of: sourceData)
+    metadata.createdAt = Date(
+      timeIntervalSince1970: metadata.createdAt.timeIntervalSince1970.rounded(.down))
+    metadata.modifiedAt = Date(
+      timeIntervalSince1970: metadata.modifiedAt.timeIntervalSince1970.rounded(.down))
     try AtomicFile.write(sourceData, to: sourceURL(metadata.id))
     try AtomicFile.write(try Self.encoder.encode(metadata), to: metadataURL(metadata.id))
     return metadata
+  }
+
+  /// Replaces only a sheet's metadata, keeping the checksum of its current
+  /// source.
+  public func saveMetadata(_ metadata: SheetMetadata) throws {
+    try AtomicFile.write(try Self.encoder.encode(metadata), to: metadataURL(metadata.id))
+  }
+
+  /// Removes a sheet's source and metadata files.
+  public func delete(id: UUID) throws {
+    for url in [metadataURL(id), sourceURL(id)]
+    where FileManager.default.fileExists(atPath: url.path) {
+      try FileManager.default.removeItem(at: url)
+    }
   }
 
   public func load(id: UUID) throws -> StoredSheet {

@@ -30,7 +30,7 @@ public struct BackupPolicy: Equatable, Sendable {
 /// backups under one root.
 ///
 /// ```text
-/// <root>/Sheets/  Metadata/  Index/index.sqlite  Backups/YYYY-MM-DD/{Sheets,Metadata}/
+/// <root>/Sheets/  Metadata/  Folders.json  Index/index.sqlite  Backups/YYYY-MM-DD/{Sheets,Metadata}/
 /// ```
 ///
 /// Each backup day mirrors the library layout, so it reads like a store.
@@ -40,6 +40,7 @@ public final class SheetLibrary {
   private let backupPolicy: BackupPolicy
   private let now: () -> Date
   private let dayFormatter: DateFormatter
+  private let folderStore: SheetFolderStore
 
   private var backupsDirectory: URL {
     store.root.appending(path: "Backups", directoryHint: .isDirectory)
@@ -54,6 +55,7 @@ public final class SheetLibrary {
   ) throws {
     store = SheetStore(root: root)
     index = try SheetIndex(url: root.appending(path: "Index/index.sqlite"))
+    folderStore = SheetFolderStore(url: root.appending(path: "Folders.json"))
     self.backupPolicy = backupPolicy
     self.now = now
     dayFormatter = DateFormatter()
@@ -75,17 +77,100 @@ public final class SheetLibrary {
   }
 
   /// Saves a sheet's source, first backing up the files it replaces if they
-  /// have no backup for today. The title follows the first non-blank line,
-  /// without a heading's `#`.
+  /// have no backup for today. Unless the sheet was renamed, the title
+  /// follows the first non-blank line, without a heading's `#`.
   @discardableResult
   public func save(source: String, metadata: SheetMetadata) throws -> SheetMetadata {
     try backUpBeforeFirstChangeToday(metadata.id)
     var metadata = metadata
     metadata.modifiedAt = now()
-    metadata.title = SheetSource(source).lines.lazy.compactMap(title(of:)).first ?? ""
+    if !metadata.hasCustomTitle {
+      metadata.title = SheetSource(source).lines.lazy.compactMap(title(of:)).first ?? ""
+    }
     let saved = try store.save(source: source, metadata: metadata)
     try index.upsert(saved, source: source)
     return saved
+  }
+
+  // MARK: Organizing sheets
+
+  /// Changes a sheet's title, favorite flag, folder, or state without
+  /// changing its source or modification time.
+  @discardableResult
+  public func update(
+    _ id: UUID,
+    _ change: (inout SheetMetadata) -> Void
+  ) throws -> SheetMetadata {
+    let sheet = try store.load(id: id)
+    var metadata = sheet.metadata
+    change(&metadata)
+    try store.saveMetadata(metadata)
+    try index.upsert(metadata, source: sheet.source)
+    return metadata
+  }
+
+  /// Names a sheet; an empty name returns the title to following its first
+  /// line.
+  @discardableResult
+  public func rename(_ id: UUID, to title: String) throws -> SheetMetadata {
+    let sheet = try store.load(id: id)
+    var metadata = sheet.metadata
+    metadata.hasCustomTitle = !title.isEmpty
+    metadata.title = title
+    return try save(source: sheet.source, metadata: metadata)
+  }
+
+  /// Copies a sheet into a new active sheet in the same folder.
+  public func duplicate(_ id: UUID) throws -> SheetMetadata {
+    let sheet = try store.load(id: id)
+    var copy = SheetMetadata(
+      title: sheet.metadata.title,
+      folderID: sheet.metadata.folderID,
+      createdAt: now(),
+      preferences: sheet.metadata.preferences
+    )
+    copy.hasCustomTitle = sheet.metadata.hasCustomTitle
+    return try save(source: sheet.source, metadata: copy)
+  }
+
+  /// Deletes a sheet's files, index entry, and backups. This cannot be undone.
+  public func deletePermanently(_ id: UUID) throws {
+    try store.delete(id: id)
+    try index.remove(id: id)
+    for day in try backupDays() {
+      try backupStore(day: day).delete(id: id)
+    }
+  }
+
+  /// Permanently deletes every trashed sheet.
+  public func emptyTrash() throws {
+    for summary in try index.summaries() where summary.state == .trashed {
+      try deletePermanently(summary.id)
+    }
+  }
+
+  // MARK: Folders
+
+  public func folders() throws -> [SheetFolder] {
+    try folderStore.load()
+  }
+
+  public func createFolder(named name: String) throws -> SheetFolder {
+    let folder = SheetFolder(id: UUID(), name: name)
+    try folderStore.save(folders() + [folder])
+    return folder
+  }
+
+  public func renameFolder(_ id: UUID, to name: String) throws {
+    try folderStore.save(folders().map { $0.id == id ? SheetFolder(id: id, name: name) : $0 })
+  }
+
+  /// Removes a folder; its sheets move out of it rather than being deleted.
+  public func deleteFolder(_ id: UUID) throws {
+    for summary in try index.summaries() where summary.folderID == id {
+      try update(summary.id) { $0.folderID = nil }
+    }
+    try folderStore.save(folders().filter { $0.id != id })
   }
 
   /// A sheet's backups, newest first.
