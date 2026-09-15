@@ -17,6 +17,15 @@ All Sheets, Recent, Favorites, and folders list only active sheets; Archive and
 Trash list archived and trashed sheets. Selecting a sheet saves the open sheet
 and opens the selected one. A trashed sheet opens read-only.
 
+## The scratch sheet
+
+Every library holds one sheet at a well-known ID, titled **Scratch**, created
+when the library opens. It is somewhere to work a number out without naming or
+filing it first, so **Window ▸ Scratch** (⇧⌘S) and the menu bar item both open
+it, and it cannot be renamed, archived, trashed, or deleted; `deletePermanently`
+refuses its ID. It is an ordinary sheet in every other way, and can be
+duplicated, favorited, and filed.
+
 ## Commands
 
 Commands apply to the clicked sheet during a context menu, or else to the
@@ -31,7 +40,7 @@ selected sheet, and appear in both the File menu and context menus.
 | Duplicate ⌘D | Copies the sheet into a new sheet in the same folder and opens it |
 | Add to / Remove from Favorites | Toggles the favorite flag |
 | Move to Folder | Moves the sheet into a folder or out of all folders |
-| Archive, Move to Trash | Changes the sheet's state; if it was open, the first listed sheet opens |
+| Archive, Move to Trash | Changes the sheet's state; if it was open, the first listed sheet opens. Both are disabled for the scratch sheet |
 | Unarchive, Put Back | Returns the sheet to active |
 | Delete Immediately…, Empty Trash… | After confirmation, deletes trashed sheets with their backups |
 | Rename Folder…, Delete Folder | Deleting a folder moves its sheets out of it |

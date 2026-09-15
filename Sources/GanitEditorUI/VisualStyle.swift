@@ -72,7 +72,11 @@ public enum VisualStyle {
     public static let archive = "archivebox"
     public static let trash = "trash"
     public static let folder = "folder"
+    /// Ganit's mark in the menu bar.
+    public static let menuBar = "function"
 
-    public static let all = [newSheet, allSheets, recent, favorites, archive, trash, folder]
+    public static let all = [
+      newSheet, allSheets, recent, favorites, archive, trash, folder, menuBar,
+    ]
   }
 }

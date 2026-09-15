@@ -73,7 +73,8 @@ struct DefinitionsWindowTests {
     #expect(window.styleMask.isSuperset(of: [.titled, .closable, .miniaturizable, .resizable]))
     #expect(window.title == "Definitions")
     #expect(window.contentViewController is SheetEditorViewController)
-    #expect(try workspace.library.index.summaries().isEmpty)
+    // The definitions sheet is not a library sheet; only scratch is.
+    #expect(try workspace.library.index.summaries().map(\.id) == [SheetLibrary.scratchID])
   }
 
   private func answer(_ editor: SheetEditorViewController, _ id: LineID) -> String? {

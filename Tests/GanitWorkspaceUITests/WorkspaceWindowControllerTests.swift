@@ -33,7 +33,7 @@ struct WorkspaceWindowControllerTests {
     #expect(window.toolbar?.items.map(\.itemIdentifier).contains(.searchSheets) == true)
     #expect(controller.editor?.view.superview != nil)
     #expect(window.title == "Untitled")
-    #expect(controller.sidebar.sheets.map(\.id) == ids)
+    #expect(Set(controller.sidebar.sheets.map(\.id)) == Set([SheetLibrary.scratchID] + ids))
   }
 
   @Test
@@ -145,7 +145,9 @@ struct WorkspaceWindowControllerTests {
     controller.moveSheetToTrash(nil)
     undoManager.endUndoGrouping()
     #expect(try library.store.load(id: ids[0]).metadata.state == .trashed)
-    #expect(controller.sheetID == ids[1])
+    // The window moves off the trashed sheet to one still listed.
+    let shown = try #require(controller.sheetID)
+    #expect([ids[1], SheetLibrary.scratchID].contains(shown))
 
     undoManager.undo()
     #expect(try library.store.load(id: ids[0]).metadata.state == .active)
@@ -317,6 +319,48 @@ struct WorkspaceWindowControllerTests {
     defer { close(reopened) }
     let sheetAgain = try #require(reopened.openWindow(showing: ids[0]).editor)
     #expect(await sheetAgain.exportedLines().first?.answer == "1234.50")
+  }
+
+  @Test
+  func everyLibraryHasAScratchSheetThatCannotBePutAwayOrRenamed() throws {
+    let (workspace, ids) = try makeWorkspace(["rent"])
+    defer { close(workspace) }
+    let controller = try workspace.openScratch()
+
+    #expect(controller.sheetID == SheetLibrary.scratchID)
+    #expect(controller.window?.title == "Scratch")
+    #expect(try workspace.library.store.load(id: SheetLibrary.scratchID).source == "")
+
+    select(SheetLibrary.scratchID, in: controller)
+    for action in [
+      #selector(WorkspaceCommands.renameSheet(_:)),
+      #selector(WorkspaceCommands.archiveSheet(_:)),
+      #selector(WorkspaceCommands.moveSheetToTrash(_:)),
+      #selector(WorkspaceCommands.deleteSheetImmediately(_:)),
+    ] {
+      let item = NSMenuItem(title: "", action: action, keyEquivalent: "")
+      #expect(!controller.validateMenuItem(item), "\(action)")
+    }
+    #expect(
+      controller.validateMenuItem(
+        NSMenuItem(
+          title: "", action: #selector(WorkspaceCommands.duplicateSheet(_:)), keyEquivalent: "")))
+    #expect(throws: DocumentStorageError.self) {
+      try workspace.library.deletePermanently(SheetLibrary.scratchID)
+    }
+
+    // An ordinary sheet is still put away and deleted as before.
+    select(ids[0], in: controller)
+    #expect(
+      controller.validateMenuItem(
+        NSMenuItem(
+          title: "", action: #selector(WorkspaceCommands.moveSheetToTrash(_:)), keyEquivalent: "")))
+
+    // Opening the library again finds the same scratch sheet, not another.
+    let reopened = try Workspace(library: try SheetLibrary(root: root))
+    defer { close(reopened) }
+    #expect(
+      Set(try reopened.library.index.summaries().map(\.id)) == Set([SheetLibrary.scratchID] + ids))
   }
 
   @Test

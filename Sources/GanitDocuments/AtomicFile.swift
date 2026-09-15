@@ -5,6 +5,7 @@ public enum DocumentStorageError: Error, Equatable {
   case posix(operation: String, code: Int32)
   case invalidUTF8(URL)
   case unsupportedSchemaVersion(Int)
+  case undeletableSheet(UUID)
 }
 
 /// Replaces a file so readers see either its previous or its new complete

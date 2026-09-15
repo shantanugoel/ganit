@@ -2,6 +2,7 @@ import AppIntents
 import AppKit
 import GanitDiagnostics
 import GanitDocuments
+import GanitEditorUI
 import GanitQuickUI
 import GanitSystemIntegration
 import GanitWorkspaceUI
@@ -26,6 +27,8 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   private var serviceProvider: ExpressionServiceProvider?
   private let spotlight = SpotlightTitleIndex()
   private static let spotlightDefaultsKey = "SpotlightIndexesSheetTitles"
+  private static let menuBarDefaultsKey = "GanitStaysInMenuBar"
+  private var statusItem: NSStatusItem?
   private var shortcutWindow: NSWindow?
   private lazy var hotKey = GlobalHotKey { [weak self] in
     self?.toggleQuickGanit()
@@ -83,6 +86,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     }
     self.serviceProvider = serviceProvider
     NSApplication.shared.servicesProvider = serviceProvider
+    updateMenuBarItem()
     if let data = UserDefaults.standard.data(forKey: Self.shortcutDefaultsKey),
       let shortcut = try? JSONDecoder().decode(KeyboardShortcut.self, from: data)
     {
@@ -162,6 +166,66 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     } catch {
       NSApplication.shared.presentError(error)
     }
+  }
+
+  /// Opens the scratch sheet, the one sheet every library has.
+  @objc func showScratch(_ sender: Any?) {
+    do {
+      try workspace?.openScratch()
+      NSApplication.shared.activate()
+    } catch {
+      NSApplication.shared.presentError(error)
+    }
+  }
+
+  // MARK: The menu bar
+
+  /// Puts Ganit in the menu bar, or takes it out.
+  @objc func toggleMenuBarItem(_ sender: Any?) {
+    UserDefaults.standard.set(
+      !UserDefaults.standard.bool(forKey: Self.menuBarDefaultsKey), forKey: Self.menuBarDefaultsKey)
+    updateMenuBarItem()
+  }
+
+  /// A short menu of the things worth reaching for without a window: the
+  /// scratch sheet, Quick Ganit, and a new sheet.
+  private func updateMenuBarItem() {
+    guard UserDefaults.standard.bool(forKey: Self.menuBarDefaultsKey) else {
+      statusItem.map(NSStatusBar.system.removeStatusItem)
+      statusItem = nil
+      return
+    }
+    guard statusItem == nil else {
+      return
+    }
+    let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+    item.button?.image = NSImage(
+      systemSymbolName: VisualStyle.Symbol.menuBar, accessibilityDescription: "Ganit")
+    let menu = NSMenu()
+    for (title, action) in [
+      (menuBarTitle("menu.scratch", "Scratch"), #selector(showScratch(_:))),
+      (menuBarTitle("menu.quickGanit", "Quick Ganit"), #selector(showQuickGanit(_:))),
+      (menuBarTitle("menu.newSheet", "New Sheet"), #selector(newSheet(_:))),
+    ] {
+      let entry = NSMenuItem(title: title, action: action, keyEquivalent: "")
+      entry.target = self
+      menu.addItem(entry)
+    }
+    menu.addItem(.separator())
+    menu.addItem(
+      withTitle: menuBarTitle("menu.quit", "Quit Ganit"),
+      action: #selector(NSApplication.terminate(_:)),
+      keyEquivalent: ""
+    )
+    item.menu = menu
+    statusItem = item
+  }
+
+  private func menuBarTitle(
+    _ key: StaticString,
+    _ defaultValue: String.LocalizationValue
+  ) -> String {
+    String(localized: key, defaultValue: defaultValue, bundle: .main)
   }
 
   // MARK: Quick Ganit
@@ -268,6 +332,8 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
           UserDefaults.standard.bool(forKey: Self.spotlightDefaultsKey)),
         "Quick Ganit starts empty": onOff(
           UserDefaults.standard.bool(forKey: Self.startsEmptyDefaultsKey)),
+        "Stay in the menu bar": onOff(
+          UserDefaults.standard.bool(forKey: Self.menuBarDefaultsKey)),
         "Exchange rates published": rateRefresher?.rates.observationDate ?? "none",
       ],
       sheetCount: (try? workspace?.library.index.summaries().count) ?? 0,
@@ -330,6 +396,8 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     switch menuItem.action {
     case #selector(toggleSpotlightTitles(_:)):
       menuItem.state = UserDefaults.standard.bool(forKey: Self.spotlightDefaultsKey) ? .on : .off
+    case #selector(toggleMenuBarItem(_:)):
+      menuItem.state = UserDefaults.standard.bool(forKey: Self.menuBarDefaultsKey) ? .on : .off
     case #selector(toggleQuickGanitStartsEmpty(_:)):
       menuItem.state = UserDefaults.standard.bool(forKey: Self.startsEmptyDefaultsKey) ? .on : .off
     case #selector(toggleAutomaticExchangeRateUpdates(_:)):

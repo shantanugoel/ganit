@@ -149,6 +149,23 @@ public final class SheetLibrary {
     try store.save(source: source, metadata: metadata)
   }
 
+  /// The sheet every library has: somewhere to work a number out without
+  /// naming or filing it first. It is created when the library opens, and,
+  /// being the one sheet always there, it cannot be deleted.
+  public static let scratchID = UUID(uuidString: "5C4A7C40-0000-4000-8000-000000000001")!
+
+  /// Creates the scratch sheet when the library has none, and returns it.
+  @discardableResult
+  public func openScratch() throws -> SheetMetadata {
+    if let existing = try? store.load(id: Self.scratchID) {
+      return existing.metadata
+    }
+    var metadata = SheetMetadata(
+      id: Self.scratchID, title: "Scratch", createdAt: now(), preferences: .standard)
+    metadata.hasCustomTitle = true
+    return try save(source: "", metadata: metadata)
+  }
+
   /// Creates and saves an empty sheet.
   public func create(preferences: SheetPreferences) throws -> SheetMetadata {
     try save(
@@ -218,8 +235,12 @@ public final class SheetLibrary {
     return try save(source: sheet.source, metadata: copy)
   }
 
-  /// Deletes a sheet's files, index entry, and backups. This cannot be undone.
+  /// Deletes a sheet's files, index entry, and backups. This cannot be undone,
+  /// and the scratch sheet refuses it.
   public func deletePermanently(_ id: UUID) throws {
+    guard id != Self.scratchID else {
+      throw DocumentStorageError.undeletableSheet(id)
+    }
     try changingIndexedFiles {
       try store.delete(id: id)
       try index.remove(id: id)

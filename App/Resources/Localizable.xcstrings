@@ -1081,6 +1081,16 @@
         }
       }
     },
+    "menu.scratch" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scratch"
+          }
+        }
+      }
+    },
     "menu.scientific" : {
       "localizations" : {
         "en" : {
@@ -1177,6 +1187,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Show Sheet Titles in Spotlight"
+          }
+        }
+      }
+    },
+    "menu.stayInMenuBar" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stay in the Menu Bar"
           }
         }
       }

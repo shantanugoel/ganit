@@ -5,7 +5,9 @@ import GanitEditorUI
 @MainActor
 @objc public protocol ApplicationCommands {
   func showDefinitions(_ sender: Any?)
+  func showScratch(_ sender: Any?)
   func showQuickGanit(_ sender: Any?)
+  func toggleMenuBarItem(_ sender: Any?)
   func showQuickGanitShortcut(_ sender: Any?)
   func toggleQuickGanitStartsEmpty(_ sender: Any?)
   func updateExchangeRates(_ sender: Any?)
@@ -70,6 +72,12 @@ public enum MainMenu {
           [.command, .shift]
         ),
         item(
+          localized("menu.scratch", "Scratch"),
+          #selector(ApplicationCommands.showScratch(_:)),
+          "s",
+          [.command, .shift]
+        ),
+        item(
           localized("menu.quickGanit", "Quick Ganit"),
           #selector(ApplicationCommands.showQuickGanit(_:))),
         item(
@@ -108,6 +116,9 @@ public enum MainMenu {
             localized("menu.checkForUpdates", "Check for Updates…"),
             #selector(ApplicationCommands.checkForUpdates(_:))),
           .separator(),
+          item(
+            localized("menu.stayInMenuBar", "Stay in the Menu Bar"),
+            #selector(ApplicationCommands.toggleMenuBarItem(_:))),
           item(
             localized("menu.spotlightTitles", "Show Sheet Titles in Spotlight"),
             #selector(ApplicationCommands.toggleSpotlightTitles(_:))),

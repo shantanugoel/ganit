@@ -60,6 +60,7 @@ public final class Workspace {
   public init(library: SheetLibrary, definitions store: TextDocumentStore? = nil) throws {
     self.library = library
     definitionsStore = store
+    try library.openScratch()
     if let text = store?.load(), !text.isEmpty {
       definitions = try SheetDefinitions(
         source: text,
@@ -109,6 +110,12 @@ public final class Workspace {
     }
     shown.showWindow(nil)
     return shown
+  }
+
+  /// Shows the scratch sheet, which every library has.
+  @discardableResult
+  public func openScratch() throws -> WorkspaceWindowController {
+    reveal(try library.openScratch().id)
   }
 
   /// Opens a window with the most recently modified active sheet, or with a

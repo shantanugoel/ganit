@@ -542,9 +542,13 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
       menuItem.state = displayOptions?.showsAnswerSeparator == true ? .on : .off
       // Answers written inline leave nothing for the rule to separate.
       return displayOptions?.writesAnswersInline == false
-    case #selector(renameSheet(_:)), #selector(duplicateSheet(_:)),
-      #selector(moveSheetToFolder(_:)), #selector(archiveSheet(_:)), #selector(openInNewWindow(_:)):
+    case #selector(duplicateSheet(_:)), #selector(moveSheetToFolder(_:)),
+      #selector(openInNewWindow(_:)):
       return target?.state == .active
+    // The scratch sheet is the one a person can always reach for, so it keeps
+    // its name and cannot be put away.
+    case #selector(renameSheet(_:)), #selector(archiveSheet(_:)):
+      return target?.state == .active && target?.id != SheetLibrary.scratchID
     case #selector(toggleFavorite(_:)):
       menuItem.title =
         target?.isFavorite == true
@@ -552,7 +556,7 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
         : localized("menu.addFavorite", "Add to Favorites")
       return target?.state == .active
     case #selector(moveSheetToTrash(_:)):
-      return target != nil && target?.state != .trashed
+      return target != nil && target?.state != .trashed && target?.id != SheetLibrary.scratchID
     case #selector(restoreSheet(_:)):
       return target != nil && target?.state != .active
     case #selector(deleteSheetImmediately(_:)):

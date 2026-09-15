@@ -34,6 +34,7 @@ let package = Package(
       dependencies: [
         "GanitDiagnostics",
         "GanitDocuments",
+        "GanitEditorUI",
         "GanitWorkspaceUI",
         "GanitQuickUI",
         "GanitSystemIntegration",
