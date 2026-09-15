@@ -141,7 +141,12 @@ public struct RateProvenanceFormatter: Sendable {
   }
 
   private func localized(_ key: StaticString, defaultValue: String.LocalizationValue) -> String {
-    String(localized: key, defaultValue: defaultValue, bundle: .module, locale: locale)
+    String(
+      localized: key,
+      defaultValue: defaultValue,
+      bundle: FormattingResources.bundle,
+      locale: locale
+    )
   }
 }
 

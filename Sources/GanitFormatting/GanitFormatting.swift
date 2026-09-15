@@ -695,7 +695,7 @@ public struct ResultFormatter: Sendable {
   ) -> String {
     guard
       let language = locale.language.languageCode?.identifier,
-      let path = Bundle.module.path(
+      let path = FormattingResources.bundle?.path(
         forResource: language,
         ofType: "lproj"
       ),
@@ -1119,7 +1119,7 @@ public struct DiagnosticFormatter: Sendable {
     String(
       localized: key,
       defaultValue: defaultValue,
-      bundle: .module,
+      bundle: FormattingResources.bundle,
       locale: locale
     )
   }

@@ -63,6 +63,23 @@ arbitrary-scale zero padding and grouping growth before allocation and throws
 `FormattingError.outputTooLong` when either output would exceed the configured
 character limit.
 
+## Where the words come from
+
+Diagnostic messages, rate provenance, and rate periods are written in a string
+catalog that ships as this module's resource bundle. `FormattingResources`
+finds it, rather than SwiftPM's generated `Bundle.module`, which looks only
+beside the executable and in the absolute build directory of the machine that
+compiled it and stops the program when it finds neither. A sandboxed app
+reaches neither of those, so `Bundle.module` crashed the shipped app the first
+time a line failed; `ModuleBoundaryTests` now keeps it out of `Sources`.
+
+The search covers the layouts Ganit is assembled into: an app's
+`Contents/Resources`, a package build's product directory, the resources a
+helper such as the command-line tool sits beside, and the directory a test
+bundle is built into. A bundle that cannot be found leaves each message as the
+English written at its call site, because wording an answer is not worth
+stopping for.
+
 `DiagnosticFormatter` turns syntax, evaluation, and formatting failures into
 `FormattedDiagnostic` values. The engine retains stable codes, severity,
 source ranges, fix-its, and localization-neutral typed context; the formatting

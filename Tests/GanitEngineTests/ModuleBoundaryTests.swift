@@ -78,3 +78,24 @@ func appModulesDoNotLog() throws {
     }
   }
 }
+
+/// `Bundle.module` stops the program when it cannot find its resource bundle,
+/// and it looks only beside the executable and in the absolute build directory
+/// of the machine that compiled it. A sandboxed app reaches neither, so a use of
+/// it crashes the shipped app the first time it needs a word. `Sources` find
+/// their strings through `FormattingResources` instead.
+@Test
+func sourcesFindStringsWithoutTrappingOnAMissingBundle() throws {
+  let sources = URL(fileURLWithPath: #filePath)
+    .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+    .appending(path: "Sources")
+  let files = try #require(
+    FileManager.default.enumerator(at: sources, includingPropertiesForKeys: nil)?
+      .compactMap { $0 as? URL }.filter { $0.pathExtension == "swift" })
+  // The file that replaces it is where the reason is written down.
+  for file in files where file.lastPathComponent != "FormattingResources.swift" {
+    let source = try String(contentsOf: file, encoding: .utf8)
+    #expect(!source.contains("Bundle.module"), "\(file.lastPathComponent) uses Bundle.module")
+    #expect(!source.contains("bundle: .module"), "\(file.lastPathComponent) uses Bundle.module")
+  }
+}
