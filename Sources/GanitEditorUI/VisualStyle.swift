@@ -11,6 +11,8 @@ public enum VisualStyle {
     public static let secondary = NSColor.secondaryLabelColor
     /// Comments and dividers.
     public static let tertiary = NSColor.tertiaryLabelColor
+    /// Rules that mark where one part of a view ends and the next begins.
+    public static let separator = NSColor.separatorColor
     /// Failure answers and error underlines, always paired with message text
     /// or a dotted underline.
     public static let failure = NSColor.systemRed

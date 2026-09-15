@@ -89,6 +89,7 @@ public final class SheetEditorViewController: NSViewController {
     super.init(nibName: nil, bundle: nil)
 
     configureTextView(text: text)
+    placeAnswers(display)
     sheetTextView.lexingConfiguration = context.lexingConfiguration
     storageObserver.controller = self
     textView.textStorage?.delegate = storageObserver
@@ -382,9 +383,15 @@ public final class SheetEditorViewController: NSViewController {
     }
     displayOptions = options
     resultFormatter = ResultFormatter(context: context, display: options)
+    placeAnswers(options)
     cells.removeAll()
     sheetTextView.answersDidChange()
     summarizeSelection()
+  }
+
+  private func placeAnswers(_ options: DisplayOptions) {
+    sheetTextView.writesAnswersInline = options.writesAnswersInline
+    sheetTextView.showsAnswerSeparator = options.showsAnswerSeparator
   }
 
   private func answerCell(for id: LineID) -> AnswerCell? {

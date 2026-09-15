@@ -22,7 +22,13 @@ struct WorkspaceWindowControllerTests {
 
     #expect(window.styleMask.isSuperset(of: [.titled, .closable, .miniaturizable, .resizable]))
     #expect(window.contentMinSize == NSSize(width: 640, height: 400))
-    #expect(window.contentViewController is NSSplitViewController)
+    let split = try #require(window.contentViewController as? NSSplitViewController)
+    // The sidebar lists a title and a date, so it stays a narrow index of the
+    // library rather than a second half of the window.
+    let sidebarItem = try #require(split.splitViewItems.first)
+    #expect(sidebarItem.minimumThickness == 150)
+    #expect(sidebarItem.maximumThickness == 280)
+    #expect((150...280).contains(controller.sidebar.view.frame.width))
     #expect(window.isRestorable && window.restorationClass == WorkspaceRestoration.self)
     #expect(window.toolbar?.items.map(\.itemIdentifier).contains(.searchSheets) == true)
     #expect(controller.editor?.view.superview != nil)
@@ -40,7 +46,7 @@ struct WorkspaceWindowControllerTests {
     window.layoutIfNeeded()
 
     #expect(window.contentView?.frame.size == window.contentMinSize)
-    #expect(controller.sidebar.view.frame.width >= 200)
+    #expect(controller.sidebar.view.frame.width >= 150)
     let textView = try #require(controller.editor?.textView as? SheetTextView)
     #expect(textView.answerColumnWidth >= SheetTextView.answerColumnWidthRange.lowerBound)
     #expect(textView.bounds.width - textView.answerColumnWidth >= textView.answerColumnWidth)
@@ -311,6 +317,37 @@ struct WorkspaceWindowControllerTests {
     defer { close(reopened) }
     let sheetAgain = try #require(reopened.openWindow(showing: ids[0]).editor)
     #expect(await sheetAgain.exportedLines().first?.answer == "1234.50")
+  }
+
+  @Test
+  func proseModeAndTheAnswerRuleStayWithTheSheet() throws {
+    let (workspace, ids) = try makeWorkspace(["2 + 2"])
+    defer { close(workspace) }
+    let controller = workspace.openWindow(showing: ids[0])
+
+    let prose = NSMenuItem(
+      title: "", action: #selector(WorkspaceCommands.toggleProseMode(_:)), keyEquivalent: "")
+    let rule = NSMenuItem(
+      title: "", action: #selector(WorkspaceCommands.toggleAnswerSeparator(_:)), keyEquivalent: "")
+    #expect(controller.validateMenuItem(rule))
+    #expect(rule.state == .on)
+
+    controller.toggleProseMode(nil)
+    #expect(controller.validateMenuItem(prose))
+    #expect(prose.state == .on)
+    // Inline answers leave no column, so the rule has nothing to mark.
+    #expect(!controller.validateMenuItem(rule))
+
+    controller.toggleProseMode(nil)
+    controller.toggleAnswerSeparator(nil)
+    let stored = try workspace.library.store.load(id: ids[0]).metadata.preferences.display
+    #expect(stored == DisplayOptions(writesAnswersInline: false, showsAnswerSeparator: false))
+
+    let reopened = try Workspace(library: try SheetLibrary(root: root))
+    defer { close(reopened) }
+    let again = reopened.openWindow(showing: ids[0])
+    #expect(again.validateMenuItem(rule))
+    #expect(rule.state == .off)
   }
 
   private func makeWorkspace(

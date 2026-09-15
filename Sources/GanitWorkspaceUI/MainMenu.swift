@@ -46,6 +46,8 @@ import GanitEditorUI
   func restorePreviousVersion(_ sender: Any?)
   func setNumberFormat(_ sender: Any?)
   func toggleDigitGrouping(_ sender: Any?)
+  func toggleProseMode(_ sender: Any?)
+  func toggleAnswerSeparator(_ sender: Any?)
 }
 
 /// The standard main menu. It lists only commands that exist, with
@@ -308,6 +310,10 @@ public enum MainMenu {
           item(
             localized("menu.groupDigits", "Group Digits"),
             #selector(WorkspaceCommands.toggleDigitGrouping(_:))),
+          .separator(),
+          item(
+            localized("menu.proseMode", "Prose Mode"),
+            #selector(WorkspaceCommands.toggleProseMode(_:))),
         ]
       ),
       menu(
@@ -329,6 +335,9 @@ public enum MainMenu {
             "s",
             [.command, .control]
           ),
+          item(
+            localized("menu.showAnswerSeparator", "Show Answer Separator"),
+            #selector(WorkspaceCommands.toggleAnswerSeparator(_:))),
           item(
             localized("menu.enterFullScreen", "Enter Full Screen"),
             #selector(NSWindow.toggleFullScreen(_:)),

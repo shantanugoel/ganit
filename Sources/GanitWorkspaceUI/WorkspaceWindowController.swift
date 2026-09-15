@@ -51,9 +51,14 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     content.view = NSView()
     let sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebar)
     sidebarItem.canCollapse = true
-    sidebarItem.minimumThickness = 200
+    // A sheet title and a date are all the sidebar lists, so it stays a
+    // narrow index of the library rather than a second half of the window.
+    sidebarItem.minimumThickness = 150
+    sidebarItem.maximumThickness = 280
     splitViewController.splitViewItems = [sidebarItem, NSSplitViewItem(viewController: content)]
-    splitViewController.splitView.autosaveName = "WorkspaceSplit"
+    // The name changed with the narrower default, so a width saved by the
+    // wide sidebar does not outlive it.
+    splitViewController.splitView.autosaveName = "WorkspaceSidebar"
     window.contentViewController = splitViewController
 
     let toolbar = NSToolbar(identifier: "workspace")
@@ -497,6 +502,22 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     write(options)
   }
 
+  @objc public func toggleProseMode(_ sender: Any?) {
+    guard var options = displayOptions else {
+      return
+    }
+    options.writesAnswersInline.toggle()
+    write(options)
+  }
+
+  @objc public func toggleAnswerSeparator(_ sender: Any?) {
+    guard var options = displayOptions else {
+      return
+    }
+    options.showsAnswerSeparator.toggle()
+    write(options)
+  }
+
   private func write(_ options: DisplayOptions) {
     guard let id = sheetID else {
       return
@@ -514,6 +535,13 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     case #selector(toggleDigitGrouping(_:)):
       menuItem.state = displayOptions?.groupsDigits == true ? .on : .off
       return displayOptions != nil
+    case #selector(toggleProseMode(_:)):
+      menuItem.state = displayOptions?.writesAnswersInline == true ? .on : .off
+      return displayOptions != nil
+    case #selector(toggleAnswerSeparator(_:)):
+      menuItem.state = displayOptions?.showsAnswerSeparator == true ? .on : .off
+      // Answers written inline leave nothing for the rule to separate.
+      return displayOptions?.writesAnswersInline == false
     case #selector(renameSheet(_:)), #selector(duplicateSheet(_:)),
       #selector(moveSheetToFolder(_:)), #selector(archiveSheet(_:)), #selector(openInNewWindow(_:)):
       return target?.state == .active

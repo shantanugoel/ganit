@@ -951,6 +951,16 @@
         }
       }
     },
+    "menu.proseMode" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Prose Mode"
+          }
+        }
+      }
+    },
     "menu.putBack" : {
       "localizations" : {
         "en" : {
@@ -1117,6 +1127,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Show All"
+          }
+        }
+      }
+    },
+    "menu.showAnswerSeparator" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Answer Separator"
           }
         }
       }

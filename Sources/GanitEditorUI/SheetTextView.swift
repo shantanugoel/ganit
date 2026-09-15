@@ -32,6 +32,22 @@ final class SheetTextView: NSTextView {
     }
   }
 
+  /// Writes each answer just after its own line rather than in the column,
+  /// which gives the source the full width to be prose in.
+  var writesAnswersInline = false {
+    didSet {
+      guard writesAnswersInline != oldValue else {
+        return
+      }
+      setFrameSize(frame.size)
+    }
+  }
+
+  /// Draws the rule at the answer column's edge.
+  var showsAnswerSeparator = true {
+    didSet { answerOverlay().needsDisplay = true }
+  }
+
   /// A line's answer cell, computed when the line is drawn; lines without
   /// one show nothing.
   var answer: (LineID) -> AnswerCell? = { _ in nil }
@@ -76,11 +92,22 @@ final class SheetTextView: NSTextView {
   private var overlay: AnswerOverlayView?
 
   func attributes(for cell: AnswerCell, selected: Bool) -> [NSAttributedString.Key: Any] {
-    let color =
-      selected
-      ? VisualStyle.Color.selectionText
-      : cell.isFailure ? VisualStyle.Color.failure : VisualStyle.Color.primary
-    return [.font: VisualStyle.Typography.answer(scale: textScale), .foregroundColor: color]
+    [
+      .font: VisualStyle.Typography.answer(scale: textScale),
+      .foregroundColor: color(cell, selected),
+    ]
+  }
+
+  /// An answer beside the source is a column of its own; an answer sitting in
+  /// a line of prose is a remark on that line, and is written as one.
+  private func color(_ cell: AnswerCell, _ selected: Bool) -> NSColor {
+    if selected {
+      return VisualStyle.Color.selectionText
+    }
+    if cell.isFailure {
+      return VisualStyle.Color.failure
+    }
+    return writesAnswersInline ? VisualStyle.Color.secondary : VisualStyle.Color.primary
   }
 
   var answerColumnWidth: CGFloat {
@@ -93,12 +120,23 @@ final class SheetTextView: NSTextView {
     )
   }
 
+  /// Where the rule between source and answers belongs, or `nil` when it is
+  /// hidden or there is no column for it to mark.
+  var answerSeparatorX: CGFloat? {
+    guard showsAnswerSeparator, !writesAnswersInline else {
+      return nil
+    }
+    return (bounds.maxX - textContainerInset.width - answerColumnWidth - Self.columnGap / 2)
+      .rounded()
+  }
+
   override func setFrameSize(_ newSize: NSSize) {
     super.setFrameSize(newSize)
     answerOverlay().frame = bounds
     answerOverlay().needsDisplay = true
+    let available = newSize.width - textContainerInset.width * 2
     let sourceWidth =
-      newSize.width - textContainerInset.width * 2 - answerColumnWidth - Self.columnGap
+      writesAnswersInline ? available : available - answerColumnWidth - Self.columnGap
     textContainer?.size = NSSize(
       width: max(sourceWidth, Self.answerColumnWidthRange.lowerBound),
       height: CGFloat.greatestFiniteMagnitude
@@ -129,27 +167,31 @@ final class SheetTextView: NSTextView {
     return overlay
   }
 
-  /// The answers to draw for lines whose first layout fragment intersects
-  /// `rect`, each right-aligned in the answer column on its line's first row.
+  /// The answers to draw for lines whose layout fragment intersects `rect`:
+  /// right-aligned in the answer column on the line's first row, or, written
+  /// inline, just past where the line's last row of text ends.
   func answerLayout(in rect: NSRect) -> [(line: LineID, cell: AnswerCell, rect: NSRect)] {
-    let columnMaxX = bounds.maxX - textContainerInset.width
+    let rightEdge = bounds.maxX - textContainerInset.width
     let columnWidth = answerColumnWidth
     return visibleLines(in: rect).compactMap { line in
       guard let cell = answer(line.id) else {
         return nil
       }
-      let size = (cell.text as NSString).size(
-        withAttributes: attributes(for: cell, selected: false)
+      let wanted = ceil(
+        (cell.text as NSString).size(withAttributes: attributes(for: cell, selected: false)).width
       )
-      let width = min(ceil(size.width), columnWidth)
-      let row = line.firstRow
+      let row = writesAnswersInline ? line.lastRow : line.firstRow
+      let x =
+        writesAnswersInline
+        ? line.frame.minX + row.typographicBounds.maxX + Self.columnGap
+        : rightEdge - min(wanted, columnWidth)
       return (
         line.id,
         cell,
         NSRect(
-          x: columnMaxX - width,
+          x: x,
           y: line.frame.minY + row.typographicBounds.minY,
-          width: width,
+          width: min(wanted, max(rightEdge - x, 0)),
           height: row.typographicBounds.height
         )
       )
@@ -782,10 +824,18 @@ final class SheetTextView: NSTextView {
     return layout
   }
 
-  /// Lines whose first layout fragment intersects `rect`, in order.
-  private func visibleLines(
-    in rect: NSRect
-  ) -> [(id: LineID, location: NSTextLocation, frame: NSRect, firstRow: NSTextLineFragment)] {
+  /// A laid-out line: where it starts, where its fragment sits in the view,
+  /// and the rows an answer can be aligned with.
+  private struct VisibleLine {
+    let id: LineID
+    let location: NSTextLocation
+    let frame: NSRect
+    let firstRow: NSTextLineFragment
+    let lastRow: NSTextLineFragment
+  }
+
+  /// Lines whose layout fragment intersects `rect`, in order.
+  private func visibleLines(in rect: NSRect) -> [VisibleLine] {
     guard let layoutManager = textLayoutManager,
       let contentManager = layoutManager.textContentManager,
       let start = layoutManager.textLayoutFragment(
@@ -794,8 +844,7 @@ final class SheetTextView: NSTextView {
     else {
       return []
     }
-    var lines:
-      [(id: LineID, location: NSTextLocation, frame: NSRect, firstRow: NSTextLineFragment)] = []
+    var lines: [VisibleLine] = []
     layoutManager.enumerateTextLayoutFragments(from: start, options: [.ensuresLayout]) {
       fragment in
       let frame = fragment.layoutFragmentFrame.offsetBy(
@@ -807,8 +856,11 @@ final class SheetTextView: NSTextView {
       }
       let location = fragment.rangeInElement.location
       let offset = contentManager.offset(from: contentManager.documentRange.location, to: location)
-      if let id = lineID(offset), let row = fragment.textLineFragments.first {
-        lines.append((id, location, frame, row))
+      if let id = lineID(offset), let first = fragment.textLineFragments.first,
+        let last = fragment.textLineFragments.last
+      {
+        lines.append(
+          VisibleLine(id: id, location: location, frame: frame, firstRow: first, lastRow: last))
       }
       return true
     }
@@ -845,6 +897,10 @@ private final class AnswerOverlayView: NSView {
     defer {
       layoutInterval.end()
       textView.didDrawAnswers()
+    }
+    if let x = textView.answerSeparatorX {
+      VisualStyle.Color.separator.setFill()
+      NSRect(x: x, y: dirtyRect.minY, width: 1, height: dirtyRect.height).fill()
     }
     for (rect, color) in textView.underlineLayout(in: dirtyRect) {
       let path = NSBezierPath()

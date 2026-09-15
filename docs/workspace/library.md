@@ -66,7 +66,8 @@ favorite flag, or state.
 Workspace windows are restorable through `WorkspaceRestoration`. Each window
 records its sheet, collection, search text, text selection, scroll position, and
 whether the sidebar is collapsed; the split view's autosave name keeps the
-sidebar width. The library opens before restoration, and Ganit opens the most
+sidebar width, which stays between 150 and 280 pt because a title and a date
+are all it lists. The library opens before restoration, and Ganit opens the most
 recent sheet only when no window was restored.
 
 

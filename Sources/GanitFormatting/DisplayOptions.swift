@@ -15,9 +15,36 @@ public struct DisplayOptions: Codable, Equatable, Sendable {
   /// of ten.
   public var numbers: NumberDisplay
 
-  public init(groupsDigits: Bool = true, numbers: NumberDisplay = .automatic) {
+  /// Writes each answer just after the line that produced it instead of in a
+  /// column down the right side, so a sheet can be written and read as prose.
+  public var writesAnswersInline: Bool
+
+  /// Draws a dim rule where the source ends and the answer column begins.
+  /// Answers written inline have no column, and so no rule.
+  public var showsAnswerSeparator: Bool
+
+  public init(
+    groupsDigits: Bool = true,
+    numbers: NumberDisplay = .automatic,
+    writesAnswersInline: Bool = false,
+    showsAnswerSeparator: Bool = true
+  ) {
     self.groupsDigits = groupsDigits
     self.numbers = numbers
+    self.writesAnswersInline = writesAnswersInline
+    self.showsAnswerSeparator = showsAnswerSeparator
+  }
+
+  /// A sheet written before answers could sit inline names neither choice,
+  /// and means the column with its rule.
+  public init(from decoder: any Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    groupsDigits = try container.decode(Bool.self, forKey: .groupsDigits)
+    numbers = try container.decode(NumberDisplay.self, forKey: .numbers)
+    writesAnswersInline =
+      try container.decodeIfPresent(Bool.self, forKey: .writesAnswersInline) ?? false
+    showsAnswerSeparator =
+      try container.decodeIfPresent(Bool.self, forKey: .showsAnswerSeparator) ?? true
   }
 }
 

@@ -58,7 +58,7 @@ final class SidebarViewController: NSViewController {
     let sheetsScroll = scrollView(for: sheetsView)
     let separator = NSBox()
     separator.boxType = .separator
-    let container = NSView(frame: NSRect(x: 0, y: 0, width: 240, height: 600))
+    let container = NSView(frame: NSRect(x: 0, y: 0, width: 180, height: 600))
     for view in [collectionsScroll, separator, sheetsScroll] {
       view.translatesAutoresizingMaskIntoConstraints = false
       container.addSubview(view)

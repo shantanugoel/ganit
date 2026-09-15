@@ -45,7 +45,14 @@ incomplete and failing lines, show no answer.
 before it. A click-through overlay view above TextKit 2's text layout views
 draws each answer right-aligned, with tabular digits, on the first row of its
 line's layout fragment, and truncates it when it exceeds the column. Answer text
-is never inserted into the text storage.
+is never inserted into the text storage. The overlay also draws a dim rule down
+the middle of the gap, which **View ▸ Show Answer Separator** hides.
+
+A sheet whose display options ask for answers inline — **Format ▸ Prose Mode** —
+gives the source the full width and writes each answer a gap past where its own
+line's last row of text ends, in the secondary label color, so a sheet reads as
+prose with its arithmetic annotated rather than as two columns. There is no
+column then, and so no rule.
 
 New workspace sheets use an `en-US` context with the current time zone until
 sheet locale preferences exist. Each evaluation generation freezes `now` at the
