@@ -1,5 +1,7 @@
+import AppKit
 import Darwin
 import Foundation
+import GanitEditorUI
 import GanitEngine
 
 private struct FixtureTarget: Sendable {
@@ -129,12 +131,26 @@ private enum GanitBenchmarks {
       return
     }
 
+    if arguments.count == 3,
+      arguments[0] == "--editor",
+      let benchmark = sheetBenchmarks.first(where: { $0.fixture == arguments[1] }),
+      let iterations = Int(arguments[2]),
+      (1...maximumSheetIterations).contains(iterations)
+    {
+      MainActor.assumeIsolated {
+        runEditorBenchmark(benchmark, iterations: iterations)
+      }
+      return
+    }
+
     let message = """
       usage:
         GanitBenchmarks --list
         GanitBenchmarks --parser <iteration-count: 1...\(maximumIterations)>
         GanitBenchmarks --engine <iteration-count: 1...\(maximumEngineIterations)>
         GanitBenchmarks --sheet <\(sheetBenchmarks.map(\.fixture).joined(separator: "|"))> \
+      <edit-count: 1...\(maximumSheetIterations)>
+        GanitBenchmarks --editor <\(sheetBenchmarks.map(\.fixture).joined(separator: "|"))> \
       <edit-count: 1...\(maximumSheetIterations)>
 
       Benchmarks record observations without applying a pass threshold.
@@ -277,14 +293,7 @@ private enum GanitBenchmarks {
   /// Times a full first evaluation, then alternating one-line edits. Each
   /// edit sample covers `SheetSource.replace` and incremental evaluation.
   private static func runSheetBenchmark(_ benchmark: SheetBenchmark, iterations: Int) {
-    let url = URL(fileURLWithPath: #filePath)
-      .deletingLastPathComponent()
-      .deletingLastPathComponent()
-      .deletingLastPathComponent()
-      .appending(path: "Benchmarks/Fixtures/\(benchmark.file).txt")
-    guard let text = try? String(contentsOf: url, encoding: .utf8) else {
-      fail("Sheet fixture is unreadable: \(url.path)")
-    }
+    let text = sheetFixtureText(benchmark)
     let context: EvaluationContext
     do {
       context = try benchmarkContext()
@@ -346,6 +355,87 @@ private enum GanitBenchmarks {
         + String(format: "%.3f", nearestRank(0.95, in: latencySamples) / 1_000_000)
     )
     print("fixture_checksum=\(fixtureChecksum([text]))")
+  }
+
+  /// Times edits in a real sheet editor until their answers are drawn, as the
+  /// editor reports them. Each edit replaces the benchmark line through the
+  /// text view with its line scrolled into view.
+  @MainActor
+  private static func runEditorBenchmark(_ benchmark: SheetBenchmark, iterations: Int) {
+    _ = NSApplication.shared
+    let context: EvaluationContext
+    do {
+      context = try benchmarkContext()
+    } catch {
+      fail("Editor benchmark context is invalid.")
+    }
+    let editor = SheetEditorViewController(text: sheetFixtureText(benchmark), context: context)
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 900, height: 700),
+      styleMask: [.titled, .resizable],
+      backing: .buffered,
+      defer: false
+    )
+    window.contentViewController = editor
+    window.layoutIfNeeded()
+
+    var latency: Duration?
+    editor.editToAnswerHandler = { latency = $0 }
+    func waitForAnswers() {
+      let deadline = Date().addingTimeInterval(30)
+      while latency == nil {
+        guard Date() < deadline else {
+          fail("Editor benchmark answers were not drawn.")
+        }
+        RunLoop.main.run(mode: .default, before: Date().addingTimeInterval(0.0005))
+        window.displayIfNeeded()
+      }
+    }
+    waitForAnswers()
+
+    let textView = editor.textView
+    var samples: [Double] = []
+    samples.reserveCapacity(iterations)
+    for iteration in 0..<iterations {
+      let string = textView.string as NSString
+      var lineRange = NSRange(location: 0, length: 0)
+      for _ in 0...benchmark.editedLine {
+        lineRange = string.lineRange(for: NSRange(location: NSMaxRange(lineRange), length: 0))
+      }
+      var contentsEnd = 0
+      string.getLineStart(nil, end: nil, contentsEnd: &contentsEnd, for: lineRange)
+      let range = NSRange(location: lineRange.location, length: contentsEnd - lineRange.location)
+      textView.scrollRangeToVisible(range)
+      window.displayIfNeeded()
+
+      latency = nil
+      textView.insertText(
+        benchmark.replacements[iteration % benchmark.replacements.count],
+        replacementRange: range
+      )
+      waitForAnswers()
+      samples.append(nanoseconds(latency!))
+    }
+    samples.sort()
+
+    print("fixture=\(benchmark.fixture)")
+    print("edits=\(iterations)")
+    print(
+      "p50_edit_to_answer_ms=\(String(format: "%.3f", nearestRank(0.50, in: samples) / 1_000_000))")
+    print(
+      "p95_edit_to_answer_ms=\(String(format: "%.3f", nearestRank(0.95, in: samples) / 1_000_000))")
+  }
+
+  private static func sheetFixtureText(_ benchmark: SheetBenchmark) -> String {
+    let url = URL(fileURLWithPath: #filePath)
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .appending(path: "Benchmarks/Fixtures/\(benchmark.file).txt")
+    guard let text = try? String(contentsOf: url, encoding: .utf8) else {
+      fail("Sheet fixture is unreadable: \(url.path)")
+    }
+    return text
   }
 
   private static func engineExpressions() -> [String] {

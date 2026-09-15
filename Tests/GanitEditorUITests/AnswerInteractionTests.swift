@@ -13,23 +13,25 @@ struct AnswerInteractionTests {
     let (editor, textView) = try await makeEditor("sqrt(2)\n1 m + 1 s\n2 +")
     let ids = editor.sheet.lines.map(\.id)
 
-    let value = try #require(textView.answers[ids[0]])
+    let value = try #require(textView.answer(ids[0]))
     #expect(value.text == "≈ 1.4142135623731")
     #expect(
-      value.details.map(\.label) == ["Expression", "Result", "Full precision", "Kind", "Exactness"]
+      textView.interpretation(ids[0]).map(\.label) == [
+        "Expression", "Result", "Full precision", "Kind", "Exactness",
+      ]
     )
-    #expect(value.details.last?.value == "Approximate")
+    #expect(textView.interpretation(ids[0]).last?.value == "Approximate")
 
-    let failure = try #require(textView.answers[ids[1]])
+    let failure = try #require(textView.answer(ids[1]))
     #expect(failure.isFailure)
     #expect(failure.text == "These quantities have incompatible dimensions.")
-    #expect(failure.details.last?.value == "evaluation.incompatibleDimensions")
+    #expect(textView.interpretation(ids[1]).last?.value == "evaluation.incompatibleDimensions")
 
     // Incomplete input shows its message only once editing leaves the line.
     textView.setSelectedRange(NSRange(location: textView.string.utf16.count, length: 0))
-    #expect(textView.answers[ids[2]] == nil)
+    #expect(textView.answer(ids[2]) == nil)
     textView.setSelectedRange(NSRange(location: 0, length: 0))
-    #expect(textView.answers[ids[2]]?.text == "Enter an expression here.")
+    #expect(textView.answer(ids[2])?.text == "Enter an expression here.")
   }
 
   @Test

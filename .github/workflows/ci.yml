@@ -77,6 +77,7 @@ jobs:
           swift run --configuration release GanitBenchmarks --engine 10
           swift run --configuration release GanitBenchmarks --sheet mixed-sheet 5
           swift run --configuration release GanitBenchmarks --sheet chained-dependency-sheet 5
+          swift run --configuration release GanitBenchmarks --editor mixed-sheet 5
 
       - name: Build application bundle
         run: ./scripts/build-app.sh release

@@ -67,7 +67,9 @@ struct LineDecoration: Equatable {
     self.runs = runs
   }
 
-  private static func style(for severity: DiagnosticSeverity, isEditing: Bool) -> Style? {
+  /// The underline style for a diagnostic, or `nil` while incomplete input
+  /// is still being edited.
+  static func style(for severity: DiagnosticSeverity, isEditing: Bool) -> Style? {
     switch severity {
     case .incomplete:
       return isEditing ? nil : .error

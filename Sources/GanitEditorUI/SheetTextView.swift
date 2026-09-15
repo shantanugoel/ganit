@@ -1,4 +1,5 @@
 import AppKit
+import GanitDiagnostics
 import GanitEngine
 
 /// A sheet text view that draws each line's answer in a right-hand column.
@@ -31,15 +32,11 @@ final class SheetTextView: NSTextView {
     }
   }
 
-  /// Answer cells by line; lines without an entry show nothing.
-  var answers: [LineID: AnswerCell] = [:] {
-    didSet {
-      if let selectedAnswer, answers[selectedAnswer] == nil {
-        self.selectedAnswer = nil
-      }
-      answerOverlay().needsDisplay = true
-    }
-  }
+  /// A line's answer cell, computed when the line is drawn; lines without
+  /// one show nothing.
+  var answer: (LineID) -> AnswerCell? = { _ in nil }
+  /// The rows of a line's interpretation card.
+  var interpretation: (LineID) -> [AnswerCell.Detail] = { _ in [] }
   private(set) var selectedAnswer: LineID? {
     didSet { answerOverlay().needsDisplay = true }
   }
@@ -55,6 +52,17 @@ final class SheetTextView: NSTextView {
   /// The one-based number of a line.
   var lineNumber: (LineID) -> Int? = { _ in nil }
 
+  /// Redraws answers after they change and clears a selection whose answer
+  /// is gone.
+  func answersDidChange() {
+    if let selectedAnswer, answer(selectedAnswer) == nil {
+      self.selectedAnswer = nil
+    }
+    answerOverlay().needsDisplay = true
+  }
+
+  /// Called after the overlay draws answers.
+  var didDrawAnswers: () -> Void = {}
   /// Where Copy Result writes.
   var pasteboard = NSPasteboard.general
   private(set) var interpretationPopover: NSPopover?
@@ -120,13 +128,10 @@ final class SheetTextView: NSTextView {
   /// The answers to draw for lines whose first layout fragment intersects
   /// `rect`, each right-aligned in the answer column on its line's first row.
   func answerLayout(in rect: NSRect) -> [(line: LineID, cell: AnswerCell, rect: NSRect)] {
-    guard !answers.isEmpty else {
-      return []
-    }
     let columnMaxX = bounds.maxX - textContainerInset.width
     let columnWidth = answerColumnWidth
     return visibleLines(in: rect).compactMap { line in
-      guard let cell = answers[line.id] else {
+      guard let cell = answer(line.id) else {
         return nil
       }
       let size = (cell.text as NSString).size(
@@ -335,7 +340,9 @@ final class SheetTextView: NSTextView {
     }
     let popover = NSPopover()
     popover.behavior = .transient
-    popover.contentViewController = InterpretationViewController(details: target.cell.details)
+    popover.contentViewController = InterpretationViewController(
+      details: interpretation(target.line)
+    )
     popover.show(relativeTo: rect, of: self, preferredEdge: .maxY)
     interpretationPopover = popover
   }
@@ -365,7 +372,7 @@ final class SheetTextView: NSTextView {
   /// The selected answer, or else the answer of the insertion point's line.
   private var targetAnswer: (line: LineID, cell: AnswerCell)? {
     let id = selectedAnswer ?? line(selectedRange().location)?.id
-    return id.flatMap { id in answers[id].map { (id, $0) } }
+    return id.flatMap { id in answer(id).map { (id, $0) } }
   }
 
   /// Inserts a reference to the selected answer when it is above the
@@ -409,7 +416,7 @@ final class SheetTextView: NSTextView {
       .location
     while location > 0 {
       let previous = string.lineRange(for: NSRange(location: location - 1, length: 0))
-      if let id = lineID(previous.location), answers[id]?.isFailure == false {
+      if let id = lineID(previous.location), answer(id)?.isFailure == false {
         return id
       }
       location = previous.location
@@ -576,6 +583,11 @@ private final class AnswerOverlayView: NSView {
   }
 
   override func draw(_ dirtyRect: NSRect) {
+    let layoutInterval = SignpostedInterval.begin("AnswerLayout")
+    defer {
+      layoutInterval.end()
+      textView.didDrawAnswers()
+    }
     for (rect, color) in textView.underlineLayout(in: dirtyRect) {
       let path = NSBezierPath()
       path.move(to: NSPoint(x: rect.minX, y: rect.midY))

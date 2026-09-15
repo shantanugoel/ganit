@@ -119,3 +119,23 @@ answer or message as its value and its on-screen frame. Custom actions offer
 Copy Result, Copy Full Precision, Show Interpretation, and Insert Reference, so
 every mouse interaction with answers has a VoiceOver and keyboard equivalent.
 Answers are not announced as they change while typing.
+
+## Latency instrumentation
+
+`SignpostedInterval` (in `GanitDiagnostics`) emits Points of Interest signposts
+without metadata, so no sheet text reaches logs or Instruments:
+
+- `EditToAnswer` begins when an edit schedules a generation and ends after the
+  answer overlay draws that generation. Superseded or stopped generations end
+  it as cancelled.
+- `Evaluation` covers incremental evaluation on the worker actor.
+- `AnswerLayout` covers the overlay's layout and drawing of visible answers and
+  underlines.
+
+The controller's `editToAnswerHandler` receives each drawn generation's
+edit-to-answer duration; `GanitBenchmarks --editor` uses it to measure the
+Section 8 keystroke-to-answer gates.
+
+To keep that path short, committing a generation does no per-line formatting:
+answer cells are computed only for drawn lines and cached by result, and only
+lines whose text, role, or failure state changed are redecorated.

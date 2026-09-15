@@ -122,11 +122,13 @@ struct SheetEditorViewControllerTests {
     let ids = editor.sheet.lines.map(\.id)
     #expect(textView.string == source)
     #expect(
-      textView.answers.mapValues(\.text) == [
-        ids[0]: "31,250/4,191 mi",
-        ids[2]: "Enter an expression here.",
-        ids[3]: "2,100",
-      ]
+      Dictionary(
+        uniqueKeysWithValues: ids.compactMap { id in textView.answer(id).map { (id, $0.text) } })
+        == [
+          ids[0]: "31,250/4,191 mi",
+          ids[2]: "Enter an expression here.",
+          ids[3]: "2,100",
+        ]
     )
   }
 
@@ -153,7 +155,7 @@ struct SheetEditorViewControllerTests {
     await editor.scheduler?.waitUntilIdle()
 
     #expect(editor.latestEvaluation?.lines.map(\.id) == editor.sheet.lines.map(\.id))
-    #expect(textView.answers.values.first?.text == "12,346")
+    #expect(textView.answer(editor.sheet.lines[0].id)?.text == "12,346")
   }
 
   @Test

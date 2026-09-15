@@ -1,3 +1,4 @@
+import GanitDiagnostics
 import GanitEngine
 
 /// Serializes incremental evaluation off the main actor and owns its cache.
@@ -15,14 +16,15 @@ private actor CalculatorWorker {
 final class SheetEvaluationScheduler {
   private let worker = CalculatorWorker()
   private let context: EvaluationContext
-  private let commit: @MainActor (SheetSource, SheetEvaluation) -> Void
+  private let commit: @MainActor (SheetSource, SheetEvaluation, SignpostedInterval) -> Void
   private var task: Task<Void, Never>?
   private var latestRequest = 0
 
-  /// `commit` receives the evaluated snapshot with its evaluation.
+  /// `commit` receives the evaluated snapshot, its evaluation, and the
+  /// edit-to-answer interval started when the snapshot was scheduled.
   init(
     context: EvaluationContext,
-    commit: @escaping @MainActor (SheetSource, SheetEvaluation) -> Void
+    commit: @escaping @MainActor (SheetSource, SheetEvaluation, SignpostedInterval) -> Void
   ) {
     self.context = context
     self.commit = commit
@@ -34,13 +36,17 @@ final class SheetEvaluationScheduler {
     let request = latestRequest
     let worker = worker
     let context = context
+    let editToAnswer = SignpostedInterval.begin("EditToAnswer")
     task = Task {
-      guard let evaluation = try? await worker.evaluate(sheet, context: context),
-        request == latestRequest
-      else {
+      let evaluationInterval = SignpostedInterval.begin("Evaluation")
+      let evaluation = try? await worker.evaluate(sheet, context: context)
+      guard let evaluation, request == latestRequest else {
+        evaluationInterval.cancel()
+        editToAnswer.cancel()
         return
       }
-      commit(sheet, evaluation)
+      evaluationInterval.end()
+      commit(sheet, evaluation, editToAnswer)
     }
   }
 

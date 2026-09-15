@@ -12,7 +12,7 @@ struct TextAccessibilityTests {
 
   @Test
   func scalesSourceAnswersAndColumnTogether() async throws {
-    let (_, textView) = try await makeEditor("6 * 7")
+    let (editor, textView) = try await makeEditor("6 * 7")
     let item = { (action: Selector) in NSMenuItem(title: "", action: action, keyEquivalent: "") }
     let standardColumn = textView.answerColumnWidth
     #expect(!textView.validateUserInterfaceItem(item(#selector(SheetCommands.resetTextSize(_:)))))
@@ -21,7 +21,7 @@ struct TextAccessibilityTests {
     textView.increaseTextSize(nil)
     #expect(textView.textScale == 1.5)
     #expect(textView.font?.pointSize == 21)
-    let cell = try #require(textView.answers.values.first)
+    let cell = try #require(textView.answer(editor.sheet.lines[0].id))
     #expect((textView.attributes(for: cell, selected: false)[.font] as? NSFont)?.pointSize == 21)
     #expect(textView.answerColumnWidth >= standardColumn)
 

@@ -90,7 +90,7 @@ let package = Package(
     .target(name: "GanitDiagnostics"),
     .executableTarget(
       name: "GanitBenchmarks",
-      dependencies: ["GanitEngine"]
+      dependencies: ["GanitEditorUI", "GanitEngine"]
     ),
     .executableTarget(
       name: "GanitEngineHarness",

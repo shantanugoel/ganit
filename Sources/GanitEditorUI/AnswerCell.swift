@@ -1,8 +1,9 @@
 import AppKit
 
 /// What the answer column shows for one line: a formatted result or a
-/// failure's message, with the details its interpretation card lists.
+/// failure's message.
 struct AnswerCell: Equatable {
+  /// A row of an answer's interpretation card.
   struct Detail: Equatable {
     let label: String
     let value: String
@@ -11,7 +12,6 @@ struct AnswerCell: Equatable {
   let text: String
   /// The exact value for Copy Full Precision; `nil` for failures.
   let fullPrecision: String?
-  let details: [Detail]
 
   var isFailure: Bool {
     fullPrecision == nil

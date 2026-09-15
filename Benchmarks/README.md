@@ -30,6 +30,14 @@ swift run --configuration release GanitBenchmarks --sheet independent-sheet 500
 swift run --configuration release GanitBenchmarks --sheet chained-dependency-sheet 500
 ```
 
+Run the Phase 4 editor edit-to-answer benchmarks, which drive the real sheet
+editor offscreen, with:
+
+```sh
+swift run --configuration release GanitBenchmarks --editor mixed-sheet 200
+swift run --configuration release GanitBenchmarks --editor chained-dependency-sheet 200
+```
+
 The sheet fixtures live in `Fixtures/`; `SheetFixtureTests` uses the same files
 to assert which lines each edit re-evaluates.
 
@@ -44,3 +52,4 @@ Recorded measurements:
 - [Phase 1 parser baseline](Results/phase-1-parser.md)
 - [Phase 1 engine baseline](Results/phase-1-engine.md)
 - [Phase 3 incremental sheet baseline](Results/phase-3-sheets.md)
+- [Phase 4 edit-to-answer baseline](Results/phase-4-editor.md)
