@@ -119,6 +119,10 @@ let package = Package(
       resources: [.process("Fixtures")]
     ),
     .testTarget(
+      name: "GanitEditorUITests",
+      dependencies: ["GanitEditorUI"]
+    ),
+    .testTarget(
       name: "GanitWorkspaceUITests",
       dependencies: ["GanitWorkspaceUI"]
     ),

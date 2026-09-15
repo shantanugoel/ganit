@@ -1,4 +1,5 @@
 import AppKit
+import GanitEditorUI
 
 @MainActor
 public final class WorkspaceWindowController: NSWindowController {
@@ -14,9 +15,7 @@ public final class WorkspaceWindowController: NSWindowController {
     window.tabbingMode = .preferred
     window.isReleasedWhenClosed = false
 
-    let contentViewController = NSViewController()
-    contentViewController.view = NSView()
-    window.contentViewController = contentViewController
+    window.contentViewController = SheetEditorViewController()
 
     super.init(window: window)
     window.center()

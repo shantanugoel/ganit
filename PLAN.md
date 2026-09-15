@@ -960,7 +960,7 @@ Exit criteria:
 
 Tasks:
 
-- [ ] Embed `NSTextView` with correct IME, bidi, selection, responder-chain and undo behavior.
+- [x] Embed `NSTextView` with correct IME, bidi, selection, responder-chain and undo behavior.
 - [ ] Render aligned answers without inserting answer text into source storage.
 - [ ] Add syntax/state decoration using exact source ranges.
 - [ ] Add result selection/copy and interpretation/error UI.

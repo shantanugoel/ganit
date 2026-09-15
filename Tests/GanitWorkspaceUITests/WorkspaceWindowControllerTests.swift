@@ -1,4 +1,5 @@
 import AppKit
+import GanitEditorUI
 import Testing
 
 @testable import GanitWorkspaceUI
@@ -14,5 +15,5 @@ func workspaceWindowUsesStandardMacWindowBehavior() throws {
   #expect(window.styleMask.contains(.miniaturizable))
   #expect(window.styleMask.contains(.resizable))
   #expect(window.minSize == NSSize(width: 640, height: 400))
-  #expect(window.contentViewController != nil)
+  #expect(window.contentViewController is SheetEditorViewController)
 }
