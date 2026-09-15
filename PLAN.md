@@ -920,7 +920,7 @@ Exit criteria:
 Tasks:
 
 - [x] Add percentage phrase grammar and semantics.
-- [ ] Add dimensions, compound units, prefixes, ratio and affine conversions.
+- [x] Add dimensions, compound units, prefixes, ratio and affine conversions.
 - [ ] Seed a reviewed minimal unit catalog with source/license metadata.
 - [ ] Add dimensionally typed rate quantities.
 - [ ] Add explicit conversion syntax and result-unit selection.

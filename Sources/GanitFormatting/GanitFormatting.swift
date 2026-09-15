@@ -598,6 +598,26 @@ public struct DiagnosticFormatter: Sendable {
         "error.evaluation.typeMismatch",
         defaultValue: "This operation cannot combine these value types."
       )
+    case .incompatibleDimensions:
+      return localized(
+        "error.evaluation.incompatibleDimensions",
+        defaultValue: "These quantities have incompatible dimensions."
+      )
+    case .invalidUnitDefinition:
+      return localized(
+        "error.evaluation.invalidUnitDefinition",
+        defaultValue: "This unit definition is invalid."
+      )
+    case .affineUnitInCompound:
+      return localized(
+        "error.evaluation.affineUnitInCompound",
+        defaultValue: "Affine units cannot be used in compound unit algebra."
+      )
+    case .invalidAbsoluteQuantityOperation:
+      return localized(
+        "error.evaluation.invalidAbsoluteQuantityOperation",
+        defaultValue: "Absolute quantities cannot be used in this arithmetic operation."
+      )
     case .resourceLimitExceeded:
       return resourceLimitMessage(for: error.context)
     case .approximationOutOfRange:
@@ -657,6 +677,16 @@ public struct DiagnosticFormatter: Sendable {
       return localized(
         "error.evaluation.resourceLimit.functionArguments",
         defaultValue: "The function has too many arguments."
+      )
+    case .dimensionExponent:
+      return localized(
+        "error.evaluation.resourceLimit.dimensionExponent",
+        defaultValue: "The compound unit exponent is too large."
+      )
+    case .unitFactors:
+      return localized(
+        "error.evaluation.resourceLimit.unitFactors",
+        defaultValue: "The compound unit has too many factors."
       )
     }
   }

@@ -86,6 +86,36 @@
         "en" : { "stringUnit" : { "state" : "translated", "value" : "This operation cannot combine these value types." } }
       }
     },
+    "error.evaluation.incompatibleDimensions" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "These quantities have incompatible dimensions." } }
+      }
+    },
+    "error.evaluation.invalidUnitDefinition" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This unit definition is invalid." } }
+      }
+    },
+    "error.evaluation.affineUnitInCompound" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Affine units cannot be used in compound unit algebra." } }
+      }
+    },
+    "error.evaluation.invalidAbsoluteQuantityOperation" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Absolute quantities cannot be used in this arithmetic operation." } }
+      }
+    },
+    "error.evaluation.resourceLimit.dimensionExponent" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The compound unit exponent is too large." } }
+      }
+    },
+    "error.evaluation.resourceLimit.unitFactors" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The compound unit has too many factors." } }
+      }
+    },
     "error.evaluation.unknownIdentifier" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "This identifier is not defined." } }

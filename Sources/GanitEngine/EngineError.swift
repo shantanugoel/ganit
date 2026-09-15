@@ -14,6 +14,11 @@ public enum EngineErrorCode: String, Hashable, Sendable {
   case unknownFunction = "evaluation.unknownFunction"
   case argumentCountMismatch = "evaluation.argumentCountMismatch"
   case typeMismatch = "evaluation.typeMismatch"
+  case incompatibleDimensions = "evaluation.incompatibleDimensions"
+  case invalidUnitDefinition = "evaluation.invalidUnitDefinition"
+  case affineUnitInCompound = "evaluation.affineUnitInCompound"
+  case invalidAbsoluteQuantityOperation =
+    "evaluation.invalidAbsoluteQuantityOperation"
   case resourceLimitExceeded = "evaluation.resourceLimitExceeded"
   case approximationOutOfRange = "evaluation.approximationOutOfRange"
   case internalFailure = "evaluation.internalFailure"
@@ -56,6 +61,7 @@ public enum EngineErrorContext: Hashable, Sendable {
     actual: Int
   )
   case typeMismatch(expected: EngineValueKind, actual: EngineValueKind)
+  case dimensionMismatch(expected: Dimension, actual: Dimension)
   case resourceLimit(EvaluationResource)
 }
 

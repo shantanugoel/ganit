@@ -5,6 +5,8 @@ public enum EvaluationResource: String, Hashable, Sendable {
   case powerExponent
   case rootDegree
   case functionArguments
+  case dimensionExponent
+  case unitFactors
 }
 
 public struct EvaluationLimits: Hashable, Sendable {
