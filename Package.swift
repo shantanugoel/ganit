@@ -31,6 +31,7 @@ let package = Package(
     .executableTarget(
       name: "GanitApp",
       dependencies: [
+        "GanitDocuments",
         "GanitWorkspaceUI",
         "GanitQuickUI",
         "GanitSystemIntegration",
@@ -129,7 +130,7 @@ let package = Package(
     ),
     .testTarget(
       name: "GanitWorkspaceUITests",
-      dependencies: ["GanitWorkspaceUI"]
+      dependencies: ["GanitDocuments", "GanitWorkspaceUI"]
     ),
   ],
   swiftLanguageModes: [.v6]

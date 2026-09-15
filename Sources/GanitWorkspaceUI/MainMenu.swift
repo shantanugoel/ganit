@@ -5,6 +5,7 @@ import GanitEditorUI
 @MainActor
 @objc public protocol WorkspaceCommands {
   func newSheet(_ sender: Any?)
+  func restorePreviousVersion(_ sender: Any?)
 }
 
 /// The standard main menu. It lists only commands that exist, with
@@ -61,6 +62,10 @@ public enum MainMenu {
             localized("menu.newSheet", "New Sheet"), #selector(WorkspaceCommands.newSheet(_:)), "n"),
           .separator(),
           item(localized("menu.close", "Close"), #selector(NSWindow.performClose(_:)), "w"),
+          item(
+            localized("menu.restorePreviousVersion", "Restore Previous Version…"),
+            #selector(WorkspaceCommands.restorePreviousVersion(_:))
+          ),
           .separator(),
           item(localized("menu.print", "Print…"), #selector(NSView.printView(_:)), "p"),
         ]

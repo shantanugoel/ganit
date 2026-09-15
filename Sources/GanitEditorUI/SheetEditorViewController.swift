@@ -26,6 +26,8 @@ public final class SheetEditorViewController: NSViewController {
   /// Receives the time from an edit until its answers were drawn, for each
   /// generation that reaches the screen.
   public var editToAnswerHandler: ((Duration) -> Void)?
+  /// Called after each committed source edit, for saving.
+  public var sourceDidChange: (() -> Void)?
 
   private let context: EvaluationContext
   private let scrollView = NSScrollView()
@@ -184,6 +186,7 @@ public final class SheetEditorViewController: NSViewController {
       // Underline ranges no longer match the edited text.
       sheetTextView.underlines[id] = nil
     }
+    sourceDidChange?()
     // Undo and other programmatic edits do not send `textDidChange`.
     textDidChange()
   }

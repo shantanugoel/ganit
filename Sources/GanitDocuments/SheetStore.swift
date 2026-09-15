@@ -90,11 +90,11 @@ public struct SheetStore: Sendable {
     root.appending(path: "Metadata", directoryHint: .isDirectory)
   }
 
-  private func sourceURL(_ id: UUID) -> URL {
+  func sourceURL(_ id: UUID) -> URL {
     sheetsDirectory.appending(path: "\(id.uuidString).txt")
   }
 
-  private func metadataURL(_ id: UUID) -> URL {
+  func metadataURL(_ id: UUID) -> URL {
     metadataDirectory.appending(path: "\(id.uuidString).json")
   }
 

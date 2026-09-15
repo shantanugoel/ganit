@@ -983,7 +983,7 @@ Tasks:
 
 - [x] Implement source/metadata files, atomic replace and checksums.
 - [x] Implement derived index and rebuild flow.
-- [ ] Add autosave, backups, restore and migration framework.
+- [x] Add autosave, backups, restore and migration framework (migrations wait for a second schema; see docs/storage/autosave-and-backups.md).
 - [ ] Build sidebar/folders, sheet CRUD, favorite, archive, trash and search.
 - [ ] Add multiwindow and per-document undo/state restoration.
 - [ ] Add plain-text import/export and define public `.ganit` format.
