@@ -339,7 +339,14 @@ public struct UnitCatalog: Sendable {
       try entry(
         "liter", "L", .volume, 1, 1_000, ["L", "liter", "liters", "litre", "litres"], bipm,
         families: [.decimal]),
+      try entry(
+        "gallon", "gal", .volume, 3_785_411_784, 1_000_000_000_000,
+        ["gal", "gallon", "gallons"], nist),
       try entry("kilogram", "kg", .mass, 1, ["kg", "kilogram", "kilograms"], bipm),
+      try entry(
+        "pound", "lb", .mass, 45_359_237, 100_000_000, ["lb", "lbs", "pound", "pounds"], nist),
+      try entry(
+        "ounce", "oz", .mass, 45_359_237, 1_600_000_000, ["oz", "ounce", "ounces"], nist),
       try entry(
         "gram", "g", .mass, 1, 1_000, ["g", "gram", "grams"], bipm,
         families: [.decimal]),
@@ -372,8 +379,13 @@ public struct UnitCatalog: Sendable {
         "watt", "W", .power, 1, ["W", "watt", "watts"], bipm,
         families: [.decimal]),
       try entry(
+        "mile-per-hour", "mph", .speed, 44_704, 100_000, ["mph"], nist),
+      try entry(
         "bit", "bit", .data, 1, ["bit", "bits", "b"], iec,
         families: [.decimal, .binary]),
+      try entry(
+        "bit-per-second", "bps", .dataRate, 1, ["bps"], iec,
+        families: [.decimal]),
       try entry(
         "byte", "B", .data, 8, ["B", "byte", "bytes"], iec,
         families: [.decimal, .binary]),

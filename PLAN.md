@@ -1104,7 +1104,7 @@ Exit criteria:
 
 Tasks:
 
-- [ ] Expand compatibility corpus by testing Numi, Soulver, Apple Math Notes and Ganit on matching semantics.
+- [x] Expand compatibility corpus by testing Numi, Soulver, Apple Math Notes and Ganit on matching semantics. 48 expressions are pinned in the `phase-11-compatibility` fixture and answered by both engines through `scripts/compare-calculators.sh`; Soulver's published answers are compared from its documentation, and Apple Math Notes has no scriptable interface and was skipped by owner decision. The comparison added pounds, ounces, gallons, `mph`, and `bps` to the unit catalog and made percentages scale quantities; see docs/quality/compatibility.md.
 - [ ] Recruit mixed-domain beta users; collect reports without automatic sheet upload. Report collection is built (Help ▸ Report a Problem…, sheet text only when included; see docs/quality/problem-reports.md); recruiting beta users needs a person and has not happened.
 - [x] Run parser fuzzing continuously and triage every crash/hang. A nightly Address Sanitizer workflow fuzzes 50,000 inputs with a new seed and fails on slow inputs; 180,000 local inputs found no crash or hang. See Tests/README.md.
 - [x] Conduct backup restore day and migration rehearsal. `RecoveryRehearsalTests` rehearses every instruction in docs/storage/recovery-guide.md: moving a library, export and reimport, returning to an older version with newer-format sheets, and restoring a previous version.

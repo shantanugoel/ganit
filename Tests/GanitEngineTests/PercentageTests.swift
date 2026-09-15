@@ -87,6 +87,29 @@ struct PercentageTests {
     }
   }
 
+  /// A tenth of fifty kilograms is five kilograms, but a tenth of twenty
+  /// degrees Celsius is a point on no scale.
+  @Test
+  func scalesQuantitiesThatCountAndRefusesThoseOnAScale() throws {
+    #expect(try evaluate("10% of 50 kg") == (try evaluate("5 kg")))
+    #expect(try evaluate("10% off 50 kg") == (try evaluate("45 kg")))
+    #expect(try evaluate("10% on 20 m") == (try evaluate("22 m")))
+    #expect(try evaluate("50 kg - 10%") == (try evaluate("45 kg")))
+    #expect(try evaluate("50 kg + 10%") == (try evaluate("55 kg")))
+    #expect(try evaluate("50 kg * 10%") == (try evaluate("5 kg")))
+
+    for source in ["10% of 20 °C", "20 °C - 10%"] {
+      guard
+        case .evaluationFailure(let error) = engine.evaluate(
+          source, context: try context())
+      else {
+        Issue.record("Expected a refusal for \(source)")
+        continue
+      }
+      #expect(error.code == .invalidAbsoluteQuantityOperation)
+    }
+  }
+
   @Test
   func neverTreatsPercentAsModulo() throws {
     let result = engine.evaluate("50 % 20", context: try context())

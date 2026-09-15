@@ -15,6 +15,12 @@ Supported forms:
 - `percentage change from 80 to 100` evaluates to `25%`.
 - `80 after 20% off` and `120 after 20% on` evaluate to `100`.
 
+A percentage of money keeps the currency and a percentage of a quantity keeps
+the unit, so `10% of 50 kg` is `5 kg` and `50 kg - 10%` is `45 kg`. Quantities
+on a scale rather than quantities that count refuse: `10% of 20 °C` fails with
+`evaluation.invalidAbsoluteQuantityOperation`, because a tenth of a temperature
+depends on where the scale starts.
+
 Percentage signs participate algebraically. A negative percentage reverses the
 direction implied by `off` or `on`: `-20% off 50` is `60`, while `-20% on 50`
 is `40`. Write `-(20% off 50)` when negating the completed result.

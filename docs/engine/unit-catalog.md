@@ -5,6 +5,13 @@ and the named dimensions in the product plan. The initial set covers SI base
 and derived units, liters, international inches/feet/miles, civil time units,
 Celsius/Fahrenheit, angles, and decimal and binary data units.
 
+Pounds, ounces, gallons, `mph`, and `bps` joined it after the
+[answer comparison](../quality/compatibility.md) found that a US-customary
+weight or volume, a speed in miles per hour, and a bandwidth in bits per
+second had no answer at all. A named speed or data-rate unit carries the
+compound dimension but not its factors, so `60 mph * 2 hours` answers
+`120 h·mph` where `60 mi/h * 2 hours` answers `120 mi`.
+
 Each entry records:
 
 - a stable Ganit-owned identifier and canonical symbol;

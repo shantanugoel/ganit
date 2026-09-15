@@ -10,7 +10,7 @@ struct UnitCatalogTests {
     let catalog = try UnitCatalog.minimal()
     let sourceIdentifiers = Set(catalog.sources.map(\.identifier))
 
-    #expect(catalog.entries.count == 21)
+    #expect(catalog.entries.count == 26)
     #expect(catalog.prefixes.count == 34)
     #expect(catalog.sources.count == 3)
     for entry in catalog.entries {
@@ -34,6 +34,7 @@ struct UnitCatalogTests {
     #expect(catalog.prefix(matching: "M")?.prefix.symbol == "M")
     #expect(catalog.unit(matching: "Meter") == nil)
     #expect(catalog.unit(matching: "miles")?.definition.symbol == "mi")
+    #expect(catalog.unit(matching: "lbs")?.definition.symbol == "lb")
   }
 
   @Test

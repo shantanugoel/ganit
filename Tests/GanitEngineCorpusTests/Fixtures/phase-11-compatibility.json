@@ -1,0 +1,501 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "integer precedence",
+      "expression": "2 + 3 * 4",
+      "expected": {
+        "status": "value",
+        "display": "14",
+        "fullPrecision": "14",
+        "approximate": false
+      }
+    },
+    {
+      "name": "parentheses first",
+      "expression": "(1 + 2) * 3",
+      "expected": {
+        "status": "value",
+        "display": "9",
+        "fullPrecision": "9",
+        "approximate": false
+      }
+    },
+    {
+      "name": "a division that does not terminate",
+      "expression": "10 / 3",
+      "expected": {
+        "status": "value",
+        "display": "3.33333333333333",
+        "fullPrecision": "10/3",
+        "approximate": false
+      }
+    },
+    {
+      "name": "a small power",
+      "expression": "2^10",
+      "expected": {
+        "status": "value",
+        "display": "1,024",
+        "fullPrecision": "1024",
+        "approximate": false
+      }
+    },
+    {
+      "name": "a power beyond binary floating point",
+      "expression": "2^100",
+      "expected": {
+        "status": "value",
+        "display": "1,267,650,600,228,229,401,496,703,205,376",
+        "fullPrecision": "1267650600228229401496703205376",
+        "approximate": false
+      }
+    },
+    {
+      "name": "fractions add exactly",
+      "expression": "1/3 + 1/6",
+      "expected": {
+        "status": "value",
+        "display": "0.5",
+        "fullPrecision": "1/2",
+        "approximate": false
+      }
+    },
+    {
+      "name": "an exact root",
+      "expression": "sqrt(16)",
+      "expected": {
+        "status": "value",
+        "display": "4",
+        "fullPrecision": "4",
+        "approximate": false
+      }
+    },
+    {
+      "name": "a trigonometric value is approximate",
+      "expression": "sin(pi / 2)",
+      "expected": {
+        "status": "value",
+        "display": "≈ 1",
+        "fullPrecision": "≈ 1.0",
+        "approximate": true
+      }
+    },
+    {
+      "name": "division by zero",
+      "expression": "1 / 0",
+      "expected": {
+        "status": "evaluationFailure",
+        "code": "evaluation.divisionByZero",
+        "messageKey": "error.evaluation.divisionByZero",
+        "message": "Cannot divide by zero.",
+        "lowerBound": 4,
+        "upperBound": 5
+      }
+    },
+    {
+      "name": "hexadecimal input answers in decimal",
+      "expression": "0xff + 1",
+      "expected": {
+        "status": "value",
+        "display": "256",
+        "fullPrecision": "256",
+        "approximate": false
+      }
+    },
+    {
+      "name": "scientific notation",
+      "expression": "1e3 + 1",
+      "expected": {
+        "status": "value",
+        "display": "1,001",
+        "fullPrecision": "1001",
+        "approximate": false
+      }
+    },
+    {
+      "name": "a percentage of a number",
+      "expression": "20% of 85",
+      "expected": {
+        "status": "value",
+        "display": "17",
+        "fullPrecision": "17",
+        "approximate": false
+      }
+    },
+    {
+      "name": "a percentage added to a number",
+      "expression": "85 + 20%",
+      "expected": {
+        "status": "value",
+        "display": "102",
+        "fullPrecision": "102",
+        "approximate": false
+      }
+    },
+    {
+      "name": "a percentage taken off a number",
+      "expression": "20% off 85",
+      "expected": {
+        "status": "value",
+        "display": "68",
+        "fullPrecision": "68",
+        "approximate": false
+      }
+    },
+    {
+      "name": "a percentage of a quantity keeps the unit",
+      "expression": "10% of 50 kg",
+      "expected": {
+        "status": "value",
+        "display": "5 kg",
+        "fullPrecision": "5 kg",
+        "approximate": false
+      }
+    },
+    {
+      "name": "a quantity less a percentage",
+      "expression": "50 kg - 10%",
+      "expected": {
+        "status": "value",
+        "display": "45 kg",
+        "fullPrecision": "45 kg",
+        "approximate": false
+      }
+    },
+    {
+      "name": "one number as a percentage of another",
+      "expression": "50 is what % of 200",
+      "expected": {
+        "status": "value",
+        "display": "25%",
+        "fullPrecision": "25%",
+        "approximate": false
+      }
+    },
+    {
+      "name": "inches to centimetres",
+      "expression": "20 inches in cm",
+      "expected": {
+        "status": "value",
+        "display": "50.8 cm",
+        "fullPrecision": "254/5 cm",
+        "approximate": false
+      }
+    },
+    {
+      "name": "kilometres to miles",
+      "expression": "12 km in miles",
+      "expected": {
+        "status": "value",
+        "display": "7.45645430684801 mi",
+        "fullPrecision": "31250/4191 mi",
+        "approximate": false
+      }
+    },
+    {
+      "name": "adding two lengths",
+      "expression": "5 km + 300 m",
+      "expected": {
+        "status": "value",
+        "display": "5.3 km",
+        "fullPrecision": "53/10 km",
+        "approximate": false
+      }
+    },
+    {
+      "name": "kilograms to pounds",
+      "expression": "1 kg in lbs",
+      "expected": {
+        "status": "value",
+        "display": "2.20462262184878 lb",
+        "fullPrecision": "100000000/45359237 lb",
+        "approximate": false
+      }
+    },
+    {
+      "name": "pounds to kilograms",
+      "expression": "150 lb in kg",
+      "expected": {
+        "status": "value",
+        "display": "68.0388555 kg",
+        "fullPrecision": "136077711/2000000 kg",
+        "approximate": false
+      }
+    },
+    {
+      "name": "gallons to litres",
+      "expression": "1 gal in L",
+      "expected": {
+        "status": "value",
+        "display": "3.785411784 L",
+        "fullPrecision": "473176473/125000000 L",
+        "approximate": false
+      }
+    },
+    {
+      "name": "ounces to pounds",
+      "expression": "16 oz in lb",
+      "expected": {
+        "status": "value",
+        "display": "1 lb",
+        "fullPrecision": "1 lb",
+        "approximate": false
+      }
+    },
+    {
+      "name": "a distance over a time is a speed",
+      "expression": "100 km / 4 hours",
+      "expected": {
+        "status": "value",
+        "display": "25 km/h",
+        "fullPrecision": "25 km/h",
+        "approximate": false
+      }
+    },
+    {
+      "name": "hours to minutes",
+      "expression": "1 hour in minutes",
+      "expected": {
+        "status": "value",
+        "display": "60 min",
+        "fullPrecision": "60 min",
+        "approximate": false
+      }
+    },
+    {
+      "name": "bytes to bits",
+      "expression": "1 MB in bits",
+      "expected": {
+        "status": "value",
+        "display": "8,000,000 bit",
+        "fullPrecision": "8000000 bit",
+        "approximate": false
+      }
+    },
+    {
+      "name": "a bandwidth",
+      "expression": "100 Mb/s",
+      "expected": {
+        "status": "value",
+        "display": "100 Mbit/s",
+        "fullPrecision": "100 Mbit/s",
+        "approximate": false
+      }
+    },
+    {
+      "name": "miles per hour to kilometres per hour",
+      "expression": "60 mi/h in km/h",
+      "expected": {
+        "status": "value",
+        "display": "96.56064 km/h",
+        "fullPrecision": "301752/3125 km/h",
+        "approximate": false
+      }
+    },
+    {
+      "name": "Celsius to Fahrenheit",
+      "expression": "20 °C in °F",
+      "expected": {
+        "status": "value",
+        "display": "68 °F",
+        "fullPrecision": "68 °F",
+        "approximate": false
+      }
+    },
+    {
+      "name": "adding money in one currency",
+      "expression": "10 USD + 5 USD",
+      "expected": {
+        "status": "value",
+        "display": "$15.00",
+        "fullPrecision": "15 USD",
+        "approximate": false
+      }
+    },
+    {
+      "name": "an ambiguous currency symbol",
+      "expression": "$20 + $5",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "ambiguousCurrencySymbol",
+        "messageKey": "syntax.ambiguousCurrencySymbol",
+        "message": "This symbol is used by several currencies. Write a code such as USD.",
+        "lowerBound": 0,
+        "upperBound": 1
+      }
+    },
+    {
+      "name": "a month end that has no matching day",
+      "expression": "2024-01-31 + 1 month",
+      "expected": {
+        "status": "value",
+        "display": "Feb 29, 2024",
+        "fullPrecision": "2024-02-29",
+        "approximate": false
+      }
+    },
+    {
+      "name": "days added to a written date",
+      "expression": "15 Jan 2024 + 10 days",
+      "expected": {
+        "status": "value",
+        "display": "Jan 25, 2024",
+        "fullPrecision": "2024-01-25",
+        "approximate": false
+      }
+    },
+    {
+      "name": "a calendar day is not twenty-four hours",
+      "expression": "1 day in hours",
+      "expected": {
+        "status": "evaluationFailure",
+        "code": "evaluation.typeMismatch",
+        "messageKey": "error.evaluation.typeMismatch",
+        "message": "This operation cannot combine these value types.",
+        "lowerBound": 0,
+        "upperBound": 5
+      }
+    },
+    {
+      "name": "pm after a bare number is picometres",
+      "expression": "3 pm + 2 hours",
+      "expected": {
+        "status": "evaluationFailure",
+        "code": "evaluation.incompatibleDimensions",
+        "messageKey": "error.evaluation.incompatibleDimensions",
+        "message": "These quantities have incompatible dimensions.",
+        "lowerBound": 5,
+        "upperBound": 6
+      }
+    },
+    {
+      "name": "kilometres per hour to miles per hour",
+      "expression": "100 km/h in mph",
+      "expected": {
+        "status": "value",
+        "display": "62.1371192237334 mph",
+        "fullPrecision": "781250/12573 mph",
+        "approximate": false
+      }
+    },
+    {
+      "name": "a transfer size over a time as a bandwidth",
+      "expression": "2 GB / 5 min in Mbps",
+      "expected": {
+        "status": "value",
+        "display": "53.3333333333333 Mbps",
+        "fullPrecision": "160/3 Mbps",
+        "approximate": false
+      }
+    },
+    {
+      "name": "factorial is not in the grammar",
+      "expression": "100!",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "unexpectedCharacter",
+        "messageKey": "syntax.unexpectedCharacter",
+        "message": "This character is not valid in an expression.",
+        "lowerBound": 3,
+        "upperBound": 4
+      }
+    },
+    {
+      "name": "an equals sign is not an assertion",
+      "expression": "2 + 2 = 4",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "unexpectedCharacter",
+        "messageKey": "syntax.unexpectedCharacter",
+        "message": "This character is not valid in an expression.",
+        "lowerBound": 6,
+        "upperBound": 7
+      }
+    },
+    {
+      "name": "Soulver's documented miles per hour conversion",
+      "expression": "75 mph in km/h",
+      "expected": {
+        "status": "value",
+        "display": "120.7008 km/h",
+        "fullPrecision": "75438/625 km/h",
+        "approximate": false
+      }
+    },
+    {
+      "name": "Soulver's documented pounds conversion",
+      "expression": "170 lb in kg",
+      "expected": {
+        "status": "value",
+        "display": "77.1107029 kg",
+        "fullPrecision": "771107029/10000000 kg",
+        "approximate": false
+      }
+    },
+    {
+      "name": "Soulver's documented temperature conversion",
+      "expression": "32 °C in °F",
+      "expected": {
+        "status": "value",
+        "display": "89.6 °F",
+        "fullPrecision": "448/5 °F",
+        "approximate": false
+      }
+    },
+    {
+      "name": "Soulver's documented percentage of a number",
+      "expression": "15% of 490",
+      "expected": {
+        "status": "value",
+        "display": "73.5",
+        "fullPrecision": "147/2",
+        "approximate": false
+      }
+    },
+    {
+      "name": "Soulver's documented tip on a bill",
+      "expression": "55 USD + 25%",
+      "expected": {
+        "status": "value",
+        "display": "$68.75",
+        "fullPrecision": "275/4 USD",
+        "approximate": false
+      }
+    },
+    {
+      "name": "Soulver's documented percentage change",
+      "expression": "percentage change from 50 to 90",
+      "expected": {
+        "status": "value",
+        "display": "80%",
+        "fullPrecision": "80%",
+        "approximate": false
+      }
+    },
+    {
+      "name": "a percentage plus a bare number",
+      "expression": "50% + 0.5",
+      "expected": {
+        "status": "evaluationFailure",
+        "code": "evaluation.typeMismatch",
+        "messageKey": "error.evaluation.typeMismatch",
+        "message": "This operation cannot combine these value types.",
+        "lowerBound": 4,
+        "upperBound": 5
+      }
+    },
+    {
+      "name": "no phrase rounds an answer",
+      "expression": "1/3 to 2 dp",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "unexpectedToken",
+        "messageKey": "syntax.unexpectedToken",
+        "message": "This part of the expression is unexpected.",
+        "lowerBound": 4,
+        "upperBound": 6
+      }
+    }
+  ]
+}

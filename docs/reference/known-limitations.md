@@ -21,6 +21,10 @@ release candidate.
 - Temperature differences have no syntax, so relative temperature arithmetic
   (`10 °C + 5 °C`) is unavailable.
 - `pm` after a plain number is picometres; write `3:00 pm` for a time.
+- No phrase rounds a single answer, such as `1/3 to 2 dp`; precision is a
+  sheet-wide setting.
+- A percentage and a bare number do not add (`50% + 0.5`), because the
+  intended meaning is not knowable.
 
 ## Dates and time
 
@@ -29,6 +33,8 @@ release candidate.
   name or a listed city.
 - Calendar arithmetic that lands in a daylight-saving gap moves past it, and
   in an overlap uses the earlier offset, without asking.
+- A calendar day is not a fixed number of hours, so `1 day in hours` fails;
+  `24 h in min` and other fixed-duration conversions work.
 
 ## Currency
 
@@ -54,8 +60,9 @@ release candidate.
 
 - Task-based usability sessions with novices and Numi or Soulver users have
   not been run.
-- Answers have not been compared side by side with Numi, Soulver, or Apple
-  Math Notes.
+- Answers have not been compared with Apple Math Notes, which has no
+  scriptable interface. Numi and Soulver are covered by the
+  [answer comparison](../quality/compatibility.md).
 - Performance has been measured on one development Mac, not on clean baseline
   hardware or against competitors.
 - VoiceOver listening, right-to-left visual review, real IMEs, multiple

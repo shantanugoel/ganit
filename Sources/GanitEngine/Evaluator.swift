@@ -512,6 +512,15 @@ private struct EvaluationWorker {
         throw typeMismatch(expected: .number, actual: .percentage)
       }
 
+    case (.quantity(let quantity), .percentage):
+      guard quantity.kind == .relative else {
+        throw EngineError(code: .invalidAbsoluteQuantityOperation)
+      }
+      return try quantityResult(
+        apply(binaryOperator, left: .number(quantity.magnitude), right: right),
+        quantity.unit
+      )
+
     case (.quantity(let lhs), .quantity(let rhs)):
       switch binaryOperator {
       case .add:
@@ -736,6 +745,27 @@ private struct EvaluationWorker {
         apply(
           percentageOperator, left: .number(money.amount), leftRange: leftRange, right: right,
           rightRange: rightRange), money.currency)
+    // Percentages of a quantity scale its magnitude and keep its unit, for
+    // quantities that count. A tenth of 20 °C is a point on no scale.
+    case (.of, _, .quantity(let quantity)), (.off, _, .quantity(let quantity)),
+      (.on, _, .quantity(let quantity)):
+      guard quantity.kind == .relative else {
+        throw EngineError(
+          code: .invalidAbsoluteQuantityOperation, ranges: [rightRange])
+      }
+      return try quantityResult(
+        apply(
+          percentageOperator, left: left, leftRange: leftRange,
+          right: .number(quantity.magnitude), rightRange: rightRange), quantity.unit)
+    case (.reverseOff, .quantity(let quantity), _), (.reverseOn, .quantity(let quantity), _):
+      guard quantity.kind == .relative else {
+        throw EngineError(
+          code: .invalidAbsoluteQuantityOperation, ranges: [leftRange])
+      }
+      return try quantityResult(
+        apply(
+          percentageOperator, left: .number(quantity.magnitude), leftRange: leftRange,
+          right: right, rightRange: rightRange), quantity.unit)
     case (.ratio, .money(let lhs), .money(let rhs)), (.change, .money(let lhs), .money(let rhs)):
       guard lhs.currency == rhs.currency else {
         throw EngineError(code: .mixedCurrencies)
@@ -830,6 +860,17 @@ private struct EvaluationWorker {
       throw typeMismatch(expected: .number, actual: value.kind)
     }
     return .money(MoneyValue(amount: amount, currency: currency))
+  }
+
+  private func quantityResult(
+    _ value: EngineValue, _ unit: UnitExpression
+  ) throws -> EngineValue {
+    guard case .number(let magnitude) = value else {
+      throw typeMismatch(expected: .number, actual: value.kind)
+    }
+    return .quantity(
+      QuantityValue(magnitude: magnitude, unit: unit, kind: .relative)
+    )
   }
 
   private func percentageRate(

@@ -27,11 +27,13 @@ It does not claim conformance with any external unit standard.
 ## Catalog entries
 
 - `bit` (bit): dimension `data`, transform `ratio 1`, exact, source `iec-80000-13-2025`
+- `bit-per-second` (bps): dimension `time^-1·data`, transform `ratio 1`, exact, source `iec-80000-13-2025`
 - `byte` (B): dimension `data`, transform `ratio 8`, exact, source `iec-80000-13-2025`
 - `degree` (°): dimension `angle`, transform `ratio ≈0.017453292519943295`, approximate, source `bipm-si-9-v4.01`
 - `degree-celsius` (°C): dimension `temperature`, transform `affine scale 1, offset 27315e-2`, exact, source `bipm-si-9-v4.01`
 - `degree-fahrenheit` (°F): dimension `temperature`, transform `affine scale 5/9, offset 45967/180`, exact, source `nist-sp811-2008`
 - `foot` (ft): dimension `length`, transform `ratio 381/1250`, exact, source `nist-sp811-2008`
+- `gallon` (gal): dimension `length^3`, transform `ratio 473176473/125000000000`, exact, source `nist-sp811-2008`
 - `gram` (g): dimension `mass`, transform `ratio 1/1000`, exact, source `bipm-si-9-v4.01`
 - `hour` (h): dimension `time`, transform `ratio 3600`, exact, source `bipm-si-9-v4.01`
 - `inch` (in): dimension `length`, transform `ratio 127/5000`, exact, source `nist-sp811-2008`
@@ -41,9 +43,12 @@ It does not claim conformance with any external unit standard.
 - `liter` (L): dimension `length^3`, transform `ratio 1/1000`, exact, source `bipm-si-9-v4.01`
 - `meter` (m): dimension `length`, transform `ratio 1`, exact, source `bipm-si-9-v4.01`
 - `mile` (mi): dimension `length`, transform `ratio 201168/125`, exact, source `nist-sp811-2008`
+- `mile-per-hour` (mph): dimension `length·time^-1`, transform `ratio 1397/3125`, exact, source `nist-sp811-2008`
 - `minute` (min): dimension `time`, transform `ratio 60`, exact, source `bipm-si-9-v4.01`
 - `newton` (N): dimension `length·mass·time^-2`, transform `ratio 1`, exact, source `bipm-si-9-v4.01`
+- `ounce` (oz): dimension `mass`, transform `ratio 45359237/1600000000`, exact, source `nist-sp811-2008`
 - `pascal` (Pa): dimension `length^-1·mass·time^-2`, transform `ratio 1`, exact, source `bipm-si-9-v4.01`
+- `pound` (lb): dimension `mass`, transform `ratio 45359237/100000000`, exact, source `nist-sp811-2008`
 - `radian` (rad): dimension `angle`, transform `ratio 1`, exact, source `bipm-si-9-v4.01`
 - `second` (s): dimension `time`, transform `ratio 1`, exact, source `bipm-si-9-v4.01`
 - `watt` (W): dimension `length^2·mass·time^-3`, transform `ratio 1`, exact, source `bipm-si-9-v4.01`
