@@ -632,6 +632,11 @@ public struct DiagnosticFormatter: Sendable {
         "syntax.unexpectedToken",
         defaultValue: "This part of the expression is unexpected."
       )
+    case .invalidVariableName:
+      return localized(
+        "syntax.invalidVariableName",
+        defaultValue: "Use words that are not units, functions, or keywords."
+      )
     case .resourceLimitExceeded:
       return localized(
         "syntax.resourceLimitExceeded",
@@ -701,6 +706,11 @@ public struct DiagnosticFormatter: Sendable {
       return localized(
         "error.evaluation.unknownIdentifier",
         defaultValue: "This identifier is not defined."
+      )
+    case .unavailableVariable:
+      return localized(
+        "error.evaluation.unavailableVariable",
+        defaultValue: "This variable's definition has an error."
       )
     case .unknownFunction:
       return localized(

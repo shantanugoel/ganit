@@ -50,7 +50,7 @@ struct LineSyntaxTests {
     for (source, label, expression, comment) in cases {
       let line = try #require(SheetSource(source).lines.first)
       guard
-        case .calculation(let labelRange, let expressionRange, let commentRange) =
+        case .calculation(let labelRange, nil, let expressionRange, let commentRange) =
           LineSyntax(line)
       else {
         Issue.record("Expected a calculation for \(source)")
@@ -120,7 +120,7 @@ struct LineSyntaxTests {
   }
 
   private func expressionText(_ syntax: LineSyntax, in text: String) -> Substring? {
-    guard case .calculation(nil, let expression?, nil) = syntax else {
+    guard case .calculation(nil, nil, let expression?, nil) = syntax else {
       return nil
     }
     return expression.text(in: text)

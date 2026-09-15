@@ -9,10 +9,13 @@ public enum LineSyntax: Hashable, Sendable {
   case heading(title: SourceRange)
   /// A whole-line `// comment`, including its `//` marker.
   case comment(SourceRange)
-  /// An optional `label:`, an optional expression, and an optional trailing
-  /// `// comment`. At least one of the label and expression is present.
+  /// An optional `label:`, an optional `name =` declaration, an optional
+  /// expression, and an optional trailing `// comment`. At least one of the
+  /// label and expression is present; a declaration always has an
+  /// expression range, which is empty when nothing follows `=`.
   case calculation(
     label: SourceRange?,
+    name: SourceRange?,
     expression: SourceRange?,
     comment: SourceRange?
   )
@@ -65,10 +68,20 @@ public enum LineSyntax: Hashable, Sendable {
         expressionStart = colon + 1
       }
     }
-    let expression = characters.trimmed(expressionStart..<body.upperBound)
+    var name: SourceRange?
+    var expression = characters.trimmed(expressionStart..<body.upperBound)
+    if let equals = expression.first(where: { characters[$0] == "=" }) {
+      let declared = characters.trimmed(expression.lowerBound..<equals)
+      if !declared.isEmpty {
+        name = characters.range(declared)
+        expression = characters.trimmed((equals + 1)..<body.upperBound)
+      }
+    }
     self = .calculation(
       label: label,
-      expression: expression.isEmpty ? nil : characters.range(expression),
+      name: name,
+      expression: expression.isEmpty && name == nil
+        ? nil : characters.range(expression),
       comment: comment
     )
   }

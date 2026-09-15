@@ -3,17 +3,26 @@ import Foundation
 public struct Evaluator: Sendable {
   private let context: EvaluationContext
   private let limits: EvaluationLimits
+  private let variables: [String: EngineValue?]
 
+  /// `variables` maps declared names to their values, or to `nil` when the
+  /// declaration failed.
   public init(
     context: EvaluationContext,
-    limits: EvaluationLimits = .default
+    limits: EvaluationLimits = .default,
+    variables: [String: EngineValue?] = [:]
   ) {
     self.context = context
     self.limits = limits
+    self.variables = variables
   }
 
   public func evaluate(_ expression: Expression) throws -> EngineValue {
-    var worker = EvaluationWorker(context: context, limits: limits)
+    var worker = EvaluationWorker(
+      context: context,
+      limits: limits,
+      variables: variables
+    )
     return try worker.evaluate(expression)
   }
 }
@@ -23,11 +32,17 @@ private struct EvaluationWorker {
   let limits: EvaluationLimits
   let operations: NumericOperations
   let unitAlgebra: UnitAlgebra
+  let variables: [String: EngineValue?]
   var visitedOperations = 0
 
-  init(context: EvaluationContext, limits: EvaluationLimits) {
+  init(
+    context: EvaluationContext,
+    limits: EvaluationLimits,
+    variables: [String: EngineValue?]
+  ) {
     self.context = context
     self.limits = limits
+    self.variables = variables
     operations = NumericOperations(context: context, limits: limits)
     unitAlgebra = UnitAlgebra(context: context, limits: limits)
   }
@@ -41,6 +56,12 @@ private struct EvaluationWorker {
         return .number(try evaluate(literal, range: range))
 
       case .identifier(let name, let range):
+        if let variable = variables[name] {
+          guard let value = variable else {
+            throw EngineError(code: .unavailableVariable, ranges: [range])
+          }
+          return value
+        }
         switch name {
         case "π", "pi":
           return .number(

@@ -11,6 +11,7 @@ public enum EngineErrorCode: String, Hashable, Sendable {
   case overflow = "evaluation.overflow"
   case nonConvergence = "evaluation.nonConvergence"
   case unknownIdentifier = "evaluation.unknownIdentifier"
+  case unavailableVariable = "evaluation.unavailableVariable"
   case unknownFunction = "evaluation.unknownFunction"
   case argumentCountMismatch = "evaluation.argumentCountMismatch"
   case typeMismatch = "evaluation.typeMismatch"

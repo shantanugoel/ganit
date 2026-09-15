@@ -16,6 +16,7 @@ public struct SyntaxDiagnostic: Hashable, Sendable {
     case expectedClosingParenthesis
     case expectedArgumentSeparator
     case unexpectedToken
+    case invalidVariableName
     case resourceLimitExceeded
   }
 

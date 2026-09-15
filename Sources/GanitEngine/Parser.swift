@@ -4,19 +4,24 @@ public struct Parser: Sendable {
   private let limits: SyntaxLimits
   private let catalog: UnitCatalog
   private let origin: SourceLocation
+  private let variables: [String: EngineValueKind]
 
+  /// `variables` maps declared names, whose words are joined by single
+  /// spaces, to the kind of value they hold.
   public init(
     source: String,
     configuration: LexingConfiguration = .englishUnitedStates,
     limits: SyntaxLimits = .default,
     catalog: UnitCatalog? = nil,
-    origin: SourceLocation = .start
+    origin: SourceLocation = .start,
+    variables: [String: EngineValueKind] = [:]
   ) {
     self.source = source
     self.configuration = configuration
     self.limits = limits
     self.catalog = catalog ?? builtInMinimalUnitCatalog
     self.origin = origin
+    self.variables = variables
   }
 
   public func parse() -> ParsingResult {
@@ -38,7 +43,8 @@ public struct Parser: Sendable {
     var tokenParser = TokenParser(
       tokens: lexingResult.tokens,
       maximumParseDepth: limits.maximumParseDepth,
-      catalog: catalog
+      catalog: catalog,
+      variables: variables
     )
     let parsedExpression = tokenParser.parse()
     let diagnostics = lexingResult.diagnostics + tokenParser.diagnostics
@@ -49,6 +55,12 @@ public struct Parser: Sendable {
     )
   }
 }
+
+/// Words with grammatical meaning, which cannot name variables.
+let reservedIdentifiers: Set<String> = [
+  "in", "to", "as", "into", "of", "off", "on", "is", "what", "after",
+  "percentage", "change", "from", "pi", "π", "e",
+]
 
 extension Token {
   fileprivate var isEndOfInput: Bool {
@@ -62,17 +74,23 @@ private struct TokenParser {
   private let tokens: [Token]
   private let maximumParseDepth: Int
   private let catalog: UnitCatalog
+  private let variables: [String: EngineValueKind]
+  private let maximumNameWords: Int
   private var cursor = 0
   private(set) var diagnostics: [SyntaxDiagnostic] = []
 
   init(
     tokens: [Token],
     maximumParseDepth: Int,
-    catalog: UnitCatalog
+    catalog: UnitCatalog,
+    variables: [String: EngineValueKind]
   ) {
     self.tokens = tokens
     self.maximumParseDepth = maximumParseDepth
     self.catalog = catalog
+    self.variables = variables
+    maximumNameWords =
+      variables.keys.map { $0.split(separator: " ").count }.max() ?? 1
   }
 
   mutating func parse() -> Expression? {
@@ -272,7 +290,7 @@ private struct TokenParser {
           depth: depth
         )
       }
-      return .identifier(name, range: token.range)
+      return variableName(startingWith: name, range: token.range)
 
     case .plus, .minus:
       guard
@@ -778,6 +796,25 @@ private struct TokenParser {
     return name
   }
 
+  /// Consumes the longest declared multi-word name starting at `first`.
+  private mutating func variableName(
+    startingWith first: String,
+    range: SourceRange
+  ) -> Expression {
+    var words = [first]
+    while words.count < maximumNameWords, let word = identifier(at: words.count - 1) {
+      words.append(word)
+    }
+    while words.count > 1, variables[words.joined(separator: " ")] == nil {
+      words.removeLast()
+    }
+    var end = range
+    for _ in 1..<words.count {
+      end = advance().range
+    }
+    return .identifier(words.joined(separator: " "), range: range.union(end))
+  }
+
   private func startsKnownUnit(at offset: Int) -> Bool {
     guard let alias = identifier(at: offset) else {
       return false
@@ -814,7 +851,9 @@ private struct TokenParser {
 
   private func inferredKind(of expression: Expression) -> EngineValueKind? {
     switch expression {
-    case .literal, .identifier, .call:
+    case .identifier(let name, _):
+      return variables[name] ?? .number
+    case .literal, .call:
       return .number
     case .quantity, .conversion:
       return .quantity

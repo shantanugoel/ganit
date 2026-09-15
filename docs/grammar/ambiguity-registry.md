@@ -67,3 +67,15 @@ unit meaning.
   `2π m` fails; write `(2π) m`.
 - Identifiers are not split into digits and units: `5ft3in` is the number `5`
   times the unknown identifier `ft3in`.
+
+## `identifiers` — variable names versus prose and typos
+
+- Unknown identifiers are errors, never ignored prose: `tax + 1` fails with
+  `evaluation.unknownIdentifier` until `tax` is declared above it.
+- A multi-word name matches the longest declared name across adjacent words:
+  with `rent` and `rent total` declared, `rent total` is the second variable.
+- Names cannot use keywords, constants, function names, or unit aliases, so
+  `in = 1`, `pi = 3`, `min = 1`, `km = 5`, and `total km = 3` fail with
+  `syntax.invalidVariableName`. Declaration rejects the collision instead of
+  letting a variable shadow built-in meaning.
+

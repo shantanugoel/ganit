@@ -139,6 +139,11 @@
         "en" : { "stringUnit" : { "state" : "translated", "value" : "The compound unit has too many factors." } }
       }
     },
+    "error.evaluation.unavailableVariable" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This variable's definition has an error." } }
+      }
+    },
     "error.evaluation.unknownIdentifier" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "This identifier is not defined." } }
@@ -227,6 +232,11 @@
     "syntax.invalidUnitExponent" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Use a bounded signed integer unit exponent." } }
+      }
+    },
+    "syntax.invalidVariableName" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Use words that are not units, functions, or keywords." } }
       }
     },
     "syntax.invalidRadixDigit" : {
