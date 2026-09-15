@@ -19,6 +19,18 @@ test -f "$formatting_resources/en.lproj/Localizable.strings"
 test -f "$formatting_resources/tr.lproj/Localizable.strings"
 test ! -e "$formatting_resources/Localizable.xcstrings"
 
+# Evaluate Expression is offered to other apps, and Calculate Expression is
+# discoverable in Shortcuts and Spotlight.
+test "$(/usr/libexec/PlistBuddy -c 'Print :NSServices:0:NSMessage' "$application/Contents/Info.plist")" = "evaluateExpression"
+test "$(/usr/libexec/PlistBuddy -c 'Print :NSServices:0:NSSendTypes:0' "$application/Contents/Info.plist")" = "public.utf8-plain-text"
+intents_metadata="$application/Contents/Resources/Metadata.appintents/extract.actionsdata"
+ruby -rjson -e '
+  actions = JSON.parse(File.read(ARGV[0]))["actions"]
+  intent = actions.fetch("CalculateExpressionIntent")
+  abort "intent is not discoverable" unless intent["isDiscoverable"]
+  abort "intent opens the app" if intent["openAppWhenRun"]
+' "$intents_metadata"
+
 privacy_manifest="$application/Contents/Resources/PrivacyInfo.xcprivacy"
 plutil -lint "$privacy_manifest" >/dev/null
 cmp -s App/PrivacyInfo.xcprivacy "$privacy_manifest"

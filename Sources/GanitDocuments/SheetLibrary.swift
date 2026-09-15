@@ -40,6 +40,20 @@ public struct BackupPolicy: Equatable, Sendable {
 /// recovers sheet metadata from the canonical source files and rebuilds the
 /// index.
 public final class SheetLibrary {
+  /// `~/Library/Application Support/<bundle id>`, holding the library, the
+  /// quick buffer, and exchange-rate snapshots.
+  public static func applicationSupportRoot() throws -> URL {
+    try FileManager.default.url(
+      for: .applicationSupportDirectory,
+      in: .userDomainMask,
+      appropriateFor: nil,
+      create: true
+    ).appending(
+      path: Bundle.main.bundleIdentifier ?? "com.shantanugoel.Ganit",
+      directoryHint: .isDirectory
+    )
+  }
+
   public let store: SheetStore
   public let index: SheetIndex
   private let backupPolicy: BackupPolicy

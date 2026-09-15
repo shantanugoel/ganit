@@ -1083,7 +1083,7 @@ Exit criteria:
 
 Tasks in priority order:
 
-- [ ] Service and App Intent for pure expression calculation.
+- [x] Service and App Intent for pure expression calculation. Evaluate Expression and Calculate Expression share one bounded evaluation; see docs/integration/headless-answers.md. The Open Sheet intent is not part of pure calculation and is still to do.
 - [ ] Global definitions/custom units.
 - [ ] Selection aggregates and optional tags.
 - [ ] Generic transparent finance functions.

@@ -1,6 +1,7 @@
 import AppKit
 import GanitDocuments
 import GanitQuickUI
+import GanitSystemIntegration
 import GanitWorkspaceUI
 
 #if !arch(arm64)
@@ -20,6 +21,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   private var quickPanel: QuickPanelController?
   private var quickBufferStore: QuickBufferStore?
   private var rateRefresher: RateRefresher?
+  private var serviceProvider: ExpressionServiceProvider?
   private var shortcutWindow: NSWindow?
   private lazy var hotKey = GlobalHotKey { [weak self] in
     self?.toggleQuickGanit()
@@ -40,18 +42,12 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   /// Opens the library before AppKit restores windows that need it.
   func applicationWillFinishLaunching(_ notification: Notification) {
     do {
-      let root = try FileManager.default.url(
-        for: .applicationSupportDirectory,
-        in: .userDomainMask,
-        appropriateFor: nil,
-        create: true
-      ).appending(
-        path: Bundle.main.bundleIdentifier ?? "com.shantanugoel.Ganit", directoryHint: .isDirectory)
+      let root = try SheetLibrary.applicationSupportRoot()
       let workspace = Workspace(library: try SheetLibrary(root: root))
       self.workspace = workspace
       quickBufferStore = QuickBufferStore(url: root.appending(path: "QuickBuffer.txt"))
       let refresher = RateRefresher(
-        store: try RateSnapshotStore(root: root.appending(path: "ExchangeRates")),
+        store: try RateSnapshotStore.applicationSupport(),
         isAutomatic: !UserDefaults.standard.bool(forKey: Self.manualExchangeRatesDefaultsKey)
       )
       workspace.currencyRates = refresher.rates
@@ -68,6 +64,11 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
 
   /// Opens the most recent sheet when no window was restored.
   func applicationDidFinishLaunching(_ notification: Notification) {
+    let serviceProvider = ExpressionServiceProvider { [weak self] in
+      ExpressionCalculation(rates: self?.rateRefresher?.rates ?? .none)
+    }
+    self.serviceProvider = serviceProvider
+    NSApplication.shared.servicesProvider = serviceProvider
     if let data = UserDefaults.standard.data(forKey: Self.shortcutDefaultsKey),
       let shortcut = try? JSONDecoder().decode(KeyboardShortcut.self, from: data)
     {

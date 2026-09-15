@@ -1161,6 +1161,16 @@
         }
       }
     },
+    "service.noExpression" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select an expression to evaluate."
+          }
+        }
+      }
+    },
     "sheet.deleteImmediately" : {
       "localizations" : {
         "en" : {

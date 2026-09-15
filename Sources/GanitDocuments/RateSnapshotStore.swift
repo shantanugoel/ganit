@@ -30,6 +30,15 @@ public struct RateSnapshotStore: Sendable {
     try FileManager.default.createDirectory(at: snapshots, withIntermediateDirectories: true)
   }
 
+  /// The store inside the application-support root, which the app and its
+  /// system integrations share.
+  public static func applicationSupport() throws -> RateSnapshotStore {
+    try RateSnapshotStore(
+      root: try SheetLibrary.applicationSupportRoot()
+        .appending(path: "ExchangeRates", directoryHint: .isDirectory)
+    )
+  }
+
   /// The accepted snapshot, or `nil` before the first one.
   ///
   /// When the named snapshot is damaged, this rolls back to the newest intact

@@ -45,7 +45,7 @@ public final class RateRefresher {
     self.now = now
     policy = RateRefreshPolicy(timeZone: timeZone)
     let snapshot = try? store.lastKnownGood()
-    rates = snapshot.flatMap(Self.rates) ?? .none
+    rates = snapshot?.currencyRates ?? .none
     lastSuccess = snapshot?.metadata.retrievedAt
     schedule()
   }
@@ -80,7 +80,7 @@ public final class RateRefresher {
       lastSuccess = now()
       lastFailure = nil
       consecutiveFailures = 0
-      if let accepted = try store.lastKnownGood().flatMap(Self.rates), accepted != rates {
+      if let accepted = try store.lastKnownGood()?.currencyRates, accepted != rates {
         rates = accepted
         ratesDidChange(accepted)
       }
@@ -118,12 +118,16 @@ public final class RateRefresher {
     }
     self.activity = activity
   }
+}
 
-  private static func rates(_ snapshot: RateSnapshot) -> CurrencyRates? {
+extension RateSnapshot {
+  /// The engine's rates for this snapshot, or `nil` when its published rates
+  /// cannot be read as rates.
+  public var currencyRates: CurrencyRates? {
     try? CurrencyRates(
-      unitsPerEuro: snapshot.metadata.rates,
-      observationDate: snapshot.metadata.observationDate,
-      retrievedAt: snapshot.metadata.retrievedAt
+      unitsPerEuro: metadata.rates,
+      observationDate: metadata.observationDate,
+      retrievedAt: metadata.retrievedAt
     )
   }
 }

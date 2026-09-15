@@ -62,6 +62,49 @@ xcrun xcstringstool compile \
     App/Resources/Localizable.xcstrings \
     --output-directory "$staging/Contents/Resources"
 
+# Shortcuts and Spotlight find Calculate Expression through App Intents
+# metadata, which the Swift compiler and Apple's processor produce from the
+# intent's declaration. Xcode does this for its targets; SwiftPM does not.
+toolchain_directory=$(dirname "$(dirname "$(dirname "$(xcrun --find swiftc)")")")
+intents_work="$build_root/AppIntents"
+rm -rf "$intents_work"
+mkdir -p "$intents_work"
+plutil -extract constValueProtocols json -o "$intents_work/protocols.json" \
+    "$toolchain_directory/usr/share/swift/SwiftConstantValues/AppIntents.json"
+intent_sources=(Sources/GanitSystemIntegration/*.swift)
+for source in "${intent_sources[@]}"; do
+    constant_values="$intents_work/$(basename "$source" .swift).swiftconstvalues"
+    others=()
+    for other in "${intent_sources[@]}"; do
+        [[ "$other" != "$source" ]] && others+=("$other")
+    done
+    xcrun swift-frontend -typecheck \
+        -primary-file "$source" \
+        "${others[@]}" \
+        -module-name GanitSystemIntegration \
+        -target arm64-apple-macos14.0 \
+        -swift-version 6 \
+        -sdk "$(xcrun --show-sdk-path)" \
+        -I "$binary_directory/Modules" \
+        -I "$binary_directory" \
+        -const-gather-protocols-file "$intents_work/protocols.json" \
+        -emit-const-values-path "$constant_values"
+    echo "$constant_values" >>"$intents_work/constant-values.txt"
+done
+printf '%s\n' "${intent_sources[@]}" >"$intents_work/sources.txt"
+xcrun appintentsmetadataprocessor \
+    --output "$staging/Contents/Resources" \
+    --toolchain-dir "$toolchain_directory" \
+    --module-name GanitSystemIntegration \
+    --sdk-root "$(xcrun --show-sdk-path)" \
+    --xcode-version "$(xcodebuild -version | tail -1 | awk '{print $NF}')" \
+    --platform-family macOS \
+    --deployment-target 14.0 \
+    --target-triple arm64-apple-macos14.0 \
+    --source-file-list "$intents_work/sources.txt" \
+    --swift-const-vals-list "$intents_work/constant-values.txt" \
+    --force
+
 architectures=$(lipo -archs "$staging/Contents/MacOS/Ganit")
 if [[ "$architectures" != "arm64" ]]; then
     echo "Unexpected application architectures: $architectures" >&2
