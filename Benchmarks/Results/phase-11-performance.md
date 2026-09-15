@@ -7,8 +7,9 @@
 - Configuration: release, arm64
 
 This run is not the planned clean-machine comparison: no baseline M1 MacBook
-Air and no competitor apps were measured. It checks every PLAN §8.1 gate that
-the benchmark tools cover on the development Mac.
+Air was measured, and the only competitor measured is Numi's engine through
+its terminal build, below. It checks every PLAN §8.1 gate that the benchmark
+tools cover on the development Mac.
 
 | Metric | Result (P95) | Gate |
 | --- | ---: | ---: |
@@ -38,3 +39,27 @@ kept.
 
 The margin to the 50 ms gate is 2 ms. The remaining cost is spread across
 variable lookups, hashing, and result copies.
+
+## Numi, from the command line
+
+Numi's terminal build, `numi-cli` v0.18.0, is the only competitor engine with
+a scriptable interface, so it is the one comparison that can run here. Both
+commands answer the same eight expressions from a cold process, 30 runs each,
+on the same machine and in release configuration. `scripts/measure-cli.sh`
+reproduces the table.
+
+| Command | Median | P95 | Minimum |
+| --- | ---: | ---: | ---: |
+| `ganit EXPRESSION` | 10.6 ms | 20.2 ms | 8.7 ms |
+| `numi-cli EXPRESSION` | 24.3 ms | 32.7 ms | 20.2 ms |
+| `ganit < mixed-sheet-1k.txt` (1,000 lines) | 39.8 ms | 48.8 ms | 38.0 ms |
+
+Nearly all of the first two rows is process start, not arithmetic: the engine
+itself answers a single expression in 0.016 ms. The comparison that matters
+for a sheet is the third row, because `numi-cli` answers one expression per
+run, so a 1,000-line sheet costs it about 1,000 launches, roughly 24 seconds,
+against 40 ms in one Ganit process.
+
+This measures the two engines from a terminal, not the two apps. Comparing
+launch, typing latency, or memory between the Mac apps needs a person driving
+both interfaces on clean hardware.

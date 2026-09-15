@@ -1109,7 +1109,7 @@ Tasks:
 - [x] Run parser fuzzing continuously and triage every crash/hang. A nightly Address Sanitizer workflow fuzzes 50,000 inputs with a new seed and fails on slow inputs; 180,000 local inputs found no crash or hang. See Tests/README.md.
 - [x] Conduct backup restore day and migration rehearsal. `RecoveryRehearsalTests` rehearses every instruction in docs/storage/recovery-guide.md: moving a library, export and reimport, returning to an older version with newer-format sheets, and restoring a previous version.
 - [x] Audit sandbox, entitlements, URL/Service/import limits and data provenance. See docs/security/audit.md; imports are now bounded.
-- [ ] Run performance suite on clean machines and compare with competitors. The suite ran on the development Mac and found and fixed a chained-edit regression (see Benchmarks/Results/phase-11-performance.md); clean baseline hardware and competitor comparisons need a person and have not been run.
+- [ ] Run performance suite on clean machines and compare with competitors. The suite ran on the development Mac and found and fixed a chained-edit regression, and Numi's engine is now measured against `ganit` from the command line (see Benchmarks/Results/phase-11-performance.md, `scripts/measure-cli.sh`); clean baseline hardware and app-to-app comparisons of launch, typing, and memory need a person and have not been run.
 - [x] Freeze grammar/data/document schemas; publish known limitations. See docs/reference/schema-freeze.md, guarded by `FrozenFormatTests`, and docs/reference/known-limitations.md.
 
 Exit criteria:

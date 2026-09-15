@@ -30,4 +30,8 @@ and a regression is bisected with the benchmark that shows it.
 ## Not yet done
 
 All results so far come from one development Mac. Clean baseline hardware (an
-M1 MacBook Air with 8 GB) and competitor comparisons are still to be run.
+M1 MacBook Air with 8 GB) is still to be measured. The only competitor
+comparison so far is Numi's engine from the command line, where `ganit`
+answers one expression in 10.6 ms against `numi-cli`'s 24.3 ms, both mostly
+process start; app-to-app launch, typing, and memory comparisons are still to
+be run.
