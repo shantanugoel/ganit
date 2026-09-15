@@ -30,7 +30,17 @@ GANIT_SIGNING_IDENTITY="Developer ID Application: NAME (TEAM)" GANIT_NOTARY_PROF
    it, and staples it;
 5. validates both staples and checks both with Gatekeeper (`spctl`).
 
-The disk image is about 2.5 MB, against the 15 MB download target.
+The disk image is about 2.6 MB, against the 15 MB download target.
+
+## Run the signed app before releasing it
+
+Open the built app, type a line that fails, such as `1 +`, and read the message
+beside it. Some faults exist only in the shipped layout: a sandboxed app reaches
+neither the build directory nor anything beside its executable, so a resource
+the package build finds can be missing there, and the app stops instead of
+saying anything. That is how `73bea03` was found, after every automated check
+had passed. Also open a sheet with money in it and show where a rate came from,
+which reads from the same string catalog.
 
 ## Updates
 
