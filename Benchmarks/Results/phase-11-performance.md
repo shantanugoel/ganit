@@ -106,11 +106,15 @@ budget still passes, so nothing was changed for it. The honest summary is that
 this gate has under a millisecond of headroom on this machine and will need
 either an optimization or an ADR revision the next time it moves.
 
-## Workspace idle memory, measured for the first time
+## Rows measured here for the first time
 
-The quick panel's idle memory had a script and a recorded result; the
-workspace row of PLAN §8.1 had neither. `scripts/measure-launch.sh` now
-reports idle memory as well as launch, so both rows are measured the same way.
+Several rows of PLAN §8.1 had no recorded result: workspace idle memory, which
+had no script; the compressed download, which needed the release script's
+packaging step to be run; idle CPU; and the two storage budgets.
+`scripts/measure-launch.sh` now reports idle memory as well as launch, so the
+workspace and quick panel rows are measured the same way, and the download
+figure is the disk image the release packaging produces without its
+credential-gated steps.
 
 The sheet it restores is the 1,000-line `mixed-sheet` fixture, copied into the
 app's container as its most recent sheet with a matching checksum so no
@@ -121,6 +125,7 @@ recovery path runs.
 | Cold launch → Workspace sheet, 1,000 lines | 354 ms P50, 401 ms P95 | — | 700 ms |
 | Workspace idle physical footprint | 34 MB | 85 MB | 110 MB |
 | Workspace idle resident set size | 101 MB | — | — |
+| Compressed download, UDZO disk image | 2.5 MB | 15 MB | 20 MB |
 
 The two memory budgets are read as physical footprint, which is what the app
 costs; resident set size counts shared system framework pages that every
@@ -128,6 +133,42 @@ AppKit process maps and that no application choice changes. Both are reported
 here so the distinction is explicit rather than assumed: the quick panel is
 32 MB footprint and 97 MB RSS, so reading these budgets as RSS would fail a
 gate that the app's own memory passes with room to spare.
+
+### Idle CPU
+
+Measured as process CPU time over a minute of doing nothing, starting eight
+seconds after launch: 0.09 s with an empty sheet and 0.31 s with the
+1,000-line sheet on screen, which is 0.15% and 0.5% of one core.
+
+The cost tracks the answers *visible* on screen, not the sheet's length: an
+empty sheet has no answers to lay out. Each redraw measures the width of each
+visible answer string, so a blinking caret pays for a screenful of text
+measurement twice a second. It is small, bounded by the window's height rather
+than the document, and the same measurement shows up in the chained-edit
+profile above, so it is the first place to look if either number needs to
+improve.
+
+Per-process wakeups remain unverified, as Phase 0 recorded: `powermetrics`
+needs administrator authorization on this machine. CPU time is a weaker
+witness than a wakeup count, so the "no periodic wakeups" half of that gate is
+still unproven; a blinking caret means the answer is not zero in any case.
+
+For reference, Numi idles at 0.02 s of CPU a minute, but with no window on
+screen and therefore no caret and no drawing, so the two numbers are not
+comparable.
+
+### Storage
+
+With two sheets, one of them 1,000 lines, and a day of backups:
+
+| Measure | Result | Target |
+| --- | ---: | ---: |
+| App support overhead, excluding sheets and backups | 32 KiB | 20 MB |
+| Currency snapshots | 12 KiB | 5 MB |
+
+The overhead is the metadata, the search index, and the eight retained rate
+snapshots. Both budgets are three orders of magnitude away from their limits,
+so they matter only as regression tripwires.
 
 ## Numi, app to app
 

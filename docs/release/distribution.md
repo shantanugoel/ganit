@@ -42,5 +42,11 @@ a GitHub release so that link finds it.
 
 The script refuses to run without a Developer ID identity and a notary
 profile. Only the Apple Development identities exist on the development Mac,
-so no notarized build has been produced yet; the unsigned build, verification,
-and disk-image steps have been checked locally.
+so no notarized build has been produced yet.
+
+Every step that does not need those credentials has been run: the build,
+`scripts/verify-app.sh`, and the packaging sequence, which produces a valid
+2.5 MB UDZO image of the 6.2 MB bundle, well inside the 15 MB download budget.
+What remains unexercised is exactly the credential-gated part: Developer ID
+signing, both notarization submissions, stapling, and the `spctl`
+assessments.

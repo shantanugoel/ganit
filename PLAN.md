@@ -1122,7 +1122,7 @@ Tasks:
 Exit criteria:
 
 - Zero known data-loss, crash, silent-wrong-answer or P0 accessibility bugs. Met as far as the evidence reaches: 193 golden answers, the property suites, 38 fuzz seeds plus 1,000 generated inputs per run and 50,000 nightly under Address Sanitizer, `StorageFaultTests`, `RecoveryRehearsalTests`, and the Numi comparison found none. No beta reports exist yet to contradict it.
-- All hard performance/footprint budgets pass or have evidence-backed approved ADR revisions. Met on the development Mac, with no revision needed; see Benchmarks/Results/phase-11-performance.md. The 10,000-line chained-edit gate is the tight one, passing at 49.4–49.9 ms against 50 ms.
+- All hard performance/footprint budgets pass or have evidence-backed approved ADR revisions. Every budget now has a measured result on the development Mac and all of them pass, with no revision needed; see Benchmarks/Results/phase-11-performance.md. Two caveats: the 10,000-line chained-edit gate passes at 49.4–49.9 ms against 50 ms, under a millisecond of headroom, and the "no periodic wakeups" half of the idle-CPU gate is unproven because `powermetrics` needs administrator authorization, though idle CPU time is 0.15–0.5% of one core.
 - Every known ambiguity either resolves deterministically by documented context or asks. Met: all seven rules of registry version 5 are pinned by tests. Five are golden cases in `phase-2-ambiguities`; `identifiers` and `1 x =` decide how a line's name is read, which that fixture's single-expression harness cannot express, so they are pinned by `VariableTests`, `MoneyTests`, and `SheetDefinitionsTests` instead.
 - Upgrade/rollback/export recovery instructions are tested. Met: all six sections of docs/storage/recovery-guide.md are rehearsed against real files, four by `RecoveryRehearsalTests` and the crash and damaged-rate sections by `StorageFaultTests` and `RateSnapshotStoreTests`.
 
@@ -1133,7 +1133,7 @@ on a Developer ID identity and notary credentials.
 
 **Goal:** Sustainable quality, not a launch-only showcase.
 
-- [ ] Notarized direct build first; evaluate Mac App Store separately against sandbox/update/business needs. `scripts/release.sh` signs, notarizes, staples, and packages a disk image (docs/release/distribution.md); it has not been run because no Developer ID identity or notary credentials are available.
+- [ ] Notarized direct build first; evaluate Mac App Store separately against sandbox/update/business needs. `scripts/release.sh` signs, notarizes, staples, and packages a disk image (docs/release/distribution.md). Every step that does not need credentials has been run, including the packaging, whose 2.5 MB image measures the compressed-download budget; Developer ID signing, notarization, stapling, and the `spctl` assessments wait on a Developer ID identity and notary profile.
 - [x] Transparent one-time purchase/trial model decision; no core subscription requirement. Decided in ADR 0009: free betas, then one purchase with a local 14-day trial and no account; the price and payment vendor remain commercial details.
 - [x] Publish privacy statement, data-source attribution, grammar reference, compatibility corpus highlights and performance methodology. See docs/public/, linked from the README.
 - [x] Provide in-app update path appropriate to distribution. Ganit ▸ Check for Updates… opens the latest GitHub release (ADR 0011); in-place installation waits for notarized releases.

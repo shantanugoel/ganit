@@ -33,6 +33,11 @@ and a regression is bisected with the benchmark that shows it.
 All results so far come from one development Mac. Clean baseline hardware (an
 M1 MacBook Air with 8 GB) is still to be measured.
 
+Per-process idle wakeups are unmeasured, because `powermetrics` needs
+administrator authorization. Idle CPU time is measured instead, at 0.15% of one
+core with an empty sheet and 0.5% with a 1,000-line sheet on screen, which is
+a weaker witness than a wakeup count.
+
 Numi is the one competitor measured. Its engine from the command line answers
 one expression in 24.3 ms against `ganit`'s 10.6 ms, both mostly process
 start. App to app, Ganit idles at 34 MB with a 1,000-line sheet open against
