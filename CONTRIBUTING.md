@@ -22,6 +22,11 @@ No additional formatter, linter, package manager, or global tool is required. Th
 7. Review the final diff for correctness, simplicity, accessibility, privacy, durability, and resource regressions.
 8. Commit and push the completed task before beginning another task.
 
+Every fixed parser or evaluator bug adds a regression test with its fix — a
+golden corpus case, or a fuzz seed for a crash or hang — and changes to
+existing answers are recorded in [`CHANGELOG.md`](CHANGELOG.md). Releases
+follow the [release train](docs/release/release-train.md).
+
 ## Build and test
 
 Resolve the package manifest and build every product:

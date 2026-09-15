@@ -1127,7 +1127,7 @@ Exit criteria:
 - [x] Transparent one-time purchase/trial model decision; no core subscription requirement. Decided in ADR 0009: free betas, then one purchase with a local 14-day trial and no account; the price and payment vendor remain commercial details.
 - [x] Publish privacy statement, data-source attribution, grammar reference, compatibility corpus highlights and performance methodology. See docs/public/, linked from the README.
 - [x] Provide in-app update path appropriate to distribution. Ganit ▸ Check for Updates… opens the latest GitHub release (ADR 0011); in-place installation waits for notarized releases.
-- [ ] Maintain a release train with regression tests for every fixed parser issue.
+- [x] Maintain a release train with regression tests for every fixed parser issue. See docs/release/release-train.md, CONTRIBUTING.md, and CHANGELOG.md.
 - [ ] Track anonymized-by-design product learning through voluntary feedback, support themes and opt-in studies—not automatic expression analytics.
 
 ---
