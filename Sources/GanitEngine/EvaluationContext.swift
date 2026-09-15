@@ -1,6 +1,6 @@
 import Foundation
 
-public enum AngleMode: String, Hashable, Sendable {
+public enum AngleMode: String, Codable, Hashable, Sendable {
   case radians
   case degrees
 }

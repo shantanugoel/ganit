@@ -981,7 +981,7 @@ Exit criteria:
 
 Tasks:
 
-- [ ] Implement source/metadata files, atomic replace and checksums.
+- [x] Implement source/metadata files, atomic replace and checksums.
 - [ ] Implement derived index and rebuild flow.
 - [ ] Add autosave, backups, restore and migration framework.
 - [ ] Build sidebar/folders, sheet CRUD, favorite, archive, trash and search.
