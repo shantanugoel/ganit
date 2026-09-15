@@ -3,7 +3,7 @@
 Ganit's engine owns four immutable numeric value types. `BigInt` is an implementation detail of `IntegerValue`; no other module imports or exposes it.
 
 - `IntegerValue` stores an arbitrary-sized signed integer. Direct text conversion accepts at most 10,000 digits before parsing so public callers cannot enter BigInt's quadratic conversion path with unbounded input.
-- `RationalValue` stores a reduced numerator and a strictly positive denominator. Zero is always `0/1`.
+- `RationalValue` stores a reduced numerator and a strictly positive denominator. Zero is always `0/1`. It also produces the nearest decimal at a requested number of significant digits, so presentation can round a fraction without the formatting layer doing arithmetic; see [result formatting](result-formatting.md).
 - `DecimalValue` stores `coefficient × 10⁻ˢᶜᵃˡᵉ`. Scale is structural user intent, so `1.0` and `1.00` are distinct values. Negative scales are valid; `Int.min` is rejected because its magnitude cannot be represented safely.
 - `ApproximateValue` stores a finite binary estimate, its source, and explicit precision metadata. It rejects nonfinite estimates, significant-digit claims outside `1...17` for its binary `Double` estimate, and negative absolute error bounds. Seventeen is a representational ceiling for decimal round trips, not a claim that every `Double` contains 17 mathematically accurate digits; each approximate operation remains responsible for supplying honest metadata.
 

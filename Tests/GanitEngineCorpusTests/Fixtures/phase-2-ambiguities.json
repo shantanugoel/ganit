@@ -26,7 +26,7 @@
       "expression": "12 km in miles",
       "expected": {
         "status": "value",
-        "display": "31,250/4,191 mi",
+        "display": "7.45645430684801 mi",
         "fullPrecision": "31250/4191 mi",
         "approximate": false
       }
@@ -36,7 +36,7 @@
       "expression": "12 in in cm",
       "expected": {
         "status": "value",
-        "display": "762/25 cm",
+        "display": "30.48 cm",
         "fullPrecision": "762/25 cm",
         "approximate": false
       }
@@ -300,7 +300,7 @@
       "expression": "1 mi in m",
       "expected": {
         "status": "value",
-        "display": "201,168/125 m",
+        "display": "1,609.344 m",
         "fullPrecision": "201168/125 m",
         "approximate": false
       }
@@ -310,7 +310,7 @@
       "expression": "1500 ms in s",
       "expected": {
         "status": "value",
-        "display": "3/2 s",
+        "display": "1.5 s",
         "fullPrecision": "3/2 s",
         "approximate": false
       }

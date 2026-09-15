@@ -125,7 +125,7 @@ struct SheetEditorViewControllerTests {
       Dictionary(
         uniqueKeysWithValues: ids.compactMap { id in textView.answer(id).map { (id, $0.text) } })
         == [
-          ids[0]: "31,250/4,191 mi",
+          ids[0]: "7.45645430684801 mi",
           ids[2]: "Enter an expression here.",
           ids[3]: "2,100",
         ]

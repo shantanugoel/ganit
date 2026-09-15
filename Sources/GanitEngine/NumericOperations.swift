@@ -115,37 +115,9 @@ struct NumericOperations {
     }
 
     let fraction = try exactFraction(value)
-    let quotient = fraction.numerator / fraction.denominator
-    let remainder = fraction.numerator % fraction.denominator
-    guard !remainder.isZero else {
-      return try checkedInteger(quotient)
-    }
-
-    let rounded: BigInt
-    switch rule {
-    case .down:
-      rounded = fraction.numerator < 0 ? quotient - 1 : quotient
-    case .up:
-      rounded = fraction.numerator > 0 ? quotient + 1 : quotient
-    case .towardZero:
-      rounded = quotient
-    case .awayFromZero:
-      rounded = quotient + (fraction.numerator < 0 ? -1 : 1)
-    case .toNearestOrEven:
-      let comparison = remainder.magnitude * 2
-      if comparison < fraction.denominator.magnitude {
-        rounded = quotient
-      } else if comparison > fraction.denominator.magnitude {
-        rounded = quotient + (fraction.numerator < 0 ? -1 : 1)
-      } else if quotient % 2 == 0 {
-        rounded = quotient
-      } else {
-        rounded = quotient + (fraction.numerator < 0 ? -1 : 1)
-      }
-    default:
-      throw EngineError(code: .invalidDomain)
-    }
-    return try checkedInteger(rounded)
+    return try checkedInteger(
+      try roundedQuotient(fraction.numerator, fraction.denominator, rule: rule)
+    )
   }
 
   /// Indices of `values` in ascending numeric order.

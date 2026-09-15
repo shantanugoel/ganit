@@ -82,6 +82,113 @@ public struct RationalValue: Hashable, Sendable {
     self.numerator = IntegerValue(storage: normalizedNumerator / divisor)
     self.denominator = IntegerValue(storage: normalizedDenominator / divisor)
   }
+
+  /// The decimal closest to this fraction with at most `significantDigits`
+  /// significant digits and no trailing zeroes.
+  ///
+  /// The fraction remains the exact value. A reader needs `7.456454306848`
+  /// rather than `31250/4191`, so display rounds while the value does not.
+  public func decimal(
+    significantDigits: Int,
+    rule: RoundingRule = .toNearestOrEven
+  ) throws -> DecimalValue {
+    guard significantDigits > 0 else {
+      throw EngineError(
+        code: .invalidApproximationPrecision,
+        context: .significantDecimalDigits(significantDigits)
+      )
+    }
+    guard !numerator.isZero else {
+      return try DecimalValue(coefficient: IntegerValue(0), scale: 0)
+    }
+
+    // With `a` digits of magnitude over `b` of denominator, the value lies
+    // between 10^(a - b - 1) and 10^(a - b + 1), leaving two candidates for
+    // its base-10 exponent.
+    let magnitude = BigInt(numerator.storage.magnitude)
+    let denominator = self.denominator.storage
+    let candidate = magnitude.decimalDigitCount - denominator.decimalDigitCount
+    let exponent =
+      isAtLeastPowerOfTen(magnitude, over: denominator, exponent: candidate)
+      ? candidate
+      : candidate - 1
+    var scale = significantDigits - exponent - 1
+
+    var coefficient = try roundedQuotient(
+      scale >= 0 ? numerator.storage * powerOfTen(scale) : numerator.storage,
+      scale >= 0 ? denominator : denominator * powerOfTen(-scale),
+      rule: rule.floatingPointRule
+    )
+    // Rounding 9.99 to two digits carries into 10.0, one digit too many.
+    // Trimming the trailing zeroes a carry leaves also restores the count.
+    while scale > 0, !coefficient.isZero, coefficient % 10 == 0 {
+      coefficient /= 10
+      scale -= 1
+    }
+    return try DecimalValue(
+      coefficient: IntegerValue(storage: coefficient),
+      scale: scale
+    )
+  }
+}
+
+/// The integer closest to `numerator / denominator` under `rule`, for a
+/// positive `denominator`.
+func roundedQuotient(
+  _ numerator: BigInt,
+  _ denominator: BigInt,
+  rule: FloatingPointRoundingRule
+) throws -> BigInt {
+  let quotient = numerator / denominator
+  let remainder = numerator % denominator
+  guard !remainder.isZero else {
+    return quotient
+  }
+  let awayFromZero = quotient + (numerator < 0 ? -1 : 1)
+
+  switch rule {
+  case .down:
+    return numerator < 0 ? awayFromZero : quotient
+  case .up:
+    return numerator < 0 ? quotient : awayFromZero
+  case .towardZero:
+    return quotient
+  case .awayFromZero:
+    return awayFromZero
+  case .toNearestOrEven:
+    let doubledRemainder = remainder.magnitude * 2
+    if doubledRemainder < denominator.magnitude {
+      return quotient
+    }
+    if doubledRemainder > denominator.magnitude {
+      return awayFromZero
+    }
+    return quotient % 2 == 0 ? quotient : awayFromZero
+  default:
+    throw EngineError(code: .invalidDomain)
+  }
+}
+
+private func powerOfTen(_ exponent: Int) -> BigInt {
+  BigInt(10).power(exponent)
+}
+
+/// Whether `magnitude / denominator` is at least `10^exponent`, comparing
+/// exactly rather than through a logarithm.
+private func isAtLeastPowerOfTen(
+  _ magnitude: BigInt,
+  over denominator: BigInt,
+  exponent: Int
+) -> Bool {
+  exponent >= 0
+    ? magnitude >= denominator * powerOfTen(exponent)
+    : magnitude * powerOfTen(-exponent) >= denominator
+}
+
+extension BigInt {
+  fileprivate var decimalDigitCount: Int {
+    String(magnitude).count
+  }
 }
 
 public struct DecimalValue: Hashable, Sendable {

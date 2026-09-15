@@ -202,6 +202,55 @@ struct NumericValueTests {
   }
 
   @Test
+  func roundsFractionsToSignificantDigitsWithoutTrailingZeroes() throws {
+    func decimalText(
+      _ numerator: Int,
+      _ denominator: Int,
+      digits: Int = 15,
+      rule: RoundingRule = .toNearestOrEven
+    ) throws -> String {
+      let value = try RationalValue(
+        numerator: IntegerValue(numerator),
+        denominator: IntegerValue(denominator)
+      ).decimal(significantDigits: digits, rule: rule)
+      return "\(value.coefficient.canonicalDigits)e-\(value.scale)"
+    }
+
+    #expect(try decimalText(31_250, 4_191) == "745645430684801e-14")
+    #expect(try decimalText(1, 3) == "333333333333333e-15")
+    #expect(try decimalText(-1, 3) == "-333333333333333e-15")
+    // An exact decimal keeps only the digits it needs.
+    #expect(try decimalText(10, 4) == "25e-1")
+    #expect(try decimalText(-10, 4) == "-25e-1")
+    #expect(try decimalText(0, 7) == "0e-0")
+    // A tiny value keeps its significant digits rather than rounding to zero.
+    #expect(try decimalText(1, 1_000_000, digits: 2) == "1e-6")
+    #expect(try decimalText(1, 3_000_000, digits: 2) == "33e-8")
+    // Rounding that carries into another digit drops the trailing zeroes.
+    #expect(try decimalText(999, 100, digits: 2) == "10e-0")
+    #expect(try decimalText(1_999, 1_000, digits: 3) == "2e-0")
+    // Ties round to even, and directed rules follow the sign.
+    #expect(try decimalText(25, 10, digits: 1) == "2e-0")
+    #expect(try decimalText(35, 10, digits: 1) == "4e-0")
+    #expect(try decimalText(1, 3, digits: 2, rule: .up) == "34e-2")
+    #expect(try decimalText(1, 3, digits: 2, rule: .down) == "33e-2")
+    #expect(try decimalText(-1, 3, digits: 2, rule: .down) == "-34e-2")
+    #expect(try decimalText(-1, 3, digits: 2, rule: .towardZero) == "-33e-2")
+
+    #expect(
+      throws: EngineError(
+        code: .invalidApproximationPrecision,
+        context: .significantDecimalDigits(0)
+      )
+    ) {
+      try RationalValue(
+        numerator: IntegerValue(1),
+        denominator: IntegerValue(3)
+      ).decimal(significantDigits: 0)
+    }
+  }
+
+  @Test
   func numericValuesAreSendableAndHashable() {
     requireSendableAndHashable(IntegerValue.self)
     requireSendableAndHashable(RationalValue.self)

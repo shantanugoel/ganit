@@ -94,15 +94,25 @@ public struct NumericResultFormatter: Sendable {
       )
 
     case .rational(let rational):
-      let numerator = try canonicalInteger(rational.numerator)
-      let denominator = try canonicalInteger(rational.denominator)
-      let canonical = try joined(numerator, "/", denominator)
-      let display = try joined(
-        try localizeInteger(numerator),
+      // The fraction is the value; the display is it rounded to the
+      // context's precision, as a fraction is unreadable as an answer.
+      let canonical = try joined(
+        try canonicalInteger(rational.numerator),
         "/",
-        try localizeInteger(denominator)
+        try canonicalInteger(rational.denominator)
       )
-      return try exactResult(display: display, fullPrecision: canonical)
+      guard
+        let rounded = try? rational.decimal(
+          significantDigits: context.precision.significantDecimalDigits,
+          rule: context.precision.roundingRule
+        )
+      else {
+        throw FormattingError.internalFailure
+      }
+      return try exactResult(
+        display: try localizeDecimal(try canonicalDecimal(rounded)),
+        fullPrecision: canonical
+      )
 
     case .decimal(let decimal):
       let canonical = try canonicalDecimal(decimal)

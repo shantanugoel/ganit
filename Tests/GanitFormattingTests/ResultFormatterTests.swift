@@ -12,8 +12,8 @@ struct ResultFormatterTests {
     let engine = CalculationEngine()
     let formatter = ResultFormatter(context: evaluationContext)
     let cases = [
-      ("12 km in miles", "31,250/4,191 mi", "31250/4191 mi"),
-      ("1 m + 1 ft in cm", "3,262/25 cm", "3262/25 cm"),
+      ("12 km in miles", "7.45645430684801 mi", "31250/4191 mi"),
+      ("1 m + 1 ft in cm", "130.48 cm", "3262/25 cm"),
       ("0 °C as °F", "32 °F", "32 °F"),
       ("75 MB/s", "75 MB/s", "75 MB/s"),
       ("1 kg·m/s²", "1 kg·m/s^2", "1 kg·m/s^2"),
@@ -325,8 +325,11 @@ struct ResultFormatterTests {
     #expect(trailingZeros.fullPrecision == "1.00")
     #expect(negativeScale.display == "-12,000")
     #expect(negativeScale.fullPrecision == "-12000")
-    #expect(rational.display == "-10,000/3")
+    // A fraction reads as a rounded decimal; the fraction itself stays exact
+    // in full precision and the result is not marked approximate.
+    #expect(rational.display == "-3,333.33333333333")
     #expect(rational.fullPrecision == "-10000/3")
+    #expect(!rational.isApproximate)
   }
 
   @Test

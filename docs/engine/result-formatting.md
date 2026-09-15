@@ -15,10 +15,16 @@ percentage points through binary floating point. Both return a
   and inspection.
 - `isApproximate`: an explicit exact-versus-approximate signal.
 
-Exact integers, rationals, and decimals retain every digit. Decimal scale,
-including trailing zeroes, is preserved. Rational values remain fractions.
-Display conventions come from the injected locale, independently of the
-locale syntax accepted by the lexer.
+Exact integers and decimals retain every digit. Decimal scale, including
+trailing zeroes, is preserved. Display conventions come from the injected
+locale, independently of the locale syntax accepted by the lexer.
+
+A rational displays as the decimal closest to it, rounded to the context's
+significant digits and rounding rule with no trailing zeroes, because
+`31250/4191 mi` is not a readable answer. Its `fullPrecision` remains the
+exact fraction and `isApproximate` stays false: the value did not change and
+no operation approximated it, only the presentation rounded. `RationalValue`
+owns that rounding so the formatter never performs arithmetic.
 
 Approximate values are prefixed with `≈`. Their display is rounded to the
 smaller of the evaluation context's requested precision and any known
