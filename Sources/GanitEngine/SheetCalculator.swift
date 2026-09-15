@@ -21,6 +21,11 @@ public struct SheetLineResult: Hashable, Sendable {
     evaluation?.result
   }
 
+  /// The kinds of exchange rate the result used, for provenance.
+  public var rateUses: Set<CurrencyRateUse> {
+    evaluation?.rateUses ?? []
+  }
+
   public static func == (lhs: Self, rhs: Self) -> Bool {
     lhs.id == rhs.id && lhs.syntax == rhs.syntax && lhs.result == rhs.result
   }
@@ -217,6 +222,8 @@ private final class LineEvaluation: Sendable {
   let result: CalculationResult
   /// For a result that read the clock, the moments it stays correct for.
   let clockInterval: DateInterval?
+  /// The kinds of exchange rate the result used.
+  let rateUses: Set<CurrencyRateUse>
 
   init(
     source: LineSource,
@@ -237,6 +244,7 @@ private final class LineEvaluation: Sendable {
       inputs = [:]
       result = nameFailure
       clockInterval = nil
+      rateUses = []
       return
     }
     let parsing =
@@ -256,19 +264,21 @@ private final class LineEvaluation: Sendable {
       inputs = [:]
       result = .syntaxFailure(parsing.diagnostics)
       clockInterval = nil
+      rateUses = []
       return
     }
     references = expression.references
     inputs = Dictionary(
       uniqueKeysWithValues: references.map { ($0, outcomes.inputs(for: $0)) }
     )
-    let (evaluated, clock) = engine.evaluate(
+    let (evaluated, trace) = engine.evaluate(
       expression, context: context, variables: names, lines: outcomes, manualRates: rates)
     result =
       source.rateCurrency.map {
         Self.checkedRate(evaluated, from: $0, range: expressionRange)
       } ?? evaluated
-    clockInterval = clock.map { resolution in
+    rateUses = trace.rateUses
+    clockInterval = trace.clock.map { resolution in
       switch resolution {
       case .day:
         var calendar = Calendar(identifier: .gregorian)

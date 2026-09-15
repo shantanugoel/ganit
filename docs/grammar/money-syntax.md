@@ -52,3 +52,27 @@ manual rate re-evaluates only lines that name one of its currencies.
 Results are shown in the locale's currency style rounded half away from zero to
 the currency's minor units, marked `≈` when rounding changed the amount. Full
 precision keeps the exact amount and the code: `100/3 USD`.
+
+## Provenance and freshness
+
+Each line records the kinds of rate its conversions used
+(`SheetLineResult.rateUses`), and the answer details describe them:
+
+- **Exchange rate:** `ECB reference rate` for a direct euro rate,
+  `Calculated by Ganit from ECB reference rates` for a cross rate, and
+  `Manual rate` for a declared rate.
+- For reference and cross rates: **Source** `ECB statistics`, **Rates
+  published** (the ECB observation date), **Retrieved**, **Rate status**, and
+  **Note** `Indicative, not for transactions`.
+
+Rate status compares the observation date with the current calendar day in the
+sheet's time zone (`RateFreshness`): `Current` on the publication day,
+`Weekend rates, N days old` when every day since is a Saturday or Sunday,
+`N days old` otherwise, and `Stale, N days old` once more than four days have
+passed. Status uses the time the details are shown, so it ages while a sheet
+stays open.
+
+Without any downloaded rates, a conversion that has no manual rate fails with
+`evaluation.currencyRatesUnavailable`, which suggests declaring one; a
+currency missing from downloaded rates fails with
+`evaluation.missingCurrencyRate`.

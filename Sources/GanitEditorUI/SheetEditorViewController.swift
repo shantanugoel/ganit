@@ -361,6 +361,10 @@ public final class SheetEditorViewController: NSViewController {
           ),
         ]
       }
+      // Rate status depends on the current day, not the evaluation's.
+      details += RateProvenanceFormatter(context: context.at(Date()))
+        .details(for: shown.result.rateUses)
+        .map { AnswerCell.Detail(label: $0.label, value: $0.value) }
     case .syntaxFailure, .evaluationFailure:
       guard let diagnostic = flaggedDiagnostic(result, isEditing: false) else {
         return details

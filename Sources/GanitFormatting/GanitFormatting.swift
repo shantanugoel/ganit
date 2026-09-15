@@ -934,6 +934,12 @@ public struct DiagnosticFormatter: Sendable {
         "error.evaluation.ambiguousLocalTime",
         defaultValue: "This time happens twice when clocks move back. Add a UTC offset."
       )
+    case .currencyRatesUnavailable:
+      return localized(
+        "error.evaluation.currencyRatesUnavailable",
+        defaultValue:
+          "Exchange rates have not been downloaded yet. Declare a rate such as 1 USD = 83 INR."
+      )
     case .mixedCurrencies:
       return localized(
         "error.evaluation.mixedCurrencies",

@@ -31,6 +31,7 @@ public enum EngineErrorCode: String, Hashable, Sendable {
   case offsetMismatch = "evaluation.offsetMismatch"
   case mixedCurrencies = "evaluation.mixedCurrencies"
   case missingCurrencyRate = "evaluation.missingCurrencyRate"
+  case currencyRatesUnavailable = "evaluation.currencyRatesUnavailable"
   case invalidCurrencyRate = "evaluation.invalidCurrencyRate"
   case resourceLimitExceeded = "evaluation.resourceLimitExceeded"
   case approximationOutOfRange = "evaluation.approximationOutOfRange"

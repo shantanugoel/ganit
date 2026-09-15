@@ -1044,7 +1044,7 @@ Tasks:
 - [x] Finalize provider/legal ADR and attribution.
 - [x] Implement strict downloader/validator and immutable versioned snapshots.
 - [x] Implement money grammar, ISO metadata, symbols and manual rates.
-- [ ] Add stale/weekend/offline status and answer provenance.
+- [x] Add stale/weekend/offline status and answer provenance.
 - [ ] Add refresh scheduling/backoff and last-known-good rollback.
 - [ ] Verify network traffic contains no calculation text or identifiers.
 

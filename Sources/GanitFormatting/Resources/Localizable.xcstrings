@@ -1,6 +1,86 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "error.evaluation.currencyRatesUnavailable" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Exchange rates have not been downloaded yet. Declare a rate such as 1 USD = 83 INR." } }
+      }
+    },
+    "provenance.exchangeRate" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Exchange rate" } }
+      }
+    },
+    "provenance.indicative" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Indicative, not for transactions" } }
+      }
+    },
+    "provenance.method.crossReference" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Calculated by Ganit from ECB reference rates" } }
+      }
+    },
+    "provenance.method.manual" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Manual rate" } }
+      }
+    },
+    "provenance.method.reference" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "ECB reference rate" } }
+      }
+    },
+    "provenance.note" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Note" } }
+      }
+    },
+    "provenance.published" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Rates published" } }
+      }
+    },
+    "provenance.retrieved" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Retrieved" } }
+      }
+    },
+    "provenance.source" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Source" } }
+      }
+    },
+    "provenance.source.ecb" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "ECB statistics" } }
+      }
+    },
+    "provenance.status" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Rate status" } }
+      }
+    },
+    "provenance.status.aged" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%lld days old" } }
+      }
+    },
+    "provenance.status.current" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Current" } }
+      }
+    },
+    "provenance.status.stale" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Stale, %lld days old" } }
+      }
+    },
+    "provenance.status.weekend" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Weekend rates, %lld days old" } }
+      }
+    },
     "rate.period.month" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "month" } },

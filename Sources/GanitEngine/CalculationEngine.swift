@@ -54,22 +54,22 @@ public struct CalculationEngine: Sendable {
     variables: [String: EngineValue?],
     lines: LineOutcomes,
     manualRates: [CurrencyPair: NumericValue] = [:]
-  ) -> (result: CalculationResult, clock: ClockResolution?) {
-    let (result, clock) = Evaluator(
+  ) -> (result: CalculationResult, trace: EvaluationTrace) {
+    let (result, trace) = Evaluator(
       context: context,
       limits: evaluationLimits,
       variables: variables,
       lines: lines,
       manualRates: manualRates
-    ).evaluateReadingClock(expression)
+    ).evaluateTracing(expression)
     switch result {
     case .success(let value):
-      return (.value(value), clock)
+      return (.value(value), trace)
     case .failure(let error as EngineError):
-      return (.evaluationFailure(error), clock)
+      return (.evaluationFailure(error), trace)
     case .failure:
       return (
-        .evaluationFailure(EngineError(code: .internalFailure, ranges: [expression.range])), clock
+        .evaluationFailure(EngineError(code: .internalFailure, ranges: [expression.range])), trace
       )
     }
   }

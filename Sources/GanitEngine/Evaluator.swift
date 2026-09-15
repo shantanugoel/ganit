@@ -37,12 +37,12 @@ public struct Evaluator: Sendable {
   }
 
   public func evaluate(_ expression: Expression) throws -> EngineValue {
-    try evaluateReadingClock(expression).result.get()
+    try evaluateTracing(expression).result.get()
   }
 
-  /// The result and the finest clock unit that evaluation read.
-  func evaluateReadingClock(_ expression: Expression) -> (
-    result: Result<EngineValue, any Error>, clock: ClockResolution?
+  /// The result and what evaluation read besides its inputs.
+  func evaluateTracing(_ expression: Expression) -> (
+    result: Result<EngineValue, any Error>, trace: EvaluationTrace
   ) {
     var worker = EvaluationWorker(
       context: context,
@@ -52,8 +52,14 @@ public struct Evaluator: Sendable {
       manualRates: manualRates
     )
     let result = Result { try worker.evaluate(expression) }
-    return (result, worker.clock)
+    return (result, worker.trace)
   }
+}
+
+/// What an evaluation read from its context: the clock, and exchange rates.
+struct EvaluationTrace: Sendable {
+  var clock: ClockResolution?
+  var rateUses: Set<CurrencyRateUse> = []
 }
 
 /// How finely a result depends on the evaluation clock: a result that read
@@ -73,7 +79,7 @@ private struct EvaluationWorker {
   let variables: [String: EngineValue?]
   let lines: LineOutcomes
   var visitedOperations = 0
-  private(set) var clock: ClockResolution?
+  private(set) var trace = EvaluationTrace()
 
   init(
     context: EvaluationContext,
@@ -280,7 +286,11 @@ private struct EvaluationWorker {
     guard case .money(let amount) = value else {
       throw typeMismatch(expected: .money, actual: value.kind, range: valueExpression.range)
     }
-    return .money(try money.converted(amount, to: currency))
+    let (converted, use) = try money.converted(amount, to: currency)
+    if let use {
+      trace.rateUses.insert(use)
+    }
+    return .money(converted)
   }
 
   @inline(never)
@@ -306,7 +316,7 @@ private struct EvaluationWorker {
   }
 
   private mutating func readClock(_ resolution: ClockResolution) {
-    clock = max(clock ?? resolution, resolution)
+    trace.clock = max(trace.clock ?? resolution, resolution)
   }
 
   @inline(never)

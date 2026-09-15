@@ -54,6 +54,17 @@ struct AnswerInteractionTests {
   }
 
   @Test
+  func detailsShowExchangeRateProvenance() async throws {
+    let (editor, textView) = try await makeEditor("1 USD = 83 INR\n10 USD in INR\n10 INR")
+    let ids = editor.sheet.lines.map(\.id)
+
+    #expect(
+      textView.interpretation(ids[1]).last
+        == AnswerCell.Detail(label: "Exchange rate", value: "Manual rate"))
+    #expect(!textView.interpretation(ids[2]).contains { $0.label == "Exchange rate" })
+  }
+
+  @Test
   func waitsForAClockBoundaryOnlyWhenAResultReadsTheClock() async throws {
     let (editor, textView) = try await makeEditor("1 + 1")
     #expect(editor.scheduler?.recalculation == nil)

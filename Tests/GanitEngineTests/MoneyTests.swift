@@ -42,21 +42,22 @@ struct MoneyTests {
 
   @Test
   func convertsExactlyThroughEuroReferenceRates() throws {
-    let rates = try CurrencyRates(unitsPerEuro: ["USD": "1.1551", "JPY": "178.52"])
+    let rates = try reference(["USD": "1.1551", "JPY": "178.52"])
     #expect(try same(evaluate("100 EUR in USD", rates: rates), money("115.51", "USD")))
     #expect(try same(evaluate("115.51 USD to EUR", rates: rates), money("100", "EUR")))
     #expect(try same(evaluate("11551 USD in JPY", rates: rates), money("1785200", "JPY")))
     #expect(try same(evaluate("5 EUR in EUR", rates: rates), money("5", "EUR")))
     #expect(try error("100 USD in INR", rates: rates).code == .missingCurrencyRate)
+    #expect(try error("100 USD in INR").code == .currencyRatesUnavailable)
     #expect(try error("100 in USD", rates: rates).code == .typeMismatch)
     #expect(throws: EngineError(code: .invalidCurrencyRate)) {
-      try CurrencyRates(unitsPerEuro: ["USD": "1.2.3"])
+      try reference(["USD": "1.2.3"])
     }
   }
 
   @Test
   func declaresManualRatesThatOverrideReferenceRates() throws {
-    let rates = try CurrencyRates(unitsPerEuro: ["USD": "1.1551", "INR": "101.8120"])
+    let rates = try reference(["USD": "1.1551", "INR": "101.8120"])
     var calculator = SheetCalculator()
     let results = try calculator.evaluate(
       SheetSource("1 USD = 83.25 INR\n100 USD in INR\n8325 INR in USD\n---\n100 USD in INR"),
@@ -73,6 +74,17 @@ struct MoneyTests {
         try sheetOutcomes(source)[0] == "error.evaluation.invalidCurrencyRate", "\(source)")
     }
     #expect(try sheetOutcomes("USD = 1")[0] == "syntax.invalidVariableName")
+  }
+
+  @Test
+  func recordsWhichKindsOfRateEachLineUsed() throws {
+    var calculator = SheetCalculator()
+    let lines = try calculator.evaluate(
+      SheetSource(
+        "1 USD = 83 INR\n1 EUR in USD\n1 USD in JPY\n1 USD in INR + 1 INR\n1 USD in USD\n2 USD"),
+      context: context(reference(["USD": "1.1551", "JPY": "178.52"]))
+    ).lines
+    #expect(lines.map(\.rateUses) == [[], [.reference], [.crossReference], [.manual], [], []])
   }
 
   @Test
@@ -107,6 +119,12 @@ struct MoneyTests {
       return false
     }
     return try same(value, expected)
+  }
+
+  private func reference(_ unitsPerEuro: [String: String]) throws -> CurrencyRates {
+    try CurrencyRates(
+      unitsPerEuro: unitsPerEuro, observationDate: "1970-01-01",
+      retrievedAt: Date(timeIntervalSince1970: 0))
   }
 
   private func money(_ amount: String, _ currency: String) throws -> EngineValue {

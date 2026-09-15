@@ -1,3 +1,5 @@
+import Foundation
+
 /// An exact amount of one ISO 4217 currency.
 public struct MoneyValue: Hashable, Sendable {
   public let amount: NumericValue
@@ -52,19 +54,34 @@ public enum CurrencyCatalog {
   public static let ambiguousSymbols: Set<String> = ["$", "¥"]
 }
 
+/// How a conversion got its exchange rate.
+public enum CurrencyRateUse: Hashable, Sendable {
+  /// A published euro reference rate.
+  case reference
+  /// A rate between two non-euro currencies divided from reference rates.
+  case crossReference
+  /// A rate declared in the sheet.
+  case manual
+}
+
 /// Euro reference rates for converting between currencies.
 public struct CurrencyRates: Hashable, Sendable {
-  public static let none = CurrencyRates(units: [:])
+  public static let none = CurrencyRates(units: [:], observationDate: nil, retrievedAt: nil)
 
   /// Units of each currency per euro.
   let units: [String: NumericValue]
+  /// The publication date, `YYYY-MM-DD`, or `nil` without downloaded rates.
+  public let observationDate: String?
+  public let retrievedAt: Date?
 
-  private init(units: [String: NumericValue]) {
+  private init(units: [String: NumericValue], observationDate: String?, retrievedAt: Date?) {
     self.units = units
+    self.observationDate = observationDate
+    self.retrievedAt = retrievedAt
   }
 
   /// Rates as published decimal strings of units per euro.
-  public init(unitsPerEuro: [String: String]) throws {
+  public init(unitsPerEuro: [String: String], observationDate: String, retrievedAt: Date) throws {
     var units: [String: NumericValue] = [:]
     for (currency, text) in unitsPerEuro {
       let parts = text.split(separator: ".", omittingEmptySubsequences: false)
@@ -80,6 +97,8 @@ public struct CurrencyRates: Hashable, Sendable {
       units[currency] = rate
     }
     self.units = units
+    self.observationDate = observationDate
+    self.retrievedAt = retrievedAt
   }
 }
 
@@ -154,31 +173,42 @@ struct MoneyArithmetic {
 
   /// Converts money with a manual rate when one is declared for the pair,
   /// and otherwise with euro reference rates.
-  func converted(_ money: MoneyValue, to currency: String) throws -> MoneyValue {
-    let rate = try self.rate(from: money.currency, to: currency)
-    return MoneyValue(
-      amount: try operations.applying(.multiply, left: money.amount, right: rate),
-      currency: currency
+  /// Returns the rate's kind, or `nil` when the currencies are the same.
+  func converted(_ money: MoneyValue, to currency: String) throws -> (
+    MoneyValue, CurrencyRateUse?
+  ) {
+    let (rate, use) = try self.rate(from: money.currency, to: currency)
+    return (
+      MoneyValue(
+        amount: try operations.applying(.multiply, left: money.amount, right: rate),
+        currency: currency
+      ), use
     )
   }
 
-  private func rate(from: String, to: String) throws -> NumericValue {
+  private func rate(from: String, to: String) throws -> (NumericValue, CurrencyRateUse?) {
     let one = NumericValue.integer(IntegerValue(1))
     if from == to {
-      return one
+      return (one, nil)
     }
     if let rate = manualRates[CurrencyPair(from: from, to: to)] {
-      return rate
+      return (rate, .manual)
     }
     if let rate = manualRates[CurrencyPair(from: to, to: from)] {
-      return try operations.applying(.divide, left: one, right: rate)
+      return (try operations.applying(.divide, left: one, right: rate), .manual)
+    }
+    guard rates.observationDate != nil else {
+      throw EngineError(code: .currencyRatesUnavailable)
     }
     let fromUnits = from == "EUR" ? one : rates.units[from]
     let toUnits = to == "EUR" ? one : rates.units[to]
     guard let fromUnits, let toUnits else {
       throw EngineError(code: .missingCurrencyRate)
     }
-    return try operations.applying(.divide, left: toUnits, right: fromUnits)
+    return (
+      try operations.applying(.divide, left: toUnits, right: fromUnits),
+      from == "EUR" || to == "EUR" ? .reference : .crossReference
+    )
   }
 
   private func amount(_ binaryOperator: BinaryOperator, _ money: MoneyValue, _ number: NumericValue)
