@@ -23,50 +23,51 @@ public struct CalculationEngine: Sendable {
     _ source: String,
     context: EvaluationContext
   ) -> CalculationResult {
-    evaluate(
-      source,
-      context: context,
-      origin: .start,
-      variables: [:],
-      lines: LineOutcomes()
-    ).result
+    let parsing = parse(source, context: context)
+    guard let expression = parsing.expression else {
+      return .syntaxFailure(parsing.diagnostics)
+    }
+    return evaluate(expression, context: context, variables: [:], lines: LineOutcomes())
   }
 
-  func evaluate(
+  /// Parses an expression located at `origin`, resolving the given visible
+  /// variable names and kinds.
+  public func parse(
     _ source: String,
     context: EvaluationContext,
-    origin: SourceLocation,
-    variables: [String: EngineValue?],
-    lines: LineOutcomes
-  ) -> (result: CalculationResult, expression: Expression?) {
-    let parsing = Parser(
+    origin: SourceLocation = .start,
+    variables: [String: EngineValueKind] = [:]
+  ) -> ParsingResult {
+    Parser(
       source: source,
       configuration: context.lexingConfiguration,
       limits: syntaxLimits,
       catalog: unitCatalog,
       origin: origin,
-      variables: variables.mapValues { $0?.kind ?? .number }
+      variables: variables
     ).parse()
-    guard let expression = parsing.expression else {
-      return (.syntaxFailure(parsing.diagnostics), nil)
-    }
+  }
 
+  func evaluate(
+    _ expression: Expression,
+    context: EvaluationContext,
+    variables: [String: EngineValue?],
+    lines: LineOutcomes
+  ) -> CalculationResult {
     do {
-      let value = try Evaluator(
-        context: context,
-        limits: evaluationLimits,
-        variables: variables,
-        lines: lines
-      ).evaluate(expression)
-      return (.value(value), expression)
+      return .value(
+        try Evaluator(
+          context: context,
+          limits: evaluationLimits,
+          variables: variables,
+          lines: lines
+        ).evaluate(expression)
+      )
     } catch let error as EngineError {
-      return (.evaluationFailure(error), expression)
+      return .evaluationFailure(error)
     } catch {
-      return (
-        .evaluationFailure(
-          EngineError(code: .internalFailure, ranges: [expression.range])
-        ),
-        expression
+      return .evaluationFailure(
+        EngineError(code: .internalFailure, ranges: [expression.range])
       )
     }
   }
@@ -100,17 +101,5 @@ public struct CalculationEngine: Sendable {
       return nil
     }
     return words.joined(separator: " ")
-  }
-
-  public func parse(
-    _ source: String,
-    context: EvaluationContext
-  ) -> ParsingResult {
-    Parser(
-      source: source,
-      configuration: context.lexingConfiguration,
-      limits: syntaxLimits,
-      catalog: unitCatalog
-    ).parse()
   }
 }

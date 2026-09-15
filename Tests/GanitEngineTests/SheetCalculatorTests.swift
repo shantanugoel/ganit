@@ -39,6 +39,7 @@ struct SheetCalculatorTests {
     let evaluation = try calculator.evaluate(sheet, context: context)
 
     #expect(evaluation.evaluatedLineIDs == [0, 2, 4].map { sheet.lines[$0].id })
+    #expect(evaluation.parsedLineIDs == [sheet.lines[0].id])
     #expect(try summary(evaluation)[4] == "6")
   }
 

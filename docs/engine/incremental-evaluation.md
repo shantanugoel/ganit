@@ -24,6 +24,11 @@ when its text changed or an input differs; otherwise its result is reused.
 Walking is linear in the number of lines, but unaffected lines are never
 relexed, reparsed, or re-evaluated.
 
+Parsing depends only on the text and the kinds of the names a line can use.
+When a dependency's value changes but those kinds do not, the line reuses its
+cached AST and is only re-evaluated. Each line passes the parser and evaluator
+just the variables its words can name, never the whole scope.
+
 Because a result depends only on its inputs, invalidation is transitive by
 construction: if a changed result alters what a later line reads, that later
 line re-evaluates, and so on down the sheet. Lines whose inputs are unchanged
@@ -33,7 +38,9 @@ Changing the evaluation context clears the cache. Cache entries for removed
 lines are dropped at the end of a completed generation.
 
 `SheetEvaluation.evaluatedLineIDs` lists the lines evaluated in a generation,
-so tests can assert that an edit touched only its dependents.
+and `parsedLineIDs` the subset that was also parsed, so tests can assert that an
+edit touched only its dependents. Cached entries are immutable, so reusing a
+line and returning its result share storage rather than copying values.
 
 ## Generations and cancellation
 

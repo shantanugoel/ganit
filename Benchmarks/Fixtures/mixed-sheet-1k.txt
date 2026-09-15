@@ -1,0 +1,1000 @@
+# Trip 1
+// Budget assumptions for trip 1
+trip distance = 12 km
+trip distance in miles
+fuel rate = 6.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 6%
+
+hotel = 85
+hotel + tax
+Meals: 3 * 42.50
+20% off 50
+subtotal
+line 11 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 30 km / (2 h)
+4 MB/s * 1 min in GB
+(1 m + 1 ft) in cm
+40 is what % of 200
+---
+# Trip 2
+// Budget assumptions for trip 2
+trip distance = 24 km
+trip distance in miles
+fuel rate = 7.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 7%
+
+hotel = 170
+hotel + tax
+Meals: 6 * 42.50
+20% off 100
+subtotal
+line 36 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 60 km / (3 h)
+8 MB/s * 1 min in GB
+(1 m + 2 ft) in cm
+80 is what % of 400
+---
+# Trip 3
+// Budget assumptions for trip 3
+trip distance = 36 km
+trip distance in miles
+fuel rate = 8.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 8%
+
+hotel = 255
+hotel + tax
+Meals: 9 * 42.50
+20% off 150
+subtotal
+line 61 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 90 km / (1 h)
+12 MB/s * 1 min in GB
+(1 m + 3 ft) in cm
+120 is what % of 600
+---
+# Trip 4
+// Budget assumptions for trip 4
+trip distance = 48 km
+trip distance in miles
+fuel rate = 9.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 9%
+
+hotel = 340
+hotel + tax
+Meals: 12 * 42.50
+20% off 200
+subtotal
+line 86 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 120 km / (2 h)
+16 MB/s * 1 min in GB
+(1 m + 4 ft) in cm
+160 is what % of 800
+---
+# Trip 5
+// Budget assumptions for trip 5
+trip distance = 60 km
+trip distance in miles
+fuel rate = 10.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 10%
+
+hotel = 425
+hotel + tax
+Meals: 15 * 42.50
+20% off 250
+subtotal
+line 111 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 150 km / (3 h)
+20 MB/s * 1 min in GB
+(1 m + 5 ft) in cm
+200 is what % of 1000
+---
+# Trip 6
+// Budget assumptions for trip 6
+trip distance = 72 km
+trip distance in miles
+fuel rate = 11.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 11%
+
+hotel = 510
+hotel + tax
+Meals: 18 * 42.50
+20% off 300
+subtotal
+line 136 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 180 km / (1 h)
+24 MB/s * 1 min in GB
+(1 m + 6 ft) in cm
+240 is what % of 1200
+---
+# Trip 7
+// Budget assumptions for trip 7
+trip distance = 84 km
+trip distance in miles
+fuel rate = 12.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 5%
+
+hotel = 595
+hotel + tax
+Meals: 21 * 42.50
+20% off 350
+subtotal
+line 161 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 210 km / (2 h)
+28 MB/s * 1 min in GB
+(1 m + 7 ft) in cm
+280 is what % of 1400
+---
+# Trip 8
+// Budget assumptions for trip 8
+trip distance = 96 km
+trip distance in miles
+fuel rate = 13.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 6%
+
+hotel = 680
+hotel + tax
+Meals: 24 * 42.50
+20% off 400
+subtotal
+line 186 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 240 km / (3 h)
+32 MB/s * 1 min in GB
+(1 m + 8 ft) in cm
+320 is what % of 1600
+---
+# Trip 9
+// Budget assumptions for trip 9
+trip distance = 108 km
+trip distance in miles
+fuel rate = 5.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 7%
+
+hotel = 765
+hotel + tax
+Meals: 27 * 42.50
+20% off 450
+subtotal
+line 211 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 270 km / (1 h)
+36 MB/s * 1 min in GB
+(1 m + 9 ft) in cm
+360 is what % of 1800
+---
+# Trip 10
+// Budget assumptions for trip 10
+trip distance = 120 km
+trip distance in miles
+fuel rate = 6.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 8%
+
+hotel = 850
+hotel + tax
+Meals: 30 * 42.50
+20% off 500
+subtotal
+line 236 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 300 km / (2 h)
+40 MB/s * 1 min in GB
+(1 m + 10 ft) in cm
+400 is what % of 2000
+---
+# Trip 11
+// Budget assumptions for trip 11
+trip distance = 132 km
+trip distance in miles
+fuel rate = 7.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 9%
+
+hotel = 935
+hotel + tax
+Meals: 33 * 42.50
+20% off 550
+subtotal
+line 261 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 330 km / (3 h)
+44 MB/s * 1 min in GB
+(1 m + 11 ft) in cm
+440 is what % of 2200
+---
+# Trip 12
+// Budget assumptions for trip 12
+trip distance = 144 km
+trip distance in miles
+fuel rate = 8.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 10%
+
+hotel = 1020
+hotel + tax
+Meals: 36 * 42.50
+20% off 600
+subtotal
+line 286 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 360 km / (1 h)
+48 MB/s * 1 min in GB
+(1 m + 12 ft) in cm
+480 is what % of 2400
+---
+# Trip 13
+// Budget assumptions for trip 13
+trip distance = 156 km
+trip distance in miles
+fuel rate = 9.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 11%
+
+hotel = 1105
+hotel + tax
+Meals: 39 * 42.50
+20% off 650
+subtotal
+line 311 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 390 km / (2 h)
+52 MB/s * 1 min in GB
+(1 m + 13 ft) in cm
+520 is what % of 2600
+---
+# Trip 14
+// Budget assumptions for trip 14
+trip distance = 168 km
+trip distance in miles
+fuel rate = 10.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 5%
+
+hotel = 1190
+hotel + tax
+Meals: 42 * 42.50
+20% off 700
+subtotal
+line 336 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 420 km / (3 h)
+56 MB/s * 1 min in GB
+(1 m + 14 ft) in cm
+560 is what % of 2800
+---
+# Trip 15
+// Budget assumptions for trip 15
+trip distance = 180 km
+trip distance in miles
+fuel rate = 11.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 6%
+
+hotel = 1275
+hotel + tax
+Meals: 45 * 42.50
+20% off 750
+subtotal
+line 361 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 450 km / (1 h)
+60 MB/s * 1 min in GB
+(1 m + 15 ft) in cm
+600 is what % of 3000
+---
+# Trip 16
+// Budget assumptions for trip 16
+trip distance = 192 km
+trip distance in miles
+fuel rate = 12.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 7%
+
+hotel = 1360
+hotel + tax
+Meals: 48 * 42.50
+20% off 800
+subtotal
+line 386 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 480 km / (2 h)
+64 MB/s * 1 min in GB
+(1 m + 16 ft) in cm
+640 is what % of 3200
+---
+# Trip 17
+// Budget assumptions for trip 17
+trip distance = 204 km
+trip distance in miles
+fuel rate = 13.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 8%
+
+hotel = 1445
+hotel + tax
+Meals: 51 * 42.50
+20% off 850
+subtotal
+line 411 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 510 km / (3 h)
+68 MB/s * 1 min in GB
+(1 m + 17 ft) in cm
+680 is what % of 3400
+---
+# Trip 18
+// Budget assumptions for trip 18
+trip distance = 216 km
+trip distance in miles
+fuel rate = 5.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 9%
+
+hotel = 1530
+hotel + tax
+Meals: 54 * 42.50
+20% off 900
+subtotal
+line 436 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 540 km / (1 h)
+72 MB/s * 1 min in GB
+(1 m + 18 ft) in cm
+720 is what % of 3600
+---
+# Trip 19
+// Budget assumptions for trip 19
+trip distance = 228 km
+trip distance in miles
+fuel rate = 6.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 10%
+
+hotel = 1615
+hotel + tax
+Meals: 57 * 42.50
+20% off 950
+subtotal
+line 461 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 570 km / (2 h)
+76 MB/s * 1 min in GB
+(1 m + 19 ft) in cm
+760 is what % of 3800
+---
+# Trip 20
+// Budget assumptions for trip 20
+trip distance = 240 km
+trip distance in miles
+fuel rate = 7.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 11%
+
+hotel = 1700
+hotel + tax
+Meals: 60 * 42.50
+20% off 1000
+subtotal
+line 486 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 600 km / (3 h)
+80 MB/s * 1 min in GB
+(1 m + 20 ft) in cm
+800 is what % of 4000
+---
+# Trip 21
+// Budget assumptions for trip 21
+trip distance = 252 km
+trip distance in miles
+fuel rate = 8.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 5%
+
+hotel = 1785
+hotel + tax
+Meals: 63 * 42.50
+20% off 1050
+subtotal
+line 511 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 630 km / (1 h)
+84 MB/s * 1 min in GB
+(1 m + 21 ft) in cm
+840 is what % of 4200
+---
+# Trip 22
+// Budget assumptions for trip 22
+trip distance = 264 km
+trip distance in miles
+fuel rate = 9.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 6%
+
+hotel = 1870
+hotel + tax
+Meals: 66 * 42.50
+20% off 1100
+subtotal
+line 536 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 660 km / (2 h)
+88 MB/s * 1 min in GB
+(1 m + 22 ft) in cm
+880 is what % of 4400
+---
+# Trip 23
+// Budget assumptions for trip 23
+trip distance = 276 km
+trip distance in miles
+fuel rate = 10.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 7%
+
+hotel = 1955
+hotel + tax
+Meals: 69 * 42.50
+20% off 1150
+subtotal
+line 561 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 690 km / (3 h)
+92 MB/s * 1 min in GB
+(1 m + 23 ft) in cm
+920 is what % of 4600
+---
+# Trip 24
+// Budget assumptions for trip 24
+trip distance = 288 km
+trip distance in miles
+fuel rate = 11.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 8%
+
+hotel = 2040
+hotel + tax
+Meals: 72 * 42.50
+20% off 1200
+subtotal
+line 586 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 720 km / (1 h)
+96 MB/s * 1 min in GB
+(1 m + 24 ft) in cm
+960 is what % of 4800
+---
+# Trip 25
+// Budget assumptions for trip 25
+trip distance = 300 km
+trip distance in miles
+fuel rate = 12.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 9%
+
+hotel = 2125
+hotel + tax
+Meals: 75 * 42.50
+20% off 1250
+subtotal
+line 611 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 750 km / (2 h)
+100 MB/s * 1 min in GB
+(1 m + 25 ft) in cm
+1000 is what % of 5000
+---
+# Trip 26
+// Budget assumptions for trip 26
+trip distance = 312 km
+trip distance in miles
+fuel rate = 13.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 10%
+
+hotel = 2210
+hotel + tax
+Meals: 78 * 42.50
+20% off 1300
+subtotal
+line 636 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 780 km / (3 h)
+104 MB/s * 1 min in GB
+(1 m + 26 ft) in cm
+1040 is what % of 5200
+---
+# Trip 27
+// Budget assumptions for trip 27
+trip distance = 324 km
+trip distance in miles
+fuel rate = 5.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 11%
+
+hotel = 2295
+hotel + tax
+Meals: 81 * 42.50
+20% off 1350
+subtotal
+line 661 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 810 km / (1 h)
+108 MB/s * 1 min in GB
+(1 m + 27 ft) in cm
+1080 is what % of 5400
+---
+# Trip 28
+// Budget assumptions for trip 28
+trip distance = 336 km
+trip distance in miles
+fuel rate = 6.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 5%
+
+hotel = 2380
+hotel + tax
+Meals: 84 * 42.50
+20% off 1400
+subtotal
+line 686 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 840 km / (2 h)
+112 MB/s * 1 min in GB
+(1 m + 28 ft) in cm
+1120 is what % of 5600
+---
+# Trip 29
+// Budget assumptions for trip 29
+trip distance = 348 km
+trip distance in miles
+fuel rate = 7.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 6%
+
+hotel = 2465
+hotel + tax
+Meals: 87 * 42.50
+20% off 1450
+subtotal
+line 711 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 870 km / (3 h)
+116 MB/s * 1 min in GB
+(1 m + 29 ft) in cm
+1160 is what % of 5800
+---
+# Trip 30
+// Budget assumptions for trip 30
+trip distance = 360 km
+trip distance in miles
+fuel rate = 8.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 7%
+
+hotel = 2550
+hotel + tax
+Meals: 90 * 42.50
+20% off 1500
+subtotal
+line 736 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 900 km / (1 h)
+120 MB/s * 1 min in GB
+(1 m + 30 ft) in cm
+1200 is what % of 6000
+---
+# Trip 31
+// Budget assumptions for trip 31
+trip distance = 372 km
+trip distance in miles
+fuel rate = 9.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 8%
+
+hotel = 2635
+hotel + tax
+Meals: 93 * 42.50
+20% off 1550
+subtotal
+line 761 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 930 km / (2 h)
+124 MB/s * 1 min in GB
+(1 m + 31 ft) in cm
+1240 is what % of 6200
+---
+# Trip 32
+// Budget assumptions for trip 32
+trip distance = 384 km
+trip distance in miles
+fuel rate = 10.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 9%
+
+hotel = 2720
+hotel + tax
+Meals: 96 * 42.50
+20% off 1600
+subtotal
+line 786 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 960 km / (3 h)
+128 MB/s * 1 min in GB
+(1 m + 32 ft) in cm
+1280 is what % of 6400
+---
+# Trip 33
+// Budget assumptions for trip 33
+trip distance = 396 km
+trip distance in miles
+fuel rate = 11.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 10%
+
+hotel = 2805
+hotel + tax
+Meals: 99 * 42.50
+20% off 1650
+subtotal
+line 811 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 990 km / (1 h)
+132 MB/s * 1 min in GB
+(1 m + 33 ft) in cm
+1320 is what % of 6600
+---
+# Trip 34
+// Budget assumptions for trip 34
+trip distance = 408 km
+trip distance in miles
+fuel rate = 12.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 11%
+
+hotel = 2890
+hotel + tax
+Meals: 102 * 42.50
+20% off 1700
+subtotal
+line 836 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 1020 km / (2 h)
+136 MB/s * 1 min in GB
+(1 m + 34 ft) in cm
+1360 is what % of 6800
+---
+# Trip 35
+// Budget assumptions for trip 35
+trip distance = 420 km
+trip distance in miles
+fuel rate = 13.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 5%
+
+hotel = 2975
+hotel + tax
+Meals: 105 * 42.50
+20% off 1750
+subtotal
+line 861 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 1050 km / (3 h)
+140 MB/s * 1 min in GB
+(1 m + 35 ft) in cm
+1400 is what % of 7000
+---
+# Trip 36
+// Budget assumptions for trip 36
+trip distance = 432 km
+trip distance in miles
+fuel rate = 5.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 6%
+
+hotel = 3060
+hotel + tax
+Meals: 108 * 42.50
+20% off 1800
+subtotal
+line 886 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 1080 km / (1 h)
+144 MB/s * 1 min in GB
+(1 m + 36 ft) in cm
+1440 is what % of 7200
+---
+# Trip 37
+// Budget assumptions for trip 37
+trip distance = 444 km
+trip distance in miles
+fuel rate = 6.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 7%
+
+hotel = 3145
+hotel + tax
+Meals: 111 * 42.50
+20% off 1850
+subtotal
+line 911 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 1110 km / (2 h)
+148 MB/s * 1 min in GB
+(1 m + 37 ft) in cm
+1480 is what % of 7400
+---
+# Trip 38
+// Budget assumptions for trip 38
+trip distance = 456 km
+trip distance in miles
+fuel rate = 7.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 8%
+
+hotel = 3230
+hotel + tax
+Meals: 114 * 42.50
+20% off 1900
+subtotal
+line 936 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 1140 km / (3 h)
+152 MB/s * 1 min in GB
+(1 m + 38 ft) in cm
+1520 is what % of 7600
+---
+# Trip 39
+// Budget assumptions for trip 39
+trip distance = 468 km
+trip distance in miles
+fuel rate = 8.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 9%
+
+hotel = 3315
+hotel + tax
+Meals: 117 * 42.50
+20% off 1950
+subtotal
+line 961 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 1170 km / (1 h)
+156 MB/s * 1 min in GB
+(1 m + 39 ft) in cm
+1560 is what % of 7800
+---
+# Trip 40
+// Budget assumptions for trip 40
+trip distance = 480 km
+trip distance in miles
+fuel rate = 9.5
+Fuel: trip distance / (100 km) * fuel rate
+tax = 10%
+
+hotel = 3400
+hotel + tax
+Meals: 120 * 42.50
+20% off 2000
+subtotal
+line 986 + 1
+previous * 2
+total
+average
+median
+count
+
+Speed: 1200 km / (2 h)
+160 MB/s * 1 min in GB
+(1 m + 40 ft) in cm
+1600 is what % of 8000
+---

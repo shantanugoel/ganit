@@ -122,7 +122,7 @@ public struct RatioUnit: Hashable, Sendable {
 
 public enum UnitExpression: Hashable, Sendable {
   case ratio(RatioUnit)
-  case affine(UnitDefinition)
+  indirect case affine(UnitDefinition)
 
   public var dimension: Dimension {
     switch self {

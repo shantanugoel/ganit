@@ -418,6 +418,26 @@
       }
     },
     {
+      "name": "implicit multiplication: a unit group must start with a unit",
+      "expression": "1 m/(s^2)",
+      "expected": {
+        "status": "value",
+        "display": "1 m/s^2",
+        "fullPrecision": "1 m/s^2",
+        "approximate": false
+      }
+    },
+    {
+      "name": "implicit multiplication: dividing by a grouped quantity is not a unit",
+      "expression": "30 km / (2 h)",
+      "expected": {
+        "status": "value",
+        "display": "15 km/h",
+        "fullPrecision": "15 km/h",
+        "approximate": false
+      }
+    },
+    {
       "name": "implicit multiplication: quantity followed by a group is invalid",
       "expression": "2 m(3)",
       "expected": {

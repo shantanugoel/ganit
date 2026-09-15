@@ -61,6 +61,9 @@ unit meaning.
 - Adjacent quantities are neither summed nor multiplied: `5 ft 3 in` fails at
   `3`. Write `5 ft + 3 in`.
 - Unit products must be explicit: `2 kg m` fails; write `2 kg·m`.
+- After a unit `/` or `*`, a parenthesized group continues the unit only when
+  it starts with a unit: `1 m/(s^2)` is one unit, while `30 km / (2 h)` divides
+  by the quantity `2 h` and is `15 km/h`.
 - A quantity does not implicitly multiply what follows: `2 m(3)` and `3 m 2`
   fail.
 - Units attach only to numbers and grouped numbers, not computed constants:

@@ -8,10 +8,40 @@ private struct FixtureTarget: Sendable {
   let purpose: String
 }
 
+/// A checked-in sheet and the one-line edit that simulates a keystroke.
+private struct SheetBenchmark: Sendable {
+  let fixture: String
+  let file: String
+  let editedLine: Int
+  let replacements: [String]
+}
+
 @main
 private enum GanitBenchmarks {
   private static let maximumIterations = 100_000
   private static let maximumEngineIterations = 10_000
+  private static let maximumSheetIterations = 10_000
+
+  private static let sheetBenchmarks = [
+    SheetBenchmark(
+      fixture: "mixed-sheet",
+      file: "mixed-sheet-1k",
+      editedLine: 510,
+      replacements: ["Meals: 64 * 42.50", "Meals: 63 * 42.50"]
+    ),
+    SheetBenchmark(
+      fixture: "independent-sheet",
+      file: "independent-sheet-10k",
+      editedLine: 5_000,
+      replacements: ["1 + 2", "1 + 1"]
+    ),
+    SheetBenchmark(
+      fixture: "chained-dependency-sheet",
+      file: "chained-sheet-10k",
+      editedLine: 0,
+      replacements: ["v0 = 2", "v0 = 1"]
+    ),
+  ]
 
   private static let parserExpressions = [
     "1 + 2 * 3",
@@ -89,11 +119,23 @@ private enum GanitBenchmarks {
       return
     }
 
+    if arguments.count == 3,
+      arguments[0] == "--sheet",
+      let benchmark = sheetBenchmarks.first(where: { $0.fixture == arguments[1] }),
+      let iterations = Int(arguments[2]),
+      (1...maximumSheetIterations).contains(iterations)
+    {
+      runSheetBenchmark(benchmark, iterations: iterations)
+      return
+    }
+
     let message = """
       usage:
         GanitBenchmarks --list
         GanitBenchmarks --parser <iteration-count: 1...\(maximumIterations)>
         GanitBenchmarks --engine <iteration-count: 1...\(maximumEngineIterations)>
+        GanitBenchmarks --sheet <\(sheetBenchmarks.map(\.fixture).joined(separator: "|"))> \
+      <edit-count: 1...\(maximumSheetIterations)>
 
       Benchmarks record observations without applying a pass threshold.
 
@@ -105,7 +147,10 @@ private enum GanitBenchmarks {
   private static func listFixtureTargets() {
     print("fixture\ttarget\tstatus\tpurpose")
     for fixture in fixtureTargets {
-      let status = fixture.name == "launch-expressions" ? "available" : "unavailable"
+      let isAvailable =
+        fixture.name == "launch-expressions"
+        || sheetBenchmarks.contains { $0.fixture == fixture.name }
+      let status = isAvailable ? "available" : "unavailable"
       print(
         "\(fixture.name)\t\(fixture.target)\t\(status)\t\(fixture.purpose)"
       )
@@ -227,6 +272,80 @@ private enum GanitBenchmarks {
     )
     print("fixture_checksum=\(fixtureChecksum(expressions))")
     print("checksum=\(checksum)")
+  }
+
+  /// Times a full first evaluation, then alternating one-line edits. Each
+  /// edit sample covers `SheetSource.replace` and incremental evaluation.
+  private static func runSheetBenchmark(_ benchmark: SheetBenchmark, iterations: Int) {
+    let url = URL(fileURLWithPath: #filePath)
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .appending(path: "Benchmarks/Fixtures/\(benchmark.file).txt")
+    guard let text = try? String(contentsOf: url, encoding: .utf8) else {
+      fail("Sheet fixture is unreadable: \(url.path)")
+    }
+    let context: EvaluationContext
+    do {
+      context = try benchmarkContext()
+    } catch {
+      fail("Sheet benchmark context is invalid.")
+    }
+    let clock = ContinuousClock()
+
+    // Warm up code paths with a throwaway calculator.
+    var warmup = SheetCalculator()
+    _ = try? warmup.evaluate(SheetSource(text), context: context)
+
+    var sheet = SheetSource(text)
+    var calculator = SheetCalculator()
+    let fullStart = clock.now
+    guard let first = try? calculator.evaluate(sheet, context: context) else {
+      fail("Sheet benchmark evaluation was cancelled.")
+    }
+    let fullNanoseconds = nanoseconds(fullStart.duration(to: clock.now))
+    let failures = first.lines.filter {
+      switch $0.result {
+      case .syntaxFailure, .evaluationFailure:
+        return true
+      case .value, nil:
+        return false
+      }
+    }
+    guard failures.isEmpty else {
+      fail("Sheet benchmark fixture has \(failures.count) failing lines.")
+    }
+
+    var evaluatedLines = 0
+    var latencySamples: [Double] = []
+    latencySamples.reserveCapacity(iterations)
+    for iteration in 0..<iterations {
+      let range = sheet.lines[benchmark.editedLine].range
+      let replacement = benchmark.replacements[iteration % benchmark.replacements.count]
+      let editStart = clock.now
+      sheet.replace(utf8Range: range.lowerBound..<range.upperBound, with: replacement)
+      guard let evaluation = try? calculator.evaluate(sheet, context: context) else {
+        fail("Sheet benchmark evaluation was cancelled.")
+      }
+      latencySamples.append(nanoseconds(editStart.duration(to: clock.now)))
+      evaluatedLines += evaluation.evaluatedLineIDs.count
+    }
+    latencySamples.sort()
+
+    print("fixture=\(benchmark.fixture)")
+    print("lines=\(sheet.lines.count)")
+    print("full_evaluation_ms=\(String(format: "%.3f", fullNanoseconds / 1_000_000))")
+    print("edits=\(iterations)")
+    print("evaluated_lines_per_edit=\(evaluatedLines / iterations)")
+    print(
+      "p50_edit_ms="
+        + String(format: "%.3f", nearestRank(0.50, in: latencySamples) / 1_000_000)
+    )
+    print(
+      "p95_edit_ms="
+        + String(format: "%.3f", nearestRank(0.95, in: latencySamples) / 1_000_000)
+    )
+    print("fixture_checksum=\(fixtureChecksum([text]))")
   }
 
   private static func engineExpressions() -> [String] {

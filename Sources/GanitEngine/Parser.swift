@@ -661,7 +661,7 @@ private struct TokenParser {
     }
     var factorCount = 1
     while current.kind == .multiply || current.kind == .divide {
-      guard startsKnownUnit(at: 1) || token(at: 1).kind == .leftParenthesis else {
+      guard startsUnitExpression(at: 1) else {
         break
       }
       guard factorCount < RatioUnit.maximumFactorCount else {
