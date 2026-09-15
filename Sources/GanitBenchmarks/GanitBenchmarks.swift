@@ -554,6 +554,8 @@ private enum GanitBenchmarks {
       return 7
     case .date, .time, .instant, .period:
       return 8
+    case .money:
+      return 9
     }
   }
 

@@ -1,6 +1,6 @@
 # Ambiguity registry
 
-**Registry version:** 3
+**Registry version:** 4
 
 This registry records how the English grammar resolves inputs that could
 reasonably mean more than one thing. Every entry is pinned by named cases in
@@ -49,8 +49,12 @@ unit meaning.
   unit: `ms` is millisecond.
 - An identifier followed by `(` is a function call: `min(1, 2)`.
 - Constants are not units: `2pi` is implicit multiplication and `2 e` fails.
-- Currency signs are not accepted until currency support defines their
-  locale resolution: `$5` and `¥5` fail as unexpected characters.
+- Currency codes are uppercase ISO 4217 codes and case-sensitive: `5 EUR` is
+  money, `5 eur` is not. Added in registry version 4.
+- A symbol that names one currency is money: `€5`, `£5`, `₹5`, `US$5`.
+- `$` and `¥` name several currencies and fail with ambiguity severity as
+  `syntax.ambiguousCurrencySymbol`; locale never picks one. Write `5 USD` or
+  `US$5`.
 
 ## `implicit multiplication` — products versus adjacent quantities
 
@@ -77,7 +81,8 @@ unit meaning.
   `evaluation.unknownIdentifier` until `tax` is declared above it.
 - A multi-word name matches the longest declared name across adjacent words:
   with `rent` and `rent total` declared, `rent total` is the second variable.
-- Names cannot use keywords, constants, function names, or unit aliases, so
+- Names cannot use keywords, constants, function names, unit aliases, or
+  currency codes, so `USD = 1` fails and
   `in = 1`, `pi = 3`, `min = 1`, `km = 5`, and `total km = 3` fail with
   `syntax.invalidVariableName`. Declaration rejects the collision instead of
   letting a variable shadow built-in meaning.

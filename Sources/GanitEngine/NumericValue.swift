@@ -151,3 +151,31 @@ public struct ApproximateValue: Hashable, Sendable {
     self.precision = precision
   }
 }
+
+extension NumericValue {
+  public var isNegative: Bool {
+    switch self {
+    case .integer(let integer):
+      return integer.isNegative
+    case .rational(let rational):
+      return rational.numerator.isNegative
+    case .decimal(let decimal):
+      return decimal.coefficient.isNegative
+    case .approximate(let approximate):
+      return approximate.estimate < 0
+    }
+  }
+
+  public var isZero: Bool {
+    switch self {
+    case .integer(let integer):
+      return integer.isZero
+    case .rational(let rational):
+      return rational.numerator.isZero
+    case .decimal(let decimal):
+      return decimal.coefficient.isZero
+    case .approximate(let approximate):
+      return approximate.estimate == 0
+    }
+  }
+}

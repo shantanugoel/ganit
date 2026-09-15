@@ -304,7 +304,8 @@ struct ParserFuzzSmokeTests {
       "\u{301}", "💯",
       "\u{200D}", "\u{202E}", "\r", "\n", " ",
       "2024-03-10", "T02:30", "12:00", "Z", "-05:00", "pm", "ago", "from now", "today", "next",
-      "friday", "March", "days", "America/New_York", "Tokyo",
+      "friday", "March", "days", "America/New_York", "Tokyo", "$", "€", "US$", "USD", "in EUR",
+      "1 USD = ",
     ]
     for _ in 0..<1_000 {
       let count = generator.integer(in: 0...80)

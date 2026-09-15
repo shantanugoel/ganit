@@ -49,9 +49,24 @@
         "en" : { "stringUnit" : { "state" : "translated", "value" : "The calculation settings are not valid." } }
       }
     },
+    "error.evaluation.invalidCurrencyRate" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The exchange rate is not valid." } }
+      }
+    },
     "error.evaluation.invalidDomain" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "This operation is not defined for the given value." } }
+      }
+    },
+    "error.evaluation.missingCurrencyRate" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No exchange rate is available for this currency." } }
+      }
+    },
+    "error.evaluation.mixedCurrencies" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "These amounts are in different currencies. Convert one with in." } }
       }
     },
     "error.evaluation.nonConvergence" : {
@@ -232,6 +247,11 @@
     "error.numeric.zeroDenominator" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "A fraction denominator cannot be zero." } }
+      }
+    },
+    "syntax.ambiguousCurrencySymbol" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This symbol is used by several currencies. Write a code such as USD." } }
       }
     },
     "syntax.expectedArgumentSeparator" : {

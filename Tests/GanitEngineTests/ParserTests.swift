@@ -286,6 +286,10 @@ struct ParserTests {
       return "\(shape(count)) \(unit.rawValue)"
     case .temporal(let literal, _):
       return "\(literal)"
+    case .money(let amount, let currency, _):
+      return "\(shape(amount)) \(currency)"
+    case .currencyConversion(let value, let currency, _):
+      return "(\(shape(value)) in \(currency))"
     case .zoneConversion(let value, let zone, _):
       return "(\(shape(value)) in \(zone))"
     case .relative(let offset, let isPast, _):

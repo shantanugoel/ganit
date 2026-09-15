@@ -52,13 +52,15 @@ public struct CalculationEngine: Sendable {
     _ expression: Expression,
     context: EvaluationContext,
     variables: [String: EngineValue?],
-    lines: LineOutcomes
+    lines: LineOutcomes,
+    manualRates: [CurrencyPair: NumericValue] = [:]
   ) -> (result: CalculationResult, clock: ClockResolution?) {
     let (result, clock) = Evaluator(
       context: context,
       limits: evaluationLimits,
       variables: variables,
-      lines: lines
+      lines: lines,
+      manualRates: manualRates
     ).evaluateReadingClock(expression)
     switch result {
     case .success(let value):
@@ -89,7 +91,8 @@ public struct CalculationEngine: Sendable {
       guard case .identifier(let word) = token.kind,
         !reservedIdentifiers.contains(word),
         BuiltInFunction(rawValue: word) == nil,
-        unitCatalog.resolveUnit(matching: word) == nil
+        unitCatalog.resolveUnit(matching: word) == nil,
+        CurrencyCatalog.minorUnits[word] == nil
       else {
         return nil
       }

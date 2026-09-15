@@ -63,6 +63,7 @@ public struct EvaluationContext: Hashable, Sendable {
   public private(set) var now: Date
   public let calendar: Calendar
   public let timeZone: TimeZone
+  public let currencyRates: CurrencyRates
 
   public var calendarIdentifier: Calendar.Identifier {
     calendar.identifier
@@ -79,7 +80,8 @@ public struct EvaluationContext: Hashable, Sendable {
     precision: PrecisionContext,
     now: Date,
     calendar: Calendar,
-    timeZone: TimeZone
+    timeZone: TimeZone,
+    currencyRates: CurrencyRates = .none
   ) throws {
     guard Self.isStructurallyValidBCP47(localeIdentifier) else {
       throw EngineError(
@@ -109,6 +111,7 @@ public struct EvaluationContext: Hashable, Sendable {
     normalizedCalendar.timeZone = timeZone
     self.calendar = normalizedCalendar
     self.timeZone = timeZone
+    self.currencyRates = currencyRates
   }
 
   /// The same context at another finite moment.

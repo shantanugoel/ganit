@@ -81,6 +81,44 @@ struct ResultFormatterTests {
   }
 
   @Test
+  func formatsMoneyInLocaleStyleRoundedToMinorUnits() throws {
+    let english = ResultFormatter(context: try context())
+    let german = ResultFormatter(context: try context(localeIdentifier: "de-DE"))
+    let cases: [(ResultFormatter, MoneyValue, String, String, Bool)] = [
+      (english, money(.integer(IntegerValue(1_234)), "USD"), "$1,234.00", "1234 USD", false),
+      (english, money(try decimal(11_551, scale: 2), "EUR"), "€115.51", "115.51 EUR", false),
+      (english, money(try rational(100, 3), "USD"), "≈ $33.33", "100/3 USD", true),
+      (english, money(try decimal(-125, scale: 1), "JPY"), "≈ -¥13", "-12.5 JPY", true),
+      (
+        english, money(try decimal(1_2345, scale: 4), "KWD"), "≈ KWD\u{A0}1.235", "1.2345 KWD", true
+      ),
+      (
+        german, money(try decimal(123_456, scale: 2), "EUR"), "1.234,56\u{A0}€", "1234.56 EUR",
+        false
+      ),
+    ]
+    for (formatter, value, display, fullPrecision, isApproximate) in cases {
+      let result = try formatter.format(.money(value))
+      #expect(result.display == display)
+      #expect(result.fullPrecision == fullPrecision)
+      #expect(result.isApproximate == isApproximate)
+    }
+  }
+
+  private func money(_ amount: NumericValue, _ currency: String) -> MoneyValue {
+    MoneyValue(amount: amount, currency: currency)
+  }
+
+  private func decimal(_ coefficient: Int, scale: Int) throws -> NumericValue {
+    .decimal(try DecimalValue(coefficient: IntegerValue(coefficient), scale: scale))
+  }
+
+  private func rational(_ numerator: Int, _ denominator: Int) throws -> NumericValue {
+    .rational(
+      try RationalValue(numerator: IntegerValue(numerator), denominator: IntegerValue(denominator)))
+  }
+
+  @Test
   func formatsTemporalValuesWithISOFullPrecision() throws {
     let formatter = ResultFormatter(context: try context())
     let cases: [(EngineValue, String, String)] = [

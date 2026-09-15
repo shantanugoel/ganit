@@ -5,6 +5,7 @@ public struct Evaluator: Sendable {
   private let limits: EvaluationLimits
   private let variables: [String: EngineValue?]
   private let lines: LineOutcomes
+  private let manualRates: [CurrencyPair: NumericValue]
 
   public init(
     context: EvaluationContext,
@@ -19,17 +20,20 @@ public struct Evaluator: Sendable {
   }
 
   /// `variables` maps declared names to their values, or to `nil` when the
-  /// declaration failed. `lines` holds the results of lines above.
+  /// declaration failed. `lines` holds the results of lines above, and
+  /// `manualRates` the exchange rates declared above.
   init(
     context: EvaluationContext,
     limits: EvaluationLimits,
     variables: [String: EngineValue?],
-    lines: LineOutcomes
+    lines: LineOutcomes,
+    manualRates: [CurrencyPair: NumericValue] = [:]
   ) {
     self.context = context
     self.limits = limits
     self.variables = variables
     self.lines = lines
+    self.manualRates = manualRates
   }
 
   public func evaluate(_ expression: Expression) throws -> EngineValue {
@@ -44,7 +48,8 @@ public struct Evaluator: Sendable {
       context: context,
       limits: limits,
       variables: variables,
-      lines: lines
+      lines: lines,
+      manualRates: manualRates
     )
     let result = Result { try worker.evaluate(expression) }
     return (result, worker.clock)
@@ -64,6 +69,7 @@ private struct EvaluationWorker {
   let operations: NumericOperations
   let unitAlgebra: UnitAlgebra
   let temporal: TemporalArithmetic
+  let money: MoneyArithmetic
   let variables: [String: EngineValue?]
   let lines: LineOutcomes
   var visitedOperations = 0
@@ -73,13 +79,16 @@ private struct EvaluationWorker {
     context: EvaluationContext,
     limits: EvaluationLimits,
     variables: [String: EngineValue?],
-    lines: LineOutcomes
+    lines: LineOutcomes,
+    manualRates: [CurrencyPair: NumericValue]
   ) {
     self.context = context
     self.limits = limits
     self.variables = variables
     self.lines = lines
     operations = NumericOperations(context: context, limits: limits)
+    money = MoneyArithmetic(
+      operations: operations, rates: context.currencyRates, manualRates: manualRates)
     unitAlgebra = UnitAlgebra(context: context, limits: limits)
     temporal = TemporalArithmetic(
       context: context, operations: operations, unitAlgebra: unitAlgebra)
@@ -120,6 +129,10 @@ private struct EvaluationWorker {
         return try evaluateTemporal(literal, at: range)
       case .relative(let offset, let isPast, _):
         return try evaluateRelative(offset, isPast: isPast)
+      case .money(let amount, let currency, _):
+        return try evaluateMoney(amount, currency)
+      case .currencyConversion(let value, let currency, _):
+        return try evaluateCurrencyConversion(value, currency)
       case .zoneConversion(let value, let zone, _):
         return try evaluateZoneConversion(value, zone)
       case .conversion(let valueExpression, let targetSyntax, _, _):
@@ -250,6 +263,27 @@ private struct EvaluationWorker {
   }
 
   @inline(never)
+  private mutating func evaluateMoney(_ amount: Expression, _ currency: String) throws
+    -> EngineValue
+  {
+    .money(
+      MoneyValue(amount: try requireNumber(evaluate(amount), at: amount.range), currency: currency))
+  }
+
+  @inline(never)
+  private mutating func evaluateCurrencyConversion(
+    _ valueExpression: Expression, _ currency: String
+  )
+    throws -> EngineValue
+  {
+    let value = try evaluate(valueExpression)
+    guard case .money(let amount) = value else {
+      throw typeMismatch(expected: .money, actual: value.kind, range: valueExpression.range)
+    }
+    return .money(try money.converted(amount, to: currency))
+  }
+
+  @inline(never)
   private mutating func evaluateZoneConversion(_ value: Expression, _ zone: String) throws
     -> EngineValue
   {
@@ -354,6 +388,11 @@ private struct EvaluationWorker {
       )
     case .period(let period):
       return .period(try temporal.negated(period))
+    case .money(let money):
+      return .money(
+        MoneyValue(
+          amount: try operations.applying(unaryOperator, to: money.amount),
+          currency: money.currency))
     case .rate, .date, .time, .instant:
       throw typeMismatch(expected: .number, actual: value.kind)
     }
@@ -365,6 +404,9 @@ private struct EvaluationWorker {
     right: EngineValue
   ) throws -> EngineValue {
     if let result = try temporal.apply(binaryOperator, left: left, right: right) {
+      return result
+    }
+    if let result = try money.apply(binaryOperator, left: left, right: right) {
       return result
     }
     switch (left, right) {
@@ -599,6 +641,11 @@ private struct EvaluationWorker {
           return percentage.points
         case (.quantity(let quantity), .quantity(let reference)):
           return try unitAlgebra.converted(quantity, to: reference.unit).magnitude
+        case (.money(let amount), .money(let reference)):
+          guard amount.currency == reference.currency else {
+            throw EngineError(code: .mixedCurrencies)
+          }
+          return amount.amount
         default:
           throw typeMismatch(expected: .number, actual: value.kind)
         }
@@ -652,6 +699,28 @@ private struct EvaluationWorker {
     right: EngineValue,
     rightRange: SourceRange
   ) throws -> EngineValue {
+    // Percentages of money apply to the amount and keep the currency.
+    switch (percentageOperator, left, right) {
+    case (.of, _, .money(let money)), (.off, _, .money(let money)), (.on, _, .money(let money)):
+      return try moneyResult(
+        apply(
+          percentageOperator, left: left, leftRange: leftRange, right: .number(money.amount),
+          rightRange: rightRange), money.currency)
+    case (.reverseOff, .money(let money), _), (.reverseOn, .money(let money), _):
+      return try moneyResult(
+        apply(
+          percentageOperator, left: .number(money.amount), leftRange: leftRange, right: right,
+          rightRange: rightRange), money.currency)
+    case (.ratio, .money(let lhs), .money(let rhs)), (.change, .money(let lhs), .money(let rhs)):
+      guard lhs.currency == rhs.currency else {
+        throw EngineError(code: .mixedCurrencies)
+      }
+      return try apply(
+        percentageOperator, left: .number(lhs.amount), leftRange: leftRange,
+        right: .number(rhs.amount), rightRange: rightRange)
+    default:
+      break
+    }
     switch percentageOperator {
     case .of, .off, .on:
       let percentage = try requirePercentage(left, at: leftRange)
@@ -729,6 +798,13 @@ private struct EvaluationWorker {
         }
       )
     }
+  }
+
+  private func moneyResult(_ value: EngineValue, _ currency: String) throws -> EngineValue {
+    guard case .number(let amount) = value else {
+      throw typeMismatch(expected: .number, actual: value.kind)
+    }
+    return .money(MoneyValue(amount: amount, currency: currency))
   }
 
   private func percentageRate(

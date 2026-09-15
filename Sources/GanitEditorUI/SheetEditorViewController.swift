@@ -397,6 +397,8 @@ public final class SheetEditorViewController: NSViewController {
       return localized("interpretation.kind.instant", "Date and time")
     case .period:
       return localized("interpretation.kind.period", "Calendar period")
+    case .money:
+      return localized("interpretation.kind.money", "Money")
     }
   }
 

@@ -93,12 +93,16 @@ public struct SheetCalculator: Sendable {
 
       if case .calculation(_, _, let expressionRange?, _) = source.syntax {
         let names = scope.values(named: source.words)
-        if evaluation?.isValid(names: names, outcomes: outcomes, now: context.now) != true {
+        let rates = scope.rates(naming: source.words)
+        if evaluation?.isValid(names: names, rates: rates, outcomes: outcomes, now: context.now)
+          != true
+        {
           let reusable = evaluation?.parsing(for: names)
           evaluation = LineEvaluation(
             source: source,
             expressionRange: expressionRange,
             names: names,
+            rates: rates,
             parsing: reusable,
             outcomes: outcomes,
             engine: engine,
@@ -117,6 +121,9 @@ public struct SheetCalculator: Sendable {
       let result = evaluation?.result
       if let name = source.declaredName, let result {
         scope.declare(name, result: result)
+      }
+      if let from = source.rateCurrency, case .value(.money(let money)) = result {
+        scope.rates[CurrencyPair(from: from, to: money.currency)] = money.amount
       }
       switch result {
       case nil:
@@ -160,6 +167,8 @@ private final class LineSource: Sendable {
   let words: [[String]]
   /// The normalized declared name, if the line declares a valid one.
   let declaredName: String?
+  /// The currency of a manual rate declaration such as `1 USD = 83.25 INR`.
+  let rateCurrency: String?
   /// A diagnostic for an invalid declared name.
   let nameFailure: CalculationResult?
 
@@ -178,12 +187,20 @@ private final class LineSource: Sendable {
 
     guard case .calculation(_, let nameRange?, _, _) = syntax else {
       declaredName = nil
+      rateCurrency = nil
       nameFailure = nil
       return
     }
-    declaredName = engine.variableName(in: slice(of: nameRange, in: text), context: context)
+    let name = slice(of: nameRange, in: text)
+    let nameWords = name.split(whereSeparator: \.isWhitespace)
+    rateCurrency =
+      nameWords.count == 2 && nameWords[0] == "1"
+        && CurrencyCatalog.minorUnits[String(nameWords[1])] != nil
+      ? String(nameWords[1]) : nil
+    declaredName =
+      rateCurrency == nil ? engine.variableName(in: name, context: context) : nil
     nameFailure =
-      declaredName == nil
+      declaredName == nil && rateCurrency == nil
       ? .syntaxFailure([SyntaxDiagnostic(code: .invalidVariableName, range: nameRange)])
       : nil
   }
@@ -192,6 +209,7 @@ private final class LineSource: Sendable {
 /// A line's parse and evaluation, with the inputs each one read.
 private final class LineEvaluation: Sendable {
   let names: [String: EngineValue?]
+  let rates: [CurrencyPair: NumericValue]
   let kinds: [String: EngineValueKind]
   let parsing: ParsingResult?
   let references: Set<LineReference>
@@ -204,12 +222,14 @@ private final class LineEvaluation: Sendable {
     source: LineSource,
     expressionRange: SourceRange,
     names: [String: EngineValue?],
+    rates: [CurrencyPair: NumericValue],
     parsing reusable: ParsingResult?,
     outcomes: LineOutcomes,
     engine: CalculationEngine,
     context: EvaluationContext
   ) {
     self.names = names
+    self.rates = rates
     kinds = names.mapValues { $0?.kind ?? .number }
     if let nameFailure = source.nameFailure {
       parsing = nil
@@ -242,9 +262,12 @@ private final class LineEvaluation: Sendable {
     inputs = Dictionary(
       uniqueKeysWithValues: references.map { ($0, outcomes.inputs(for: $0)) }
     )
-    let clock: ClockResolution?
-    (result, clock) = engine.evaluate(
-      expression, context: context, variables: names, lines: outcomes)
+    let (evaluated, clock) = engine.evaluate(
+      expression, context: context, variables: names, lines: outcomes, manualRates: rates)
+    result =
+      source.rateCurrency.map {
+        Self.checkedRate(evaluated, from: $0, range: expressionRange)
+      } ?? evaluated
     clockInterval = clock.map { resolution in
       switch resolution {
       case .day:
@@ -258,8 +281,28 @@ private final class LineEvaluation: Sendable {
     }
   }
 
-  func isValid(names: [String: EngineValue?], outcomes: LineOutcomes, now: Date) -> Bool {
-    self.names == names
+  /// A manual rate must be a positive amount of another currency.
+  private static func checkedRate(_ result: CalculationResult, from: String, range: SourceRange)
+    -> CalculationResult
+  {
+    guard case .value(let value) = result else {
+      return result
+    }
+    guard case .money(let money) = value, money.currency != from, !money.amount.isZero,
+      !money.amount.isNegative
+    else {
+      return .evaluationFailure(EngineError(code: .invalidCurrencyRate, ranges: [range]))
+    }
+    return result
+  }
+
+  func isValid(
+    names: [String: EngineValue?],
+    rates: [CurrencyPair: NumericValue],
+    outcomes: LineOutcomes,
+    now: Date
+  ) -> Bool {
+    self.names == names && self.rates == rates
       && clockInterval.map { $0.start <= now && now < $0.end } != false
       && inputs.allSatisfy { outcomes.inputs(for: $0.key) == $0.value }
   }
@@ -274,6 +317,18 @@ private final class LineEvaluation: Sendable {
 private struct VariableScope: Sendable {
   private var variables: [String: EngineValue?] = [:]
   private var prefixes: Set<String> = []
+  /// Manual exchange rates declared above.
+  var rates: [CurrencyPair: NumericValue] = [:]
+
+  /// The manual rates for currencies named in `runs`. A conversion names its
+  /// target currency, so it can only use these rates.
+  func rates(naming runs: [[String]]) -> [CurrencyPair: NumericValue] {
+    guard !rates.isEmpty else {
+      return [:]
+    }
+    let words = Set(runs.joined())
+    return rates.filter { words.contains($0.key.from) || words.contains($0.key.to) }
+  }
 
   mutating func declare(_ name: String, result: CalculationResult) {
     if case .value(let value) = result {

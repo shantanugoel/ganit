@@ -167,6 +167,10 @@ private struct Scanner {
         }
       case ";":
         append(.argumentSeparator, from: start)
+      case _
+      where CurrencyCatalog.symbols[String(character)] != nil
+        || CurrencyCatalog.ambiguousSymbols.contains(String(character)):
+        append(.currencySymbol(String(character)), from: start)
       default:
         diagnose(.unexpectedCharacter, from: start)
       }
@@ -225,6 +229,11 @@ private struct Scanner {
     }
 
     let identifier = String(characters[start..<cursor])
+    if current == "$", CurrencyCatalog.symbols[identifier + "$"] != nil {
+      advance()
+      append(.currencySymbol(identifier + "$"), from: start)
+      return
+    }
     append(.identifier(identifier), from: start)
   }
 

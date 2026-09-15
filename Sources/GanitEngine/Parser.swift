@@ -238,6 +238,12 @@ private struct TokenParser {
         continue
       }
 
+      if let money = parseMoneySuffix(of: left, minimumBindingPower: minimumBindingPower) {
+        left = money
+        depth += 1
+        continue
+      }
+
       let diagnosticCount = diagnostics.count
       if let suffixed = parseTemporalSuffix(of: left, minimumBindingPower: minimumBindingPower) {
         guard diagnostics.count == diagnosticCount else {
@@ -343,6 +349,9 @@ private struct TokenParser {
 
     case .temporal(let literal):
       return parseTemporal(literal, range: token.range)
+
+    case .currencySymbol(let symbol):
+      return parseCurrencySymbol(symbol, range: token.range, depth: depth)
 
     case .identifier(let name):
       if variables[name] == nil, let phrase = parseDatePhrase(name, range: token.range) {
@@ -963,8 +972,50 @@ private struct TokenParser {
       .date(year: Int(digits)!, month: month, day: day), range: range.union(advance().range))
   }
 
-  // Temporal parsing lives in non-inlined methods so the recursive
+  // Money and temporal parsing live in non-inlined methods so the recursive
   // `parseExpression` and `parsePrefix` frames stay small.
+
+  /// A currency code after a number, `12.50 EUR`, or a conversion to one,
+  /// `100 USD in INR`. Codes are uppercase and case-sensitive.
+  @inline(never)
+  private mutating func parseMoneySuffix(
+    of left: Expression,
+    minimumBindingPower: Int
+  ) -> Expression? {
+    if 29 >= minimumBindingPower, canAttachUnit(to: left),
+      let code = identifier(at: 0), variables[code] == nil,
+      CurrencyCatalog.minorUnits[code] != nil
+    {
+      return .money(amount: left, currency: code, range: left.range.union(advance().range))
+    }
+    guard 1 >= minimumBindingPower, let keyword = identifier(at: 0),
+      ["in", "to", "as", "into"].contains(keyword),
+      let code = identifier(at: 1), CurrencyCatalog.minorUnits[code] != nil
+    else {
+      return nil
+    }
+    advance()
+    return .currencyConversion(
+      value: left, currency: code, range: left.range.union(advance().range))
+  }
+
+  /// An amount after a currency symbol, `€12.50`. A symbol that several
+  /// currencies share is an ambiguity rather than a guess.
+  @inline(never)
+  private mutating func parseCurrencySymbol(_ symbol: String, range: SourceRange, depth: Int)
+    -> Expression?
+  {
+    guard let code = CurrencyCatalog.symbols[symbol] else {
+      diagnose(.ambiguousCurrencySymbol, at: range, severity: .ambiguity)
+      return nil
+    }
+    guard
+      let amount = parseExpression(minimumBindingPower: Self.prefixBindingPower, depth: depth + 1)
+    else {
+      return nil
+    }
+    return .money(amount: amount, currency: code, range: range.union(amount.range))
+  }
 
   /// A date phrase or zone that follows `left`: `9 March`, `3 days ago`,
   /// `2 h from now`, or `now in Asia/Tokyo`. Reports an unknown zone after an
@@ -1084,6 +1135,8 @@ private struct TokenParser {
       return .number
     case .quantity, .conversion:
       return .quantity
+    case .money, .currencyConversion:
+      return .money
     case .period:
       return .period
     case .temporal(let literal, _):
@@ -1113,6 +1166,9 @@ private struct TokenParser {
       }
       if leftKind == .period || rightKind == .period {
         return .period
+      }
+      if leftKind == .money || rightKind == .money {
+        return .money
       }
       switch binaryOperator {
       case .add, .subtract:

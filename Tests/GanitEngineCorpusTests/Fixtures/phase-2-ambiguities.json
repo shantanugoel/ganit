@@ -338,25 +338,25 @@
       }
     },
     {
-      "name": "symbols: dollar is not a currency yet",
+      "name": "symbols: dollar sign names several currencies",
       "expression": "$5",
       "expected": {
         "status": "syntaxFailure",
-        "code": "unexpectedCharacter",
-        "messageKey": "syntax.unexpectedCharacter",
-        "message": "This character is not valid in an expression.",
+        "code": "ambiguousCurrencySymbol",
+        "messageKey": "syntax.ambiguousCurrencySymbol",
+        "message": "This symbol is used by several currencies. Write a code such as USD.",
         "lowerBound": 0,
         "upperBound": 1
       }
     },
     {
-      "name": "symbols: yen is not a currency yet",
+      "name": "symbols: yen sign names several currencies",
       "expression": "¥5",
       "expected": {
         "status": "syntaxFailure",
-        "code": "unexpectedCharacter",
-        "messageKey": "syntax.unexpectedCharacter",
-        "message": "This character is not valid in an expression.",
+        "code": "ambiguousCurrencySymbol",
+        "messageKey": "syntax.ambiguousCurrencySymbol",
+        "message": "This symbol is used by several currencies. Write a code such as USD.",
         "lowerBound": 0,
         "upperBound": 2
       }
@@ -575,6 +575,26 @@
         "message": "Enter a time zone such as Asia/Tokyo or a listed city.",
         "lowerBound": 7,
         "upperBound": 10
+      }
+    },
+    {
+      "name": "symbols: a prefixed dollar sign names one currency",
+      "expression": "US$5",
+      "expected": {
+        "status": "value",
+        "display": "$5.00",
+        "fullPrecision": "5 USD",
+        "approximate": false
+      }
+    },
+    {
+      "name": "symbols: uppercase ISO codes are currencies",
+      "expression": "5 EUR",
+      "expected": {
+        "status": "value",
+        "display": "€5.00",
+        "fullPrecision": "5 EUR",
+        "approximate": false
       }
     }
   ]

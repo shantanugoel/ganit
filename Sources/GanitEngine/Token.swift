@@ -45,6 +45,8 @@ public enum TemporalLiteral: Equatable, Sendable {
 public enum TokenKind: Equatable, Sendable {
   case number(NumericLiteral)
   case temporal(TemporalLiteral)
+  /// A currency symbol such as `€`, `US$`, or the ambiguous `$`.
+  case currencySymbol(String)
   case identifier(String)
   case plus
   case minus

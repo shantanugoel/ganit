@@ -428,6 +428,16 @@ public struct ResultFormatter: Sendable {
       )
     case .period(let period):
       return try checked(display: periodDisplay(period), fullPrecision: periodISO(period))
+    case .money(let money):
+      let exact = try numericFormatter.format(money.amount)
+      let (display, isRounded) = moneyDisplay(money)
+      let isApproximate = exact.isApproximate || isRounded
+      let result = try checked(
+        display: (isApproximate ? "≈ " : "") + display,
+        fullPrecision: exact.fullPrecision + " " + money.currency
+      )
+      return FormattedResult(
+        display: result.display, fullPrecision: result.fullPrecision, isApproximate: isApproximate)
     case .rate(let rate):
       let amount = try format(rate.amount)
       let displayDenominator = denominatorDisplay(rate.denominator)
@@ -489,6 +499,39 @@ public struct ResultFormatter: Sendable {
       period.days == 0 && months != nil
       ? nil : format(DateComponents(day: period.days), units: .day)
     return [months, days].compactMap { $0 }.joined(separator: ", ")
+  }
+
+  /// The amount in the locale's currency style, rounded half away from zero
+  /// to the currency's minor units, and whether rounding changed it.
+  private func moneyDisplay(_ money: MoneyValue) -> (String, isRounded: Bool) {
+    func decimal(_ integer: IntegerValue) -> Decimal {
+      Decimal(string: integer.canonicalDigits) ?? .nan
+    }
+    var value: Decimal
+    switch money.amount {
+    case .integer(let integer):
+      value = decimal(integer)
+    case .rational(let rational):
+      value = decimal(rational.numerator) / decimal(rational.denominator)
+    case .decimal(let number):
+      value =
+        decimal(number.coefficient) * Decimal(sign: .plus, exponent: -number.scale, significand: 1)
+    case .approximate(let approximate):
+      value = Decimal(approximate.estimate)
+    }
+    let digits = CurrencyCatalog.minorUnits[money.currency] ?? 2
+    var rounded = Decimal()
+    NSDecimalRound(&rounded, &value, digits, .plain)
+    let formatter = NumberFormatter()
+    formatter.locale = locale
+    formatter.numberStyle = .currency
+    formatter.currencyCode = money.currency
+    formatter.minimumFractionDigits = digits
+    formatter.maximumFractionDigits = digits
+    let text =
+      formatter.string(from: NSDecimalNumber(decimal: rounded))
+      ?? "\(rounded) \(money.currency)"
+    return (text, rounded != value)
   }
 
   /// ISO 8601 duration notation with signed components, such as `P1Y2M3D`.
@@ -701,6 +744,11 @@ public struct DiagnosticFormatter: Sendable {
         "syntax.unknownUnit",
         defaultValue: "This unit is not recognized."
       )
+    case .ambiguousCurrencySymbol:
+      return localized(
+        "syntax.ambiguousCurrencySymbol",
+        defaultValue: "This symbol is used by several currencies. Write a code such as USD."
+      )
     case .unknownTimeZone:
       return localized(
         "syntax.unknownTimeZone",
@@ -886,6 +934,21 @@ public struct DiagnosticFormatter: Sendable {
         "error.evaluation.ambiguousLocalTime",
         defaultValue: "This time happens twice when clocks move back. Add a UTC offset."
       )
+    case .mixedCurrencies:
+      return localized(
+        "error.evaluation.mixedCurrencies",
+        defaultValue: "These amounts are in different currencies. Convert one with in."
+      )
+    case .missingCurrencyRate:
+      return localized(
+        "error.evaluation.missingCurrencyRate",
+        defaultValue: "No exchange rate is available for this currency."
+      )
+    case .invalidCurrencyRate:
+      return localized(
+        "error.evaluation.invalidCurrencyRate",
+        defaultValue: "The exchange rate is not valid."
+      )
     case .offsetMismatch:
       return localized(
         "error.evaluation.offsetMismatch",
@@ -1053,21 +1116,6 @@ private struct LocalePercentConvention: Sendable {
       String(formatted[..<range.lowerBound]),
       String(formatted[range.upperBound...])
     )
-  }
-}
-
-extension NumericValue {
-  fileprivate var isNegative: Bool {
-    switch self {
-    case .integer(let integer):
-      return integer.isNegative
-    case .rational(let rational):
-      return rational.numerator.isNegative
-    case .decimal(let decimal):
-      return decimal.coefficient.isNegative
-    case .approximate(let approximate):
-      return approximate.estimate < 0
-    }
   }
 }
 

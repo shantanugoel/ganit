@@ -29,6 +29,9 @@ public enum EngineErrorCode: String, Hashable, Sendable {
   case nonexistentLocalTime = "evaluation.nonexistentLocalTime"
   case ambiguousLocalTime = "evaluation.ambiguousLocalTime"
   case offsetMismatch = "evaluation.offsetMismatch"
+  case mixedCurrencies = "evaluation.mixedCurrencies"
+  case missingCurrencyRate = "evaluation.missingCurrencyRate"
+  case invalidCurrencyRate = "evaluation.invalidCurrencyRate"
   case resourceLimitExceeded = "evaluation.resourceLimitExceeded"
   case approximationOutOfRange = "evaluation.approximationOutOfRange"
   case internalFailure = "evaluation.internalFailure"
@@ -84,6 +87,7 @@ public enum EngineValueKind: String, Hashable, Sendable {
   case time
   case instant
   case period
+  case money
 }
 
 public enum EvaluationContextField: String, Hashable, Sendable {

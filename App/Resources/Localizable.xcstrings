@@ -181,6 +181,16 @@
         }
       }
     },
+    "interpretation.kind.money" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Money"
+          }
+        }
+      }
+    },
     "interpretation.kind.number" : {
       "localizations" : {
         "en" : {
