@@ -14,6 +14,13 @@ public struct UnevaluableExpression: Error, LocalizedError, Equatable, Sendable 
   }
 }
 
+/// A sheet line's answer for a headless caller.
+public struct SheetAnswer: Equatable, Sendable {
+  /// The displayed answer or failure message, or `nil` without an expression.
+  public let text: String?
+  public let isFailure: Bool
+}
+
 /// Evaluates one expression for callers outside the app's windows.
 ///
 /// The Evaluate Expression service and the Calculate Expression intent share
@@ -44,6 +51,29 @@ public struct ExpressionCalculation: Sendable {
       rates: (try? RateSnapshotStore.applicationSupport().lastKnownGood())?
         .flatMap(\.currencyRates) ?? .none
     )
+  }
+
+  /// One answer per line of a sheet, as the editor shows them once editing
+  /// leaves each line: the display text or failure message, or `nil` for a
+  /// line without an expression.
+  public func answers(forSheet source: String, now: Date = Date()) throws -> [SheetAnswer] {
+    let context = try preferences.evaluationContext(now: now, currencyRates: rates)
+    var calculator = SheetCalculator()
+    let formatter = ResultFormatter(context: context)
+    let diagnostics = DiagnosticFormatter(context: context)
+    return try calculator.evaluate(SheetSource(source), context: context).lines.map { line in
+      switch line.result {
+      case .value(let value):
+        return SheetAnswer(text: try formatter.format(value).display, isFailure: false)
+      case .syntaxFailure(let problems):
+        return SheetAnswer(
+          text: problems.first.map { diagnostics.format($0).message }, isFailure: true)
+      case .evaluationFailure(let error):
+        return SheetAnswer(text: diagnostics.format(error).message, isFailure: true)
+      case nil:
+        return SheetAnswer(text: nil, isFailure: false)
+      }
+    }
   }
 
   /// The answer to `source`, formatted as a sheet would display it.

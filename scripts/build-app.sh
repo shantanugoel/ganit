@@ -24,6 +24,7 @@ plutil -lint App/Info.plist >/dev/null
 plutil -lint App/Ganit.entitlements >/dev/null
 plutil -lint App/PrivacyInfo.xcprivacy >/dev/null
 swift build --configuration "$configuration" --arch arm64 --product GanitApp
+swift build --configuration "$configuration" --arch arm64 --product ganit
 
 binary_directory=$(swift build \
     --configuration "$configuration" \
@@ -37,8 +38,9 @@ mkdir -p "$build_root"
 rm -rf "$application" "$staging"
 trap 'rm -rf "$staging"' EXIT
 
-mkdir -p "$staging/Contents/MacOS" "$staging/Contents/Resources"
+mkdir -p "$staging/Contents/MacOS" "$staging/Contents/Resources" "$staging/Contents/Helpers"
 install -m 0755 "$binary_directory/GanitApp" "$staging/Contents/MacOS/Ganit"
+install -m 0755 "$binary_directory/ganit" "$staging/Contents/Helpers/ganit"
 ditto \
     "$binary_directory/Ganit_GanitFormatting.bundle" \
     "$staging/Contents/Resources/Ganit_GanitFormatting.bundle"
@@ -111,6 +113,12 @@ if [[ "$architectures" != "arm64" ]]; then
     exit 1
 fi
 
+codesign \
+    --force \
+    --sign - \
+    --timestamp=none \
+    --options runtime \
+    "$staging/Contents/Helpers/ganit"
 codesign \
     --force \
     --sign - \

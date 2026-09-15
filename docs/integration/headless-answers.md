@@ -79,3 +79,32 @@ The action reads and writes no sheet, buffer, or clipboard, and returns only the
 answer to the caller's own expression, so it needs no confirmation. The bundle
 declares the `ganit` scheme in `CFBundleURLTypes`, and `Scripts/verify-app.sh`
 checks it.
+
+## Command line
+
+`ganit` is the same calculation from a terminal. The app bundle ships it at
+`Ganit.app/Contents/Helpers/ganit`; link it onto your `PATH` to use it:
+
+```bash
+ln -s /Applications/Ganit.app/Contents/Helpers/ganit /usr/local/bin/ganit
+```
+
+```text
+$ ganit '20% off 85'
+68
+$ printf 'rent = 2,100\nrent * 12\n' | ganit
+2,100
+25,200
+```
+
+With arguments, `ganit` joins them with spaces and answers one expression
+through `ExpressionCalculation.answer(for:)`, keeping the 4 KB headless limit.
+Without arguments it reads a sheet of at most 1 MB of UTF-8 from standard input
+and prints one line per source line through `answers(forSheet:)`: the answer,
+a failure message, or an empty line for headings, comments, and blank lines.
+It exits with status 1 when any line fails.
+
+Currency uses the last-known-good snapshot in the app's container,
+so the command never reaches the network and answers
+currency only after the app has accepted rates. The command reads no sheets
+or definitions from the library.

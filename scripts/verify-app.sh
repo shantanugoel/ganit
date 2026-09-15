@@ -62,3 +62,5 @@ signed_entitlements=$(
 )
 test "$signed_entitlements" = "$source_entitlements"
 test ! -e "$application/Contents/Frameworks"
+test "$(lipo -archs "$application/Contents/Helpers/ganit")" = "arm64"
+test "$("$application/Contents/Helpers/ganit" '6 * 7')" = "42"

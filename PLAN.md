@@ -1089,7 +1089,7 @@ Tasks in priority order:
 - [x] Generic transparent finance functions. `fv`, `pv`, and `pmt` compound one per-period rate over whole periods exactly, keep money in its currency, and list their assumptions in answer details; see docs/grammar/finance-functions.md.
 - [x] URL callbacks with input/security limits. `ganit://x-callback-url/calculate` answers one bounded expression to an `x-success` or `x-error` callback; see docs/integration/headless-answers.md.
 - [x] Quick Look, print/PDF/CSV/HTML exports. Exported `.ganit` packages embed Quick Look previews shown by the system package previewer; see docs/workspace/library.md.
-- [ ] CLI linked to the same engine.
+- [x] CLI linked to the same engine. `ganit` answers an expression or a sheet from standard input through `ExpressionCalculation` and ships in `Contents/Helpers`; see docs/integration/headless-answers.md.
 - [ ] Optional title-only Spotlight index.
 
 Exit criteria:

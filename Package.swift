@@ -11,6 +11,7 @@ let package = Package(
   products: [
     .executable(name: "GanitApp", targets: ["GanitApp"]),
     .executable(name: "GanitBenchmarks", targets: ["GanitBenchmarks"]),
+    .executable(name: "ganit", targets: ["GanitCLI"]),
     .library(name: "GanitWorkspaceUI", targets: ["GanitWorkspaceUI"]),
     .library(name: "GanitEditorUI", targets: ["GanitEditorUI"]),
     .library(name: "GanitQuickUI", targets: ["GanitQuickUI"]),
@@ -93,6 +94,10 @@ let package = Package(
     .executableTarget(
       name: "GanitBenchmarks",
       dependencies: ["GanitEditorUI", "GanitEngine", "GanitQuickUI"]
+    ),
+    .executableTarget(
+      name: "GanitCLI",
+      dependencies: ["GanitDocuments", "GanitEngine", "GanitSystemIntegration"]
     ),
     .executableTarget(
       name: "GanitEngineHarness",

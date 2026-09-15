@@ -7,6 +7,22 @@ import Testing
 @Suite
 struct ExpressionCalculationTests {
   @Test
+  func answersEveryLineOfASheet() throws {
+    let answers = try ExpressionCalculation().answers(
+      forSheet: "# Rent\nrent = 2,100\nrent * 12\n\nfoo\n1 +")
+
+    #expect(
+      answers == [
+        SheetAnswer(text: nil, isFailure: false),
+        SheetAnswer(text: "2,100", isFailure: false),
+        SheetAnswer(text: "25,200", isFailure: false),
+        SheetAnswer(text: nil, isFailure: false),
+        SheetAnswer(text: "This identifier is not defined.", isFailure: true),
+        SheetAnswer(text: "Enter an expression here.", isFailure: true),
+      ])
+  }
+
+  @Test
   func answersTheSameWayASheetDisplaysIt() throws {
     let calculation = ExpressionCalculation()
 

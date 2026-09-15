@@ -54,6 +54,12 @@ jobs:
       - name: Lay out windows with double-length strings
         run: GANIT_PSEUDOLOCALIZATION=1 swift test --filter PseudolocalizationTests
 
+      - name: Exercise command-line calculator
+        run: |
+          test "$(swift run ganit '20% off 85')" = "68"
+          test "$(printf 'rent = 2,100\nrent * 12\n' | swift run ganit)" = "$(printf '2,100\n25,200')"
+          ! swift run ganit '1 m + 1 s'
+
       - name: Exercise internal engine harness
         run: |
           output=$(printf '1 + 2 * 3\n1 / 0\n' | swift run GanitEngineHarness)
