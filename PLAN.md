@@ -944,7 +944,7 @@ Tasks:
 - [x] Add explicit comments, labels, headings, blank sections and dividers.
 - [x] Add variables, multi-word names, declarations and conservative unknown-identifier errors.
 - [x] Add upward references, previous, totals/average/median/count and subtotals.
-- [ ] Build dependency tracking, invalidation, generation IDs and cancellation.
+- [x] Build dependency tracking, invalidation, generation IDs and cancellation.
 - [ ] Add 1k/10k sheet fixtures and affected-only evaluation assertions.
 
 Exit criteria:

@@ -123,34 +123,24 @@ public indirect enum Expression: Equatable, Sendable {
     }
   }
 
-  var containsAggregate: Bool {
-    contains {
-      if case .aggregate = $0 { return true }
-      return false
-    }
-  }
-
-  var containsSubtotal: Bool {
-    contains { $0 == .aggregate(.subtotal) }
-  }
-
-  private func contains(_ predicate: (LineReference) -> Bool) -> Bool {
+  /// Every line reference in the expression.
+  var references: Set<LineReference> {
     switch self {
     case .reference(let reference, _):
-      return predicate(reference)
+      return [reference]
     case .literal, .identifier:
-      return false
+      return []
     case .prefix(_, let operand, _, _),
       .percentage(let operand, _, _),
       .quantity(let operand, _, _),
       .conversion(let operand, _, _, _),
       .grouped(let operand, _):
-      return operand.contains(predicate)
+      return operand.references
     case .infix(let left, _, let right, _, _),
       .percentageOperation(_, let left, let right, _, _):
-      return left.contains(predicate) || right.contains(predicate)
+      return left.references.union(right.references)
     case .call(_, _, let arguments, _):
-      return arguments.contains { $0.contains(predicate) }
+      return arguments.reduce(into: []) { $0.formUnion($1.references) }
     }
   }
 }

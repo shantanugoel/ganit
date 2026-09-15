@@ -69,14 +69,14 @@ struct VariableTests {
   @Test
   func usesOfFailedDeclarationsReportTheDefinitionError() throws {
     let sheet = SheetSource("distance = 1 m + 1 s\ndistance in km\ndistance =\n")
-    let results = CalculationEngine().evaluate(sheet, context: try sheetContext())
+    let results = try evaluateSheet(sheet)
 
     guard case .evaluationFailure(let error) = results[1].result else {
       Issue.record("Expected an unavailable variable")
       return
     }
     #expect(error.code == .unavailableReference)
-    #expect(error.ranges.first?.text(in: sheet.text) == "distance")
+    #expect(error.ranges.first?.text(in: sheet.lines[1].text) == "distance")
 
     guard case .syntaxFailure(let diagnostics) = results[2].result else {
       Issue.record("Expected an incomplete declaration")
@@ -100,7 +100,7 @@ struct VariableTests {
   @Test
   func quantityVariablesKeepConversionAndMultiWordRanges() throws {
     let sheet = SheetSource("trip distance = 12 km\ntrip distance in miles\ntrip distance + 1")
-    let results = CalculationEngine().evaluate(sheet, context: try sheetContext())
+    let results = try evaluateSheet(sheet)
 
     guard case .value(.quantity) = results[1].result else {
       Issue.record("Expected a converted quantity")
@@ -115,6 +115,6 @@ struct VariableTests {
       Issue.record("Expected a declaration")
       return
     }
-    #expect(name.text(in: sheet.text) == "trip distance")
+    #expect(name.text(in: sheet.lines[0].text) == "trip distance")
   }
 }

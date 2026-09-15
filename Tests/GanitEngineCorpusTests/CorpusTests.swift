@@ -313,8 +313,11 @@ struct ParserFuzzSmokeTests {
     }
 
     for source in inputs {
-      for line in engine.evaluate(SheetSource(source), context: context) {
-        expectValidResult(line.result, in: source, formatter: formatter)
+      let sheet = SheetSource(source)
+      var calculator = SheetCalculator(engine: engine)
+      for (line, result) in zip(sheet.lines, try calculator.evaluate(sheet, context: context).lines)
+      {
+        expectValidResult(result.result, in: line.text, formatter: formatter)
       }
       expectValidResult(
         engine.evaluate(source, context: context),

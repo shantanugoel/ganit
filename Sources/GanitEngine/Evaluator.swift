@@ -200,14 +200,11 @@ private struct EvaluationWorker {
       case .grouped(let nested, _):
         return try evaluate(nested)
 
-      case .reference(.line(let line), _):
-        return try lines.value(atLine: line)
-
-      case .reference(.previous, _):
-        return try lines.previous()
-
       case .reference(.aggregate(let aggregate), _):
         return try evaluate(aggregate, of: lines.values(for: aggregate))
+
+      case .reference(let reference, _):
+        return try lines.value(of: reference)
       }
     } catch let error as EngineError where error.ranges.isEmpty {
       throw error.located(at: expression.range)

@@ -5,7 +5,7 @@
 /// current block and skip lines that contain an aggregate themselves;
 /// `subtotal` starts after the previous subtotal line in the block.
 struct LineOutcomes: Sendable {
-  enum Outcome: Sendable {
+  enum Outcome: Hashable, Sendable {
     case none
     case value(EngineValue)
     case failure
@@ -16,10 +16,18 @@ struct LineOutcomes: Sendable {
   private var blockStart = 0
   private var subtotalStart = 0
 
-  mutating func append(_ outcome: Outcome, expression: Expression? = nil) {
+  mutating func append(
+    _ outcome: Outcome,
+    references: Set<LineReference> = []
+  ) {
     outcomes.append(outcome)
-    aggregates.append(expression?.containsAggregate ?? false)
-    if expression?.containsSubtotal == true {
+    aggregates.append(
+      references.contains {
+        if case .aggregate = $0 { return true }
+        return false
+      }
+    )
+    if references.contains(.aggregate(.subtotal)) {
       subtotalStart = outcomes.count
     }
   }
@@ -29,39 +37,38 @@ struct LineOutcomes: Sendable {
     subtotalStart = outcomes.count
   }
 
-  func value(atLine line: Int) throws -> EngineValue {
-    guard line >= 1, line <= outcomes.count else {
-      throw EngineError(code: .invalidReference)
+  /// The outcomes a reference reads, or `nil` when it names no line above.
+  /// Equal inputs always resolve to equal values.
+  func inputs(for reference: LineReference) -> [Outcome]? {
+    switch reference {
+    case .line(let line):
+      guard line >= 1, line <= outcomes.count else {
+        return nil
+      }
+      return [outcomes[line - 1]]
+    case .previous:
+      return (blockStart..<outcomes.count).last { outcomes[$0] != .none }
+        .map { [outcomes[$0]] }
+    case .aggregate(let aggregate):
+      let start = aggregate == .subtotal ? subtotalStart : blockStart
+      return (start..<outcomes.count)
+        .filter { !aggregates[$0] && outcomes[$0] != .none }
+        .map { outcomes[$0] }
     }
-    return try required(outcomes[line - 1])
   }
 
-  func previous() throws -> EngineValue {
-    guard
-      let index = (blockStart..<outcomes.count).last(where: {
-        if case .none = outcomes[$0] { return false }
-        return true
-      })
-    else {
+  func value(of reference: LineReference) throws -> EngineValue {
+    guard let inputs = inputs(for: reference), inputs.count == 1 else {
       throw EngineError(code: .invalidReference)
     }
-    return try required(outcomes[index])
+    return try Self.required(inputs[0])
   }
 
   func values(for aggregate: Aggregate) throws -> [EngineValue] {
-    let start = aggregate == .subtotal ? subtotalStart : blockStart
-    return try (start..<outcomes.count).compactMap { index in
-      if aggregates[index] {
-        return nil
-      }
-      if case .none = outcomes[index] {
-        return nil
-      }
-      return try required(outcomes[index])
-    }
+    try (inputs(for: .aggregate(aggregate)) ?? []).map(Self.required)
   }
 
-  private func required(_ outcome: Outcome) throws -> EngineValue {
+  private static func required(_ outcome: Outcome) throws -> EngineValue {
     switch outcome {
     case .none:
       throw EngineError(code: .invalidReference)

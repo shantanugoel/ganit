@@ -28,8 +28,9 @@ Rules, applied in this order:
    declaration.
 
 Dividers must contain only hyphens, so `---5` is still arithmetic. Line roles
-carry exact sheet ranges for labels, expressions, titles, and comments so the
-editor can decorate them without changing source offsets.
+carry exact ranges for labels, expressions, titles, and comments, relative to
+the start of the line, so the editor can decorate them without changing source
+offsets.
 
 ## Sections
 
@@ -40,9 +41,10 @@ a divider also resets [variable](variables.md) scope.
 
 ## Evaluation
 
-`CalculationEngine.evaluate(_:context:)` accepts a `SheetSource` and returns one
-`SheetLineResult` per line, in order, with the line ID and role. Only lines with
-an expression have a result. Lines are evaluated top to bottom, so a line sees
-the declarations above it. The expression is parsed from its sheet origin, so
-every token, AST, diagnostic, and evaluation-error range is in sheet UTF-8 and
-grapheme coordinates.
+`SheetCalculator` evaluates a `SheetSource` and returns one `SheetLineResult`
+per line, in order, with the line ID and role. Only lines with an expression
+have a result. Lines are evaluated top to bottom, so a line sees the
+declarations above it. The expression is parsed from its offset within the
+line, so every token, AST, diagnostic, and evaluation-error range is relative
+to the start of the line's text; add the line's `range` for sheet offsets. See
+[incremental evaluation](../engine/incremental-evaluation.md).

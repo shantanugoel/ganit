@@ -7,35 +7,33 @@ import Testing
 struct LineSyntaxTests {
   @Test
   func classifiesBlankDividerHeadingAndComment() {
-    let sheet = SheetSource(
-      "\n   \t\n---\n  -----  \n--\n---5\n# Monthly budget \n#\n  // note\n"
-    )
-    let text = sheet.text
-    let syntax = sheet.lines.map(LineSyntax.init)
+    let lines = [
+      "", "   \t", "---", "  -----  ", "--", "---5", "# Monthly budget ", "#", "  // note",
+    ]
+    let syntax = lines.map(LineSyntax.init)
 
     #expect(syntax[0] == .blank)
     #expect(syntax[1] == .blank)
     #expect(syntax[2] == .divider)
     #expect(syntax[3] == .divider)
-    #expect(expressionText(syntax[4], in: text) == "--")
-    #expect(expressionText(syntax[5], in: text) == "---5")
+    #expect(expressionText(syntax[4], in: lines[4]) == "--")
+    #expect(expressionText(syntax[5], in: lines[5]) == "---5")
     guard case .heading(let title) = syntax[6], case .heading(let empty) = syntax[7]
     else {
       Issue.record("Expected headings")
       return
     }
-    #expect(title.text(in: text) == "Monthly budget")
+    #expect(title.text(in: lines[6]) == "Monthly budget")
     #expect(empty.isEmpty)
     guard case .comment(let comment) = syntax[8] else {
       Issue.record("Expected a comment")
       return
     }
-    #expect(comment.text(in: text) == "// note")
-    #expect(syntax[9] == .blank)
+    #expect(comment.text(in: lines[8]) == "// note")
   }
 
   @Test
-  func separatesLabelsExpressionsAndTrailingComments() throws {
+  func separatesLabelsExpressionsAndTrailingComments() {
     let cases: [(String, label: String?, expression: String?, comment: String?)] = [
       ("12 km in miles // commute", nil, "12 km in miles", "// commute"),
       ("Rent: 2100", "Rent", "2100", nil),
@@ -48,10 +46,9 @@ struct LineSyntaxTests {
     ]
 
     for (source, label, expression, comment) in cases {
-      let line = try #require(SheetSource(source).lines.first)
       guard
         case .calculation(let labelRange, nil, let expressionRange, let commentRange) =
-          LineSyntax(line)
+          LineSyntax(source)
       else {
         Issue.record("Expected a calculation for \(source)")
         continue
@@ -66,12 +63,11 @@ struct LineSyntaxTests {
   }
 
   @Test
-  func evaluatesSheetLinesWithSheetCoordinateRanges() throws {
+  func evaluatesSheetLinesWithLineRelativeRanges() throws {
     let sheet = SheetSource(
       "# Trip\r\nDistance: 12 km in miles // one way\n\n---\nBad: 1 m + 1 s\nTotal: 2 +\n"
     )
-    let text = sheet.text
-    let results = CalculationEngine().evaluate(sheet, context: try context())
+    let results = try evaluateSheet(sheet)
 
     #expect(results.map(\.id) == sheet.lines.map(\.id))
     #expect(results[0].result == nil)
@@ -87,8 +83,7 @@ struct LineSyntaxTests {
       return
     }
     #expect(error.code == .incompatibleDimensions)
-    #expect(error.ranges.allSatisfy { $0.text(in: text) != nil })
-    #expect(error.ranges.first?.lowerBound ?? 0 >= sheet.lines[4].range.lowerBound)
+    #expect(error.ranges.first?.text(in: sheet.lines[4].text) == "+")
 
     guard case .syntaxFailure(let diagnostics) = results[5].result else {
       Issue.record("Expected an incomplete expression")
@@ -96,8 +91,8 @@ struct LineSyntaxTests {
     }
     let diagnostic = try #require(diagnostics.first)
     #expect(diagnostic.severity == .incomplete)
-    #expect(diagnostic.range.lowerBound == sheet.lines[5].range.upperBound)
-    #expect(diagnostic.range.graphemeLowerBound == sheet.lines[5].range.graphemeUpperBound)
+    #expect(diagnostic.range.lowerBound == sheet.lines[5].text.utf8.count)
+    #expect(diagnostic.range.graphemeLowerBound == sheet.lines[5].text.count)
   }
 
   @Test
@@ -124,17 +119,5 @@ struct LineSyntaxTests {
       return nil
     }
     return expression.text(in: text)
-  }
-
-  private func context() throws -> EvaluationContext {
-    try EvaluationContext(
-      localeIdentifier: "en-US",
-      lexingConfiguration: .englishUnitedStates,
-      angleMode: .radians,
-      precision: PrecisionContext(significantDecimalDigits: 15),
-      now: Date(timeIntervalSince1970: 0),
-      calendar: Calendar(identifier: .gregorian),
-      timeZone: try #require(TimeZone(identifier: "UTC"))
-    )
   }
 }

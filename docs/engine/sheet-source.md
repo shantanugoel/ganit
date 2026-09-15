@@ -6,8 +6,9 @@ one line, and only the final line lacks a terminator. Each line keeps its exact
 terminator, so `SheetSource.text` reproduces the original source byte for byte.
 
 A `SheetLine` carries its text, terminator, and the `SourceRange` of its text
-in sheet UTF-8 and grapheme coordinates. Diagnostics produced for a line's text
-can therefore be offset into sheet coordinates without reparsing.
+in sheet UTF-8 and grapheme coordinates. Line syntax and results use ranges
+relative to the line's text, so they stay valid when edits above move the line;
+adding the line's range bounds converts them to sheet coordinates.
 
 ## Stable IDs
 

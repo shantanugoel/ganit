@@ -1,5 +1,5 @@
-/// The structural role of one sheet line. All ranges are in sheet
-/// coordinates and exclude surrounding whitespace.
+/// The structural role of one sheet line. All ranges are relative to the
+/// start of the line's text and exclude surrounding whitespace.
 public enum LineSyntax: Hashable, Sendable {
   /// An empty or whitespace-only line.
   case blank
@@ -20,8 +20,8 @@ public enum LineSyntax: Hashable, Sendable {
     comment: SourceRange?
   )
 
-  public init(_ line: SheetLine) {
-    let characters = LineCharacters(line)
+  public init(_ text: String) {
+    let characters = LineCharacters(text)
     let content = characters.trimmed(0..<characters.count)
     guard !content.isEmpty else {
       self = .blank
@@ -87,21 +87,19 @@ public enum LineSyntax: Hashable, Sendable {
   }
 }
 
-/// A line's grapheme clusters with sheet offsets, so every split point lies on
-/// a grapheme boundary.
+/// A line's grapheme clusters with UTF-8 offsets, so every split point lies
+/// on a grapheme boundary.
 private struct LineCharacters {
   private let characters: [Character]
   private let utf8Offsets: [Int]
-  private let graphemeOrigin: Int
 
-  init(_ line: SheetLine) {
-    characters = Array(line.text)
-    var offsets = [line.range.lowerBound]
+  init(_ text: String) {
+    characters = Array(text)
+    var offsets = [0]
     for character in characters {
       offsets.append(offsets[offsets.count - 1] + character.utf8.count)
     }
     utf8Offsets = offsets
-    graphemeOrigin = line.range.graphemeLowerBound
   }
 
   var count: Int {
@@ -128,8 +126,8 @@ private struct LineCharacters {
     SourceRange(
       lowerBound: utf8Offsets[range.lowerBound],
       upperBound: utf8Offsets[range.upperBound],
-      graphemeLowerBound: graphemeOrigin + range.lowerBound,
-      graphemeUpperBound: graphemeOrigin + range.upperBound
+      graphemeLowerBound: range.lowerBound,
+      graphemeUpperBound: range.upperBound
     )
   }
 }

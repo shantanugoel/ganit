@@ -86,7 +86,7 @@ struct LineReferenceTests {
   @Test
   func aggregatesQuantitiesDimensionally() throws {
     let sheet = SheetSource("1 km\n500 m\nsum\n\n1 km\n10 m\n2 m\nmedian")
-    let results = CalculationEngine().evaluate(sheet, context: try sheetContext())
+    let results = try evaluateSheet(sheet)
 
     guard case .value(.quantity(let sum)) = results[2].result,
       case .value(.quantity(let median)) = results[7].result
