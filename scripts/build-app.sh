@@ -55,6 +55,9 @@ install -m 0644 \
 install -m 0644 \
     ThirdPartyNotices/UnitSources.md \
     "$staging/Contents/Resources/UnitSources.md"
+install -m 0644 \
+    ThirdPartyNotices/CurrencyDataSources.md \
+    "$staging/Contents/Resources/CurrencyDataSources.md"
 xcrun xcstringstool compile \
     App/Resources/Localizable.xcstrings \
     --output-directory "$staging/Contents/Resources"
