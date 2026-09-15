@@ -940,7 +940,7 @@ Exit criteria:
 
 Tasks:
 
-- [ ] Implement stable line IDs and line segmentation.
+- [x] Implement stable line IDs and line segmentation.
 - [ ] Add explicit comments, labels, headings, blank sections and dividers.
 - [ ] Add variables, multi-word names, declarations and conservative unknown-identifier errors.
 - [ ] Add upward references, previous, totals/average/median/count and subtotals.
