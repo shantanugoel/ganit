@@ -81,6 +81,8 @@ jobs:
 
       - name: Build, sign, and notarize
         run: |
+          # Without this the pipeline reports tee's success, not the build's.
+          set -o pipefail
           ./scripts/release.sh | tee release.log
           echo "GANIT_DISK_IMAGE=$(tail -1 release.log)" >>"$GITHUB_ENV"
 

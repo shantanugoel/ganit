@@ -19,8 +19,9 @@ whole page — the workings as well as the total.
 - **Keeps your sheets.** Plain text on your Mac, saved as you type, with
   backups, Trash, folders, favourites, and export to CSV, HTML, PDF, or print.
 - **Answers without being opened.** A shortcut of your choosing summons Quick
-  Ganit over any app, and the same engine answers through a Services item, a
-  Shortcuts action, `ganit://` links, and a `ganit` command.
+  Ganit over any app, Ganit can stay in the menu bar, and the same engine
+  answers through a Services item, a Shortcuts action, `ganit://` links, and a
+  `ganit` command.
 - **Tells the truth.** Anything Ganit cannot work out says so, in place, and
   never quietly guesses.
 

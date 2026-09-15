@@ -28,7 +28,7 @@ struct WorkspaceWindowControllerTests {
     let sidebarItem = try #require(split.splitViewItems.first)
     #expect(sidebarItem.minimumThickness == 150)
     #expect(sidebarItem.maximumThickness == 280)
-    #expect((150...280).contains(controller.sidebar.view.frame.width))
+    #expect((150...200).contains(controller.sidebar.view.frame.width))
     #expect(window.isRestorable && window.restorationClass == WorkspaceRestoration.self)
     #expect(window.toolbar?.items.map(\.itemIdentifier).contains(.searchSheets) == true)
     #expect(controller.editor?.view.superview != nil)
