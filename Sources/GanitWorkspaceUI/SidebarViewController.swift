@@ -1,5 +1,6 @@
 import AppKit
 import GanitDocuments
+import GanitEditorUI
 
 /// The workspace sidebar: collections and folders above the sheets of the
 /// selected collection, narrowed by the search text.
@@ -119,15 +120,16 @@ final class SidebarViewController: NSViewController {
     let library = SidebarItem(
       localized("sidebar.library", "Library"),
       children: [
-        SidebarItem(localized("sidebar.all", "All Sheets"), "tray.full", .all),
-        SidebarItem(localized("sidebar.recent", "Recent"), "clock", .recent),
-        SidebarItem(localized("sidebar.favorites", "Favorites"), "star", .favorites),
-        SidebarItem(localized("sidebar.archive", "Archive"), "archivebox", .archive),
-        SidebarItem(localized("sidebar.trash", "Trash"), "trash", .trash),
+        SidebarItem(localized("sidebar.all", "All Sheets"), VisualStyle.Symbol.allSheets, .all),
+        SidebarItem(localized("sidebar.recent", "Recent"), VisualStyle.Symbol.recent, .recent),
+        SidebarItem(
+          localized("sidebar.favorites", "Favorites"), VisualStyle.Symbol.favorites, .favorites),
+        SidebarItem(localized("sidebar.archive", "Archive"), VisualStyle.Symbol.archive, .archive),
+        SidebarItem(localized("sidebar.trash", "Trash"), VisualStyle.Symbol.trash, .trash),
       ])
     let folderItems = SidebarItem(
       localized("sidebar.folders", "Folders"),
-      children: folders.map { SidebarItem($0.name, "folder", .folder($0.id)) }
+      children: folders.map { SidebarItem($0.name, VisualStyle.Symbol.folder, .folder($0.id)) }
     )
     items = [library, folderItems]
     collectionsView.reloadData()
@@ -314,16 +316,17 @@ extension SidebarViewController: NSOutlineViewDataSource, NSOutlineViewDelegate 
     var views: [NSView] = [label]
     if let symbol = item.symbol {
       let image = NSImageView(
-        image: NSImage(systemSymbolName: symbol, accessibilityDescription: nil) ?? NSImage())
+        image: NSImage(systemSymbolName: symbol, accessibilityDescription: nil)!)
       cell.imageView = image
       views.insert(image, at: 0)
     }
     let stack = NSStackView(views: views)
-    stack.spacing = 6
+    stack.spacing = VisualStyle.Spacing.related
     stack.translatesAutoresizingMaskIntoConstraints = false
     cell.addSubview(stack)
     NSLayoutConstraint.activate([
-      stack.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 2),
+      stack.leadingAnchor.constraint(
+        equalTo: cell.leadingAnchor, constant: VisualStyle.Spacing.tight),
       stack.trailingAnchor.constraint(lessThanOrEqualTo: cell.trailingAnchor),
       stack.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
     ])
@@ -356,18 +359,19 @@ extension SidebarViewController: NSTableViewDataSource, NSTableViewDelegate {
     title.lineBreakMode = .byTruncatingTail
     let modified = NSTextField(
       labelWithString: sheet.modifiedAt.formatted(.relative(presentation: .named)))
-    modified.textColor = .secondaryLabelColor
-    modified.font = .preferredFont(forTextStyle: .caption1)
+    modified.textColor = VisualStyle.Color.secondary
+    modified.font = VisualStyle.Typography.caption
     let stack = NSStackView(views: [title, modified])
     stack.orientation = .vertical
     stack.alignment = .leading
-    stack.spacing = 1
+    stack.spacing = VisualStyle.Spacing.tight
     stack.translatesAutoresizingMaskIntoConstraints = false
     let cell = NSTableCellView()
     cell.textField = title
     cell.addSubview(stack)
     NSLayoutConstraint.activate([
-      stack.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 4),
+      stack.leadingAnchor.constraint(
+        equalTo: cell.leadingAnchor, constant: VisualStyle.Spacing.compact),
       stack.trailingAnchor.constraint(lessThanOrEqualTo: cell.trailingAnchor),
       stack.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
     ])

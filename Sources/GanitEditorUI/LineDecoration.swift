@@ -86,9 +86,9 @@ extension LineDecoration.Style {
   var attributes: [NSAttributedString.Key: Any] {
     switch self {
     case .secondary:
-      return [.foregroundColor: NSColor.secondaryLabelColor]
+      return [.foregroundColor: VisualStyle.Color.secondary]
     case .tertiary:
-      return [.foregroundColor: NSColor.tertiaryLabelColor]
+      return [.foregroundColor: VisualStyle.Color.tertiary]
     case .error, .warning:
       return [:]
     }
@@ -101,9 +101,9 @@ extension LineDecoration.Style {
     case .secondary, .tertiary:
       return nil
     case .error:
-      return .systemRed
+      return VisualStyle.Color.failure
     case .warning:
-      return .systemOrange
+      return VisualStyle.Color.warning
     }
   }
 }

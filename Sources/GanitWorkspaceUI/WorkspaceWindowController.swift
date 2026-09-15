@@ -608,7 +608,7 @@ extension WorkspaceWindowController: NSToolbarDelegate {
       let item = NSToolbarItem(itemIdentifier: identifier)
       item.label = localized("menu.newSheet", "New Sheet")
       item.image = NSImage(
-        systemSymbolName: "square.and.pencil", accessibilityDescription: item.label)
+        systemSymbolName: VisualStyle.Symbol.newSheet, accessibilityDescription: item.label)
       item.action = #selector(newSheet(_:))
       item.target = self
       return item

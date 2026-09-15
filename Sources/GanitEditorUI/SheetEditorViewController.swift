@@ -162,9 +162,10 @@ public final class SheetEditorViewController: NSViewController {
     textView.allowsUndo = true
     textView.usesFindBar = true
     textView.isIncrementalSearchingEnabled = true
-    textView.font = .systemFont(ofSize: SheetTextView.baseFontSize)
+    textView.font = VisualStyle.Typography.source(scale: 1)
     textView.baseWritingDirection = .natural
-    textView.textContainerInset = NSSize(width: 8, height: 8)
+    textView.textContainerInset = NSSize(
+      width: VisualStyle.Spacing.standard, height: VisualStyle.Spacing.standard)
     // Substitutions would silently change calculation source, such as `--`
     // into an em dash or quotes into typographic quotes.
     textView.isAutomaticQuoteSubstitutionEnabled = false

@@ -37,25 +37,28 @@ final class InterpretationViewController: NSViewController {
     let grid = NSGridView(
       views: details.map { detail in
         let label = NSTextField(labelWithString: detail.label)
-        label.textColor = .secondaryLabelColor
+        label.textColor = VisualStyle.Color.secondary
         label.alignment = .right
         let value = NSTextField(labelWithString: detail.value)
         value.isSelectable = true
-        value.font = .monospacedDigitSystemFont(ofSize: NSFont.systemFontSize, weight: .regular)
+        value.font = VisualStyle.Typography.detailValue
         return [label, value]
       }
     )
-    grid.rowSpacing = 6
-    grid.columnSpacing = 12
+    grid.rowSpacing = VisualStyle.Spacing.related
+    grid.columnSpacing = VisualStyle.Spacing.group
     grid.translatesAutoresizingMaskIntoConstraints = false
 
     let container = NSView()
     container.addSubview(grid)
     NSLayoutConstraint.activate([
-      grid.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 14),
-      grid.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -14),
-      grid.topAnchor.constraint(equalTo: container.topAnchor, constant: 12),
-      grid.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -12),
+      grid.leadingAnchor.constraint(
+        equalTo: container.leadingAnchor, constant: VisualStyle.Spacing.card),
+      grid.trailingAnchor.constraint(
+        equalTo: container.trailingAnchor, constant: -VisualStyle.Spacing.card),
+      grid.topAnchor.constraint(equalTo: container.topAnchor, constant: VisualStyle.Spacing.group),
+      grid.bottomAnchor.constraint(
+        equalTo: container.bottomAnchor, constant: -VisualStyle.Spacing.group),
     ])
     view = container
   }

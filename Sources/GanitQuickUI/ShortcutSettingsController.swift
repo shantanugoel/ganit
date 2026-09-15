@@ -1,4 +1,5 @@
 import AppKit
+import GanitEditorUI
 
 /// Records the Quick Ganit shortcut, shows its known conflicts, and saves or
 /// removes it. There is no default shortcut; `⌥Space` is only suggested.
@@ -38,7 +39,7 @@ public final class ShortcutSettingsController: NSViewController {
     recorder.didRecord = { [weak self] shortcut in
       self?.select(shortcut)
     }
-    status.textColor = .secondaryLabelColor
+    status.textColor = VisualStyle.Color.secondary
     saveButton.title = localized("shortcut.save", "Use Shortcut")
     saveButton.bezelStyle = .push
     saveButton.keyEquivalent = "\r"
@@ -53,8 +54,9 @@ public final class ShortcutSettingsController: NSViewController {
     let stack = NSStackView(views: [explanation, recorder, status, buttons])
     stack.orientation = .vertical
     stack.alignment = .leading
-    stack.spacing = 12
-    stack.edgeInsets = NSEdgeInsets(top: 20, left: 20, bottom: 20, right: 20)
+    stack.spacing = VisualStyle.Spacing.group
+    let margin = VisualStyle.Spacing.window
+    stack.edgeInsets = NSEdgeInsets(top: margin, left: margin, bottom: margin, right: margin)
     stack.translatesAutoresizingMaskIntoConstraints = false
     let container = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 200))
     container.addSubview(stack)

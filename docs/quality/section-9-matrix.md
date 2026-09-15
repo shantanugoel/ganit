@@ -25,7 +25,7 @@ Last updated: 2026-09-15.
 | Image-only controls have accessibility labels | Automated | Same audits; toolbar items have labels |
 | Text ≥ 10 pt, default 13–14 pt | Automated | Same audits; editor base size 14 pt |
 | Editor/result text scales to 200% | Automated (scale); Needs a person (clipping) | `TextAccessibilityTests.scalesSourceAnswersAndColumnTogether` |
-| Contrast ≥ 4.5:1; color never the only meaning | Implemented | System semantic colors; failures use dotted underlines and message text |
+| Contrast ≥ 4.5:1; color never the only meaning | Automated (semantic colors only) | `VisualStyleTests` source scan; failures use dotted underlines and message text; see `docs/design/visual-system.md` |
 | Reduce Motion / Reduce Transparency | Implemented; Needs a person | No custom animations or materials beyond system views |
 
 ## 9.2 Internationalization

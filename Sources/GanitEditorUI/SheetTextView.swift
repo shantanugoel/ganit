@@ -20,14 +20,14 @@ final class SheetTextView: NSTextView {
   static let answerColumnFraction: CGFloat = 0.35
   static let answerColumnWidthRange: ClosedRange<CGFloat> = 140...360
   static let columnGap: CGFloat = 16
-  static let baseFontSize: CGFloat = 14
+  static let baseFontSize = VisualStyle.Typography.editorSize
   /// Text size steps; 1 is the standard 14 pt.
   static let textScales: [CGFloat] = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3]
 
   /// Scales source, answers, and the answer column together.
   private(set) var textScale: CGFloat = 1 {
     didSet {
-      font = .systemFont(ofSize: Self.baseFontSize * textScale)
+      font = VisualStyle.Typography.source(scale: textScale)
       setFrameSize(frame.size)
     }
   }
@@ -74,13 +74,11 @@ final class SheetTextView: NSTextView {
   private var overlay: AnswerOverlayView?
 
   func attributes(for cell: AnswerCell, selected: Bool) -> [NSAttributedString.Key: Any] {
-    let color: NSColor =
-      selected ? .selectedTextColor : cell.isFailure ? .systemRed : .labelColor
-    return [
-      .font: NSFont.monospacedDigitSystemFont(
-        ofSize: Self.baseFontSize * textScale, weight: .regular),
-      .foregroundColor: color,
-    ]
+    let color =
+      selected
+      ? VisualStyle.Color.selectionText
+      : cell.isFailure ? VisualStyle.Color.failure : VisualStyle.Color.primary
+    return [.font: VisualStyle.Typography.answer(scale: textScale), .foregroundColor: color]
   }
 
   var answerColumnWidth: CGFloat {
@@ -692,7 +690,7 @@ private final class AnswerOverlayView: NSView {
     for (line, cell, rect) in textView.answerLayout(in: dirtyRect) {
       let isSelected = line == textView.selectedAnswer
       if isSelected {
-        NSColor.selectedContentBackgroundColor.setFill()
+        VisualStyle.Color.selectionBackground.setFill()
         NSBezierPath(roundedRect: rect.insetBy(dx: -4, dy: 0), xRadius: 4, yRadius: 4).fill()
       }
       (cell.text as NSString).draw(
