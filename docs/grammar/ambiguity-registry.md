@@ -31,6 +31,8 @@ deterministically, it reports a ranged diagnostic instead of guessing.
 - An inch alias followed by a bare unit is not reinterpreted as a conversion:
   `1 m + 2 in cm` fails at `cm`. Write `1 m + 2 in in cm`.
 - A bare number cannot be converted, so `5 in miles` fails at `miles`.
+- Exponents are dimensionless, so `in` after an exponent is never inches:
+  `(3 m)^2 in cm^2` converts, and `2^3 in` fails at `in`.
 - Prose is never skipped: `price in dollars` fails at `in`.
 
 `to`, `as`, and `into` are conversion keywords with the same rules and have no

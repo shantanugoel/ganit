@@ -12,6 +12,9 @@ Phase 1 adds three deterministic layers beyond focused unit tests:
   invariance, canonical-format round trips, differential results against
   native bounded integer arithmetic, and numeric bit-limit boundaries with
   fixed PRNG seeds.
+- `UnitPropertyTests` checks seeded exact round trips, conversion
+  composition, dimensional addition, compound products/powers, family-wide
+  incompatible-dimension failures, and affine temperature round trips.
 - `parser-fuzz-seeds.json` plus `ParserFuzzSmokeTests` exercises malformed and
   mixed-script Unicode input, generated from a fixed seed under strict syntax
   limits. Every diagnostic range is checked against the original source.

@@ -175,7 +175,8 @@ private struct TokenParser {
         continue
       }
 
-      if 40 >= minimumBindingPower,
+      // Exponents are dimensionless, so a unit never attaches inside one.
+      if 29 >= minimumBindingPower,
         canAttachUnit(to: left),
         startsUnitExpression(at: 0)
       {

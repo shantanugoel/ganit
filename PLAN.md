@@ -925,7 +925,7 @@ Tasks:
 - [x] Add dimensionally typed rate quantities.
 - [x] Add explicit conversion syntax and result-unit selection.
 - [x] Add ambiguity cases (`in`, `%`, symbols, implicit multiplication).
-- [ ] Add round-trip/dimensional property tests including compound engineering units.
+- [x] Add round-trip/dimensional property tests including compound engineering units.
 
 Exit criteria:
 

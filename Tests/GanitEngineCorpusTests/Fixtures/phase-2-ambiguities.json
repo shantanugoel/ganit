@@ -110,6 +110,28 @@
       }
     },
     {
+      "name": "in: exponent never takes the inch alias",
+      "expression": "(3 m)^2 in cm^2",
+      "expected": {
+        "status": "value",
+        "display": "90,000 cm^2",
+        "fullPrecision": "90000 cm^2",
+        "approximate": false
+      }
+    },
+    {
+      "name": "in: in after a computed number is not inches",
+      "expression": "2^3 in",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "unexpectedToken",
+        "messageKey": "syntax.unexpectedToken",
+        "message": "This part of the expression is unexpected.",
+        "lowerBound": 4,
+        "upperBound": 6
+      }
+    },
+    {
       "name": "in: prose around in is not ignored",
       "expression": "price in dollars",
       "expected": {

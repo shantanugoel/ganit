@@ -472,7 +472,7 @@ private func expectValid(
   )
 }
 
-private func fixedContext() throws -> EvaluationContext {
+func fixedContext() throws -> EvaluationContext {
   let timeZone = try #require(TimeZone(identifier: "UTC"))
   return try EvaluationContext(
     localeIdentifier: "en-US",
@@ -518,11 +518,11 @@ private func greatestCommonDivisor(_ left: Int64, _ right: Int64) -> Int64 {
   return lhs
 }
 
-private enum CorpusFailure: Error {
+enum CorpusFailure: Error {
   case expectedValue
 }
 
-private struct SeededGenerator {
+struct SeededGenerator {
   private var state: UInt64
 
   init(seed: UInt64) {
