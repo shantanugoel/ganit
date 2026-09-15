@@ -17,7 +17,7 @@ struct SheetCollectionTests {
     {
       let created = try library.save(
         source: source,
-        metadata: library.create(preferences: WorkspaceWindowController.newSheetPreferences))
+        metadata: library.create(preferences: SheetPreferences.standard))
       return try library.update(created.id, change).id
     }
     let old = try sheet("# Old budget")

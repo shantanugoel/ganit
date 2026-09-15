@@ -9,13 +9,6 @@ import UniformTypeIdentifiers
 public final class WorkspaceWindowController: NSWindowController, WorkspaceCommands,
   NSMenuItemValidation, NSWindowDelegate
 {
-  /// Preferences for new sheets until sheet preference settings exist.
-  public nonisolated static let newSheetPreferences = SheetPreferences(
-    localeIdentifier: "en-US",
-    angleMode: .radians,
-    significantDecimalDigits: 15
-  )
-
   let sidebar: SidebarViewController
   private unowned let workspace: Workspace
   private let splitViewController = NSSplitViewController()
@@ -233,7 +226,7 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
   /// Creates a sheet in the selected folder and shows it.
   @objc public func newSheet(_ sender: Any?) {
     perform {
-      var metadata = try library.create(preferences: Self.newSheetPreferences)
+      var metadata = try library.create(preferences: SheetPreferences.standard)
       if case .folder(let folder) = sidebar.collection {
         metadata = try library.update(metadata.id) { $0.folderID = folder }
       } else if ![.all, .recent].contains(sidebar.collection) {

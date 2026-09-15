@@ -217,7 +217,7 @@ struct WorkspaceWindowControllerTests {
     let ids = try sources.map { source in
       try library.save(
         source: source,
-        metadata: library.create(preferences: WorkspaceWindowController.newSheetPreferences)
+        metadata: library.create(preferences: SheetPreferences.standard)
       ).id
     }
     return (Workspace(library: library), ids)

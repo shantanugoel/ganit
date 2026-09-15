@@ -57,7 +57,7 @@ public final class Workspace {
     }
     let metadata = try library.importSheet(
       from: url,
-      preferences: WorkspaceWindowController.newSheetPreferences
+      preferences: SheetPreferences.standard
     )
     for window in windows {
       window.libraryDidChange()

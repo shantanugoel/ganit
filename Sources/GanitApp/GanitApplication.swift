@@ -80,7 +80,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate {
     }
     do {
       let metadata = try workspace.library.create(
-        preferences: WorkspaceWindowController.newSheetPreferences)
+        preferences: SheetPreferences.standard)
       workspace.openWindow(showing: metadata.id)
     } catch {
       NSApplication.shared.presentError(error)

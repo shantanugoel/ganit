@@ -120,9 +120,14 @@ let package = Package(
       ],
       resources: [.process("Fixtures")]
     ),
+    .executableTarget(
+      name: "GanitStorageStressHelper",
+      dependencies: ["GanitDocuments"],
+      path: "Tests/GanitStorageStressHelper"
+    ),
     .testTarget(
       name: "GanitDocumentsTests",
-      dependencies: ["GanitDocuments", "GanitEngine"]
+      dependencies: ["GanitDocuments", "GanitEngine", "GanitStorageStressHelper"]
     ),
     .testTarget(
       name: "GanitEditorUITests",

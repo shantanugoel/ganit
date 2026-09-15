@@ -987,7 +987,7 @@ Tasks:
 - [x] Build sidebar/folders, sheet CRUD, favorite, archive, trash and search.
 - [x] Add multiwindow and per-document undo/state restoration.
 - [x] Add plain-text import/export and define public `.ganit` format.
-- [ ] Test injected process kills, corruption, disk-full and restore.
+- [x] Test injected process kills, corruption, disk-full and restore.
 
 Exit criteria:
 

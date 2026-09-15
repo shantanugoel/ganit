@@ -34,6 +34,11 @@ public struct BackupPolicy: Equatable, Sendable {
 /// ```
 ///
 /// Each backup day mirrors the library layout, so it reads like a store.
+///
+/// Every change marks the index unsynchronized until the index is updated.
+/// Opening a library whose index is missing, corrupt, or unsynchronized
+/// recovers sheet metadata from the canonical source files and rebuilds the
+/// index.
 public final class SheetLibrary {
   public let store: SheetStore
   public let index: SheetIndex
@@ -63,9 +68,68 @@ public final class SheetLibrary {
     dayFormatter.calendar = Calendar(identifier: .gregorian)
     dayFormatter.timeZone = timeZone
     dayFormatter.dateFormat = "yyyy-MM-dd"
-    if index.needsRebuild {
-      try index.rebuild(from: store)
+    if index.needsRebuild || FileManager.default.fileExists(atPath: unsyncedMarker.path) {
+      try recoverAndRebuildIndex()
     }
+  }
+
+  private var unsyncedMarker: URL {
+    store.root.appending(path: "Index/unsynchronized")
+  }
+
+  /// Marks the index unsynchronized while `change` writes sheet files, so an
+  /// interruption before the index update is detected on the next open.
+  private func changingIndexedFiles<Result>(_ change: () throws -> Result) throws -> Result {
+    guard FileManager.default.createFile(atPath: unsyncedMarker.path, contents: nil) else {
+      throw DocumentStorageError.posix(operation: "create", code: errno)
+    }
+    let result = try change()
+    try FileManager.default.removeItem(at: unsyncedMarker)
+    return result
+  }
+
+  /// Repairs sheets whose metadata is stale, unreadable, or missing, keeping
+  /// their source, and rebuilds the index. Unreadable metadata is moved to
+  /// `Quarantine/` rather than deleted. Sheets that still cannot be read, such
+  /// as source that is not UTF-8 or metadata from a newer schema, are left
+  /// untouched.
+  @discardableResult
+  public func recoverAndRebuildIndex() throws -> IndexRebuildReport {
+    for id in try store.sheetIDs() {
+      do {
+        let sheet = try store.load(id: id)
+        if !sheet.isChecksumValid {
+          try store.save(source: sheet.source, metadata: sheet.metadata)
+        }
+      } catch is DecodingError, CocoaError.fileReadNoSuchFile {
+        try recoverMetadata(of: id)
+      } catch {
+        continue
+      }
+    }
+    let report = try index.rebuild(from: store)
+    try? FileManager.default.removeItem(at: unsyncedMarker)
+    return report
+  }
+
+  private func recoverMetadata(of id: UUID) throws {
+    guard let source = String(data: try Data(contentsOf: store.sourceURL(id)), encoding: .utf8)
+    else {
+      return
+    }
+    let metadataURL = store.metadataURL(id)
+    if FileManager.default.fileExists(atPath: metadataURL.path) {
+      let quarantine = store.root.appending(path: "Quarantine", directoryHint: .isDirectory)
+      try FileManager.default.createDirectory(at: quarantine, withIntermediateDirectories: true)
+      try FileManager.default.moveItem(
+        at: metadataURL,
+        to: quarantine.appending(path: "\(id.uuidString)-\(UUID().uuidString).json")
+      )
+    }
+    var metadata = SheetMetadata(id: id, title: "", createdAt: now(), preferences: .standard)
+    metadata.title = SheetSource(source).lines.lazy.compactMap(title(of:)).first ?? ""
+    metadata.modifiedAt = now()
+    try store.save(source: source, metadata: metadata)
   }
 
   /// Creates and saves an empty sheet.
@@ -87,9 +151,11 @@ public final class SheetLibrary {
     if !metadata.hasCustomTitle {
       metadata.title = SheetSource(source).lines.lazy.compactMap(title(of:)).first ?? ""
     }
-    let saved = try store.save(source: source, metadata: metadata)
-    try index.upsert(saved, source: source)
-    return saved
+    return try changingIndexedFiles {
+      let saved = try store.save(source: source, metadata: metadata)
+      try index.upsert(saved, source: source)
+      return saved
+    }
   }
 
   // MARK: Organizing sheets
@@ -104,9 +170,11 @@ public final class SheetLibrary {
     let sheet = try store.load(id: id)
     var metadata = sheet.metadata
     change(&metadata)
-    try store.saveMetadata(metadata)
-    try index.upsert(metadata, source: sheet.source)
-    return metadata
+    return try changingIndexedFiles {
+      try store.saveMetadata(metadata)
+      try index.upsert(metadata, source: sheet.source)
+      return metadata
+    }
   }
 
   /// Names a sheet; an empty name returns the title to following its first
@@ -135,8 +203,10 @@ public final class SheetLibrary {
 
   /// Deletes a sheet's files, index entry, and backups. This cannot be undone.
   public func deletePermanently(_ id: UUID) throws {
-    try store.delete(id: id)
-    try index.remove(id: id)
+    try changingIndexedFiles {
+      try store.delete(id: id)
+      try index.remove(id: id)
+    }
     for day in try backupDays() {
       try backupStore(day: day).delete(id: id)
     }

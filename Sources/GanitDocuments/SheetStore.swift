@@ -12,6 +12,14 @@ public enum SheetState: String, Codable, Sendable {
 /// Calculation preferences stored with a sheet so it keeps its meaning on
 /// any Mac.
 public struct SheetPreferences: Codable, Equatable, Sendable {
+  /// Preferences for new, imported, and recovered sheets until preference
+  /// settings exist: English grammar in `en-US`, radians, and 15 digits.
+  public static let standard = SheetPreferences(
+    localeIdentifier: "en-US",
+    angleMode: .radians,
+    significantDecimalDigits: 15
+  )
+
   public var localeIdentifier: String
   public var angleMode: AngleMode
   public var significantDecimalDigits: Int
