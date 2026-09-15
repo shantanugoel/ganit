@@ -60,6 +60,12 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     {
       try? hotKey.register(shortcut)
     }
+    // `--quick-ganit` opens Quick Ganit instead of a sheet, as when launched
+    // from a script with `open -a Ganit --args --quick-ganit`.
+    if CommandLine.arguments.contains("--quick-ganit") {
+      showQuickGanit(nil)
+      return
+    }
     if workspace?.windows.isEmpty == true {
       openMostRecentSheet()
     }

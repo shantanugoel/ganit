@@ -1006,7 +1006,7 @@ Tasks:
 - [x] Immediate focus, multi-line answers, copy-and-dismiss and promote-to-sheet.
 - [x] Add Dock activation behavior and all-screen/Space handling.
 - [x] Add safe optional quick-buffer persistence.
-- [ ] Measure resident and cold invocation paths.
+- [x] Measure resident and cold invocation paths.
 
 Exit criteria:
 

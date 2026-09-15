@@ -19,7 +19,9 @@ behave like any Mac panel.
   and focuses its text.
 - Escape hides it; the text stays for next time.
 
-Window ▸ Quick Ganit always opens the panel.
+Window ▸ Quick Ganit always opens the panel. Launching Ganit with the
+`--quick-ganit` argument, for example `open -a Ganit --args --quick-ganit`,
+opens Quick Ganit instead of a sheet.
 
 ## Keys and promotion
 

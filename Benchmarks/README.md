@@ -38,6 +38,13 @@ swift run --configuration release GanitBenchmarks --editor mixed-sheet 200
 swift run --configuration release GanitBenchmarks --editor chained-dependency-sheet 200
 ```
 
+Measure Quick Ganit's cold launch, idle memory, and resident show path with:
+
+```sh
+./scripts/measure-quick.sh 20
+swift run --configuration release GanitBenchmarks --quick 200
+```
+
 The sheet fixtures live in `Fixtures/`; `SheetFixtureTests` uses the same files
 to assert which lines each edit re-evaluates.
 
@@ -53,3 +60,4 @@ Recorded measurements:
 - [Phase 1 engine baseline](Results/phase-1-engine.md)
 - [Phase 3 incremental sheet baseline](Results/phase-3-sheets.md)
 - [Phase 4 edit-to-answer baseline](Results/phase-4-editor.md)
+- [Phase 6 Quick Ganit invocation baseline](Results/phase-6-quick.md)

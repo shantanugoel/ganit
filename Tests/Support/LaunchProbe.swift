@@ -9,14 +9,15 @@ private enum ProbeError: Error, CustomStringConvertible {
   var description: String {
     switch self {
     case .invalidArguments:
-      return "usage: LaunchProbe <application-executable> <sample-count>"
+      return
+        "usage: LaunchProbe <application-executable> <sample-count> [window-layer] [app-arguments...]"
     case .windowTimeout(let sample):
-      return "sample \(sample): no visible layer-zero window appeared within 5 seconds"
+      return "sample \(sample): no visible window at the requested layer appeared within 5 seconds"
     }
   }
 }
 
-private func hasVisibleWindow(processIdentifier: pid_t) -> Bool {
+private func hasVisibleWindow(processIdentifier: pid_t, layer: Int) -> Bool {
   guard
     let windowList = CGWindowListCopyWindowInfo(
       [.optionOnScreenOnly, .excludeDesktopElements],
@@ -28,7 +29,7 @@ private func hasVisibleWindow(processIdentifier: pid_t) -> Bool {
 
   return windowList.contains { window in
     (window[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value == processIdentifier
-      && (window[kCGWindowLayer as String] as? NSNumber)?.intValue == 0
+      && (window[kCGWindowLayer as String] as? NSNumber)?.intValue == layer
   }
 }
 
@@ -45,9 +46,10 @@ private func percentile(_ sortedValues: [Double], _ percentile: Double) -> Doubl
 
 do {
   guard
-    CommandLine.arguments.count == 3,
+    CommandLine.arguments.count >= 3,
     let sampleCount = Int(CommandLine.arguments[2]),
-    sampleCount > 0
+    sampleCount > 0,
+    let layer = CommandLine.arguments.count > 3 ? Int(CommandLine.arguments[3]) : 0
   else {
     throw ProbeError.invalidArguments
   }
@@ -59,6 +61,7 @@ do {
   for sampleIndex in 1...sampleCount {
     let process = Process()
     process.executableURL = executableURL
+    process.arguments = Array(CommandLine.arguments.dropFirst(4))
     process.standardOutput = FileHandle.nullDevice
     process.standardError = FileHandle.nullDevice
 
@@ -68,7 +71,7 @@ do {
     var visibleAt: ContinuousClock.Instant?
 
     while clock.now < timeout {
-      if hasVisibleWindow(processIdentifier: process.processIdentifier) {
+      if hasVisibleWindow(processIdentifier: process.processIdentifier, layer: layer) {
         visibleAt = clock.now
         break
       }

@@ -3,6 +3,7 @@ import Darwin
 import Foundation
 import GanitEditorUI
 import GanitEngine
+import GanitQuickUI
 
 private struct FixtureTarget: Sendable {
   let name: String
@@ -143,6 +144,17 @@ private enum GanitBenchmarks {
       return
     }
 
+    if arguments.count == 2,
+      arguments[0] == "--quick",
+      let iterations = Int(arguments[1]),
+      (1...maximumSheetIterations).contains(iterations)
+    {
+      MainActor.assumeIsolated {
+        runQuickBenchmark(iterations: iterations)
+      }
+      return
+    }
+
     let message = """
       usage:
         GanitBenchmarks --list
@@ -150,6 +162,7 @@ private enum GanitBenchmarks {
         GanitBenchmarks --engine <iteration-count: 1...\(maximumEngineIterations)>
         GanitBenchmarks --sheet <\(sheetBenchmarks.map(\.fixture).joined(separator: "|"))> \
       <edit-count: 1...\(maximumSheetIterations)>
+        GanitBenchmarks --quick <show-count: 1...\(maximumSheetIterations)>
         GanitBenchmarks --editor <\(sheetBenchmarks.map(\.fixture).joined(separator: "|"))> \
       <edit-count: 1...\(maximumSheetIterations)>
 
@@ -424,6 +437,51 @@ private enum GanitBenchmarks {
       "p50_edit_to_answer_ms=\(String(format: "%.3f", nearestRank(0.50, in: samples) / 1_000_000))")
     print(
       "p95_edit_to_answer_ms=\(String(format: "%.3f", nearestRank(0.95, in: samples) / 1_000_000))")
+  }
+
+  /// Times showing an already created Quick Ganit panel until it is drawn,
+  /// with its text focused: the resident invocation path after the global
+  /// shortcut handler runs.
+  @MainActor
+  private static func runQuickBenchmark(iterations: Int) {
+    let application = NSApplication.shared
+    application.setActivationPolicy(.accessory)
+    let context: EvaluationContext
+    do {
+      context = try benchmarkContext()
+    } catch {
+      fail("Quick benchmark context is invalid.")
+    }
+    let clock = ContinuousClock()
+    let createStart = clock.now
+    let controller = QuickPanelController(context: context)
+    let creation = nanoseconds(createStart.duration(to: clock.now))
+    guard let panel = controller.window else {
+      fail("Quick panel has no window.")
+    }
+    controller.show()
+    panel.displayIfNeeded()
+    controller.hide()
+
+    var samples: [Double] = []
+    samples.reserveCapacity(iterations)
+    for _ in 0..<iterations {
+      let start = clock.now
+      controller.show()
+      panel.displayIfNeeded()
+      guard panel.isVisible, panel.firstResponder === controller.editor.textView else {
+        fail("Quick panel was not shown with its text focused.")
+      }
+      samples.append(nanoseconds(start.duration(to: clock.now)))
+      controller.hide()
+      RunLoop.main.run(mode: .default, before: Date().addingTimeInterval(0.005))
+    }
+    samples.sort()
+
+    print("panel_creation_ms=\(String(format: "%.3f", creation / 1_000_000))")
+    print("shows=\(iterations)")
+    print("p50_show_ms=\(String(format: "%.3f", nearestRank(0.50, in: samples) / 1_000_000))")
+    print("p95_show_ms=\(String(format: "%.3f", nearestRank(0.95, in: samples) / 1_000_000))")
   }
 
   private static func sheetFixtureText(_ benchmark: SheetBenchmark) -> String {
