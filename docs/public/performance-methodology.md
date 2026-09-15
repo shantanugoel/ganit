@@ -12,7 +12,8 @@ and recorded with the commit, hardware, system, and toolchain.
 | Single expression | `GanitBenchmarks --engine 10000` | Parse and evaluate after initialization |
 | Cold launch → Quick Ganit | `scripts/measure-quick.sh` | New process with `--quick-ganit`, polled until its panel is on screen |
 | Cold launch → sheet | `scripts/measure-launch.sh` | New process until its sheet window is on screen |
-| Idle memory | `scripts/measure-quick.sh` | Physical footprint after settling |
+| Quick panel idle memory | `scripts/measure-quick.sh` | Physical footprint after settling |
+| Workspace idle memory | `scripts/measure-launch.sh` | Physical footprint after settling with a 1,000-line sheet restored |
 
 Fixtures are deterministic files checked into the repository. Each result
 reports P50 and P95 over repeated independent runs, with the first launch
@@ -30,8 +31,16 @@ and a regression is bisected with the benchmark that shows it.
 ## Not yet done
 
 All results so far come from one development Mac. Clean baseline hardware (an
-M1 MacBook Air with 8 GB) is still to be measured. The only competitor
-comparison so far is Numi's engine from the command line, where `ganit`
-answers one expression in 10.6 ms against `numi-cli`'s 24.3 ms, both mostly
-process start; app-to-app launch, typing, and memory comparisons are still to
-be run.
+M1 MacBook Air with 8 GB) is still to be measured.
+
+Numi is the one competitor measured. Its engine from the command line answers
+one expression in 24.3 ms against `ganit`'s 10.6 ms, both mostly process
+start. App to app, Ganit idles at 34 MB with a 1,000-line sheet open against
+Numi's 54 MB with no window open, in a 6.2 MB bundle against 44.8 MB.
+Comparing launch and typing latency needs a person, because Numi puts no
+window on screen until someone clicks its menu bar item, so there is nothing a
+script can wait for.
+
+The memory budgets are read as physical footprint, the memory the app itself
+costs, not resident set size, which counts shared system framework pages that
+every AppKit process maps.

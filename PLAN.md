@@ -703,8 +703,8 @@ Measure on a documented baseline Mac (initially M1 MacBook Air, 8 GB) and the ol
 | Keystroke → visible answer, 10,000-line dependency stress sheet | P95 ≤ 50 ms |
 | Simple single-expression engine evaluation | P95 ≤ 1 ms after initialization |
 | Idle CPU after settling | effectively 0%; no periodic wakeups absent time/data needs |
-| Quick panel idle resident memory | ≤ 55 MB target, ≤ 70 MB hard gate |
-| Workspace idle resident memory, one medium sheet | ≤ 85 MB target, ≤ 110 MB hard gate |
+| Quick panel idle resident memory, as physical footprint | ≤ 55 MB target, ≤ 70 MB hard gate |
+| Workspace idle resident memory, one medium sheet, as physical footprint | ≤ 85 MB target, ≤ 110 MB hard gate |
 | Compressed notarized download | ≤ 15 MB target, ≤ 20 MB hard gate |
 | Installed app size | ≤ 35 MB target, ≤ 50 MB hard gate |
 | App support overhead excluding user sheets/backups | ≤ 20 MB |
@@ -1116,7 +1116,7 @@ Tasks:
 - [x] Run parser fuzzing continuously and triage every crash/hang. A nightly Address Sanitizer workflow fuzzes 50,000 inputs with a new seed and fails on slow inputs; 180,000 local inputs found no crash or hang. See Tests/README.md.
 - [x] Conduct backup restore day and migration rehearsal. `RecoveryRehearsalTests` rehearses every instruction in docs/storage/recovery-guide.md: moving a library, export and reimport, returning to an older version with newer-format sheets, and restoring a previous version.
 - [x] Audit sandbox, entitlements, URL/Service/import limits and data provenance. See docs/security/audit.md; imports are now bounded.
-- [ ] Run performance suite on clean machines and compare with competitors. The suite ran on the development Mac and found and fixed a chained-edit regression, and Numi's engine is now measured against `ganit` from the command line (see Benchmarks/Results/phase-11-performance.md, `scripts/measure-cli.sh`); clean baseline hardware and app-to-app comparisons of launch, typing, and memory need a person and have not been run.
+- [ ] Run performance suite on clean machines and compare with competitors. The suite ran on the development Mac, found and fixed a chained-edit regression, and now measures the workspace idle-memory budget that had no script; Numi is compared as an engine from the command line and app to app on memory and bundle size (see Benchmarks/Results/phase-11-performance.md, `scripts/measure-cli.sh`). Clean baseline hardware still needs a person, as do launch and typing against Numi, which puts no window on screen until someone clicks its menu bar item.
 - [x] Freeze grammar/data/document schemas; publish known limitations. See docs/reference/schema-freeze.md, guarded by `FrozenFormatTests`, and docs/reference/known-limitations.md.
 
 Exit criteria:

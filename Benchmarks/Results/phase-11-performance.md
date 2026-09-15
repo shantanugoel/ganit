@@ -105,3 +105,54 @@ text measurement during drawing next. No cheap win was visible, and the
 budget still passes, so nothing was changed for it. The honest summary is that
 this gate has under a millisecond of headroom on this machine and will need
 either an optimization or an ADR revision the next time it moves.
+
+## Workspace idle memory, measured for the first time
+
+The quick panel's idle memory had a script and a recorded result; the
+workspace row of PLAN §8.1 had neither. `scripts/measure-launch.sh` now
+reports idle memory as well as launch, so both rows are measured the same way.
+
+The sheet it restores is the 1,000-line `mixed-sheet` fixture, copied into the
+app's container as its most recent sheet with a matching checksum so no
+recovery path runs.
+
+| Measure | Result | Target | Hard gate |
+| --- | ---: | ---: | ---: |
+| Cold launch → Workspace sheet, 1,000 lines | 354 ms P50, 401 ms P95 | — | 700 ms |
+| Workspace idle physical footprint | 34 MB | 85 MB | 110 MB |
+| Workspace idle resident set size | 101 MB | — | — |
+
+The two memory budgets are read as physical footprint, which is what the app
+costs; resident set size counts shared system framework pages that every
+AppKit process maps and that no application choice changes. Both are reported
+here so the distinction is explicit rather than assumed: the quick panel is
+32 MB footprint and 97 MB RSS, so reading these budgets as RSS would fail a
+gate that the app's own memory passes with room to spare.
+
+## Numi, app to app
+
+Numi 3.32.721, installed from its Homebrew cask, is the only competitor app
+present here. Two of the three app-to-app comparisons the plan asks for can be
+measured without a person, and one cannot.
+
+| Measure | Ganit | Numi |
+| --- | ---: | ---: |
+| Idle physical footprint | 34 MB | 54 MB |
+| Idle resident set size | 101 MB | 133 MB |
+| Installed bundle | 6.2 MB | 44.8 MB |
+
+Ganit's figures are the harder case: it is idling with a window open on a
+1,000-line sheet, while Numi is idling with no window on screen at all.
+
+Launch to a visible window could not be measured for Numi. Run either by its
+executable or through `open`, it reaches its run loop and stays without
+putting any window on screen, so the window probe that times Ganit finds
+nothing to wait for; its calculator window appears when a person clicks its
+menu bar item or presses its hotkey. Typing latency needs a person for the
+same reason. Those two comparisons remain genuinely blocked on someone driving
+both interfaces.
+
+One observation from launching it: Numi's own log shows it fetching
+`s1.numi.app/config` and `s.numi.app/rates` on every launch. Ganit answers
+everything but currency without the network, and answers currency from the
+snapshot already on disk.

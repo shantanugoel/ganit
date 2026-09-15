@@ -64,7 +64,10 @@ release candidate.
   scriptable interface. Numi and Soulver are covered by the
   [answer comparison](../quality/compatibility.md).
 - Performance has been measured on one development Mac, not on clean baseline
-  hardware or against competitors.
+  hardware. Numi is compared as an engine and on memory and bundle size; its
+  launch and typing latency need a person, because it puts no window on screen
+  until someone opens it. See the
+  [performance methodology](../public/performance-methodology.md).
 - VoiceOver listening, right-to-left visual review, real IMEs, multiple
   physical displays, and Spaces are covered by automated structure checks
   only; see the [section 9 matrix](../quality/section-9-matrix.md).
