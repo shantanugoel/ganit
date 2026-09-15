@@ -21,7 +21,7 @@ struct AccessibilityAuditTests {
     let sheet = try library.save(
       source: "# Trip\nhotel = 85 * 3\n1 m + 1 s", metadata: library.create(preferences: .standard))
     _ = try library.createFolder(named: "Travel")
-    let workspace = Workspace(library: library)
+    let workspace = try Workspace(library: library)
     let controller = workspace.openWindow(showing: sheet.id)
     defer { controller.window?.orderOut(nil) }
     let window = try #require(controller.window)
@@ -59,7 +59,7 @@ struct AccessibilityAuditTests {
       ids.append(sheet.id)
     }
     _ = try library.createFolder(named: "Travel")
-    let workspace = Workspace(library: library)
+    let workspace = try Workspace(library: library)
     let controller = workspace.openWindow(showing: ids[0])
     defer { controller.window?.orderOut(nil) }
     let sidebar = controller.sidebar

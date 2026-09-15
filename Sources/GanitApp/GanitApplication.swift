@@ -19,7 +19,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   private static var retainedDelegate: GanitApplication?
   private var workspace: Workspace?
   private var quickPanel: QuickPanelController?
-  private var quickBufferStore: QuickBufferStore?
+  private var quickBufferStore: TextDocumentStore?
   private var rateRefresher: RateRefresher?
   private var serviceProvider: ExpressionServiceProvider?
   private var shortcutWindow: NSWindow?
@@ -43,9 +43,12 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   func applicationWillFinishLaunching(_ notification: Notification) {
     do {
       let root = try SheetLibrary.applicationSupportRoot()
-      let workspace = Workspace(library: try SheetLibrary(root: root))
+      let workspace = try Workspace(
+        library: try SheetLibrary(root: root),
+        definitions: TextDocumentStore(url: root.appending(path: "Definitions.txt"))
+      )
       self.workspace = workspace
-      quickBufferStore = QuickBufferStore(url: root.appending(path: "QuickBuffer.txt"))
+      quickBufferStore = TextDocumentStore(url: root.appending(path: "QuickBuffer.txt"))
       let refresher = RateRefresher(
         store: try RateSnapshotStore.applicationSupport(),
         isAutomatic: !UserDefaults.standard.bool(forKey: Self.manualExchangeRatesDefaultsKey)
@@ -54,6 +57,9 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       refresher.ratesDidChange = { [weak self] rates in
         self?.workspace?.currencyRates = rates
         self?.quickPanel?.editor.setCurrencyRates(rates)
+      }
+      workspace.definitionsDidChange = { [weak self] definitions in
+        self?.quickPanel?.editor.setDefinitions(definitions)
       }
       rateRefresher = refresher
     } catch {
@@ -130,6 +136,16 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       } catch {
         application.presentError(error)
       }
+    }
+  }
+
+  /// Opens the definitions sheet, whose variables and units every sheet
+  /// reads.
+  @objc func showDefinitions(_ sender: Any?) {
+    do {
+      try workspace?.openDefinitions()
+    } catch {
+      NSApplication.shared.presentError(error)
     }
   }
 
@@ -221,6 +237,10 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       quickPanel?.promote = { [weak self] source in
         try self?.workspace?.openNewSheet(source: source)
         NSApplication.shared.activate()
+      }
+      // A quick calculation reads the definitions sheet like any other.
+      if let definitions = workspace?.definitions {
+        quickPanel?.editor.setDefinitions(definitions)
       }
     }
     return quickPanel

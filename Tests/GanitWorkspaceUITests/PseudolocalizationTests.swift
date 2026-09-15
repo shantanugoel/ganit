@@ -25,7 +25,7 @@ struct PseudolocalizationTests {
 
     let library = try SheetLibrary(root: root)
     let sheet = try library.save(source: "1 + 1", metadata: library.create(preferences: .standard))
-    let workspace = Workspace(library: library)
+    let workspace = try Workspace(library: library)
     let controller = workspace.openWindow(showing: sheet.id)
     defer { controller.window?.orderOut(nil) }
 

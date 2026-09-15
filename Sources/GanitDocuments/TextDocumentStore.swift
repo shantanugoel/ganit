@@ -1,8 +1,9 @@
 import Foundation
 
-/// Keeps Quick Ganit's text between launches in one atomically replaced UTF-8
-/// file. The text is never indexed, backed up, or searchable.
-public struct QuickBufferStore: Sendable {
+/// Keeps one text document, such as Quick Ganit's buffer or the definitions
+/// sheet, between launches in an atomically replaced UTF-8 file. The text is
+/// never indexed, backed up, or searchable.
+public struct TextDocumentStore: Sendable {
   public let url: URL
 
   public init(url: URL) {

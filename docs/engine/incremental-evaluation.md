@@ -10,6 +10,8 @@ above it. A line's result is therefore a function of:
 
 - its text, which determines its role, declared name, and expression;
 - the evaluation context;
+- the [custom units](../grammar/definitions.md) visible to it, which decide
+  what its words can name;
 - the visible variables whose names can be formed from consecutive identifier
   words in the line, including their values (and so their kinds, which guide
   parsing);
@@ -36,6 +38,14 @@ stop the propagation even when a line above them was re-evaluated.
 
 Changing the evaluation context clears the cache. Cache entries for removed
 lines are dropped at the end of a completed generation.
+
+The [definitions](../grammar/definitions.md) a calculator inherits are fixed
+for its lifetime, because they are the scope every line starts from. An editor
+whose inherited definitions change makes a calculator with the new ones, which
+evaluates the sheet again from the top. A unit a sheet's own line defines
+enters the catalog for the lines below it within the same generation, and a
+line whose visible units changed is derived and evaluated again, because they
+decide what its words mean.
 
 `SheetEvaluation.evaluatedLineIDs` lists the lines evaluated in a generation,
 and `parsedLineIDs` the subset that was also parsed, so tests can assert that an

@@ -19,6 +19,19 @@ public struct CalculationEngine: Sendable {
     self.unitCatalog = unitCatalog ?? builtInMinimalUnitCatalog
   }
 
+  /// This engine, resolving these custom units in addition to its catalog's
+  /// units and no others. A unit the catalog refuses is dropped.
+  public func resolving(_ units: [CustomUnit]) -> CalculationEngine {
+    guard let catalog = try? unitCatalog.replacingCustomUnits(with: units) else {
+      return self
+    }
+    return CalculationEngine(
+      syntaxLimits: syntaxLimits,
+      evaluationLimits: evaluationLimits,
+      unitCatalog: catalog
+    )
+  }
+
   public func evaluate(
     _ source: String,
     context: EvaluationContext
@@ -81,6 +94,27 @@ public struct CalculationEngine: Sendable {
     in source: String,
     context: EvaluationContext
   ) -> String? {
+    name(in: source, context: context, redefinable: [])
+  }
+
+  /// Returns a unit definition's name, or `nil` when it is not one word that
+  /// may name a unit. A custom unit's own name may be redefined; a unit a
+  /// data source names may not.
+  func unitName(
+    in source: String,
+    context: EvaluationContext
+  ) -> String? {
+    let custom = Set(
+      unitCatalog.entries.filter { $0.sourceIdentifier == nil }.flatMap(\.aliases)
+    )
+    return name(in: source, context: context, redefinable: custom)
+  }
+
+  private func name(
+    in source: String,
+    context: EvaluationContext,
+    redefinable: Set<String>
+  ) -> String? {
     let lexing = Lexer(
       source: source,
       configuration: context.lexingConfiguration,
@@ -91,7 +125,7 @@ public struct CalculationEngine: Sendable {
       guard case .identifier(let word) = token.kind,
         !reservedIdentifiers.contains(word),
         BuiltInFunction(rawValue: word) == nil,
-        unitCatalog.resolveUnit(matching: word) == nil,
+        unitCatalog.resolveUnit(matching: word) == nil || redefinable.contains(word),
         CurrencyCatalog.minorUnits[word] == nil
       else {
         return nil

@@ -34,13 +34,56 @@ public final class Workspace {
       for sheet in sheets.values {
         sheet.editor.setCurrencyRates(currencyRates)
       }
+      definitionsWindow?.editor.setCurrencyRates(currencyRates)
     }
   }
+  /// The variables and units the definitions sheet defines, which every open
+  /// and newly opened sheet evaluates with.
+  public private(set) var definitions: SheetDefinitions = .none {
+    didSet {
+      for sheet in sheets.values {
+        sheet.editor.setDefinitions(definitions)
+      }
+      definitionsDidChange?(definitions)
+    }
+  }
+  /// Called when the definitions sheet's definitions change, so a sheet
+  /// outside the library, such as Quick Ganit's buffer, can follow.
+  public var definitionsDidChange: ((SheetDefinitions) -> Void)?
+  private let definitionsStore: TextDocumentStore?
+  private(set) var definitionsWindow: DefinitionsWindowController?
   private var sheets: [UUID: OpenSheet] = [:]
 
-  public init(library: SheetLibrary) {
+  /// Reads the definitions sheet so the first sheet opened already evaluates
+  /// with it, without opening its window.
+  public init(library: SheetLibrary, definitions store: TextDocumentStore? = nil) throws {
     self.library = library
+    definitionsStore = store
+    if let text = store?.load(), !text.isEmpty {
+      definitions = try SheetDefinitions(
+        source: text,
+        context: try SheetPreferences.standard.evaluationContext()
+      )
+    }
     Self.current = self
+  }
+
+  /// Opens the definitions sheet's window, creating it on first use.
+  public func openDefinitions() throws {
+    guard let store = definitionsStore else {
+      return
+    }
+    if definitionsWindow == nil {
+      let editor = SheetEditorViewController(
+        text: store.load(),
+        context: try SheetPreferences.standard.evaluationContext(currencyRates: currencyRates)
+      )
+      editor.definitionsDidChange = { [weak self] definitions in
+        self?.definitions = definitions
+      }
+      definitionsWindow = DefinitionsWindowController(store: store, editor: editor)
+    }
+    definitionsWindow?.showWindow(nil)
   }
 
   /// Opens a window, optionally showing a sheet.
@@ -113,6 +156,7 @@ public final class Workspace {
       text: stored.source,
       context: try stored.metadata.preferences.evaluationContext(currencyRates: currencyRates)
     )
+    editor.setDefinitions(definitions)
     editor.textView.isEditable = stored.metadata.state != .trashed
     let autosaver = SheetAutosaver(
       library: library,

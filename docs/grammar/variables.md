@@ -30,7 +30,10 @@ name that they begin. Otherwise each identifier is resolved alone.
 Lines are evaluated from top to bottom. A declaration is visible to later lines
 only, which prevents cycles. Redeclaring a name replaces its value for lines
 below, and the right-hand side may use the previous value: `tax = tax + 2%`.
-A divider (`---`) resets scope; headings do not.
+A divider (`---`) resets scope; headings do not. The
+[definitions sheet](definitions.md)'s declarations stand above the first line,
+so a sheet's own declaration of the same name replaces one, and a divider
+keeps them.
 
 Using a name before it is declared fails with `evaluation.unknownIdentifier`.
 Using a variable whose declaration failed reports

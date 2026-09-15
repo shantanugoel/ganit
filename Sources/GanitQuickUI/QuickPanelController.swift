@@ -23,11 +23,14 @@ public final class QuickPanelController: NSWindowController, NSWindowDelegate {
       }
     }
   }
-  private let store: QuickBufferStore?
+  private let store: TextDocumentStore?
 
   /// Restores and keeps the buffer in `store` unless `startsEmpty` is true.
-  public init(context: EvaluationContext, store: QuickBufferStore? = nil, startsEmpty: Bool = false)
-  {
+  public init(
+    context: EvaluationContext,
+    store: TextDocumentStore? = nil,
+    startsEmpty: Bool = false
+  ) {
     self.store = store
     self.startsEmpty = startsEmpty
     if startsEmpty {

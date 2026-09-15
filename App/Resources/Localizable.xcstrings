@@ -71,6 +71,16 @@
         }
       }
     },
+    "definitions.title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Definitions"
+          }
+        }
+      }
+    },
     "editor.accessibilityLabel" : {
       "localizations" : {
         "en" : {
@@ -457,6 +467,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Cut"
+          }
+        }
+      }
+    },
+    "menu.definitions" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Definitions"
           }
         }
       }

@@ -22,7 +22,9 @@ Rules, applied in this order:
    remaining text ends a label, provided the label is not empty. A colon
    without following whitespace, such as `10:30`, stays in the expression.
 4. In the remaining text, the first `=` with a non-empty name before it makes
-   a [variable declaration](variables.md).
+   a [variable declaration](variables.md), or a
+   [unit definition](definitions.md) when that name is the word `unit` and one
+   more word.
 5. The remaining trimmed text is the expression. `Groceries:` is a label with
    no expression and produces no result; `total =` is an incomplete
    declaration.

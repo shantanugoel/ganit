@@ -26,7 +26,8 @@ opens Quick Ganit instead of a sheet.
 ## Keys and promotion
 
 - Return inserts a newline; lines evaluate as they do in sheets, each with its
-  own answer.
+  own answer, including the variables and units the
+  [definitions sheet](../grammar/definitions.md) shares.
 - ⌘Return copies the insertion point's displayed result, or the buffer's last
   result when that line has none, and hides the panel. Without any result it
   beeps and stays open.

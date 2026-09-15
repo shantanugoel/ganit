@@ -11,7 +11,10 @@ Each entry records:
 - conservative, case-sensitive English aliases;
 - its dimension and ratio or affine transform;
 - whether the transform is exact in Ganit's current numeric representation;
-- a source identifier resolving to title, revision, URL, terms, and notice.
+- a source identifier resolving to title, revision, URL, terms, and notice,
+  which a [custom unit](../grammar/definitions.md) does not have, being a
+  person's own data rather than a published definition, and so is absent from
+  the attribution notice.
 
 “Exact” describes the stored transform, not only the mathematical source
 relation. The degree is therefore marked approximate: BIPM defines

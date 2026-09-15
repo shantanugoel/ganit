@@ -1,6 +1,6 @@
 # Ambiguity registry
 
-**Registry version:** 4
+**Registry version:** 5
 
 This registry records how the English grammar resolves inputs that could
 reasonably mean more than one thing. Every entry is pinned by named cases in
@@ -90,6 +90,20 @@ unit meaning.
   `average`, `avg`, `median`, `count`) cannot be a whole variable name, but a
   declared longer name wins: with `total rent` declared, `total rent` is the
   variable and `total` alone is the aggregate.
+
+## `1 x =` — manual rate versus unit definition
+
+Added in registry version 5; see [definitions](definitions.md).
+
+- A declared name of `1` and one more word is a
+  [manual exchange rate](money-syntax.md) when that word is a currency code
+  (`1 USD = 83.25 INR`) and a unit definition otherwise (`1 bag = 25 kg`).
+- A name starting with a digit is never a variable, so a definition cannot
+  take a name someone meant as one: `unit price = 5` declares the variable
+  `unit price`, because `unit` is not a keyword.
+- The defined word must be a name a variable could take, so `1 km = 5 m` and
+  `1 in = 2 kg` fail with `syntax.invalidVariableName` rather than redefining
+  a catalog unit.
 
 ## `dates` — date and time input versus arithmetic and units
 

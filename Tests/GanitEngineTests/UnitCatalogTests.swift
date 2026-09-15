@@ -14,7 +14,9 @@ struct UnitCatalogTests {
     #expect(catalog.prefixes.count == 34)
     #expect(catalog.sources.count == 3)
     for entry in catalog.entries {
-      #expect(sourceIdentifiers.contains(entry.sourceIdentifier))
+      // Every built-in unit encodes a data source; only a person's own unit
+      // has none.
+      #expect(sourceIdentifiers.contains(try #require(entry.sourceIdentifier)))
       #expect(!entry.aliases.isEmpty)
       for alias in entry.aliases {
         #expect(catalog.unit(matching: alias) == entry)

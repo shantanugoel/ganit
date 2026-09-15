@@ -40,6 +40,9 @@ public final class SheetEditorViewController: NSViewController {
 
   /// Called after each committed source edit, for saving.
   public var sourceDidChange: (() -> Void)?
+  /// Called when the variables and units this sheet defines change, so the
+  /// definitions sheet can share them with every other sheet.
+  public var definitionsDidChange: ((SheetDefinitions) -> Void)?
 
   private var context: EvaluationContext
   private let scrollView = NSScrollView()
@@ -66,6 +69,8 @@ public final class SheetEditorViewController: NSViewController {
   /// The text as of the last mirrored edit, for converting UTF-16 edit
   /// ranges into the sheet's UTF-8 offsets.
   private var mirroredText: String
+  /// What this sheet last defined, for reporting only real changes.
+  private var shownDefinitions = SheetDefinitions.none
 
   public init(text: String = "", context: EvaluationContext) {
     self.context = context
@@ -228,6 +233,14 @@ public final class SheetEditorViewController: NSViewController {
     scheduler?.schedule(sheet)
   }
 
+  /// Evaluates the sheet with the definitions sheet's variables and units.
+  public func setDefinitions(_ definitions: SheetDefinitions) {
+    guard definitions != scheduler?.definitions else {
+      return
+    }
+    scheduler?.setDefinitions(definitions, of: sheet)
+  }
+
   /// Evaluates the current source again.
   @objc public func recalculate(_ sender: Any?) {
     scheduler?.schedule(sheet)
@@ -253,6 +266,10 @@ public final class SheetEditorViewController: NSViewController {
 
   private func show(_ evaluation: SheetEvaluation, of snapshot: SheetSource) {
     latestEvaluation = evaluation
+    if evaluation.definitions != shownDefinitions {
+      shownDefinitions = evaluation.definitions
+      definitionsDidChange?(evaluation.definitions)
+    }
     let previous = shownLines
     shownLines = Dictionary(
       uniqueKeysWithValues: zip(snapshot.lines, evaluation.lines).map {

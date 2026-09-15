@@ -31,7 +31,9 @@ unsupported casing such as `KM` and `KB` is not silently corrected.
 
 Catalog lookup is deliberately conservative. Arbitrary identifiers are not
 treated as units, so arithmetic such as `2pi` retains its implicit
-multiplication meaning. A terminal `in` following a number is the inch alias
+multiplication meaning. A [custom unit](definitions.md) joins the catalog under
+its own name and English plural, takes no prefix, and resolves exactly as a
+built-in unit does. A terminal `in` following a number is the inch alias
 (`12 in`); after an established quantity it is a conversion keyword
 (`12 km in miles`).
 The [ambiguity registry](ambiguity-registry.md) records the complete `in`,
@@ -75,4 +77,5 @@ relative temperature arithmetic remains unavailable.
   expressions, not arbitrary prose or unresolved identifiers.
 - Superscript shorthand currently recognizes `²` and `³`; other powers use
   `^` followed by a signed decimal integer.
-- Calendar periods, currencies, and user-defined units are outside Phase 2.5.
+- Calendar periods and currencies are outside Phase 2.5; user-defined units
+  arrive with [definitions](definitions.md).

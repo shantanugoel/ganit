@@ -8,7 +8,7 @@ public enum UnitDefinitionExactness: String, Hashable, Sendable {
 }
 
 extension UnitTransform {
-  fileprivate var isApproximate: Bool {
+  var isApproximate: Bool {
     switch self {
     case .ratio(let scale):
       return scale.containsApproximation
@@ -19,7 +19,7 @@ extension UnitTransform {
 }
 
 extension NumericValue {
-  fileprivate var containsApproximation: Bool {
+  var containsApproximation: Bool {
     if case .approximate = self {
       return true
     }
@@ -59,7 +59,9 @@ public struct UnitCatalogEntry: Hashable, Sendable {
   public let definition: UnitDefinition
   public let aliases: [String]
   public let exactness: UnitDefinitionExactness
-  public let sourceIdentifier: String
+  /// The data source this entry encodes, or `nil` for a unit a person
+  /// defined, which is their own data and not attributed.
+  public let sourceIdentifier: String?
 }
 
 public struct UnitPrefixEntry: Hashable, Sendable {
@@ -88,7 +90,7 @@ public struct UnitCatalog: Sendable {
   ) throws {
     let sourceIdentifiers = Set(sources.map(\.identifier))
     let entriesHaveSources = entries.allSatisfy {
-      sourceIdentifiers.contains($0.sourceIdentifier)
+      ($0.sourceIdentifier.map(sourceIdentifiers.contains) ?? true)
         && !$0.aliases.isEmpty
     }
     let prefixesHaveSources = prefixes.allSatisfy {
@@ -167,7 +169,7 @@ public struct UnitCatalog: Sendable {
     }
     lines.append("## Catalog entries")
     lines.append("")
-    for entry in entries.sorted(
+    for entry in entries.filter({ $0.sourceIdentifier != nil }).sorted(
       by: {
         $0.definition.canonicalIdentifier < $1.definition.canonicalIdentifier
       }
@@ -177,7 +179,7 @@ public struct UnitCatalog: Sendable {
       let dimension = entry.definition.dimension.canonicalDescription
       let transform = Self.describe(entry.definition.transform)
       let exactness = entry.exactness.rawValue
-      let source = entry.sourceIdentifier
+      let source = entry.sourceIdentifier ?? ""
       lines.append(
         "- `\(identifier)` (\(symbol)): dimension `\(dimension)`, "
           + "transform `\(transform)`, \(exactness), source `\(source)`"
@@ -189,6 +191,32 @@ public struct UnitCatalog: Sendable {
     )
     lines.append("")
     return lines.joined(separator: "\n")
+  }
+
+  /// This catalog's data-source units plus a person's own units, replacing
+  /// any custom units it already holds.
+  ///
+  /// A later unit replaces an earlier one of the same name, and a name a data
+  /// source already uses is refused, so the built-in meaning of `m` or `min`
+  /// cannot be redefined. A plural is added when it is free.
+  func replacingCustomUnits(with units: [CustomUnit]) throws -> UnitCatalog {
+    let sourced = entries.filter { $0.sourceIdentifier != nil }
+    let reserved = Set(sourced.flatMap(\.aliases))
+    var names: [String] = []
+    var definitions: [String: CustomUnit] = [:]
+    for unit in units where !reserved.contains(unit.name) {
+      if definitions.updateValue(unit, forKey: unit.name) == nil {
+        names.append(unit.name)
+      }
+    }
+    var taken = reserved.union(names)
+    let custom = names.map { name -> UnitCatalogEntry in
+      let unit = definitions[name]!
+      let plurals = unit.aliases.filter { $0 != name && !taken.contains($0) }
+      taken.formUnion(plurals)
+      return unit.entry(aliases: [name] + plurals)
+    }
+    return try UnitCatalog(entries: sourced + custom, prefixes: prefixes, sources: sources)
   }
 
   public static func minimal() throws -> UnitCatalog {

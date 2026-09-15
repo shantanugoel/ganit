@@ -38,6 +38,9 @@ public struct SheetLineResult: Hashable, Sendable {
 public struct SheetEvaluation: Hashable, Sendable {
   public let generation: UInt64
   public let lines: [SheetLineResult]
+  /// What this sheet's own lines define: the variables it declares and the
+  /// units it defines. The definitions sheet exports these to every sheet.
+  public let definitions: SheetDefinitions
   /// Lines whose expressions were evaluated in this generation, in sheet
   /// order. Every other line reused its previous result.
   public let evaluatedLineIDs: [LineID]
@@ -61,11 +64,18 @@ public struct SheetEvaluation: Hashable, Sendable {
 public struct SheetCalculator: Sendable {
   public private(set) var generation: UInt64 = 0
   private let engine: CalculationEngine
+  private let definitions: SheetDefinitions
   private var context: EvaluationContext?
   private var cache: [LineID: (source: LineSource, evaluation: LineEvaluation?)] = [:]
 
-  public init(engine: CalculationEngine = CalculationEngine()) {
-    self.engine = engine
+  /// A calculator for sheets evaluated with these definitions. Definitions
+  /// are fixed for a calculator's life, so changing them means a new one.
+  public init(
+    engine: CalculationEngine = CalculationEngine(),
+    definitions: SheetDefinitions = .none
+  ) {
+    self.engine = engine.resolving(definitions.units)
+    self.definitions = definitions
   }
 
   /// Starts a new generation. Throws `CancellationError`, without returning
@@ -81,19 +91,25 @@ public struct SheetCalculator: Sendable {
     }
     self.context = context
 
-    var scope = VariableScope()
+    let inherited = VariableScope(definitions.variables)
+    var scope = inherited
+    // The units the lines below may measure with, which grow as lines define
+    // them, and the engine that resolves them.
+    var units = definitions.units
+    var engine = engine
     var outcomes = LineOutcomes()
     var results: [SheetLineResult] = []
     var evaluated: [LineID] = []
     var parsed: [LineID] = []
+    var declared = SheetDefinitions()
     results.reserveCapacity(sheet.lines.count)
 
     for line in sheet.lines {
       try Task.checkCancellation()
       let cached = cache[line.id]
       let source =
-        cached?.source.text == line.text
-        ? cached!.source : LineSource(line.text, engine, context)
+        cached?.source.text == line.text && cached?.source.units == units
+        ? cached!.source : LineSource(line.text, units, engine, context)
       var evaluation = cached?.source === source ? cached?.evaluation : nil
 
       if case .calculation(_, _, let expressionRange?, _) = source.syntax {
@@ -126,6 +142,14 @@ public struct SheetCalculator: Sendable {
       let result = evaluation?.result
       if let name = source.declaredName, let result {
         scope.declare(name, result: result)
+        if case .value(let value) = result {
+          declared.variables[name] = value
+        }
+      }
+      if let unit = evaluation?.unit {
+        declared.units.append(unit)
+        units.append(unit)
+        engine = self.engine.resolving(units)
       }
       if let from = source.rateCurrency, case .value(.money(let money)) = result {
         scope.rates[CurrencyPair(from: from, to: money.currency)] = money.amount
@@ -143,7 +167,7 @@ public struct SheetCalculator: Sendable {
         outcomes.endBlock()
       case .divider:
         outcomes.endBlock()
-        scope = VariableScope()
+        scope = inherited
       case .comment, .calculation:
         break
       }
@@ -157,6 +181,7 @@ public struct SheetCalculator: Sendable {
     return SheetEvaluation(
       generation: generation,
       lines: results,
+      definitions: declared,
       evaluatedLineIDs: evaluated,
       parsedLineIDs: parsed,
       nextRecalculation: results.compactMap { $0.evaluation?.clockInterval?.end }.min()
@@ -167,18 +192,29 @@ public struct SheetCalculator: Sendable {
 /// Everything derived from a line's text alone.
 private final class LineSource: Sendable {
   let text: String
+  /// The custom units visible to this line, which decide what its words can
+  /// name, so a line is derived again when they change.
+  let units: [CustomUnit]
   let syntax: LineSyntax
   /// Runs of adjacent identifier words, which bound the names a parse can use.
   let words: [[String]]
   /// The normalized declared name, if the line declares a valid one.
   let declaredName: String?
+  /// The unit a definition such as `1 bag = 25 kg` names.
+  let unitName: String?
   /// The currency of a manual rate declaration such as `1 USD = 83.25 INR`.
   let rateCurrency: String?
   /// A diagnostic for an invalid declared name.
   let nameFailure: CalculationResult?
 
-  init(_ text: String, _ engine: CalculationEngine, _ context: EvaluationContext) {
+  init(
+    _ text: String,
+    _ units: [CustomUnit],
+    _ engine: CalculationEngine,
+    _ context: EvaluationContext
+  ) {
     self.text = text
+    self.units = units
     syntax = LineSyntax(text)
     var runs: [[String]] = [[]]
     for token in Lexer(source: text, configuration: context.lexingConfiguration).lex().tokens {
@@ -192,20 +228,24 @@ private final class LineSource: Sendable {
 
     guard case .calculation(_, let nameRange?, _, _) = syntax else {
       declaredName = nil
+      unitName = nil
       rateCurrency = nil
       nameFailure = nil
       return
     }
     let name = slice(of: nameRange, in: text)
     let nameWords = name.split(whereSeparator: \.isWhitespace)
-    rateCurrency =
-      nameWords.count == 2 && nameWords[0] == "1"
-        && CurrencyCatalog.minorUnits[String(nameWords[1])] != nil
-      ? String(nameWords[1]) : nil
-    declaredName =
-      rateCurrency == nil ? engine.variableName(in: name, context: context) : nil
+    // `1 x = …` declares a rate when `x` is a currency and defines a unit
+    // otherwise, so a name that a variable could take stays a variable.
+    let oneOf = nameWords.count == 2 && nameWords[0] == "1" ? String(nameWords[1]) : nil
+    rateCurrency = oneOf.flatMap { CurrencyCatalog.minorUnits[$0] != nil ? $0 : nil }
+    unitName =
+      rateCurrency == nil
+      ? oneOf.flatMap { engine.unitName(in: $0, context: context) } : nil
+    let isNamed = rateCurrency != nil || unitName != nil
+    declaredName = isNamed ? nil : engine.variableName(in: name, context: context)
     nameFailure =
-      declaredName == nil && rateCurrency == nil
+      declaredName == nil && !isNamed
       ? .syntaxFailure([SyntaxDiagnostic(code: .invalidVariableName, range: nameRange)])
       : nil
   }
@@ -220,6 +260,8 @@ private final class LineEvaluation: Sendable {
   let references: Set<LineReference>
   let inputs: [LineReference: [LineOutcomes.Outcome]?]
   let result: CalculationResult
+  /// The unit a definition line defines, when its value can define one.
+  let unit: CustomUnit?
   /// For a result that read the clock, the moments it stays correct for.
   let clockInterval: DateInterval?
   /// The kinds of exchange rate the result used.
@@ -243,6 +285,7 @@ private final class LineEvaluation: Sendable {
       references = []
       inputs = [:]
       result = nameFailure
+      unit = nil
       clockInterval = nil
       rateUses = []
       return
@@ -263,6 +306,7 @@ private final class LineEvaluation: Sendable {
       references = []
       inputs = [:]
       result = .syntaxFailure(parsing.diagnostics)
+      unit = nil
       clockInterval = nil
       rateUses = []
       return
@@ -273,8 +317,13 @@ private final class LineEvaluation: Sendable {
     )
     let (evaluated, trace) = engine.evaluate(
       expression, context: context, variables: names, lines: outcomes, manualRates: rates)
+    let defined = source.unitName.map {
+      Self.definedUnit(evaluated, named: $0, context: context, range: expressionRange)
+    }
+    unit = defined?.unit
     result =
-      source.rateCurrency.map {
+      defined?.result
+      ?? source.rateCurrency.map {
         Self.checkedRate(evaluated, from: $0, range: expressionRange)
       } ?? evaluated
     rateUses = trace.rateUses
@@ -289,6 +338,24 @@ private final class LineEvaluation: Sendable {
         return DateInterval(start: Date(timeIntervalSinceReferenceDate: start), duration: 1)
       }
     }
+  }
+
+  /// The unit a definition line defines. A value that cannot define a unit,
+  /// such as a plain number or a temperature, fails the line rather than
+  /// defining nothing silently.
+  private static func definedUnit(
+    _ result: CalculationResult,
+    named name: String,
+    context: EvaluationContext,
+    range: SourceRange
+  ) -> (result: CalculationResult, unit: CustomUnit?) {
+    guard case .value(let value) = result else {
+      return (result, nil)
+    }
+    guard let unit = CustomUnit(name: name, value: value, context: context) else {
+      return (.evaluationFailure(EngineError(code: .invalidUnitDefinition, ranges: [range])), nil)
+    }
+    return (result, unit)
   }
 
   /// A manual rate must be a positive amount of another currency.
@@ -329,6 +396,12 @@ private struct VariableScope: Sendable {
   private var prefixes: Set<String> = []
   /// Manual exchange rates declared above.
   var rates: [CurrencyPair: NumericValue] = [:]
+
+  init(_ inherited: [String: EngineValue] = [:]) {
+    for (name, value) in inherited {
+      declare(name, result: .value(value))
+    }
+  }
 
   /// The manual rates for currencies named in `runs`. A conversion names its
   /// target currency, so it can only use these rates.

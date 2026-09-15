@@ -4,6 +4,7 @@ import GanitEditorUI
 /// Application actions handled by the application delegate.
 @MainActor
 @objc public protocol ApplicationCommands {
+  func showDefinitions(_ sender: Any?)
   func showQuickGanit(_ sender: Any?)
   func showQuickGanitShortcut(_ sender: Any?)
   func toggleQuickGanitStartsEmpty(_ sender: Any?)
@@ -54,7 +55,12 @@ public enum MainMenu {
           localized("menu.minimize", "Minimize"), #selector(NSWindow.performMiniaturize(_:)), "m"),
         item(localized("menu.zoom", "Zoom"), #selector(NSWindow.performZoom(_:))),
         .separator(),
-        .separator(),
+        item(
+          localized("menu.definitions", "Definitions"),
+          #selector(ApplicationCommands.showDefinitions(_:)),
+          "d",
+          [.command, .shift]
+        ),
         item(
           localized("menu.quickGanit", "Quick Ganit"),
           #selector(ApplicationCommands.showQuickGanit(_:))),

@@ -1084,7 +1084,7 @@ Exit criteria:
 Tasks in priority order:
 
 - [x] Service and App Intent for pure expression calculation. Evaluate Expression and Calculate Expression share one bounded evaluation; see docs/integration/headless-answers.md. The Open Sheet intent is not part of pure calculation and is still to do.
-- [ ] Global definitions/custom units.
+- [x] Global definitions/custom units. A shared definitions sheet (Window ▸ Definitions, ⌘⇧D) exports its variables and `1 bag = 25 kg` units to every sheet and Quick Ganit; see docs/grammar/definitions.md.
 - [ ] Selection aggregates and optional tags.
 - [ ] Generic transparent finance functions.
 - [ ] URL callbacks with input/security limits.

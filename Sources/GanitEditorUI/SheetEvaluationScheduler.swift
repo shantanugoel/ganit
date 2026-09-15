@@ -9,6 +9,11 @@ private actor CalculatorWorker {
   func evaluate(_ sheet: SheetSource, context: EvaluationContext) throws -> SheetEvaluation {
     try calculator.evaluate(sheet, context: context)
   }
+
+  /// Starts over with new definitions, which every line may read.
+  func setDefinitions(_ definitions: SheetDefinitions) {
+    calculator = SheetCalculator(definitions: definitions)
+  }
 }
 
 /// Starts a generation for each sheet snapshot and delivers only the newest
@@ -23,6 +28,8 @@ final class SheetEvaluationScheduler {
   private let worker = CalculatorWorker()
   /// The context each generation evaluates in, at the current time.
   var context: EvaluationContext
+  /// The definitions generations evaluate with, for comparing new ones.
+  private(set) var definitions: SheetDefinitions = .none
   private let commit: @MainActor (SheetSource, SheetEvaluation, SignpostedInterval) -> Void
   private var task: Task<Void, Never>?
   private(set) var recalculation: Task<Void, Never>?
@@ -36,6 +43,25 @@ final class SheetEvaluationScheduler {
   ) {
     self.context = context
     self.commit = commit
+  }
+
+  /// Evaluates with new definitions from the next generation on, discarding
+  /// the cache because any line's answer may change.
+  func setDefinitions(_ definitions: SheetDefinitions, of sheet: SheetSource) {
+    self.definitions = definitions
+    task?.cancel()
+    recalculation?.cancel()
+    recalculation = nil
+    latestRequest += 1
+    let request = latestRequest
+    let worker = worker
+    task = Task {
+      await worker.setDefinitions(definitions)
+      guard request == latestRequest else {
+        return
+      }
+      schedule(sheet)
+    }
   }
 
   func schedule(_ sheet: SheetSource) {

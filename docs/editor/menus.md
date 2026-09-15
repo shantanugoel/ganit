@@ -13,7 +13,7 @@ enabled only when the focused editor or window can perform it.
 | Calculate | Copy Result ⇧⌘C, Copy Full Precision ⌥⇧⌘C, Show Interpretation, Insert Reference ⌘\, Insert Subtotal ⌘T, Recalculate ⌘R, Stop ⌘. |
 | Format | Heading, Comment ⌘/, Divider |
 | View | Bigger ⌘+, Smaller ⌘-, Actual Size ⌘0, Enter Full Screen ⌃⌘F |
-| Window | Minimize ⌘M, Zoom, Bring All to Front, and the window list |
+| Window | Minimize ⌘M, Zoom, Definitions ⌘⇧D, Quick Ganit items, Bring All to Front, and the window list |
 | Help | menu search |
 
 `SheetCommands` declares the sheet actions. The text view handles result,

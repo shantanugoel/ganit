@@ -45,7 +45,9 @@ below until a divider, like a variable, and overrides reference rates for that
 pair in both directions: `100 USD in INR` is `8325 INR` and `8325 INR in USD`
 is `100 USD`. The right side must be a positive amount of another currency;
 otherwise the line fails with `evaluation.invalidCurrencyRate`. Editing a
-manual rate re-evaluates only lines that name one of its currencies.
+manual rate re-evaluates only lines that name one of its currencies. The same
+`1 x = …` form defines a [custom unit](definitions.md) when `x` is not a
+currency code.
 
 ## Display
 

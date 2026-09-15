@@ -232,7 +232,7 @@ struct WorkspaceWindowControllerTests {
   @Test
   func reopensTheMostRecentActiveSheetOrANewOne() throws {
     let library = try SheetLibrary(root: root)
-    let empty = Workspace(library: library)
+    let empty = try Workspace(library: library)
     let created = try empty.openMostRecentSheet()
     defer { close(empty) }
     #expect(created.sheetID != nil)
@@ -266,7 +266,7 @@ struct WorkspaceWindowControllerTests {
         metadata: library.create(preferences: SheetPreferences.standard)
       ).id
     }
-    return (Workspace(library: library), ids)
+    return (try Workspace(library: library), ids)
   }
 
   private func select(_ id: UUID, in controller: WorkspaceWindowController) {

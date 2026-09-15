@@ -293,7 +293,7 @@ struct QuickBufferTests {
 
   @Test
   func storesTextAtomicallyAndRemovesItWhenEmpty() throws {
-    let store = QuickBufferStore(url: url)
+    let store = TextDocumentStore(url: url)
     #expect(store.load().isEmpty)
     try store.save("6 * 7\r\n👍🏽")
     #expect(store.load() == "6 * 7\r\n👍🏽")
@@ -303,7 +303,7 @@ struct QuickBufferTests {
 
   @Test
   func restoresTheLastBufferInANewPanel() throws {
-    let store = QuickBufferStore(url: url)
+    let store = TextDocumentStore(url: url)
     let first = QuickPanelController(context: try standardContext(), store: store)
     first.show()
     first.editor.textView.insertText(
@@ -317,7 +317,7 @@ struct QuickBufferTests {
 
   @Test
   func startingEmptyClearsStoredTextAndEachShowing() throws {
-    let store = QuickBufferStore(url: url)
+    let store = TextDocumentStore(url: url)
     try store.save("old")
     let controller = QuickPanelController(
       context: try standardContext(), store: store, startsEmpty: true)
