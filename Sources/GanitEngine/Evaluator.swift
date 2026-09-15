@@ -151,6 +151,8 @@ private struct EvaluationWorker {
           )
         )
       )
+    case .quantity, .rate:
+      throw typeMismatch(expected: .number, actual: value.kind)
     }
   }
 
@@ -236,6 +238,10 @@ private struct EvaluationWorker {
       case .power:
         throw typeMismatch(expected: .number, actual: .percentage)
       }
+
+    default:
+      let actual = left.kind == .number ? right.kind : left.kind
+      throw typeMismatch(expected: .number, actual: actual)
     }
   }
 

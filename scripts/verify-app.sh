@@ -16,6 +16,7 @@ test "$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$application
 formatting_resources="$application/Contents/Resources/Ganit_GanitFormatting.bundle"
 test -f "$formatting_resources/Info.plist"
 test -f "$formatting_resources/en.lproj/Localizable.strings"
+test -f "$formatting_resources/tr.lproj/Localizable.strings"
 test ! -e "$formatting_resources/Localizable.xcstrings"
 
 privacy_manifest="$application/Contents/Resources/PrivacyInfo.xcprivacy"

@@ -1,6 +1,8 @@
 public enum EngineValue: Hashable, Sendable {
   case number(NumericValue)
   case percentage(PercentageValue)
+  case quantity(QuantityValue)
+  case rate(RateValue)
 }
 
 public struct PercentageValue: Hashable, Sendable {
@@ -18,6 +20,10 @@ extension EngineValue {
       return .number
     case .percentage:
       return .percentage
+    case .quantity:
+      return .quantity
+    case .rate:
+      return .rate
     }
   }
 }

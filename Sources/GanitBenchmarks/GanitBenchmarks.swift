@@ -281,6 +281,10 @@ private enum GanitBenchmarks {
       return valueTag(number)
     case .percentage:
       return 5
+    case .quantity:
+      return 6
+    case .rate:
+      return 7
     }
   }
 

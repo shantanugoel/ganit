@@ -150,6 +150,71 @@ public struct UnitAlgebra: Sendable {
     )
   }
 
+  public func converted(
+    _ rate: RateValue,
+    to denominator: RateDenominator
+  ) throws -> RateValue {
+    guard rate.denominator.dimension == denominator.dimension else {
+      throw EngineError(
+        code: .incompatibleDimensions,
+        context: .dimensionMismatch(
+          expected: denominator.dimension,
+          actual: rate.denominator.dimension
+        )
+      )
+    }
+    let factor: NumericValue
+    switch (rate.denominator, denominator) {
+    case (.unit(let source), .unit(let target)):
+      let sourceScale = try requireRatio(source).scaleToCanonical
+      let targetScale = try requireRatio(target).scaleToCanonical
+      factor = try operations.applying(
+        .divide,
+        left: targetScale,
+        right: sourceScale
+      )
+    case (.calendar(let source), .calendar(let target)):
+      factor = try operations.applying(
+        .divide,
+        left: .integer(IntegerValue(target.months)),
+        right: .integer(IntegerValue(source.months))
+      )
+    default:
+      throw EngineError(code: .incompatibleRatePeriods)
+    }
+    return try RateValue(
+      amount: try scaling(rate.amount, by: factor),
+      denominator: denominator
+    )
+  }
+
+  public func applying(
+    _ rate: RateValue,
+    to denominatorQuantity: QuantityValue
+  ) throws -> RateAmount {
+    guard denominatorQuantity.kind == .relative else {
+      throw EngineError(code: .invalidAbsoluteQuantityOperation)
+    }
+    guard case .unit(let denominator) = rate.denominator else {
+      throw EngineError(code: .incompatibleRatePeriods)
+    }
+    let convertedDenominator = try converted(
+      denominatorQuantity,
+      to: denominator
+    )
+    return try scaling(rate.amount, by: convertedDenominator.magnitude)
+  }
+
+  public func applying(
+    _ rate: RateValue,
+    toPeriodCount count: NumericValue
+  ) throws -> RateAmount {
+    guard case .calendar = rate.denominator else {
+      throw EngineError(code: .incompatibleRatePeriods)
+    }
+    return try scaling(rate.amount, by: count)
+  }
+
   public func adding(
     _ left: QuantityValue,
     _ right: QuantityValue
@@ -295,6 +360,28 @@ public struct UnitAlgebra: Sendable {
       throw EngineError(code: .affineUnitInCompound)
     }
     return ratio
+  }
+
+  private func scaling(
+    _ amount: RateAmount,
+    by factor: NumericValue
+  ) throws -> RateAmount {
+    switch amount {
+    case .number(let number):
+      return .number(
+        try operations.applying(.multiply, left: number, right: factor)
+      )
+    case .percentage(let percentage):
+      return .percentage(
+        PercentageValue(
+          points: try operations.applying(
+            .multiply,
+            left: percentage.points,
+            right: factor
+          )
+        )
+      )
+    }
   }
 
   private func merge(

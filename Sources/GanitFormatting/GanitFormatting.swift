@@ -357,6 +357,7 @@ public struct ResultFormatter: Sendable {
   private let numericFormatter: NumericResultFormatter
   private let percentConvention: LocalePercentConvention
   private let limits: FormattingLimits
+  private let locale: Locale
 
   public init(
     context: EvaluationContext,
@@ -367,6 +368,7 @@ public struct ResultFormatter: Sendable {
       localeIdentifier: context.localeIdentifier
     )
     self.limits = limits
+    locale = Locale(identifier: context.localeIdentifier)
   }
 
   public func format(_ value: EngineValue) throws -> FormattedResult {
@@ -392,7 +394,104 @@ public struct ResultFormatter: Sendable {
         fullPrecision: fullPrecision,
         isApproximate: points.isApproximate
       )
+    case .quantity(let quantity):
+      return try appendUnit(
+        try numericFormatter.format(quantity.magnitude),
+        symbol: quantity.unit.symbol
+      )
+    case .rate(let rate):
+      let amount = try format(rate.amount)
+      let displayDenominator = denominatorDisplay(rate.denominator)
+      let canonicalDenominator = parenthesizedIfCompound(
+        rate.denominator.symbol
+      )
+      return try appendSuffixes(
+        amount,
+        display: "/\(displayDenominator)",
+        fullPrecision: "/\(canonicalDenominator)"
+      )
     }
+  }
+
+  private func format(_ amount: RateAmount) throws -> FormattedResult {
+    switch amount {
+    case .number(let number):
+      return try numericFormatter.format(number)
+    case .percentage(let percentage):
+      return try format(EngineValue.percentage(percentage))
+    }
+  }
+
+  private func appendUnit(
+    _ result: FormattedResult,
+    symbol: String
+  ) throws -> FormattedResult {
+    try appendSuffix(result, suffix: " \(symbol)")
+  }
+
+  private func appendSuffix(
+    _ result: FormattedResult,
+    suffix: String
+  ) throws -> FormattedResult {
+    try appendSuffixes(result, display: suffix, fullPrecision: suffix)
+  }
+
+  private func appendSuffixes(
+    _ result: FormattedResult,
+    display displaySuffix: String,
+    fullPrecision fullPrecisionSuffix: String
+  ) throws -> FormattedResult {
+    let display = result.display + displaySuffix
+    let fullPrecision = result.fullPrecision + fullPrecisionSuffix
+    guard
+      display.count <= limits.maximumCharacters,
+      fullPrecision.count <= limits.maximumCharacters
+    else {
+      throw FormattingError.outputTooLong
+    }
+    return FormattedResult(
+      display: display,
+      fullPrecision: fullPrecision,
+      isApproximate: result.isApproximate
+    )
+  }
+
+  private func denominatorDisplay(_ denominator: RateDenominator) -> String {
+    switch denominator {
+    case .unit(let unit):
+      return parenthesizedIfCompound(unit.symbol)
+    case .calendar(.month):
+      return localizedRatePeriod("rate.period.month", fallback: "month")
+    case .calendar(.quarter):
+      return localizedRatePeriod("rate.period.quarter", fallback: "quarter")
+    case .calendar(.year):
+      return localizedRatePeriod("rate.period.year", fallback: "year")
+    }
+  }
+
+  private func parenthesizedIfCompound(_ symbol: String) -> String {
+    symbol.contains("/") || symbol.contains("·") ? "(\(symbol))" : symbol
+  }
+
+  private func localizedRatePeriod(
+    _ key: String,
+    fallback: String
+  ) -> String {
+    guard
+      let language = locale.language.languageCode?.identifier,
+      let path = Bundle.module.path(
+        forResource: language,
+        ofType: "lproj"
+      ),
+      let localizedBundle = Bundle(path: path)
+    else {
+      return fallback
+    }
+    return localizedBundle.localizedString(
+      forKey: key,
+      value: fallback,
+      table: nil
+    )
   }
 }
 
@@ -617,6 +716,11 @@ public struct DiagnosticFormatter: Sendable {
       return localized(
         "error.evaluation.invalidAbsoluteQuantityOperation",
         defaultValue: "Absolute quantities cannot be used in this arithmetic operation."
+      )
+    case .incompatibleRatePeriods:
+      return localized(
+        "error.evaluation.incompatibleRatePeriods",
+        defaultValue: "Calendar rate periods cannot be converted to fixed unit periods."
       )
     case .resourceLimitExceeded:
       return resourceLimitMessage(for: error.context)

@@ -1,6 +1,24 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "rate.period.month" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "month" } },
+        "tr" : { "stringUnit" : { "state" : "translated", "value" : "ay" } }
+      }
+    },
+    "rate.period.quarter" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "quarter" } },
+        "tr" : { "stringUnit" : { "state" : "translated", "value" : "çeyrek" } }
+      }
+    },
+    "rate.period.year" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "year" } },
+        "tr" : { "stringUnit" : { "state" : "translated", "value" : "yıl" } }
+      }
+    },
     "error.evaluation.approximationOutOfRange" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "This value cannot be approximated safely." } }
@@ -104,6 +122,11 @@
     "error.evaluation.invalidAbsoluteQuantityOperation" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Absolute quantities cannot be used in this arithmetic operation." } }
+      }
+    },
+    "error.evaluation.incompatibleRatePeriods" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Calendar rate periods cannot be converted to fixed unit periods." } }
       }
     },
     "error.evaluation.resourceLimit.dimensionExponent" : {

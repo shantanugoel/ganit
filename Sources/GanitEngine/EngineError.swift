@@ -19,6 +19,7 @@ public enum EngineErrorCode: String, Hashable, Sendable {
   case affineUnitInCompound = "evaluation.affineUnitInCompound"
   case invalidAbsoluteQuantityOperation =
     "evaluation.invalidAbsoluteQuantityOperation"
+  case incompatibleRatePeriods = "evaluation.incompatibleRatePeriods"
   case resourceLimitExceeded = "evaluation.resourceLimitExceeded"
   case approximationOutOfRange = "evaluation.approximationOutOfRange"
   case internalFailure = "evaluation.internalFailure"
@@ -68,6 +69,8 @@ public enum EngineErrorContext: Hashable, Sendable {
 public enum EngineValueKind: String, Hashable, Sendable {
   case number
   case percentage
+  case quantity
+  case rate
 }
 
 public enum EvaluationContextField: String, Hashable, Sendable {

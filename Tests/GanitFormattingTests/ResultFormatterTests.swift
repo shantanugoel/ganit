@@ -52,6 +52,102 @@ struct ResultFormatterTests {
   }
 
   @Test
+  func formatsDimensionedRatesWithoutFlatteningTheirAmounts() throws {
+    let evaluationContext = try context()
+    let catalog = try UnitCatalog.minimal()
+    let algebra = UnitAlgebra(context: evaluationContext)
+    let secondDefinition = try #require(
+      catalog.unit(matching: "s")?.definition
+    )
+    let meterDefinition = try #require(
+      catalog.unit(matching: "m")?.definition
+    )
+    let byteDefinition = try #require(
+      catalog.unit(matching: "B")?.definition
+    )
+    let mega = try #require(catalog.prefix(matching: "M")?.prefix)
+    let second = try algebra.unit(secondDefinition)
+    let meter = try algebra.unit(meterDefinition)
+    let megabyte = try algebra.unit(
+      algebra.applying(mega, to: byteDefinition)
+    )
+    let dataRate = try algebra.divided(megabyte, by: second)
+    let formatter = ResultFormatter(context: evaluationContext)
+
+    let annualPercentage = try formatter.format(
+      .rate(
+        try RateValue(
+          amount: .percentage(
+            PercentageValue(
+              points: .decimal(
+                try DecimalValue(
+                  coefficient: IntegerValue(65),
+                  scale: 1
+                )
+              )
+            )
+          ),
+          denominator: .calendar(.year)
+        )
+      )
+    )
+    let throughput = try formatter.format(
+      .quantity(
+        QuantityValue(
+          magnitude: .integer(IntegerValue(75)),
+          unit: dataRate
+        )
+      )
+    )
+    let inverseSpeed = try formatter.format(
+      .rate(
+        try RateValue(
+          amount: .number(.integer(IntegerValue(2))),
+          denominator: .unit(try algebra.divided(meter, by: second))
+        )
+      )
+    )
+    let inverseProduct = try formatter.format(
+      .rate(
+        try RateValue(
+          amount: .number(.integer(IntegerValue(2))),
+          denominator: .unit(try algebra.multiplied(meter, by: second))
+        )
+      )
+    )
+    let turkishAnnual = try ResultFormatter(
+      context: try context(localeIdentifier: "tr-TR")
+    ).format(
+      .rate(
+        try RateValue(
+          amount: .percentage(
+            PercentageValue(
+              points: .decimal(
+                try DecimalValue(
+                  coefficient: IntegerValue(65),
+                  scale: 1
+                )
+              )
+            )
+          ),
+          denominator: .calendar(.year)
+        )
+      )
+    )
+
+    #expect(annualPercentage.display == "6.5%/year")
+    #expect(annualPercentage.fullPrecision == "6.5%/year")
+    #expect(throughput.display == "75 MB/s")
+    #expect(throughput.fullPrecision == "75 MB/s")
+    #expect(inverseSpeed.display == "2/(m/s)")
+    #expect(inverseSpeed.fullPrecision == "2/(m/s)")
+    #expect(inverseProduct.display == "2/(m·s)")
+    #expect(inverseProduct.fullPrecision == "2/(m·s)")
+    #expect(turkishAnnual.display == "%6,5/yıl")
+    #expect(turkishAnnual.fullPrecision == "6.5%/year")
+  }
+
+  @Test
   func formatsIntegersWithWesternAndIndianGrouping() throws {
     let value = NumericValue.integer(try IntegerValue("1234567"))
     let western = try NumericResultFormatter(context: context()).format(value)
