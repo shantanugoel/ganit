@@ -130,7 +130,9 @@ final class SidebarViewController: NSViewController {
     )
     items = [library, folderItems]
     collectionsView.reloadData()
-    items.forEach { collectionsView.expandItem($0) }
+    for item in items {
+      collectionsView.expandItem(item)
+    }
     fitCollections()
     if !folders.contains(where: { .folder($0.id) == collection }), case .folder = collection {
       collection = .all
