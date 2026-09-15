@@ -47,6 +47,38 @@ struct SheetStoreTests {
     #expect(keys == keys.sorted())
   }
 
+  /// A sheet saved before sheets could say how to write their answers names no
+  /// display, and opens with the standard one.
+  @Test
+  func opensASheetSavedBeforeItCouldSayHowToWriteAnswers() throws {
+    let store = SheetStore(root: root)
+    let metadata = makeMetadata()
+    try store.save(source: "1234.5", metadata: metadata)
+    let metadataURL = root.appending(path: "Metadata/\(metadata.id.uuidString).json")
+    let json = try String(contentsOf: metadataURL, encoding: .utf8)
+    let withoutDisplay = try #require(
+      try? JSONSerialization.data(
+        withJSONObject: strippingDisplay(from: json),
+        options: [.sortedKeys]
+      )
+    )
+    try withoutDisplay.write(to: metadataURL)
+
+    let loaded = try store.load(id: metadata.id)
+    #expect(loaded.metadata.preferences.display == .standard)
+    #expect(loaded.metadata.preferences == metadata.preferences)
+  }
+
+  private func strippingDisplay(from json: String) throws -> [String: Any] {
+    var object = try #require(
+      try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any]
+    )
+    var preferences = try #require(object["preferences"] as? [String: Any])
+    #expect(preferences.removeValue(forKey: "display") != nil)
+    object["preferences"] = preferences
+    return object
+  }
+
   @Test
   func detectsSourceThatNoLongerMatchesMetadata() throws {
     let store = SheetStore(root: root)

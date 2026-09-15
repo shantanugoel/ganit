@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
 import GanitEngine
+import GanitFormatting
 
 /// Where a sheet is in its lifecycle.
 public enum SheetState: String, Codable, Sendable {
@@ -23,11 +24,29 @@ public struct SheetPreferences: Codable, Equatable, Sendable {
   public var localeIdentifier: String
   public var angleMode: AngleMode
   public var significantDecimalDigits: Int
+  /// How the sheet writes its answers.
+  public var display: DisplayOptions
 
-  public init(localeIdentifier: String, angleMode: AngleMode, significantDecimalDigits: Int) {
+  public init(
+    localeIdentifier: String,
+    angleMode: AngleMode,
+    significantDecimalDigits: Int,
+    display: DisplayOptions = .standard
+  ) {
     self.localeIdentifier = localeIdentifier
     self.angleMode = angleMode
     self.significantDecimalDigits = significantDecimalDigits
+    self.display = display
+  }
+
+  /// Metadata written before a sheet could say how to write its answers names
+  /// no display, and means the standard one.
+  public init(from decoder: any Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    localeIdentifier = try container.decode(String.self, forKey: .localeIdentifier)
+    angleMode = try container.decode(AngleMode.self, forKey: .angleMode)
+    significantDecimalDigits = try container.decode(Int.self, forKey: .significantDecimalDigits)
+    display = try container.decodeIfPresent(DisplayOptions.self, forKey: .display) ?? .standard
   }
 }
 

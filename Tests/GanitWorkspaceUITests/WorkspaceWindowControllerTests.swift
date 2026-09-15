@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import GanitDocuments
+import GanitFormatting
 import Testing
 
 @testable import GanitEditorUI
@@ -269,6 +270,47 @@ struct WorkspaceWindowControllerTests {
     #expect(second !== first)
     #expect(workspace.windows.count == 2)
     #expect(second.sheetID == ids[1])
+  }
+
+  /// The Format menu writes the open sheet's answers the way it says, keeps the
+  /// choice with the sheet, and checks the format the sheet is using.
+  @Test
+  func writesAnswersTheWayTheFormatMenuSays() async throws {
+    let (workspace, ids) = try makeWorkspace(["1234.5"])
+    defer { close(workspace) }
+    let controller = workspace.openWindow(showing: ids[0])
+    let editor = try #require(controller.editor)
+    #expect(await editor.exportedLines().first?.answer == "1,234.5")
+
+    let fixed = NSMenuItem(
+      title: "",
+      action: #selector(WorkspaceCommands.setNumberFormat(_:)),
+      keyEquivalent: ""
+    )
+    fixed.tag = NumberFormatMenu.tag(of: .fixedDecimals(2))
+    controller.setNumberFormat(fixed)
+    #expect(await editor.exportedLines().first?.answer == "1,234.50")
+    #expect(controller.validateMenuItem(fixed))
+    #expect(fixed.state == .on)
+
+    let automatic = NSMenuItem(
+      title: "",
+      action: #selector(WorkspaceCommands.setNumberFormat(_:)),
+      keyEquivalent: ""
+    )
+    automatic.tag = NumberFormatMenu.tag(of: .automatic)
+    #expect(controller.validateMenuItem(automatic))
+    #expect(automatic.state == .off)
+
+    controller.toggleDigitGrouping(nil)
+    #expect(await editor.exportedLines().first?.answer == "1234.50")
+
+    let stored = try workspace.library.store.load(id: ids[0]).metadata.preferences.display
+    #expect(stored == DisplayOptions(groupsDigits: false, numbers: .fixedDecimals(2)))
+    let reopened = try Workspace(library: try SheetLibrary(root: root))
+    defer { close(reopened) }
+    let sheetAgain = try #require(reopened.openWindow(showing: ids[0]).editor)
+    #expect(await sheetAgain.exportedLines().first?.answer == "1234.50")
   }
 
   private func makeWorkspace(

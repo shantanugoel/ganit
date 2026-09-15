@@ -2,6 +2,7 @@ import AppKit
 import GanitDocuments
 import GanitEditorUI
 import GanitEngine
+import GanitFormatting
 
 /// A sheet open in the app: its editor, which owns the text and undo history,
 /// and its autosaver. A sheet is shown in at most one window at a time.
@@ -166,7 +167,8 @@ public final class Workspace {
     let stored = try library.store.load(id: id)
     let editor = SheetEditorViewController(
       text: stored.source,
-      context: try stored.metadata.preferences.evaluationContext(currencyRates: currencyRates)
+      context: try stored.metadata.preferences.evaluationContext(currencyRates: currencyRates),
+      display: stored.metadata.preferences.display
     )
     editor.setDefinitions(definitions)
     editor.textView.isEditable = stored.metadata.state != .trashed
@@ -181,6 +183,13 @@ public final class Workspace {
     let sheet = OpenSheet(editor: editor, autosaver: autosaver)
     sheets[id] = sheet
     return sheet
+  }
+
+  /// Changes how a sheet writes its answers, keeping the choice with the sheet
+  /// and rewriting what is on screen.
+  func write(_ options: DisplayOptions, on id: UUID) throws {
+    didChange(try library.update(id) { $0.preferences.display = options })
+    sheets[id]?.editor.writeAnswers(options)
   }
 
   /// Changes a sheet's metadata as one undoable action. Undo returns the

@@ -66,7 +66,7 @@ let package = Package(
     ),
     .target(
       name: "GanitDocuments",
-      dependencies: ["GanitData", "GanitEngine"]
+      dependencies: ["GanitData", "GanitEngine", "GanitFormatting"]
     ),
     .target(name: "GanitData"),
     .target(

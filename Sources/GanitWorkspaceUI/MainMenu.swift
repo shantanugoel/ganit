@@ -44,6 +44,8 @@ import GanitEditorUI
   func deleteFolder(_ sender: Any?)
   func searchSheets(_ sender: Any?)
   func restorePreviousVersion(_ sender: Any?)
+  func setNumberFormat(_ sender: Any?)
+  func toggleDigitGrouping(_ sender: Any?)
 }
 
 /// The standard main menu. It lists only commands that exist, with
@@ -290,6 +292,11 @@ public enum MainMenu {
           item(
             localized("menu.comment", "Comment"), #selector(SheetCommands.toggleComment(_:)), "/"),
           item(localized("menu.divider", "Divider"), #selector(SheetCommands.insertDivider(_:))),
+          .separator(),
+          submenuItem(localized("menu.numberFormat", "Number Format"), numberFormatItems()),
+          item(
+            localized("menu.groupDigits", "Group Digits"),
+            #selector(WorkspaceCommands.toggleDigitGrouping(_:))),
         ]
       ),
       menu(

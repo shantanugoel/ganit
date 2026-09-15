@@ -451,6 +451,16 @@
         }
       }
     },
+    "menu.automaticFormat" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic"
+          }
+        }
+      }
+    },
     "menu.biggerText" : {
       "localizations" : {
         "en" : {
@@ -711,12 +721,32 @@
         }
       }
     },
+    "menu.fixedDecimals" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d Decimals"
+          }
+        }
+      }
+    },
     "menu.format" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Format"
+          }
+        }
+      }
+    },
+    "menu.groupDigits" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Group Digits"
           }
         }
       }
@@ -867,6 +897,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "No Folder"
+          }
+        }
+      }
+    },
+    "menu.numberFormat" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Number Format"
           }
         }
       }
@@ -1031,6 +1071,16 @@
         }
       }
     },
+    "menu.scientific" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scientific"
+          }
+        }
+      }
+    },
     "menu.searchSheets" : {
       "localizations" : {
         "en" : {
@@ -1177,6 +1227,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "View"
+          }
+        }
+      }
+    },
+    "menu.wholeNumbers" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Whole Numbers"
           }
         }
       }

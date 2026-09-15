@@ -50,7 +50,7 @@ public final class SheetEditorViewController: NSViewController {
   private let sheetTextView = SheetTextView(usingTextLayoutManager: true)
   private let storageObserver = StorageObserver()
   private(set) var scheduler: SheetEvaluationScheduler?
-  private let resultFormatter: ResultFormatter
+  private var resultFormatter: ResultFormatter
   private let diagnosticFormatter: DiagnosticFormatter
   /// Answer cells by line, reused while the line's result and editing state
   /// are unchanged. Cells are computed when lines are drawn.
@@ -72,10 +72,17 @@ public final class SheetEditorViewController: NSViewController {
   private var mirroredText: String
   /// What this sheet last defined, for reporting only real changes.
   private var shownDefinitions = SheetDefinitions.none
+  /// How this sheet writes its answers.
+  public private(set) var displayOptions: DisplayOptions
 
-  public init(text: String = "", context: EvaluationContext) {
+  public init(
+    text: String = "",
+    context: EvaluationContext,
+    display: DisplayOptions = .standard
+  ) {
     self.context = context
-    resultFormatter = ResultFormatter(context: context)
+    displayOptions = display
+    resultFormatter = ResultFormatter(context: context, display: display)
     diagnosticFormatter = DiagnosticFormatter(context: context)
     sheet = SheetSource(text)
     mirroredText = text
@@ -364,6 +371,19 @@ public final class SheetEditorViewController: NSViewController {
       return ExportedLine(
         source: line.text, answer: cell?.text, isFailure: cell?.isFailure ?? false)
     }
+  }
+
+  /// Writes every answer again the way `options` asks. Nothing is evaluated
+  /// again, because how an answer reads is not what it is.
+  public func writeAnswers(_ options: DisplayOptions) {
+    guard options != displayOptions else {
+      return
+    }
+    displayOptions = options
+    resultFormatter = ResultFormatter(context: context, display: options)
+    cells.removeAll()
+    sheetTextView.answersDidChange()
+    summarizeSelection()
   }
 
   private func answerCell(for id: LineID) -> AnswerCell? {

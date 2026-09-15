@@ -35,6 +35,29 @@ notation so a finite nonzero estimate is not displayed as zero. The
 full-precision form uses Swift's locale-neutral, round-trippable `Double`
 representation and remains marked approximate.
 
+## How a sheet asks for its answers
+
+`DisplayOptions` carries what a sheet says about writing answers, and travels
+with the sheet in `SheetPreferences.display`. It says two things:
+
+- `groupsDigits` groups digits the way the locale groups them, `1,234,567`, or
+  leaves them alone, `1234567`.
+- `numbers` is one of `automatic`, the decimals the value needs;
+  `fixedDecimals(n)`, always `n` of them, clamped to
+  `NumberDisplay.decimalLimit`; or `scientific`, a power of ten such as
+  `1.2e6`, which the grammar reads back.
+
+A fixed count rounds the value itself, so `2/3` at two decimals is `0.67`
+rounded from the fraction rather than from a decimal already rounded to the
+context's significant digits. `fullPrecision` is unchanged by any of this: how
+an answer reads is not what it is, and copying still yields `2/3`.
+
+Money is written the way its currency is written, so a sheet's decimals and
+powers of ten leave it alone; its digits still group with the rest. The Format
+menu offers automatic, whole numbers, two and four decimals, scientific, and
+Group Digits, and a change rewrites the answers already on screen without
+evaluating anything again.
+
 Formatting is bounded by `FormattingLimits`. The formatter preflights
 arbitrary-scale zero padding and grouping growth before allocation and throws
 `FormattingError.outputTooLong` when either output would exceed the configured

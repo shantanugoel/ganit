@@ -72,13 +72,16 @@ public struct NumericResultFormatter: Sendable {
   private let context: EvaluationContext
   private let limits: FormattingLimits
   private let convention: LocaleNumberConvention
+  private let display: DisplayOptions
 
   public init(
     context: EvaluationContext,
-    limits: FormattingLimits = .default
+    limits: FormattingLimits = .default,
+    display: DisplayOptions = .standard
   ) {
     self.context = context
     self.limits = limits
+    self.display = display
     convention = LocaleNumberConvention(
       localeIdentifier: context.localeIdentifier
     )
@@ -89,7 +92,7 @@ public struct NumericResultFormatter: Sendable {
     case .integer(let integer):
       let canonical = try canonicalInteger(integer)
       return try exactResult(
-        display: try localizeInteger(canonical),
+        display: try written(value, asDecimal: canonical),
         fullPrecision: canonical
       )
 
@@ -110,14 +113,14 @@ public struct NumericResultFormatter: Sendable {
         throw FormattingError.internalFailure
       }
       return try exactResult(
-        display: try localizeDecimal(try canonicalDecimal(rounded)),
+        display: try written(value, asDecimal: try canonicalDecimal(rounded)),
         fullPrecision: canonical
       )
 
     case .decimal(let decimal):
       let canonical = try canonicalDecimal(decimal)
       return try exactResult(
-        display: try localizeDecimal(canonical),
+        display: try written(value, asDecimal: canonical),
         fullPrecision: canonical
       )
 
@@ -199,11 +202,59 @@ public struct NumericResultFormatter: Sendable {
     return result
   }
 
-  private func localizeInteger(_ canonical: String) throws -> String {
+  /// An exact value as this sheet writes it, from the digits it would write
+  /// without being asked. Rounding to a fixed number of decimals runs on the
+  /// value rather than on these digits, so a fraction rounds from the fraction.
+  private func written(
+    _ value: NumericValue,
+    asDecimal canonical: String
+  ) throws -> String {
+    switch display.numbers {
+    case .automatic:
+      return try localizeDecimal(canonical)
+    case .fixedDecimals(let places):
+      let (rounded, _) = try value.rounded(
+        fractionDigits: min(max(places, 0), NumberDisplay.decimalLimit)
+      )
+      return try localizeDecimal(try canonicalDecimal(rounded))
+    case .scientific:
+      return try scientific(canonical)
+    }
+  }
+
+  /// `1234.5` as `1.2345e3`: the significant digits, a point where the locale
+  /// puts one, and the power of ten that puts them back. Zero is written `0`,
+  /// as no power of ten says more about it.
+  private func scientific(_ canonical: String) throws -> String {
     let isNegative = canonical.first == "-"
-    let magnitude = isNegative ? String(canonical.dropFirst()) : canonical
-    let grouped = try group(magnitude)
-    return (isNegative ? localeMinusSign : "") + localizeDigits(grouped)
+    let unsigned = isNegative ? String(canonical.dropFirst()) : canonical
+    let parts = unsigned.split(
+      separator: ".",
+      maxSplits: 1,
+      omittingEmptySubsequences: false
+    )
+    let whole = String(parts[0])
+    let digits = whole + (parts.count == 2 ? String(parts[1]) : "")
+    guard let first = digits.firstIndex(where: { $0 != "0" }) else {
+      return localizeDigits("0")
+    }
+
+    let exponent = whole.count - digits.distance(from: digits.startIndex, to: first) - 1
+    var mantissa = String(digits[first...])
+    while mantissa.count > 1, mantissa.hasSuffix("0") {
+      mantissa.removeLast()
+    }
+
+    var result = isNegative ? localeMinusSign : ""
+    result += localizeDigits(String(mantissa.removeFirst()))
+    if !mantissa.isEmpty {
+      result += localeDecimalSeparator + localizeDigits(mantissa)
+    }
+    result += "e"
+    result += exponent < 0 ? localeMinusSign : ""
+    result += localizeDigits(String(abs(exponent)))
+    try validateLength(result.count)
+    return result
   }
 
   func localizeDecimal(_ canonical: String) throws -> String {
@@ -226,6 +277,7 @@ public struct NumericResultFormatter: Sendable {
 
   private func group(_ digits: String) throws -> String {
     guard
+      display.groupsDigits,
       let separator = localeGroupingSeparator,
       localePrimaryGroupingSize > 0,
       digits.count
@@ -368,12 +420,19 @@ public struct ResultFormatter: Sendable {
   private let percentConvention: LocalePercentConvention
   private let limits: FormattingLimits
   private let locale: Locale
+  private let display: DisplayOptions
 
   public init(
     context: EvaluationContext,
-    limits: FormattingLimits = .default
+    limits: FormattingLimits = .default,
+    display: DisplayOptions = .standard
   ) {
-    numericFormatter = NumericResultFormatter(context: context, limits: limits)
+    self.display = display
+    numericFormatter = NumericResultFormatter(
+      context: context,
+      limits: limits,
+      display: display
+    )
     percentConvention = LocalePercentConvention(
       localeIdentifier: context.localeIdentifier
     )
@@ -533,6 +592,8 @@ public struct ResultFormatter: Sendable {
     formatter.currencyCode = money.currency
     formatter.minimumFractionDigits = digits
     formatter.maximumFractionDigits = digits
+    // The currency writes the decimals; the sheet still says how digits group.
+    formatter.usesGroupingSeparator = display.groupsDigits
     guard
       plain.count <= Self.currencyDigitCapacity,
       let value = Decimal(string: plain),

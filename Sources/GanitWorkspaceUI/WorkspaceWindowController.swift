@@ -1,6 +1,7 @@
 import AppKit
 import GanitDocuments
 import GanitEditorUI
+import GanitFormatting
 import UniformTypeIdentifiers
 
 /// A library window: the sidebar of collections and sheets beside the open
@@ -473,9 +474,46 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     window?.invalidateRestorableState()
   }
 
+  // MARK: How Answers Are Written
+
+  /// How the open sheet writes its answers.
+  private var displayOptions: DisplayOptions? {
+    sheet?.autosaver.metadata.preferences.display
+  }
+
+  @objc public func setNumberFormat(_ sender: Any?) {
+    guard let tag = (sender as? NSMenuItem)?.tag, var options = displayOptions else {
+      return
+    }
+    options.numbers = NumberFormatMenu.display(forTag: tag)
+    write(options)
+  }
+
+  @objc public func toggleDigitGrouping(_ sender: Any?) {
+    guard var options = displayOptions else {
+      return
+    }
+    options.groupsDigits.toggle()
+    write(options)
+  }
+
+  private func write(_ options: DisplayOptions) {
+    guard let id = sheetID else {
+      return
+    }
+    perform { try workspace.write(options, on: id) }
+  }
+
   public func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
     let target = sidebar.targetSheet
     switch menuItem.action {
+    case #selector(setNumberFormat(_:)):
+      menuItem.state =
+        displayOptions?.numbers == NumberFormatMenu.display(forTag: menuItem.tag) ? .on : .off
+      return displayOptions != nil
+    case #selector(toggleDigitGrouping(_:)):
+      menuItem.state = displayOptions?.groupsDigits == true ? .on : .off
+      return displayOptions != nil
     case #selector(renameSheet(_:)), #selector(duplicateSheet(_:)),
       #selector(moveSheetToFolder(_:)), #selector(archiveSheet(_:)), #selector(openInNewWindow(_:)):
       return target?.state == .active
