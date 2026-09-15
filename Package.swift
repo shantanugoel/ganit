@@ -144,7 +144,7 @@ let package = Package(
     ),
     .testTarget(
       name: "GanitWorkspaceUITests",
-      dependencies: ["GanitDocuments", "GanitWorkspaceUI"]
+      dependencies: ["GanitDocuments", "GanitEngine", "GanitQuickUI", "GanitWorkspaceUI"]
     ),
   ],
   swiftLanguageModes: [.v6]

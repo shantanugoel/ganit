@@ -200,6 +200,23 @@ final class SidebarViewController: NSViewController {
 }
 
 extension SidebarViewController: NSMenuDelegate {
+  /// Move to Folder choices for a sheet, with its current folder checked.
+  func folderItems(for sheet: SheetSummary) -> [NSMenuItem] {
+    let none = NSMenuItem(
+      title: localized("menu.noFolder", "No Folder"),
+      action: #selector(WorkspaceCommands.moveSheetToFolder(_:)), keyEquivalent: "")
+    none.state = sheet.folderID == nil ? .on : .off
+    return [none]
+      + folders.map { folder in
+        let item = NSMenuItem(
+          title: folder.name, action: #selector(WorkspaceCommands.moveSheetToFolder(_:)),
+          keyEquivalent: "")
+        item.representedObject = folder.id
+        item.state = sheet.folderID == folder.id ? .on : .off
+        return item
+      }
+  }
+
   func menuNeedsUpdate(_ menu: NSMenu) {
     menu.removeAllItems()
     func add(_ title: String, _ action: Selector, _ represented: Any? = nil) {
@@ -240,21 +257,7 @@ extension SidebarViewController: NSMenuDelegate {
       let move = NSMenuItem(
         title: localized("menu.moveToFolder", "Move to Folder"), action: nil, keyEquivalent: "")
       move.submenu = NSMenu()
-      let none = move.submenu!.addItem(
-        withTitle: localized("menu.noFolder", "No Folder"),
-        action: #selector(WorkspaceCommands.moveSheetToFolder(_:)),
-        keyEquivalent: ""
-      )
-      none.state = sheet.folderID == nil ? .on : .off
-      for folder in folders {
-        let item = move.submenu!.addItem(
-          withTitle: folder.name,
-          action: #selector(WorkspaceCommands.moveSheetToFolder(_:)),
-          keyEquivalent: ""
-        )
-        item.representedObject = folder.id
-        item.state = sheet.folderID == folder.id ? .on : .off
-      }
+      move.submenu!.items = folderItems(for: sheet)
       menu.addItem(move)
       menu.addItem(.separator())
       add(localized("menu.archiveSheet", "Archive"), #selector(WorkspaceCommands.archiveSheet(_:)))

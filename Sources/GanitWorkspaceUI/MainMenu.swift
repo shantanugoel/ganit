@@ -113,6 +113,12 @@ public enum MainMenu {
             [.command, .shift]
           ),
           item(
+            localized("menu.renameFolder", "Rename Folder…"),
+            #selector(WorkspaceCommands.renameFolder(_:))),
+          item(
+            localized("menu.deleteFolder", "Delete Folder"),
+            #selector(WorkspaceCommands.deleteFolder(_:))),
+          item(
             localized("menu.keepAsSheet", "Keep as Sheet"),
             #selector(QuickGanitCommands.keepAsSheet(_:)), "s"),
           item(
@@ -142,6 +148,7 @@ public enum MainMenu {
           item(
             localized("menu.addFavorite", "Add to Favorites"),
             #selector(WorkspaceCommands.toggleFavorite(_:))),
+          moveToFolderItem(),
           item(
             localized("menu.archiveSheet", "Archive"), #selector(WorkspaceCommands.archiveSheet(_:))
           ),
@@ -269,6 +276,12 @@ public enum MainMenu {
             "0"),
           .separator(),
           item(
+            localized("menu.showSidebar", "Show Sidebar"),
+            #selector(NSSplitViewController.toggleSidebar(_:)),
+            "s",
+            [.command, .control]
+          ),
+          item(
             localized("menu.enterFullScreen", "Enter Full Screen"),
             #selector(NSWindow.toggleFullScreen(_:)),
             "f",
@@ -322,5 +335,35 @@ public enum MainMenu {
     let item = item(title, #selector(NSResponder.performTextFinderAction(_:)), key, modifiers)
     item.tag = action.rawValue
     return item
+  }
+}
+
+extension MainMenu {
+  /// Move to Folder, listing the frontmost workspace window's folders when the
+  /// menu opens, so the command does not need the sidebar's context menu.
+  fileprivate static func moveToFolderItem() -> NSMenuItem {
+    let item = NSMenuItem(
+      title: localized("menu.moveToFolder", "Move to Folder"), action: nil, keyEquivalent: "")
+    item.submenu = NSMenu(title: item.title)
+    item.submenu?.delegate = FolderMenuDelegate.shared
+    return item
+  }
+}
+
+@MainActor
+private final class FolderMenuDelegate: NSObject, NSMenuDelegate {
+  static let shared = FolderMenuDelegate()
+
+  func menuNeedsUpdate(_ menu: NSMenu) {
+    // The frontmost workspace window, which handles the command when key.
+    let controller =
+      NSApplication.shared.orderedWindows.lazy.compactMap {
+        $0.windowController as? WorkspaceWindowController
+      }.first
+    guard let sidebar = controller?.sidebar, let sheet = sidebar.targetSheet else {
+      menu.items = []
+      return
+    }
+    menu.items = sidebar.folderItems(for: sheet)
   }
 }

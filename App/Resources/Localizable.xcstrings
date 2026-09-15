@@ -921,6 +921,16 @@
         }
       }
     },
+    "menu.showSidebar" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Sidebar"
+          }
+        }
+      }
+    },
     "menu.smallerText" : {
       "localizations" : {
         "en" : {
