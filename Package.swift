@@ -57,6 +57,7 @@ let package = Package(
     .target(
       name: "GanitQuickUI",
       dependencies: [
+        "GanitDocuments",
         "GanitEditorUI",
         "GanitEngine",
       ]

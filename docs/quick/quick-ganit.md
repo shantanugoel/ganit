@@ -32,6 +32,16 @@ Window ▸ Quick Ganit always opens the panel.
   library sheet, opens it in a workspace window, and activates Ganit. The
   buffer is then emptied and the panel hides.
 
+## Keeping the buffer
+
+By default Quick Ganit keeps its text: hiding the panel, the panel losing focus,
+or quitting Ganit stores the buffer in `QuickBuffer.txt` beside the library,
+replaced atomically, and a new launch restores it. The buffer is never added to
+the library, backups, index, or search; clearing it removes the file.
+
+Window ▸ Quick Ganit Starts Empty turns this off: the stored text is deleted,
+nothing is stored afterward, and each time the panel opens it starts empty.
+
 ## Activation and the Dock
 
 Showing, using, copying from, or dismissing Quick Ganit does not activate

@@ -1,4 +1,5 @@
 import AppKit
+import GanitDocuments
 import GanitEditorUI
 import GanitEngine
 
@@ -14,9 +15,28 @@ public final class QuickPanelController: NSWindowController, NSWindowDelegate {
   public let editor: SheetEditorViewController
   /// Keeps the buffer as a new sheet; the app provides it.
   public var promote: (String) throws -> Void = { _ in }
+  /// When true, the stored text is cleared and each showing starts empty.
+  public var startsEmpty: Bool {
+    didSet {
+      if startsEmpty {
+        try? store?.clear()
+      }
+    }
+  }
+  private let store: QuickBufferStore?
 
-  public init(context: EvaluationContext) {
-    editor = SheetEditorViewController(context: context)
+  /// Restores and keeps the buffer in `store` unless `startsEmpty` is true.
+  public init(context: EvaluationContext, store: QuickBufferStore? = nil, startsEmpty: Bool = false)
+  {
+    self.store = store
+    self.startsEmpty = startsEmpty
+    if startsEmpty {
+      try? store?.clear()
+    }
+    editor = SheetEditorViewController(
+      text: startsEmpty ? "" : store?.load() ?? "",
+      context: context
+    )
     let panel = QuickPanel(
       contentRect: NSRect(x: 0, y: 0, width: 520, height: 220),
       styleMask: [.titled, .closable, .resizable, .nonactivatingPanel, .fullSizeContentView],
@@ -38,6 +58,13 @@ public final class QuickPanelController: NSWindowController, NSWindowDelegate {
     super.init(window: panel)
     panel.delegate = self
     panel.commandReturn = { [weak self] in self?.copyResultAndDismiss() }
+    panel.cancel = { [weak self] in self?.hide() }
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(saveBuffer(_:)),
+      name: NSApplication.willTerminateNotification,
+      object: nil
+    )
 
     let keep = NSButton(
       title: String(localized: "quick.keepAsSheet", defaultValue: "Keep as Sheet", bundle: .main),
@@ -71,6 +98,12 @@ public final class QuickPanelController: NSWindowController, NSWindowDelegate {
     guard let panel = window else {
       return
     }
+    if startsEmpty, !panel.isVisible, !editor.textView.string.isEmpty {
+      editor.textView.insertText(
+        "",
+        replacementRange: NSRange(location: 0, length: (editor.textView.string as NSString).length))
+      editor.documentUndoManager.removeAllActions()
+    }
     if !panel.isVisible || !panel.isOnActiveSpace {
       let screen =
         NSScreen.screens.first { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) }
@@ -91,6 +124,19 @@ public final class QuickPanelController: NSWindowController, NSWindowDelegate {
   /// Hides the panel, keeping its text for next time.
   public func hide() {
     window?.orderOut(nil)
+    saveBuffer(nil)
+  }
+
+  public func windowDidResignKey(_ notification: Notification) {
+    saveBuffer(nil)
+  }
+
+  /// Stores the buffer for the next launch unless the panel starts empty.
+  @objc func saveBuffer(_ sender: Any?) {
+    guard !startsEmpty else {
+      return
+    }
+    try? store?.save(editor.textView.string)
   }
 
   public func toggle() {
@@ -138,6 +184,7 @@ public final class QuickPanelController: NSWindowController, NSWindowDelegate {
 /// routes Command-Return to copy-and-dismiss before the text view sees it.
 private final class QuickPanel: NSPanel {
   var commandReturn: () -> Void = {}
+  var cancel: () -> Void = {}
 
   override func performKeyEquivalent(with event: NSEvent) -> Bool {
     if event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command,
@@ -154,6 +201,6 @@ private final class QuickPanel: NSPanel {
   }
 
   override func cancelOperation(_ sender: Any?) {
-    orderOut(sender)
+    cancel()
   }
 }

@@ -1,6 +1,7 @@
 import AppKit
 import Carbon.HIToolbox
 import Foundation
+import GanitDocuments
 import GanitEngine
 import Testing
 
@@ -229,4 +230,60 @@ private func standardContext() throws -> EvaluationContext {
     calendar: Calendar(identifier: .gregorian),
     timeZone: try #require(TimeZone(identifier: "UTC"))
   )
+}
+
+@MainActor
+@Suite
+struct QuickBufferTests {
+  private let url = FileManager.default.temporaryDirectory
+    .appending(path: "GanitQuickBuffer-\(UUID().uuidString)/QuickBuffer.txt")
+
+  @Test
+  func storesTextAtomicallyAndRemovesItWhenEmpty() throws {
+    let store = QuickBufferStore(url: url)
+    #expect(store.load().isEmpty)
+    try store.save("6 * 7\r\n👍🏽")
+    #expect(store.load() == "6 * 7\r\n👍🏽")
+    try store.save("")
+    #expect(!FileManager.default.fileExists(atPath: url.path))
+  }
+
+  @Test
+  func restoresTheLastBufferInANewPanel() throws {
+    let store = QuickBufferStore(url: url)
+    let first = QuickPanelController(context: try standardContext(), store: store)
+    first.show()
+    first.editor.textView.insertText(
+      "rent = 2100", replacementRange: NSRange(location: 0, length: 0))
+    first.editor.textView.complete(nil)
+    #expect(store.load() == "rent = 2100")
+
+    let relaunched = QuickPanelController(context: try standardContext(), store: store)
+    #expect(relaunched.editor.textView.string == "rent = 2100")
+  }
+
+  @Test
+  func startingEmptyClearsStoredTextAndEachShowing() throws {
+    let store = QuickBufferStore(url: url)
+    try store.save("old")
+    let controller = QuickPanelController(
+      context: try standardContext(), store: store, startsEmpty: true)
+    #expect(controller.editor.textView.string.isEmpty)
+
+    controller.show()
+    controller.editor.textView.insertText(
+      "scratch", replacementRange: NSRange(location: 0, length: 0))
+    controller.hide()
+    #expect(store.load().isEmpty)
+    controller.show()
+    defer { controller.hide() }
+    #expect(controller.editor.textView.string.isEmpty)
+
+    controller.startsEmpty = false
+    controller.editor.textView.insertText("kept", replacementRange: NSRange(location: 0, length: 0))
+    controller.hide()
+    #expect(store.load() == "kept")
+    controller.startsEmpty = true
+    #expect(store.load().isEmpty)
+  }
 }

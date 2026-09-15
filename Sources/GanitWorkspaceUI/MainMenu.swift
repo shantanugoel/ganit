@@ -6,6 +6,7 @@ import GanitEditorUI
 @objc public protocol ApplicationCommands {
   func showQuickGanit(_ sender: Any?)
   func showQuickGanitShortcut(_ sender: Any?)
+  func toggleQuickGanitStartsEmpty(_ sender: Any?)
 }
 
 /// Actions handled by the Quick Ganit panel while it is key.
@@ -58,6 +59,10 @@ public enum MainMenu {
         item(
           localized("menu.quickGanitShortcut", "Quick Ganit Shortcut…"),
           #selector(ApplicationCommands.showQuickGanitShortcut(_:))
+        ),
+        item(
+          localized("menu.quickGanitStartsEmpty", "Quick Ganit Starts Empty"),
+          #selector(ApplicationCommands.toggleQuickGanitStartsEmpty(_:))
         ),
         .separator(),
         item(

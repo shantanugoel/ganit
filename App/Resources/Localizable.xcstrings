@@ -711,6 +711,16 @@
         }
       }
     },
+    "menu.quickGanitStartsEmpty" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quick Ganit Starts Empty"
+          }
+        }
+      }
+    },
     "menu.quit" : {
       "localizations" : {
         "en" : {

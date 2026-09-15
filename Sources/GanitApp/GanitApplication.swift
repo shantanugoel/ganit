@@ -9,11 +9,15 @@ import GanitWorkspaceUI
 
 @main
 @MainActor
-final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationCommands {
+final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationCommands,
+  NSMenuItemValidation
+{
   private static let shortcutDefaultsKey = "QuickGanitShortcut"
+  private static let startsEmptyDefaultsKey = "QuickGanitStartsEmpty"
   private static var retainedDelegate: GanitApplication?
   private var workspace: Workspace?
   private var quickPanel: QuickPanelController?
+  private var quickBufferStore: QuickBufferStore?
   private var shortcutWindow: NSWindow?
   private lazy var hotKey = GlobalHotKey { [weak self] in
     self?.toggleQuickGanit()
@@ -42,6 +46,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       ).appending(
         path: Bundle.main.bundleIdentifier ?? "com.shantanugoel.Ganit", directoryHint: .isDirectory)
       workspace = Workspace(library: try SheetLibrary(root: root))
+      quickBufferStore = QuickBufferStore(url: root.appending(path: "QuickBuffer.txt"))
     } catch {
       NSApplication.shared.presentError(error)
       NSApplication.shared.terminate(nil)
@@ -138,6 +143,24 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     shortcutWindow = window
   }
 
+  /// Chooses whether Quick Ganit restores its last text or starts empty.
+  @objc func toggleQuickGanitStartsEmpty(_ sender: Any?) {
+    let startsEmpty = !UserDefaults.standard.bool(forKey: Self.startsEmptyDefaultsKey)
+    UserDefaults.standard.set(startsEmpty, forKey: Self.startsEmptyDefaultsKey)
+    if let quickPanel {
+      quickPanel.startsEmpty = startsEmpty
+    } else if startsEmpty {
+      try? quickBufferStore?.clear()
+    }
+  }
+
+  func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+    if menuItem.action == #selector(toggleQuickGanitStartsEmpty(_:)) {
+      menuItem.state = UserDefaults.standard.bool(forKey: Self.startsEmptyDefaultsKey) ? .on : .off
+    }
+    return true
+  }
+
   private func toggleQuickGanit() {
     quickGanit()?.toggle()
   }
@@ -145,7 +168,11 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   /// The Quick Ganit panel, created on first use.
   private func quickGanit() -> QuickPanelController? {
     if quickPanel == nil {
-      quickPanel = try? QuickPanelController(context: SheetPreferences.standard.evaluationContext())
+      quickPanel = try? QuickPanelController(
+        context: SheetPreferences.standard.evaluationContext(),
+        store: quickBufferStore,
+        startsEmpty: UserDefaults.standard.bool(forKey: Self.startsEmptyDefaultsKey)
+      )
       quickPanel?.promote = { [weak self] source in
         try self?.workspace?.openNewSheet(source: source)
         NSApplication.shared.activate()

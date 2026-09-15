@@ -1005,7 +1005,7 @@ Tasks:
 - [x] Implement standard accessible floating panel and global shortcut registration/conflict UX.
 - [x] Immediate focus, multi-line answers, copy-and-dismiss and promote-to-sheet.
 - [x] Add Dock activation behavior and all-screen/Space handling.
-- [ ] Add safe optional quick-buffer persistence.
+- [x] Add safe optional quick-buffer persistence.
 - [ ] Measure resident and cold invocation paths.
 
 Exit criteria:
