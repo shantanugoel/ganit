@@ -50,3 +50,32 @@ constant values for the `GanitSystemIntegration` sources using the toolchain's
 App Intents protocol list, then `appintentsmetadataprocessor` writes
 `Contents/Resources/Metadata.appintents`. `Scripts/verify-app.sh` fails the
 build if the intent is missing, undiscoverable, or opens the app.
+
+## Calculate URL
+
+Other apps and scripts can ask for an answer with an
+[x-callback-url](https://x-callback-url.com):
+
+```text
+ganit://x-callback-url/calculate?expression=20%25%20off%2085&x-success=app://done&x-error=app://failed
+```
+
+`CalculationCallback` parses the request and `ExpressionCalculation` answers it,
+with the exchange rates the app holds. Ganit opens `x-success` with a `result`
+query item added, `app://done?result=68`, or `x-error` with `errorMessage`.
+Without the matching callback nothing is opened.
+
+This is the only URL action, and it is bounded:
+
+- the URL is at most 8 KB and the expression keeps the 4 KB headless limit;
+- the host must be `x-callback-url` and the path `/calculate`; any other
+  action is ignored;
+- parameters are limited to `expression`, `x-success`, `x-error`, `x-cancel`,
+  and `x-source`, each at most once, so a request cannot smuggle extra input;
+- a callback is an absolute URL of at most 2 KB that is not `ganit:`, which
+  could loop, or `file:`, which would open local files.
+
+The action reads and writes no sheet, buffer, or clipboard, and returns only the
+answer to the caller's own expression, so it needs no confirmation. The bundle
+declares the `ganit` scheme in `CFBundleURLTypes`, and `Scripts/verify-app.sh`
+checks it.

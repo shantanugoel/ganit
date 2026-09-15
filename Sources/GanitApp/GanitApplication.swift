@@ -125,12 +125,19 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     }
   }
 
-  /// Imports sheets opened from Finder and shows each in a window.
+  /// Answers `ganit://` callback URLs, and imports sheets opened from Finder
+  /// and shows each in a window.
   func application(_ application: NSApplication, open urls: [URL]) {
+    for url in urls where url.scheme == CalculationCallback.scheme {
+      let calculation = ExpressionCalculation(rates: rateRefresher?.rates ?? .none)
+      if let response = (try? CalculationCallback(url: url))?.response(using: calculation) {
+        NSWorkspace.shared.open(response)
+      }
+    }
     guard let workspace else {
       return
     }
-    for url in urls {
+    for url in urls where url.isFileURL {
       do {
         workspace.openWindow(showing: try workspace.importSheet(from: url))
       } catch {

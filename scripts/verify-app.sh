@@ -22,6 +22,7 @@ test ! -e "$formatting_resources/Localizable.xcstrings"
 # Evaluate Expression is offered to other apps, and Calculate Expression is
 # discoverable in Shortcuts and Spotlight.
 test "$(/usr/libexec/PlistBuddy -c 'Print :NSServices:0:NSMessage' "$application/Contents/Info.plist")" = "evaluateExpression"
+test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleURLTypes:0:CFBundleURLSchemes:0' "$application/Contents/Info.plist")" = "ganit"
 test "$(/usr/libexec/PlistBuddy -c 'Print :NSServices:0:NSSendTypes:0' "$application/Contents/Info.plist")" = "public.utf8-plain-text"
 intents_metadata="$application/Contents/Resources/Metadata.appintents/extract.actionsdata"
 ruby -rjson -e '
