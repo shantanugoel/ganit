@@ -56,6 +56,61 @@ struct ParserTests {
   }
 
   @Test
+  func parsesPercentagePhrasesAndPrecedence() throws {
+    #expect(try shape(parse("20%")) == "20%")
+    #expect(try shape(parse("2^3%")) == "(2 ^ 3%)")
+    #expect(try shape(parse("(2^3)%")) == "((2 ^ 3))%")
+    #expect(try shape(parse("20% of 50 + 2")) == "((20% of 50) + 2)")
+    #expect(try shape(parse("(20% of 50) + 2")) == "(((20% of 50)) + 2)")
+    #expect(try shape(parse("20% off 50")) == "(20% off 50)")
+    #expect(try shape(parse("20% on 50")) == "(20% on 50)")
+    #expect(
+      try shape(parse("50 is what % of 200"))
+        == "(50 is what % of 200)"
+    )
+    #expect(
+      try shape(parse("50 is what % of 200 + 50"))
+        == "(50 is what % of (200 + 50))"
+    )
+    #expect(
+      try shape(parse("percentage change from 80 to 100"))
+        == "(80 percentage change to 100)"
+    )
+    #expect(
+      try shape(parse("80 after 20% off"))
+        == "(80 after % off 20%)"
+    )
+  }
+
+  @Test
+  func marksUnfinishedPercentagePhrasesAsIncomplete() {
+    for source in [
+      "50 is",
+      "50 is what",
+      "50 is what %",
+      "50 is what % of",
+      "20% of",
+      "20% off",
+      "8% on",
+      "percentage change",
+      "percentage change from",
+      "percentage change from 80",
+      "percentage change from 80 to",
+      "80 after",
+      "80 after 20%",
+    ] {
+      let result = Parser(source: source).parse()
+      #expect(
+        result.diagnostics.contains {
+          $0.severity == .incomplete
+            && $0.code == .expectedPercentagePhrase
+        },
+        "Expected an incomplete diagnostic for \(source)"
+      )
+    }
+  }
+
+  @Test
   func parsesSemicolonArgumentsWithCommaDecimals() throws {
     let configuration = LexingConfiguration(
       decimalSeparator: ",",
@@ -214,8 +269,33 @@ struct ParserTests {
       return "(\(shape(left)) \(symbol(binaryOperator)) \(shape(right)))"
     case .call(let name, _, let arguments, _):
       return "\(name)(\(arguments.map(shape).joined(separator: ",")))"
+    case .percentage(let points, _, _):
+      return "\(shape(points))%"
+    case .percentageOperation(
+      let percentageOperator,
+      let left,
+      let right,
+      _,
+      _
+    ):
+      return
+        "(\(shape(left)) \(percentageSymbol(percentageOperator)) \(shape(right)))"
     case .grouped(let expression, _):
       return "(\(shape(expression)))"
+    }
+  }
+
+  private func percentageSymbol(
+    _ percentageOperator: PercentageOperator
+  ) -> String {
+    switch percentageOperator {
+    case .of: "of"
+    case .off: "off"
+    case .on: "on"
+    case .ratio: "is what % of"
+    case .change: "percentage change to"
+    case .reverseOff: "after % off"
+    case .reverseOn: "after % on"
     }
   }
 

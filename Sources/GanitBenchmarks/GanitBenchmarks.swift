@@ -173,7 +173,7 @@ private enum GanitBenchmarks {
       fail("Engine benchmark context is invalid.")
     }
     let engine = CalculationEngine()
-    let expectedValues = expressions.map { source -> NumericValue in
+    let expectedValues = expressions.map { source -> EngineValue in
       guard case .value(let value) = engine.evaluate(source, context: context)
       else {
         fail("Engine benchmark fixture failed to evaluate: \(source)")
@@ -273,6 +273,15 @@ private enum GanitBenchmarks {
       calendar: Calendar(identifier: .gregorian),
       timeZone: timeZone
     )
+  }
+
+  private static func valueTag(_ value: EngineValue) -> Int {
+    switch value {
+    case .number(let number):
+      return valueTag(number)
+    case .percentage:
+      return 5
+    }
   }
 
   private static func valueTag(_ value: NumericValue) -> Int {

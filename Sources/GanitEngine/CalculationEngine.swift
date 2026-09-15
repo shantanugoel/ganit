@@ -1,5 +1,5 @@
 public enum CalculationResult: Hashable, Sendable {
-  case value(NumericValue)
+  case value(EngineValue)
   case syntaxFailure([SyntaxDiagnostic])
   case evaluationFailure(EngineError)
 }

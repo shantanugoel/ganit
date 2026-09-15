@@ -353,6 +353,49 @@ public struct NumericResultFormatter: Sendable {
   }
 }
 
+public struct ResultFormatter: Sendable {
+  private let numericFormatter: NumericResultFormatter
+  private let percentConvention: LocalePercentConvention
+  private let limits: FormattingLimits
+
+  public init(
+    context: EvaluationContext,
+    limits: FormattingLimits = .default
+  ) {
+    numericFormatter = NumericResultFormatter(context: context, limits: limits)
+    percentConvention = LocalePercentConvention(
+      localeIdentifier: context.localeIdentifier
+    )
+    self.limits = limits
+  }
+
+  public func format(_ value: EngineValue) throws -> FormattedResult {
+    switch value {
+    case .number(let number):
+      return try numericFormatter.format(number)
+    case .percentage(let percentage):
+      let points = try numericFormatter.format(percentage.points)
+      let display = percentConvention.format(
+        points.display,
+        isNegative: percentage.points.isNegative,
+        isApproximate: points.isApproximate
+      )
+      let fullPrecision = points.fullPrecision + "%"
+      guard
+        display.count <= limits.maximumCharacters,
+        fullPrecision.count <= limits.maximumCharacters
+      else {
+        throw FormattingError.outputTooLong
+      }
+      return FormattedResult(
+        display: display,
+        fullPrecision: fullPrecision,
+        isApproximate: points.isApproximate
+      )
+    }
+  }
+}
+
 public struct DiagnosticFormatter: Sendable {
   private let locale: Locale
 
@@ -450,6 +493,11 @@ public struct DiagnosticFormatter: Sendable {
         "syntax.expectedExpression",
         defaultValue: "Enter an expression here."
       )
+    case .expectedPercentagePhrase:
+      return localized(
+        "syntax.expectedPercentagePhrase",
+        defaultValue: "Complete the percentage phrase."
+      )
     case .expectedClosingParenthesis:
       return localized(
         "syntax.expectedClosingParenthesis",
@@ -545,6 +593,11 @@ public struct DiagnosticFormatter: Sendable {
         "error.evaluation.argumentCountMismatch",
         defaultValue: "The function received the wrong number of arguments."
       )
+    case .typeMismatch:
+      return localized(
+        "error.evaluation.typeMismatch",
+        defaultValue: "This operation cannot combine these value types."
+      )
     case .resourceLimitExceeded:
       return resourceLimitMessage(for: error.context)
     case .approximationOutOfRange:
@@ -618,6 +671,100 @@ public struct DiagnosticFormatter: Sendable {
       bundle: .module,
       locale: locale
     )
+  }
+}
+
+private struct LocalePercentConvention: Sendable {
+  let positivePrefix: String
+  let positiveSuffix: String
+  let negativePrefix: String
+  let negativeSuffix: String
+  let decimalNegativePrefix: String
+  let decimalNegativeSuffix: String
+
+  init(localeIdentifier: String) {
+    let locale = Locale(identifier: localeIdentifier)
+    let decimal = NumberFormatter()
+    decimal.locale = locale
+    decimal.numberStyle = .decimal
+    decimal.usesGroupingSeparator = false
+    let percent = NumberFormatter()
+    percent.locale = locale
+    percent.numberStyle = .percent
+    percent.usesGroupingSeparator = false
+
+    let number = decimal.string(from: NSNumber(value: 100)) ?? "100"
+    let positive = percent.string(from: NSNumber(value: 1)) ?? (number + "%")
+    let negative = percent.string(from: NSNumber(value: -1)) ?? ("-" + positive)
+    let decimalNegative =
+      decimal.string(from: NSNumber(value: -100)) ?? ("-" + number)
+
+    (positivePrefix, positiveSuffix) = Self.affixes(
+      surrounding: number,
+      in: positive,
+      fallbackSuffix: percent.percentSymbol ?? "%"
+    )
+    (negativePrefix, negativeSuffix) = Self.affixes(
+      surrounding: number,
+      in: negative,
+      fallbackSuffix: percent.percentSymbol ?? "%"
+    )
+    (decimalNegativePrefix, decimalNegativeSuffix) = Self.affixes(
+      surrounding: number,
+      in: decimalNegative
+    )
+  }
+
+  func format(
+    _ numericDisplay: String,
+    isNegative: Bool,
+    isApproximate: Bool
+  ) -> String {
+    var unsigned = numericDisplay
+    if isApproximate {
+      unsigned.removeFirst(min(2, unsigned.count))
+    }
+    if isNegative {
+      if unsigned.hasPrefix(decimalNegativePrefix) {
+        unsigned.removeFirst(decimalNegativePrefix.count)
+      }
+      if unsigned.hasSuffix(decimalNegativeSuffix) {
+        unsigned.removeLast(decimalNegativeSuffix.count)
+      }
+    }
+    let prefix = isNegative ? negativePrefix : positivePrefix
+    let suffix = isNegative ? negativeSuffix : positiveSuffix
+    let localized = prefix + unsigned + suffix
+    return isApproximate ? "≈ " + localized : localized
+  }
+
+  private static func affixes(
+    surrounding number: String,
+    in formatted: String,
+    fallbackSuffix: String = ""
+  ) -> (String, String) {
+    guard let range = formatted.range(of: number) else {
+      return ("", fallbackSuffix)
+    }
+    return (
+      String(formatted[..<range.lowerBound]),
+      String(formatted[range.upperBound...])
+    )
+  }
+}
+
+extension NumericValue {
+  fileprivate var isNegative: Bool {
+    switch self {
+    case .integer(let integer):
+      return integer.isNegative
+    case .rational(let rational):
+      return rational.numerator.isNegative
+    case .decimal(let decimal):
+      return decimal.coefficient.isNegative
+    case .approximate(let approximate):
+      return approximate.estimate < 0
+    }
   }
 }
 

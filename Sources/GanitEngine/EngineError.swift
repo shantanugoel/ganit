@@ -13,6 +13,7 @@ public enum EngineErrorCode: String, Hashable, Sendable {
   case unknownIdentifier = "evaluation.unknownIdentifier"
   case unknownFunction = "evaluation.unknownFunction"
   case argumentCountMismatch = "evaluation.argumentCountMismatch"
+  case typeMismatch = "evaluation.typeMismatch"
   case resourceLimitExceeded = "evaluation.resourceLimitExceeded"
   case approximationOutOfRange = "evaluation.approximationOutOfRange"
   case internalFailure = "evaluation.internalFailure"
@@ -54,7 +55,13 @@ public enum EngineErrorContext: Hashable, Sendable {
     expected: ClosedRange<Int>,
     actual: Int
   )
+  case typeMismatch(expected: EngineValueKind, actual: EngineValueKind)
   case resourceLimit(EvaluationResource)
+}
+
+public enum EngineValueKind: String, Hashable, Sendable {
+  case number
+  case percentage
 }
 
 public enum EvaluationContextField: String, Hashable, Sendable {

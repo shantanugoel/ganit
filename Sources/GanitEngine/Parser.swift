@@ -96,6 +96,157 @@ private struct TokenParser {
     }
 
     while true {
+      if current.kind == .percent {
+        guard 40 >= minimumBindingPower else {
+          break
+        }
+        let percent = advance()
+        guard !isPercentage(left) else {
+          diagnose(.unexpectedToken, at: percent.range)
+          break
+        }
+        left = .percentage(
+          points: left,
+          percentRange: percent.range,
+          range: left.range.union(percent.range)
+        )
+        continue
+      }
+
+      if identifier(at: 0) == "is",
+        identifier(at: 1) == "what",
+        token(at: 2).kind == .percent,
+        identifier(at: 3) == "of"
+      {
+        guard 5 >= minimumBindingPower else {
+          break
+        }
+        let start = advance()
+        advance()
+        advance()
+        let end = advance()
+        guard !current.isEndOfInput else {
+          diagnose(
+            .expectedPercentagePhrase,
+            at: current.range,
+            severity: .incomplete
+          )
+          return left
+        }
+        guard
+          let right = parseExpression(
+            minimumBindingPower: 6,
+            depth: depth + 1
+          )
+        else {
+          return left
+        }
+        left = .percentageOperation(
+          operator: .ratio,
+          left: left,
+          right: right,
+          operatorRange: start.range.union(end.range),
+          range: left.range.union(right.range)
+        )
+        continue
+      }
+
+      if identifier(at: 0) == "is", isIncompleteRatioPhrase {
+        diagnose(
+          .expectedPercentagePhrase,
+          at: current.range.union(tokens.last!.range),
+          severity: .incomplete
+        )
+        while current.kind != .endOfFile {
+          advance()
+        }
+        break
+      }
+
+      if identifier(at: 0) == "after" {
+        guard 5 >= minimumBindingPower else {
+          break
+        }
+        let after = advance()
+        guard !current.isEndOfInput else {
+          diagnose(
+            .expectedPercentagePhrase,
+            at: current.range,
+            severity: .incomplete
+          )
+          return left
+        }
+        guard
+          let percentage = parseExpression(
+            minimumBindingPower: 21,
+            depth: depth + 1
+          )
+        else {
+          return left
+        }
+        guard
+          isPercentage(percentage),
+          let direction = identifier(at: 0),
+          direction == "off" || direction == "on"
+        else {
+          diagnose(
+            .expectedPercentagePhrase,
+            at: current.range,
+            severity: current.isEndOfInput ? .incomplete : .error
+          )
+          return left
+        }
+        let directionToken = advance()
+        left = .percentageOperation(
+          operator: direction == "off" ? .reverseOff : .reverseOn,
+          left: left,
+          right: percentage,
+          operatorRange: after.range.union(directionToken.range),
+          range: left.range.union(directionToken.range)
+        )
+        continue
+      }
+
+      if isPercentage(left),
+        let keyword = identifier(at: 0),
+        keyword == "of" || keyword == "off" || keyword == "on"
+      {
+        guard 20 >= minimumBindingPower else {
+          break
+        }
+        let keywordToken = advance()
+        guard !current.isEndOfInput else {
+          diagnose(
+            .expectedPercentagePhrase,
+            at: current.range,
+            severity: .incomplete
+          )
+          return left
+        }
+        guard
+          let right = parseExpression(
+            minimumBindingPower: 21,
+            depth: depth + 1
+          )
+        else {
+          return left
+        }
+        let percentageOperator: PercentageOperator =
+          switch keyword {
+          case "of": .of
+          case "off": .off
+          default: .on
+          }
+        left = .percentageOperation(
+          operator: percentageOperator,
+          left: left,
+          right: right,
+          operatorRange: keywordToken.range,
+          range: left.range.union(right.range)
+        )
+        continue
+      }
+
       let selectedOperator: BinaryOperator
       let operatorRange: SourceRange
       let binding: (left: Int, right: Int)
@@ -151,6 +302,12 @@ private struct TokenParser {
       return .literal(literal, range: token.range)
 
     case .identifier(let name):
+      if name == "percentage", identifier(at: 0) == "change" {
+        return parsePercentageChange(
+          startRange: token.range,
+          depth: depth
+        )
+      }
       if current.kind == .leftParenthesis {
         return parseCall(
           name: name,
@@ -211,6 +368,70 @@ private struct TokenParser {
       )
       return nil
     }
+  }
+
+  private mutating func parsePercentageChange(
+    startRange: SourceRange,
+    depth: Int
+  ) -> Expression? {
+    let change = advance()
+    guard identifier(at: 0) == "from" else {
+      diagnose(
+        .expectedPercentagePhrase,
+        at: current.range,
+        severity: current.isEndOfInput ? .incomplete : .error
+      )
+      return nil
+    }
+    advance()
+    guard !current.isEndOfInput else {
+      diagnose(
+        .expectedPercentagePhrase,
+        at: current.range,
+        severity: .incomplete
+      )
+      return nil
+    }
+    guard
+      let oldValue = parseExpression(
+        minimumBindingPower: 0,
+        depth: depth + 1
+      )
+    else {
+      return nil
+    }
+    guard identifier(at: 0) == "to" else {
+      diagnose(
+        .expectedPercentagePhrase,
+        at: current.range,
+        severity: current.isEndOfInput ? .incomplete : .error
+      )
+      return nil
+    }
+    let to = advance()
+    guard !current.isEndOfInput else {
+      diagnose(
+        .expectedPercentagePhrase,
+        at: current.range,
+        severity: .incomplete
+      )
+      return nil
+    }
+    guard
+      let newValue = parseExpression(
+        minimumBindingPower: 0,
+        depth: depth + 1
+      )
+    else {
+      return nil
+    }
+    return .percentageOperation(
+      operator: .change,
+      left: oldValue,
+      right: newValue,
+      operatorRange: startRange.union(change.range).union(to.range),
+      range: startRange.union(newValue.range)
+    )
   }
 
   private mutating func parseCall(
@@ -292,6 +513,72 @@ private struct TokenParser {
     diagnostics.append(
       SyntaxDiagnostic(code: code, severity: severity, range: range)
     )
+  }
+
+  private func token(at offset: Int) -> Token {
+    tokens[min(cursor + offset, tokens.count - 1)]
+  }
+
+  private func identifier(at offset: Int) -> String? {
+    guard case .identifier(let name) = token(at: offset).kind else {
+      return nil
+    }
+    return name
+  }
+
+  private func isPercentage(_ expression: Expression) -> Bool {
+    inferredKind(of: expression) == .percentage
+  }
+
+  private func inferredKind(of expression: Expression) -> EngineValueKind? {
+    switch expression {
+    case .literal, .identifier, .call:
+      return .number
+    case .percentage:
+      return .percentage
+    case .prefix(_, let operand, _, _):
+      return inferredKind(of: operand)
+    case .grouped(let nested, _):
+      return inferredKind(of: nested)
+    case .infix(let left, let binaryOperator, let right, _, _):
+      let leftKind = inferredKind(of: left)
+      let rightKind = inferredKind(of: right)
+      switch binaryOperator {
+      case .add, .subtract:
+        return leftKind == .percentage && rightKind == .percentage
+          ? .percentage
+          : .number
+      case .multiply, .power:
+        return .number
+      case .divide:
+        return leftKind == .percentage && rightKind == .number
+          ? .percentage
+          : .number
+      }
+    case .percentageOperation(let percentageOperator, _, _, _, _):
+      return percentageOperator == .ratio || percentageOperator == .change
+        ? .percentage
+        : .number
+    }
+  }
+
+  private var isIncompleteRatioPhrase: Bool {
+    var offset = 0
+    while token(at: offset).kind != .endOfFile {
+      let matches: Bool =
+        switch offset {
+        case 0: identifier(at: offset) == "is"
+        case 1: identifier(at: offset) == "what"
+        case 2: token(at: offset).kind == .percent
+        case 3: identifier(at: offset) == "of"
+        default: false
+        }
+      guard matches else {
+        return false
+      }
+      offset += 1
+    }
+    return offset > 0 && offset < 4
   }
 
   private func infixBindingPower(

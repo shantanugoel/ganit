@@ -8,7 +8,7 @@ enum GanitEngineHarness {
     let expressions = Array(CommandLine.arguments.dropFirst())
     let context = try fixedContext()
     let engine = CalculationEngine()
-    let formatter = NumericResultFormatter(context: context)
+    let formatter = ResultFormatter(context: context)
     let diagnosticFormatter = DiagnosticFormatter(context: context)
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.sortedKeys]
@@ -41,7 +41,7 @@ enum GanitEngineHarness {
   private static func emit(
     _ expression: String,
     engine: CalculationEngine,
-    formatter: NumericResultFormatter,
+    formatter: ResultFormatter,
     diagnosticFormatter: DiagnosticFormatter,
     context: EvaluationContext,
     encoder: JSONEncoder
@@ -76,7 +76,7 @@ enum GanitEngineHarness {
   private static func evaluate(
     _ expression: String,
     engine: CalculationEngine,
-    formatter: NumericResultFormatter,
+    formatter: ResultFormatter,
     diagnosticFormatter: DiagnosticFormatter,
     context: EvaluationContext
   ) -> HarnessRecord {

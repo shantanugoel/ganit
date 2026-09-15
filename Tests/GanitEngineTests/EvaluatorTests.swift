@@ -293,10 +293,15 @@ struct EvaluatorTests {
     let parsing = Parser(source: source).parse()
     #expect(parsing.diagnostics.isEmpty)
     let expression = try #require(parsing.expression)
-    return try Evaluator(
+    let value = try Evaluator(
       context: fixedContext(),
       limits: limits
     ).evaluate(expression)
+    guard case .number(let number) = value else {
+      Issue.record("Expected a numeric value for \(source)")
+      throw EngineError(code: .typeMismatch)
+    }
+    return number
   }
 
   private func fixedContext() throws -> EvaluationContext {

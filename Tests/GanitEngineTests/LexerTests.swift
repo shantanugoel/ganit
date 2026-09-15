@@ -22,6 +22,20 @@ struct LexerTests {
   }
 
   @Test
+  func lexesPercentAsItsOwnOperator() {
+    let result = Lexer(source: "20%").lex()
+
+    #expect(result.diagnostics.isEmpty)
+    #expect(
+      result.tokens.map(\.kind) == [
+        .number(.integer(digits: "20", radix: .decimal)),
+        .percent,
+        .endOfFile,
+      ]
+    )
+  }
+
+  @Test
   func retainsExactUTF8SourceRanges() throws {
     let source = "π + ٢"
     let result = Lexer(source: source).lex()

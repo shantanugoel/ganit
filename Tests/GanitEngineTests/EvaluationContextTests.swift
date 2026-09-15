@@ -152,8 +152,10 @@ struct EvaluationContextTests {
     #expect(
       result
         == .value(
-          .decimal(
-            try DecimalValue(coefficient: IntegerValue(40), scale: 1)
+          .number(
+            .decimal(
+              try DecimalValue(coefficient: IntegerValue(40), scale: 1)
+            )
           )
         )
     )
@@ -289,7 +291,11 @@ struct EvaluationContextTests {
       Issue.record("Expected value, got \(result)")
       throw EngineError(code: .internalFailure)
     }
-    return value
+    guard case .number(let number) = value else {
+      Issue.record("Expected numeric result")
+      throw EngineError(code: .typeMismatch)
+    }
+    return number
   }
 
   private func error(

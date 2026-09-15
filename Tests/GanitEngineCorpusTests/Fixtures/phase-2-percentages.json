@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "typed percentage",
+      "expression": "20%",
+      "expected": {
+        "status": "value",
+        "display": "20%",
+        "fullPrecision": "20%",
+        "approximate": false
+      }
+    },
+    {
+      "name": "percentage of",
+      "expression": "20% of 50",
+      "expected": {
+        "status": "value",
+        "display": "10",
+        "fullPrecision": "10",
+        "approximate": false
+      }
+    },
+    {
+      "name": "percentage adjustment",
+      "expression": "50 - 20%",
+      "expected": {
+        "status": "value",
+        "display": "40",
+        "fullPrecision": "40",
+        "approximate": false
+      }
+    },
+    {
+      "name": "percentage ratio",
+      "expression": "50 is what % of 200",
+      "expected": {
+        "status": "value",
+        "display": "25%",
+        "fullPrecision": "25%",
+        "approximate": false
+      }
+    },
+    {
+      "name": "percentage change",
+      "expression": "percentage change from 80 to 100",
+      "expected": {
+        "status": "value",
+        "display": "25%",
+        "fullPrecision": "25%",
+        "approximate": false
+      }
+    },
+    {
+      "name": "reverse percentage",
+      "expression": "80 after 20% off",
+      "expected": {
+        "status": "value",
+        "display": "100",
+        "fullPrecision": "100",
+        "approximate": false
+      }
+    },
+    {
+      "name": "percentage zero divisor",
+      "expression": "50 is what % of 0",
+      "expected": {
+        "status": "evaluationFailure",
+        "code": "evaluation.divisionByZero",
+        "messageKey": "error.evaluation.divisionByZero",
+        "message": "Cannot divide by zero.",
+        "lowerBound": 16,
+        "upperBound": 17
+      }
+    },
+    {
+      "name": "incomplete percentage phrase",
+      "expression": "50 is what %",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "expectedPercentagePhrase",
+        "messageKey": "syntax.expectedPercentagePhrase",
+        "message": "Complete the percentage phrase.",
+        "lowerBound": 3,
+        "upperBound": 12
+      }
+    }
+  ]
+}

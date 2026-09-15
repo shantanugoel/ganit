@@ -919,9 +919,10 @@ Exit criteria:
 
 Tasks:
 
-- [ ] Add percentage phrase grammar and rate quantities.
+- [x] Add percentage phrase grammar and semantics.
 - [ ] Add dimensions, compound units, prefixes, ratio and affine conversions.
 - [ ] Seed a reviewed minimal unit catalog with source/license metadata.
+- [ ] Add dimensionally typed rate quantities.
 - [ ] Add explicit conversion syntax and result-unit selection.
 - [ ] Add ambiguity cases (`in`, `%`, symbols, implicit multiplication).
 - [ ] Add round-trip/dimensional property tests including compound engineering units.

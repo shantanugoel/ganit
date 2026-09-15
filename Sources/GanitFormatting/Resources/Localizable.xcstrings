@@ -81,6 +81,11 @@
         "en" : { "stringUnit" : { "state" : "translated", "value" : "This function is not defined." } }
       }
     },
+    "error.evaluation.typeMismatch" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This operation cannot combine these value types." } }
+      }
+    },
     "error.evaluation.unknownIdentifier" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "This identifier is not defined." } }
@@ -144,6 +149,11 @@
     "syntax.expectedExpression" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Enter an expression here." } }
+      }
+    },
+    "syntax.expectedPercentagePhrase" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Complete the percentage phrase." } }
       }
     },
     "syntax.exponentOutOfRange" : {

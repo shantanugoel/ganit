@@ -11,7 +11,7 @@ struct GoldenCorpusTests {
     #expect(corpus.schemaVersion == 1)
     let context = try fixedContext()
     let engine = CalculationEngine()
-    let formatter = NumericResultFormatter(context: context)
+    let formatter = ResultFormatter(context: context)
 
     for testCase in corpus.cases {
       let actual = try outcome(
@@ -23,6 +23,31 @@ struct GoldenCorpusTests {
       #expect(
         actual == testCase.expected,
         "Golden case failed: \(testCase.name)"
+      )
+    }
+  }
+
+  @Test
+  func matchesVersionedPercentageCorpus() throws {
+    let corpus = try loadFixture(
+      GoldenCorpus.self,
+      named: "phase-2-percentages"
+    )
+    #expect(corpus.schemaVersion == 1)
+    let context = try fixedContext()
+    let engine = CalculationEngine()
+    let formatter = ResultFormatter(context: context)
+
+    for testCase in corpus.cases {
+      let actual = try outcome(
+        for: testCase.expression,
+        engine: engine,
+        formatter: formatter,
+        context: context
+      )
+      #expect(
+        actual == testCase.expected,
+        "Percentage golden case failed: \(testCase.name)"
       )
     }
   }
@@ -253,7 +278,10 @@ struct ArithmeticPropertyTests {
         String(boundary),
         context: context
       )
-      #expect(accepted == .value(.integer(try IntegerValue(String(boundary)))))
+      #expect(
+        accepted
+          == .value(.number(.integer(try IntegerValue(String(boundary)))))
+      )
 
       guard
         case .evaluationFailure(let error) = CalculationEngine(
@@ -282,7 +310,7 @@ struct ParserFuzzSmokeTests {
         maximumParseDepth: 32
       )
     )
-    let formatter = NumericResultFormatter(
+    let formatter = ResultFormatter(
       context: context,
       limits: FormattingLimits(maximumCharacters: 2_048)
     )
@@ -356,7 +384,7 @@ private struct GoldenOutcome: Codable, Equatable {
 private func outcome(
   for expression: String,
   engine: CalculationEngine,
-  formatter: NumericResultFormatter,
+  formatter: ResultFormatter,
   context: EvaluationContext
 ) throws -> GoldenOutcome {
   switch engine.evaluate(expression, context: context) {
@@ -414,7 +442,11 @@ private func value(
     Issue.record("Expected value for \(expression)")
     throw CorpusFailure.expectedValue
   }
-  return result
+  guard case .number(let number) = result else {
+    Issue.record("Expected numeric value for \(expression)")
+    throw CorpusFailure.expectedValue
+  }
+  return number
 }
 
 private func expectValid(

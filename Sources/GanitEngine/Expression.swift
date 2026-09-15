@@ -11,6 +11,16 @@ public enum BinaryOperator: Equatable, Sendable {
   case power
 }
 
+public enum PercentageOperator: Equatable, Sendable {
+  case of
+  case off
+  case on
+  case ratio
+  case change
+  case reverseOff
+  case reverseOn
+}
+
 public indirect enum Expression: Equatable, Sendable {
   case literal(NumericLiteral, range: SourceRange)
   case identifier(String, range: SourceRange)
@@ -33,6 +43,18 @@ public indirect enum Expression: Equatable, Sendable {
     arguments: [Expression],
     range: SourceRange
   )
+  case percentage(
+    points: Expression,
+    percentRange: SourceRange,
+    range: SourceRange
+  )
+  case percentageOperation(
+    operator: PercentageOperator,
+    left: Expression,
+    right: Expression,
+    operatorRange: SourceRange,
+    range: SourceRange
+  )
   case grouped(Expression, range: SourceRange)
 
   public var range: SourceRange {
@@ -42,6 +64,8 @@ public indirect enum Expression: Equatable, Sendable {
       .prefix(_, _, _, let range),
       .infix(_, _, _, _, let range),
       .call(_, _, _, let range),
+      .percentage(_, _, let range),
+      .percentageOperation(_, _, _, _, let range),
       .grouped(_, let range):
       return range
     }

@@ -7,6 +7,51 @@ import Testing
 @Suite
 struct ResultFormatterTests {
   @Test
+  func formatsTypedPercentagesUsingLocalePlacement() throws {
+    let value = EngineValue.percentage(
+      PercentageValue(points: .integer(IntegerValue(20)))
+    )
+    let english = try ResultFormatter(context: context()).format(value)
+    let turkish = try ResultFormatter(
+      context: context(localeIdentifier: "tr-TR")
+    ).format(value)
+
+    #expect(english.display == "20%")
+    #expect(turkish.display == "%20")
+    #expect(english.fullPrecision == "20%")
+    #expect(!english.isApproximate)
+  }
+
+  @Test
+  func keepsLocaleSignsAndApproximationOutsidePercentAffixes() throws {
+    let formatter = ResultFormatter(
+      context: try context(localeIdentifier: "tr-TR")
+    )
+    let negative = try formatter.format(
+      .percentage(
+        PercentageValue(points: .integer(IntegerValue(-20)))
+      )
+    )
+    let approximate = try formatter.format(
+      .percentage(
+        PercentageValue(
+          points: .approximate(
+            try ApproximateValue(
+              estimate: -20,
+              source: .derivedArithmetic,
+              precision: .significantDecimalDigits(2)
+            )
+          )
+        )
+      )
+    )
+
+    #expect(negative.display == "-%20")
+    #expect(approximate.display == "≈ -%20")
+    #expect(approximate.fullPrecision == "≈ -20.0%")
+  }
+
+  @Test
   func formatsIntegersWithWesternAndIndianGrouping() throws {
     let value = NumericValue.integer(try IntegerValue("1234567"))
     let western = try NumericResultFormatter(context: context()).format(value)

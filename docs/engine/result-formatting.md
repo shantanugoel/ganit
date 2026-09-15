@@ -1,9 +1,13 @@
 # Result formatting
 
-`GanitFormatting` turns evaluated numeric values into presentation strings. It
+`GanitFormatting` turns evaluated values into presentation strings. It
 does not parse source, perform calculations, or change the value.
 
-`NumericResultFormatter` returns a `FormattedResult` with:
+`ResultFormatter` formats the complete `EngineValue` model, including typed
+percentages. It delegates numeric representation to `NumericResultFormatter`
+and applies the locale's percent-symbol placement without converting exact
+percentage points through binary floating point. Both return a
+`FormattedResult` with:
 
 - `display`: localized digits, signs, separators, grouping, and rounding for
   presentation.

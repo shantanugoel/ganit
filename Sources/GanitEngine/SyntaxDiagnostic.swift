@@ -8,6 +8,7 @@ public struct SyntaxDiagnostic: Hashable, Sendable {
     case missingExponentDigits
     case exponentOutOfRange
     case expectedExpression
+    case expectedPercentagePhrase
     case expectedClosingParenthesis
     case expectedArgumentSeparator
     case unexpectedToken

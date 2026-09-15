@@ -129,6 +129,8 @@ private struct Scanner {
         append(.divide, from: start)
       case "^":
         append(.power, from: start)
+      case "%":
+        append(.percent, from: start)
       case "(":
         append(.leftParenthesis, from: start)
       case ")":

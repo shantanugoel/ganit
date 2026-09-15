@@ -18,6 +18,7 @@ public enum TokenKind: Equatable, Sendable {
   case multiply
   case divide
   case power
+  case percent
   case leftParenthesis
   case rightParenthesis
   case argumentSeparator
