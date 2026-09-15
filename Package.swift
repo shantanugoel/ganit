@@ -32,6 +32,7 @@ let package = Package(
     .executableTarget(
       name: "GanitApp",
       dependencies: [
+        "GanitDiagnostics",
         "GanitDocuments",
         "GanitWorkspaceUI",
         "GanitQuickUI",
@@ -130,6 +131,10 @@ let package = Package(
       name: "GanitStorageStressHelper",
       dependencies: ["GanitDocuments"],
       path: "Tests/GanitStorageStressHelper"
+    ),
+    .testTarget(
+      name: "GanitDiagnosticsTests",
+      dependencies: ["GanitDiagnostics"]
     ),
     .testTarget(
       name: "GanitDataTests",

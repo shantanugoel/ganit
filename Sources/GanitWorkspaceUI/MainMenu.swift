@@ -11,6 +11,7 @@ import GanitEditorUI
   func updateExchangeRates(_ sender: Any?)
   func toggleAutomaticExchangeRateUpdates(_ sender: Any?)
   func toggleSpotlightTitles(_ sender: Any?)
+  func reportProblem(_ sender: Any?)
 }
 
 /// Actions handled by the Quick Ganit panel while it is key.
@@ -80,7 +81,13 @@ public enum MainMenu {
           #selector(NSApplication.arrangeInFront(_:))),
       ]
     )
-    let help = menu(localized("menu.help", "Help"), [])
+    let help = menu(
+      localized("menu.help", "Help"),
+      [
+        item(
+          localized("menu.reportProblem", "Report a Problem…"),
+          #selector(ApplicationCommands.reportProblem(_:)))
+      ])
 
     let servicesItem = NSMenuItem(title: services.title, action: nil, keyEquivalent: "")
     servicesItem.submenu = services

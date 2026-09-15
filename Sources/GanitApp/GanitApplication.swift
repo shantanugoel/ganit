@@ -1,4 +1,5 @@
 import AppKit
+import GanitDiagnostics
 import GanitDocuments
 import GanitQuickUI
 import GanitSystemIntegration
@@ -218,6 +219,53 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     rateRefresher.isAutomatic.toggle()
     UserDefaults.standard.set(
       !rateRefresher.isAutomatic, forKey: Self.manualExchangeRatesDefaultsKey)
+  }
+
+  // MARK: Problem reports
+
+  /// Saves a problem report describing the app and system. The frontmost
+  /// sheet's text is included only when the user ticks the box.
+  @objc func reportProblem(_ sender: Any?) {
+    let sheetText =
+      (NSApplication.shared.orderedWindows.lazy.compactMap {
+        $0.windowController as? WorkspaceWindowController
+      }.first?.editor?.textView.string)
+    let include = NSButton(
+      checkboxWithTitle: String(
+        localized: "report.includeSheet", defaultValue: "Include the current sheet's text",
+        bundle: .main),
+      target: nil, action: nil)
+    include.isEnabled = sheetText?.isEmpty == false
+    let panel = NSSavePanel()
+    panel.nameFieldStringValue = "Ganit Problem Report.txt"
+    panel.allowedContentTypes = [.plainText]
+    panel.accessoryView = include
+    guard panel.runModal() == .OK, let url = panel.url else {
+      return
+    }
+    let bundle = Bundle.main.infoDictionary ?? [:]
+    let onOff = { (isOn: Bool) in isOn ? "On" : "Off" }
+    let report = ProblemReport(
+      appVersion:
+        "\(bundle["CFBundleShortVersionString"] ?? "?") (\(bundle["CFBundleVersion"] ?? "?"))",
+      systemVersion: ProcessInfo.processInfo.operatingSystemVersionString,
+      hardwareModel: ProblemReport.hardwareModelIdentifier,
+      settings: [
+        "Update exchange rates automatically": onOff(rateRefresher?.isAutomatic == true),
+        "Show sheet titles in Spotlight": onOff(
+          UserDefaults.standard.bool(forKey: Self.spotlightDefaultsKey)),
+        "Quick Ganit starts empty": onOff(
+          UserDefaults.standard.bool(forKey: Self.startsEmptyDefaultsKey)),
+        "Exchange rates published": rateRefresher?.rates.observationDate ?? "none",
+      ],
+      sheetCount: (try? workspace?.library.index.summaries().count) ?? 0,
+      reproduction: include.state == .on ? sheetText : nil
+    )
+    do {
+      try Data(report.text.utf8).write(to: url, options: .atomic)
+    } catch {
+      NSApplication.shared.presentError(error)
+    }
   }
 
   // MARK: Spotlight
