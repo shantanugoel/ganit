@@ -60,7 +60,8 @@ Addition and subtraction require compatible dimensions and retain the left
 operand's unit until an explicit conversion changes it. Relative quantities
 support scalar multiplication/division, quantity multiplication/division, and
 bounded integer powers. Incompatible conversions produce a ranged
-`evaluation.incompatibleDimensions` diagnostic.
+`evaluation.incompatibleDimensions` diagnostic. When multiplication, division, or a power cancels every dimension, the result
+is a plain number in canonical scale: `1 km / (1 m)` is `1,000`.
 
 Affine temperature units are valid only as standalone absolute quantities,
 such as `0 °C`, and can be explicitly converted (`0 °C as °F`). They cannot

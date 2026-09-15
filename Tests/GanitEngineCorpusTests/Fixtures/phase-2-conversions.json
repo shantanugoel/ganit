@@ -76,6 +76,46 @@
         "lowerBound": 9,
         "upperBound": 17
       }
+    },
+    {
+      "name": "cancelled dimensions become a number",
+      "expression": "12 km / (100 km) * 6.5",
+      "expected": {
+        "status": "value",
+        "display": "39/50",
+        "fullPrecision": "39/50",
+        "approximate": false
+      }
+    },
+    {
+      "name": "same-dimension quotient uses canonical scale",
+      "expression": "1 km / (1 m)",
+      "expected": {
+        "status": "value",
+        "display": "1,000",
+        "fullPrecision": "1000",
+        "approximate": false
+      }
+    },
+    {
+      "name": "zero power of a quantity is a number",
+      "expression": "(3 m)^0",
+      "expected": {
+        "status": "value",
+        "display": "1",
+        "fullPrecision": "1",
+        "approximate": false
+      }
+    },
+    {
+      "name": "rate quotient is a number",
+      "expression": "(1 km/h) / (1 m/s)",
+      "expected": {
+        "status": "value",
+        "display": "5/18",
+        "fullPrecision": "5/18",
+        "approximate": false
+      }
     }
   ]
 }

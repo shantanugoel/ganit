@@ -360,9 +360,9 @@ private struct EvaluationWorker {
       case .subtract:
         return .quantity(try unitAlgebra.subtracting(lhs, rhs))
       case .multiply:
-        return .quantity(try unitAlgebra.multiplying(lhs, rhs))
+        return try simplified(unitAlgebra.multiplying(lhs, rhs))
       case .divide:
-        return .quantity(try unitAlgebra.dividing(lhs, rhs))
+        return try simplified(unitAlgebra.dividing(lhs, rhs))
       case .power:
         throw typeMismatch(expected: .number, actual: .quantity)
       }
@@ -389,7 +389,7 @@ private struct EvaluationWorker {
           throw EngineError(code: .invalidAbsoluteQuantityOperation)
         }
         let exponent = try integerExponent(scalar)
-        return .quantity(
+        return try simplified(
           QuantityValue(
             magnitude: try operations.applying(
               .power,
@@ -522,6 +522,22 @@ private struct EvaluationWorker {
         right: .number(.integer(IntegerValue(2)))
       )
     }
+  }
+
+  /// A quantity whose dimensions cancel, such as `km/m`, is a plain number
+  /// in canonical scale.
+  private func simplified(_ quantity: QuantityValue) throws -> EngineValue {
+    guard quantity.unit.dimension == .dimensionless, case .ratio(let unit) = quantity.unit
+    else {
+      return .quantity(quantity)
+    }
+    return .number(
+      try operations.applying(
+        .multiply,
+        left: quantity.magnitude,
+        right: unit.scaleToCanonical
+      )
+    )
   }
 
   private func integerExponent(_ value: NumericValue) throws -> Int {
