@@ -63,3 +63,45 @@ against 40 ms in one Ganit process.
 This measures the two engines from a terminal, not the two apps. Comparing
 launch, typing latency, or memory between the Mac apps needs a person driving
 both interfaces on clean hardware.
+
+## Re-measured after the answer-comparison changes
+
+The unit catalog and percentage-on-quantity changes touch the evaluation path,
+so the suite ran again on the same machine and day, from a fresh release build
+of the bundle.
+
+| Metric | Result (P95) | Gate |
+| --- | ---: | ---: |
+| Keystroke → visible answer, `mixed-sheet` (1,000 lines) | 8.6 ms | 16 ms |
+| Keystroke → visible answer, `independent-sheet` (10,000 lines) | 16.0 ms | — |
+| Keystroke → visible answer, `chained-dependency-sheet` (10,000 lines) | 49.4–49.9 ms | 50 ms |
+| Simple single-expression evaluation (`--engine 10000`) | 0.016 ms | 1 ms |
+| Cold launch → Quick Ganit | 383 ms | 450 ms |
+| Cold launch → Workspace sheet | 461 ms | 700 ms |
+| Quick Ganit idle footprint | 32 MB | 70 MB |
+| Installed app size | 6.2 MB | 50 MB |
+
+Every gate still passes, but the chained-dependency edit now passes by about
+half a millisecond rather than the 2 ms measured earlier the same day, so it
+is worth being precise about why.
+
+That difference is machine state, not these changes. Following the
+methodology's rule, the commit before them, `5c787c4`, was built and measured
+on this machine immediately afterwards: 50.0, 49.5, and 49.8 ms P95 against
+49.7, 49.4, and 49.9 ms at `a6666b8`. The two are indistinguishable, and the
+chained fixture contains only variable chains, no units and no percentages, so
+neither change is in its path. The first run of the session measured 52.3 ms
+and the next three did not, so a run immediately after building and launching
+the app is warm-up and is discarded.
+
+The launch and footprint figures come from five samples each rather than ten,
+which is why the sheet launch P95 of 461 ms sits above the 378 ms recorded
+above while its P50, 336 ms, does not; one slow sample moves a five-sample
+P95.
+
+A profile of the chained edit shows the remaining time is the evaluation
+itself, spread across 10,000 dependent lines at roughly 5 µs each, with answer
+text measurement during drawing next. No cheap win was visible, and the
+budget still passes, so nothing was changed for it. The honest summary is that
+this gate has under a millisecond of headroom on this machine and will need
+either an optimization or an ADR revision the next time it moves.

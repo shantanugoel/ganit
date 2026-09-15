@@ -1057,6 +1057,9 @@ Exit criteria:
 
 ## Phase 9 — Accessibility, localization and visual refinement gate
 
+**Status:** Three of four exit criteria are met by automated checks; the
+usability-session criterion is unmet by owner decision.
+
 **Goal:** Reach Mac-assed quality before feature expansion.
 
 Tasks:
@@ -1070,14 +1073,15 @@ Tasks:
 
 Exit criteria:
 
-- No mouse-only essential action.
-- VoiceOver can complete launch success scenarios.
-- 200% text and accessibility appearance modes remain usable.
-- At least five novice and five power-user sessions reveal no repeated P0 comprehension blocker.
+- No mouse-only essential action. Met: `AccessibilityAuditTests` requires a main-menu command for every context-menu and toolbar action, and audits control sizes, text sizes, and labels.
+- VoiceOver can complete launch success scenarios. Met for exposure and actions by `TextAccessibilityTests`; listening through VoiceOver itself needs a person.
+- 200% text and accessibility appearance modes remain usable. Met for scaling by `TextAccessibilityTests`; contrast and Reduce Motion appearances need a person.
+- At least five novice and five power-user sessions reveal no repeated P0 comprehension blocker. **Unmet:** no sessions were run, by owner decision on 2026-09-15. The dry run's one P0 blocker, improper fractions as answers, is fixed.
 
 ## Phase 10 — System integration and P1 power
 
-**Status:** Started while the Phase 9 usability sessions remain unrun.
+**Status:** Every task is done. It ran ahead of the Phase 9 usability
+sessions, which remain unrun by owner decision.
 
 **Goal:** Extend reach while preserving one engine and one mental model.
 
@@ -1094,11 +1098,14 @@ Tasks in priority order:
 
 Exit criteria:
 
-- No integration implements its own parser/evaluator.
-- Headless actions are deterministic, bounded and privacy-preserving.
-- New features do not regress launch/idle/bundle hard gates.
+- No integration implements its own parser/evaluator. Met: the service, intent, URL callback, and CLI all answer through `ExpressionCalculation`, the only engine construction outside the engine, editor, and benchmark tools.
+- Headless actions are deterministic, bounded and privacy-preserving. Met: a cross-process expression is capped at 4,096 UTF-8 bytes and a sheet's lines at the default syntax limits, `now` is injected so answers are reproducible, and currency comes from the rate snapshot on disk rather than the network.
+- New features do not regress launch/idle/bundle hard gates. Met: measured again after these features, including the exports, CLI, and Spotlight index, at 461 ms sheet launch, 383 ms quick launch, 32 MB idle, and a 6.2 MB bundle; see Benchmarks/Results/phase-11-performance.md.
 
 ## Phase 11 — Beta, adversarial correctness and durability
+
+**Status:** The correctness and durability work is done and evidenced; the two
+items that need people, beta recruiting and clean baseline hardware, are not.
 
 **Goal:** Prove trust before public release.
 
@@ -1114,12 +1121,15 @@ Tasks:
 
 Exit criteria:
 
-- Zero known data-loss, crash, silent-wrong-answer or P0 accessibility bugs.
-- All hard performance/footprint budgets pass or have evidence-backed approved ADR revisions.
-- Every known ambiguity either resolves deterministically by documented context or asks.
-- Upgrade/rollback/export recovery instructions are tested.
+- Zero known data-loss, crash, silent-wrong-answer or P0 accessibility bugs. Met as far as the evidence reaches: 193 golden answers, the property suites, 38 fuzz seeds plus 1,000 generated inputs per run and 50,000 nightly under Address Sanitizer, `StorageFaultTests`, `RecoveryRehearsalTests`, and the Numi comparison found none. No beta reports exist yet to contradict it.
+- All hard performance/footprint budgets pass or have evidence-backed approved ADR revisions. Met on the development Mac, with no revision needed; see Benchmarks/Results/phase-11-performance.md. The 10,000-line chained-edit gate is the tight one, passing at 49.4–49.9 ms against 50 ms.
+- Every known ambiguity either resolves deterministically by documented context or asks. Met: all seven rules of registry version 5 are pinned by tests. Five are golden cases in `phase-2-ambiguities`; `identifiers` and `1 x =` decide how a line's name is read, which that fixture's single-expression harness cannot express, so they are pinned by `VariableTests`, `MoneyTests`, and `SheetDefinitionsTests` instead.
+- Upgrade/rollback/export recovery instructions are tested. Met: all six sections of docs/storage/recovery-guide.md are rehearsed against real files, four by `RecoveryRehearsalTests` and the crash and damaged-rate sections by `StorageFaultTests` and `RateSnapshotStoreTests`.
 
 ## Phase 12 — Release and post-release discipline
+
+**Status:** Every item is done except the notarized build itself, which waits
+on a Developer ID identity and notary credentials.
 
 **Goal:** Sustainable quality, not a launch-only showcase.
 
