@@ -28,7 +28,13 @@ currency. `¥` is yen.
 - money ± percentage, percentage × money, and percentage phrases
   (`20% of 50 EUR`, `10% off 20 EUR`) → money;
 - percentage ratio and change phrases between amounts of one currency →
-  percentage.
+  percentage;
+- money ÷ quantity → a price per unit, and a unit alone after `/` is one of it:
+  `$0.15/kWh`, `0.15 USD/kWh`, `$30 / 2 kWh`. `money / unit` binds as tightly
+  as a unit does, so `45 kWh * 0.15 USD/kWh` prices the energy;
+- price per unit × quantity of the same dimension → money, the quantity
+  converted to the price's unit first: `$0.15/kWh * 2 MWh` is `$300`. Prices
+  add only to prices per the same unit.
 
 Amounts in different currencies never combine: `10 EUR + 1 USD` fails with
 `evaluation.mixedCurrencies`. Money plus a bare number is a type mismatch.
@@ -56,7 +62,8 @@ currency code.
 
 Results are shown in the locale's currency style rounded half away from zero to
 the currency's minor units, marked `≈` when rounding changed the amount. Full
-precision keeps the exact amount and the code: `100/3 USD`.
+precision keeps the exact amount and the code: `100/3 USD`. A price per unit
+ends in its unit: `$0.15/kWh`.
 
 ## Provenance and freshness
 

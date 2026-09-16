@@ -1,13 +1,16 @@
 import Foundation
 
-/// An exact amount of one ISO 4217 currency.
+/// An exact amount of one ISO 4217 currency, or a price per unit of
+/// something when `unit` is set: `$0.15/kWh`.
 public struct MoneyValue: Hashable, Sendable {
   public let amount: NumericValue
   public let currency: String
+  public let unit: UnitExpression?
 
-  public init(amount: NumericValue, currency: String) {
+  public init(amount: NumericValue, currency: String, unit: UnitExpression? = nil) {
     self.amount = amount
     self.currency = currency
+    self.unit = unit
   }
 }
 
@@ -147,13 +150,18 @@ struct MoneyArithmetic {
   let manualRates: [CurrencyPair: NumericValue]
 
   /// The result of a money operation, or `nil` when neither operand is money.
-  func apply(_ binaryOperator: BinaryOperator, left: EngineValue, right: EngineValue) throws
-    -> EngineValue?
-  {
+  /// `unitAlgebra` converts a quantity a price per unit applies to.
+  func apply(
+    _ binaryOperator: BinaryOperator, left: EngineValue, right: EngineValue,
+    unitAlgebra: UnitAlgebra
+  ) throws -> EngineValue? {
     switch (left, right) {
     case (.money(let lhs), .money(let rhs)):
       guard lhs.currency == rhs.currency else {
         throw EngineError(code: .mixedCurrencies)
+      }
+      guard lhs.unit == rhs.unit else {
+        throw mismatch(.money, .money)
       }
       switch binaryOperator {
       case .add, .subtract:
@@ -190,6 +198,20 @@ struct MoneyArithmetic {
       let rate = try operations.applying(
         .divide, left: percentage.points, right: .integer(IntegerValue(100)))
       return .money(try amount(.multiply, money, rate))
+    // A price per unit: `$30 / 2 kWh` is `$15/kWh`, and `$15/kWh * 3 kWh` is `$45`.
+    case (.money(let money), .quantity(let quantity))
+    where binaryOperator == .divide && money.unit == nil:
+      guard case .ratio = quantity.unit, quantity.kind == .relative else {
+        throw mismatch(.money, .quantity)
+      }
+      return .money(
+        MoneyValue(
+          amount: try operations.applying(.divide, left: money.amount, right: quantity.magnitude),
+          currency: money.currency, unit: quantity.unit))
+    case (.money(let money), .quantity(let quantity)) where binaryOperator == .multiply:
+      return .money(try priced(money, quantity, unitAlgebra))
+    case (.quantity(let quantity), .money(let money)) where binaryOperator == .multiply:
+      return .money(try priced(money, quantity, unitAlgebra))
     case (.money, _), (_, .money):
       throw mismatch(.money, left.kind == .money ? right.kind : left.kind)
     default:
@@ -207,7 +229,7 @@ struct MoneyArithmetic {
     return (
       MoneyValue(
         amount: try operations.applying(.multiply, left: money.amount, right: rate),
-        currency: currency
+        currency: currency, unit: money.unit
       ), use
     )
   }
@@ -242,8 +264,21 @@ struct MoneyArithmetic {
   {
     MoneyValue(
       amount: try operations.applying(binaryOperator, left: money.amount, right: number),
-      currency: money.currency
+      currency: money.currency, unit: money.unit
     )
+  }
+
+  /// A price per unit times an amount of that unit, in the price's unit.
+  private func priced(_ money: MoneyValue, _ quantity: QuantityValue, _ unitAlgebra: UnitAlgebra)
+    throws -> MoneyValue
+  {
+    guard let unit = money.unit, quantity.kind == .relative else {
+      throw mismatch(.money, .quantity)
+    }
+    let amount = try unitAlgebra.converted(quantity, to: unit).magnitude
+    return MoneyValue(
+      amount: try operations.applying(.multiply, left: money.amount, right: amount),
+      currency: money.currency)
   }
 
   private func mismatch(_ expected: EngineValueKind, _ actual: EngineValueKind) -> EngineError {

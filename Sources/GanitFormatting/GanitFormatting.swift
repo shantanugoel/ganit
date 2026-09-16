@@ -508,9 +508,10 @@ public struct ResultFormatter: Sendable {
       let exact = try numericFormatter.format(money.amount)
       let (display, isRounded) = try moneyDisplay(money)
       let isApproximate = exact.isApproximate || isRounded
+      let perUnit = money.unit.map { "/" + parenthesizedIfCompound($0.symbol) } ?? ""
       let result = try checked(
-        display: (isApproximate ? "≈ " : "") + display,
-        fullPrecision: exact.fullPrecision + " " + money.currency
+        display: (isApproximate ? "≈ " : "") + display + perUnit,
+        fullPrecision: exact.fullPrecision + " " + money.currency + perUnit
       )
       return FormattedResult(
         display: result.display, fullPrecision: result.fullPrecision, isApproximate: isApproximate)

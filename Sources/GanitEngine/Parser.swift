@@ -317,6 +317,12 @@ private final class TokenParser {
         continue
       }
 
+      if 29 >= minimumBindingPower, let price = parseUnitPrice(of: left, depth: depth) {
+        left = price
+        depth += 1
+        continue
+      }
+
       let diagnosticCount = diagnostics.count
       if let suffixed = parseTemporalSuffix(of: left, minimumBindingPower: minimumBindingPower) {
         guard diagnostics.count == diagnosticCount else {
@@ -471,6 +477,9 @@ private final class TokenParser {
         if ScaleWord.digits[name] != nil {
           return parsePrefixedScale(name, range: token.range, depth: depth)
         }
+      }
+      if let unit = parseUnitAfterDivide(name, range: token.range, depth: depth) {
+        return unit
       }
       if variables[name] == nil, catalog.resolveUnit(matching: name) != nil,
         hasAmountAfterPrefixedUnit
@@ -1216,6 +1225,47 @@ private final class TokenParser {
       return nil
     }
     return .money(amount: amount, currency: code, range: range.union(amount.range))
+  }
+
+  /// `0.15 USD/kWh` is one price, binding as tightly as a unit does, so
+  /// `45 kWh * 0.15 USD/kWh` prices the energy. Kept out of the recursive
+  /// loop so its frame stays small.
+  @inline(never)
+  private func parseUnitPrice(of left: Expression, depth: Int) -> Expression? {
+    guard case .money = left, current.kind == .divide,
+      let word = identifier(at: 1), variables[word] == nil,
+      catalog.resolveUnit(matching: word) != nil
+    else {
+      return nil
+    }
+    let divide = advance()
+    guard let unit = parsePrefix(depth: depth + 1) else {
+      return nil
+    }
+    return .infix(
+      left: left, operator: .divide, right: unit, operatorRange: divide.range,
+      range: left.range.union(unit.range))
+  }
+
+  /// `$0.15/kWh`: a unit alone after `/` is one of it, so a price can be per
+  /// unit.
+  @inline(never)
+  private func parseUnitAfterDivide(_ name: String, range: SourceRange, depth: Int)
+    -> Expression?
+  {
+    guard variables[name] == nil, cursor >= 2, tokens[cursor - 2].kind == .divide,
+      let resolved = catalog.resolveUnit(matching: name)
+    else {
+      return nil
+    }
+    let unit = parseUnitProduct(
+      starting: applyOptionalUnitPower(
+        to: .named(resolved.entry, prefix: resolved.prefix, range: range)),
+      depth: depth + 1
+    )
+    return .quantity(
+      magnitude: .literal(.integer(digits: "1", radix: .decimal), range: range),
+      unit: unit, range: unit.range)
   }
 
   /// A quantity after a unit, `kg 5` or `km/h 60`.

@@ -205,10 +205,12 @@ extension LanguageReference {
       ),
       body: text(
         "help.grammar.money.body",
-        "12.50 EUR, EUR 12.50, €5, and 5€ are money. $ is USD unless Format ▸ Dollar Means or the sheet's right-click menu picks another dollar currency. USD 1.5, 5 dollars, dollars 5, and 11.5 million are the same kinds of amount. ¥ is yen. 100 USD in INR converts with the European Central Bank daily rates, or a rate you declare: 1 USD = 83 INR. Automatic downloads can be turned off."
+        "12.50 EUR, EUR 12.50, €5, and 5€ are money. $ is USD unless Format ▸ Dollar Means or the sheet's right-click menu picks another dollar currency. USD 1.5, 5 dollars, dollars 5, and 11.5 million are the same kinds of amount. ¥ is yen. A price can be per unit: $0.15/kWh * 45 kWh is $6.75. 100 USD in INR converts with the European Central Bank daily rates, or a rate you declare: 1 USD = 83 INR. Automatic downloads can be turned off."
       ),
-      examples: ["$1.5", "USD 1.5", "11.5 million", "12.50 EUR", "100 USD in INR"],
-      keywords: ["currency", "exchange", "EUR", "USD"]
+      examples: [
+        "$1.5", "USD 1.5", "11.5 million", "12.50 EUR", "100 USD in INR", "$0.15/kWh * 45 kWh",
+      ],
+      keywords: ["currency", "exchange", "EUR", "USD", "price", "per", "unit price"]
     ),
     topic(
       id: "grammar.constants",

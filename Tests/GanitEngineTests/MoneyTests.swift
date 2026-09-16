@@ -40,6 +40,21 @@ struct MoneyTests {
   }
 
   @Test
+  func pricesAQuantityPerUnit() throws {
+    guard case .money(let price) = try evaluate("$0.15/kWh") else {
+      Issue.record("Expected a price per kWh")
+      return
+    }
+    #expect(price.unit?.symbol == "kWh")
+    #expect(try same(evaluate("$30 / 2 kWh * 1 kWh"), money("15", "USD")))
+    #expect(try same(evaluate("0.15 USD/kWh * 45 kWh"), money("6.75", "USD")))
+    #expect(try same(evaluate("1500 W * 3 h * 30 * 0.15 USD/kWh"), money("20.25", "USD")))
+    #expect(try same(evaluate("$0.15/kWh * 2 MWh"), money("300", "USD")))
+    #expect(try error("$0.15/kWh + $1").code == .typeMismatch)
+    #expect(try error("$0.15/kWh * 3 m").code == .incompatibleDimensions)
+  }
+
+  @Test
   func convertsExactlyThroughEuroReferenceRates() throws {
     let rates = try reference(["USD": "1.1551", "JPY": "178.52"])
     #expect(try same(evaluate("100 EUR in USD", rates: rates), money("115.51", "USD")))
@@ -104,7 +119,7 @@ struct MoneyTests {
     let operations = NumericOperations(context: try sheetContext(), limits: .default)
     switch (value, expected) {
     case (.money(let lhs), .money(let rhs)):
-      return try lhs.currency == rhs.currency
+      return try lhs.currency == rhs.currency && lhs.unit == rhs.unit
         && operations.applying(.subtract, left: lhs.amount, right: rhs.amount).isZero
     case (.number(let lhs), .number(let rhs)):
       return try operations.applying(.subtract, left: lhs, right: rhs).isZero

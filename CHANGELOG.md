@@ -5,6 +5,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Prices per unit: `$0.15/kWh * 45 kWh` is `$6.75`, `₹8/kWh * 1,245 kWh` and
+  `1500 W * 3 h * 30 * 0.15 USD/kWh` work, and `$30 / 2 kWh` is `$15.00/kWh`.
 - `sum`, `average`, `line N`, and a variable that read a failed line say which:
   `Line 12 has an error, so this cannot use it.`
 - `sin`, `cos`, and `tan` take an angle with its unit: `sin(30°)` is `0.5` and

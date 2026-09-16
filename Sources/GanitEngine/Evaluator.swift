@@ -420,7 +420,7 @@ private struct EvaluationWorker {
       return .money(
         MoneyValue(
           amount: try operations.applying(unaryOperator, to: money.amount),
-          currency: money.currency))
+          currency: money.currency, unit: money.unit))
     case .rate, .date, .time, .instant:
       throw typeMismatch(expected: .number, actual: value.kind)
     }
@@ -434,7 +434,9 @@ private struct EvaluationWorker {
     if let result = try temporal.apply(binaryOperator, left: left, right: right) {
       return result
     }
-    if let result = try money.apply(binaryOperator, left: left, right: right) {
+    if let result = try money.apply(
+      binaryOperator, left: left, right: right, unitAlgebra: unitAlgebra)
+    {
       return result
     }
     switch (left, right) {
@@ -744,12 +746,12 @@ private struct EvaluationWorker {
       return try moneyResult(
         apply(
           percentageOperator, left: left, leftRange: leftRange, right: .number(money.amount),
-          rightRange: rightRange), money.currency)
+          rightRange: rightRange), money)
     case (.reverseOff, .money(let money), _), (.reverseOn, .money(let money), _):
       return try moneyResult(
         apply(
           percentageOperator, left: .number(money.amount), leftRange: leftRange, right: right,
-          rightRange: rightRange), money.currency)
+          rightRange: rightRange), money)
     // Percentages of a quantity scale its magnitude and keep its unit, for
     // quantities that count. A tenth of 20 °C is a point on no scale.
     case (.of, _, .quantity(let quantity)), (.off, _, .quantity(let quantity)),
@@ -860,11 +862,11 @@ private struct EvaluationWorker {
     }
   }
 
-  private func moneyResult(_ value: EngineValue, _ currency: String) throws -> EngineValue {
+  private func moneyResult(_ value: EngineValue, _ money: MoneyValue) throws -> EngineValue {
     guard case .number(let amount) = value else {
       throw typeMismatch(expected: .number, actual: value.kind)
     }
-    return .money(MoneyValue(amount: amount, currency: currency))
+    return .money(MoneyValue(amount: amount, currency: money.currency, unit: money.unit))
   }
 
   private func quantityResult(
