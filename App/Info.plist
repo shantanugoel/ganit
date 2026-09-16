@@ -21,11 +21,11 @@
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.2.0</string>
+    <string>0.2.1</string>
     <!-- Sparkle compares this to decide what is newer, so it is the version,
          not a build count. -->
     <key>CFBundleVersion</key>
-    <string>0.2.0</string>
+    <string>0.2.1</string>
     <key>SUFeedURL</key>
     <string>https://github.com/shantanugoel/ganit/releases/latest/download/appcast.xml</string>
     <key>SUPublicEDKey</key>

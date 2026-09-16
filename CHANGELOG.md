@@ -5,6 +5,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+## 0.2.1
+
 - Format ▸ Markdown Mode (formerly Prose Mode) writes answers in the lines,
   treats sentences as paragraphs, and is also on a sheet's right-click menu.
   Markdown sheets show a document mark in the sidebar. `=>` ends a calculation.
