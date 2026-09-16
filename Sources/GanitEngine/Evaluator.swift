@@ -716,8 +716,10 @@ private struct EvaluationWorker {
   }
 
   private func integerExponent(_ value: NumericValue) throws -> Int {
-    guard case .integer(let integer) = value,
-      let exponent = Int(integer.canonicalDigits),
+    guard case .integer(let integer) = value else {
+      throw EngineError(code: .invalidDomain, context: .unitPower)
+    }
+    guard let exponent = Int(integer.canonicalDigits),
       exponent.magnitude <= Dimension.maximumExponentMagnitude
     else {
       throw EngineError(

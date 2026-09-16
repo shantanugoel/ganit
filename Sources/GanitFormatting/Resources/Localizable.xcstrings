@@ -374,6 +374,11 @@
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Use a bounded signed integer unit exponent." } }
       }
     },
+    "error.evaluation.invalidDomain.unitPower" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "A unit can only be raised to a whole number." } }
+      }
+    },
     "syntax.invalidVariableName" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "This word is already a unit, function, or keyword. Choose another name." } }

@@ -143,6 +143,10 @@ private struct Scanner {
         append(.plus, from: start)
       case "-", "−":
         append(.minus, from: start)
+      case "*" where current == "*":
+        // `**` is a power, as it is in many programming languages.
+        advance()
+        append(.power, from: start)
       case "*", "×", "·":
         append(.multiply, from: start)
       case "/", "÷":

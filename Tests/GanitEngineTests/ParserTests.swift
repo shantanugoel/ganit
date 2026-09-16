@@ -195,10 +195,10 @@ struct ParserTests {
     #expect(unexpectedClosing.diagnostics.first?.severity == .error)
     #expect(missingOperand.diagnostics.first?.severity == .error)
     #expect(invalidGroupedSeparator.diagnostics.first?.severity == .error)
-    #expect(
-      invalidGroupedSeparator.diagnostics.first?.code
-        == .expectedClosingParenthesis
-    )
+    // What is inside is the problem, not a missing `)`.
+    #expect(invalidGroupedSeparator.diagnostics.first?.code == .unexpectedToken)
+    #expect(Parser(source: "(5 V)").parse().diagnostics.first?.code == .unexpectedToken)
+    #expect(Parser(source: "(1 + 2").parse().diagnostics.first?.code == .expectedClosingParenthesis)
   }
 
   @Test

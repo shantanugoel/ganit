@@ -512,11 +512,12 @@ private final class TokenParser {
         return nil
       }
       guard current.kind == .rightParenthesis else {
-        diagnose(
-          .expectedClosingParenthesis,
-          at: current.range,
-          severity: current.isEndOfInput ? .incomplete : .error
-        )
+        // Something other than `)` inside is the problem, not a missing `)`.
+        if current.isEndOfInput {
+          diagnose(.expectedClosingParenthesis, at: current.range, severity: .incomplete)
+        } else {
+          diagnose(.unexpectedToken, at: current.range)
+        }
         return .grouped(
           expression,
           range: token.range.union(expression.range)

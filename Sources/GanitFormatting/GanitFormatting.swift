@@ -923,6 +923,11 @@ public struct DiagnosticFormatter: Sendable {
         "error.evaluation.divisionByZero",
         defaultValue: "Cannot divide by zero."
       )
+    case .invalidDomain where error.context == .unitPower:
+      return localized(
+        "error.evaluation.invalidDomain.unitPower",
+        defaultValue: "A unit can only be raised to a whole number."
+      )
     case .invalidDomain:
       return localized(
         "error.evaluation.invalidDomain",

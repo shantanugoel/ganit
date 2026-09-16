@@ -70,6 +70,8 @@ public enum EngineErrorContext: Hashable, Sendable {
   case maximumIntegerDigits(Int)
   case rootDegree
   case rootRadicand
+  /// A unit raised to a power that is not a whole number.
+  case unitPower
   case evaluationContext(EvaluationContextField)
   case argumentCount(
     function: String,
