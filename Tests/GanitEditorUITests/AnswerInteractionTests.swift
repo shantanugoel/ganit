@@ -246,6 +246,12 @@ struct AnswerInteractionTests {
     #expect(
       textView.tooltip(at: NSPoint(x: error.rect.midX, y: error.rect.midY)) == error.cell.text)
     #expect(error.cell.text == "These quantities have incompatible dimensions.")
+
+    // AppKit reaches the string through Objective-C, and shows the view's
+    // debug description when it cannot.
+    #expect(
+      textView.responds(
+        to: #selector(NSViewToolTipOwner.view(_:stringForToolTip:point:userData:))))
   }
 
   /// Keeps the window, and with it the editor, alive for the test.

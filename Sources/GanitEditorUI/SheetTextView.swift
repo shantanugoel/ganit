@@ -542,13 +542,6 @@ final class SheetTextView: NSTextView {
     return NSRect(x: point.x, y: point.y - 8, width: 12, height: 16)
   }
 
-  func view(
-    _ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint,
-    userData data: UnsafeMutableRawPointer?
-  ) -> String {
-    helpTooltip
-  }
-
   // MARK: Answer selection and commands
 
   /// The answer under `point`, with a little extra width so a short result is
@@ -1337,5 +1330,16 @@ private final class LineRotor: NSObject,
     result.targetRange = NSRange(location: line.start, length: line.length)
     result.customLabel = textView.spokenAnswer(line.id)
     return result
+  }
+}
+
+// AppKit asks the owner for the text only when it conforms; otherwise it shows
+// the view's debug description.
+extension SheetTextView: NSViewToolTipOwner {
+  func view(
+    _ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint,
+    userData data: UnsafeMutableRawPointer?
+  ) -> String {
+    helpTooltip
   }
 }

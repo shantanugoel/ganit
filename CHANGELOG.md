@@ -5,6 +5,9 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Hovering an answer, error, or function shows its text again instead of the
+  editor's internal description.
+
 ## 0.2.2
 
 - An assistant address is any OpenAI-compatible base (`https://api.openai.com/v1`,
