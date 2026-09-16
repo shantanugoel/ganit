@@ -5,6 +5,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+## 0.2.0
+
 - Help ▸ Ganit Help opens a searchable reference of the grammar, functions,
   and keywords.
 - Hovering a function, keyword, or error shows its signature or message;
