@@ -55,6 +55,9 @@ cmp -s \
 cmp -s \
   ThirdPartyNotices/CurrencyDataSources.md \
   "$application/Contents/Resources/CurrencyDataSources.md"
+cmp -s \
+  CHANGELOG.md \
+  "$application/Contents/Resources/CHANGELOG.md"
 privacy_declaration=$(plutil -convert json -o - "$privacy_manifest")
 test "$privacy_declaration" = '{"NSPrivacyCollectedDataTypes":[],"NSPrivacyTracking":false}'
 

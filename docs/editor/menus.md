@@ -14,7 +14,7 @@ enabled only when the focused editor or window can perform it.
 | Format | Heading, Comment ⌘/, Divider, Step Number Up ⌃↑, Step Number Down ⌃↓, Number Format, Group Digits, Prose Mode |
 | View | Bigger ⌘+, Smaller ⌘-, Actual Size ⌘0, Show Answer Separator, Enter Full Screen ⌃⌘F |
 | Window | Minimize ⌘M, Zoom, Scratch ⇧⌘S, Definitions ⌘⇧D, Quick Ganit items, Bring All to Front, and the window list |
-| Help | Ganit Help ⌘?, menu search |
+| Help | Ganit Help ⌘?, Release Notes, Report a Problem…, menu search |
 
 `SheetCommands` declares the sheet actions. The text view handles result,
 reference, and formatting commands; the editor controller, next in the

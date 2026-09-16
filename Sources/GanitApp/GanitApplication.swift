@@ -34,6 +34,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   private var shortcutWindow: NSWindow?
   private var assistantWindow: NSWindow?
   private var help: HelpWindowController?
+  private var releaseNotes: ReleaseNotesWindowController?
   /// The assistant's settings, read once so that asking about a line does not
   /// go to the keychain every time.
   private var assistantSettings = AssistantSettings.load()
@@ -292,6 +293,21 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       help = HelpWindowController()
     }
     help?.show(topicID: topicID)
+  }
+
+  /// Opens the changelog that shipped with this copy of Ganit.
+  @objc func showReleaseNotes(_ sender: Any?) {
+    if releaseNotes == nil {
+      let text =
+        ReleaseNotesWindowController.text(in: .main)
+        ?? String(
+          localized: "releaseNotes.missing",
+          defaultValue: "Release notes were not included in this copy of Ganit.",
+          bundle: .main
+        )
+      releaseNotes = ReleaseNotesWindowController(text: text)
+    }
+    releaseNotes?.window?.makeKeyAndOrderFront(nil)
   }
 
   // MARK: The assistant

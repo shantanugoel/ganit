@@ -11,6 +11,7 @@ existing answer. See the [release train](docs/release/release-train.md).
   right-click opens Help or the interpretation card.
 - About names Shantanu Goel and links to x.com/shantanugoel and the GitHub
   repository.
+- Help ▸ Release Notes shows the changelog.
 
 ## 0.1.1
 
