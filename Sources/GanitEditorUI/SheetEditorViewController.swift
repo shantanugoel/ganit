@@ -103,7 +103,8 @@ public final class SheetEditorViewController: NSViewController {
     context: EvaluationContext,
     display: DisplayOptions = .standard
   ) {
-    self.context = context
+    self.context = context.with(
+      dollarCurrency: display.dollarCurrency, isMarkdownMode: display.writesAnswersInline)
     displayOptions = display
     resultFormatter = ResultFormatter(context: context, display: display)
     diagnosticFormatter = DiagnosticFormatter(context: context)
@@ -500,16 +501,21 @@ public final class SheetEditorViewController: NSViewController {
     }
   }
 
-  /// Writes every answer again the way `options` asks. Nothing is evaluated
-  /// again, because how an answer reads is not what it is.
+  /// Writes every answer again the way `options` asks, and re-evaluates when
+  /// markdown mode changes what a line means.
   public func writeAnswers(_ options: DisplayOptions) {
     guard options != displayOptions else {
       return
     }
     displayOptions = options
+    context = context.with(
+      dollarCurrency: options.dollarCurrency, isMarkdownMode: options.writesAnswersInline)
+    scheduler?.context = context
     resultFormatter = ResultFormatter(context: context, display: options)
     placeAnswers(options)
     cells.removeAll()
+    decorations.removeAll()
+    scheduler?.schedule(sheet)
     sheetTextView.answersDidChange()
     summarizeSelection()
   }

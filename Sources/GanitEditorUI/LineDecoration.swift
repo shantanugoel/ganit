@@ -9,6 +9,12 @@ struct LineDecoration: Equatable {
     case secondary
     /// Dividers and heading markers.
     case tertiary
+    /// A markdown heading's title.
+    case heading
+    /// Markdown `**bold**`.
+    case bold
+    /// Markdown `*italic*`.
+    case italic
     case error
     case warning
   }
@@ -37,10 +43,26 @@ struct LineDecoration: Equatable {
     case .heading:
       if let marker = text.utf16.firstIndex(of: UInt16(UInt8(ascii: "#"))) {
         let location = text.utf16.distance(from: text.utf16.startIndex, to: marker)
-        runs.append(Run(range: NSRange(location: location, length: 1), style: .tertiary))
+        var hashes = 1
+        while location + hashes < text.utf16.count {
+          let index = text.utf16.index(text.utf16.startIndex, offsetBy: location + hashes)
+          if text.utf16[index] != UInt16(UInt8(ascii: "#")) {
+            break
+          }
+          hashes += 1
+        }
+        runs.append(Run(range: NSRange(location: location, length: hashes), style: .tertiary))
+        let titleStart = location + hashes
+        let titleLength = text.utf16.count - titleStart
+        if titleLength > 0 {
+          runs.append(
+            Run(range: NSRange(location: titleStart, length: titleLength), style: .heading))
+        }
       }
     case .comment(let range):
       add(range, .secondary)
+    case .markdown:
+      runs.append(contentsOf: markdownEmphasis(in: text))
     case .calculation(let label, _, _, let comment):
       label.map { add($0, .secondary) }
       comment.map { add($0, .secondary) }
@@ -89,6 +111,21 @@ extension LineDecoration.Style {
       return [.foregroundColor: VisualStyle.Color.secondary]
     case .tertiary:
       return [.foregroundColor: VisualStyle.Color.tertiary]
+    case .heading:
+      return [
+        .font: NSFont.systemFont(ofSize: VisualStyle.Typography.editorSize, weight: .semibold)
+      ]
+    case .bold:
+      return [
+        .font: NSFont.systemFont(ofSize: VisualStyle.Typography.editorSize, weight: .bold)
+      ]
+    case .italic:
+      return [
+        .font: NSFontManager.shared.convert(
+          NSFont.systemFont(ofSize: VisualStyle.Typography.editorSize),
+          toHaveTrait: .italicFontMask
+        )
+      ]
     case .error, .warning:
       return [:]
     }
@@ -98,7 +135,7 @@ extension LineDecoration.Style {
   /// color alone.
   var underlineColor: NSColor? {
     switch self {
-    case .secondary, .tertiary:
+    case .secondary, .tertiary, .heading, .bold, .italic:
       return nil
     case .error:
       return VisualStyle.Color.failure
@@ -128,4 +165,24 @@ private func visibleRange(_ range: SourceRange, in text: String) -> NSRange {
     return string.rangeOfComposedCharacterSequence(at: nsRange.location - 1)
   }
   return string.length > 0 ? string.rangeOfComposedCharacterSequence(at: 0) : nsRange
+}
+
+/// `**bold**` and `*italic*` runs, so a markdown article can emphasize words
+/// without changing the source.
+private func markdownEmphasis(in text: String) -> [LineDecoration.Run] {
+  let string = text as NSString
+  let pattern = #"\*\*(.+?)\*\*|\*(.+?)\*"#
+  guard let regex = try? NSRegularExpression(pattern: pattern) else {
+    return []
+  }
+  return regex.matches(in: text, range: NSRange(location: 0, length: string.length)).compactMap {
+    match in
+    if match.range(at: 1).location != NSNotFound {
+      return LineDecoration.Run(range: match.range(at: 1), style: .bold)
+    }
+    if match.range(at: 2).location != NSNotFound {
+      return LineDecoration.Run(range: match.range(at: 2), style: .italic)
+    }
+    return nil
+  }
 }

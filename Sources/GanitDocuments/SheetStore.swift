@@ -65,7 +65,9 @@ extension SheetPreferences {
       now: now,
       calendar: Calendar(identifier: .gregorian),
       timeZone: TimeZone(identifier: TimeZone.current.identifier) ?? .gmt,
-      currencyRates: currencyRates
+      currencyRates: currencyRates,
+      dollarCurrency: display.dollarCurrency,
+      isMarkdownMode: display.writesAnswersInline
     )
   }
 }

@@ -502,12 +502,15 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     write(options)
   }
 
-  @objc public func toggleProseMode(_ sender: Any?) {
-    guard var options = displayOptions else {
+  @objc public func toggleMarkdownMode(_ sender: Any?) {
+    let id = sidebar.targetSheet?.id ?? sheetID
+    guard let id,
+      var options = (try? library.store.load(id: id))?.metadata.preferences.display
+    else {
       return
     }
     options.writesAnswersInline.toggle()
-    write(options)
+    perform { try workspace.write(options, on: id) }
   }
 
   @objc public func toggleAnswerSeparator(_ sender: Any?) {
@@ -535,9 +538,10 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     case #selector(toggleDigitGrouping(_:)):
       menuItem.state = displayOptions?.groupsDigits == true ? .on : .off
       return displayOptions != nil
-    case #selector(toggleProseMode(_:)):
-      menuItem.state = displayOptions?.writesAnswersInline == true ? .on : .off
-      return displayOptions != nil
+    case #selector(toggleMarkdownMode(_:)):
+      menuItem.state =
+        (target?.isMarkdown ?? displayOptions?.writesAnswersInline) == true ? .on : .off
+      return target != nil || displayOptions != nil
     case #selector(toggleAnswerSeparator(_:)):
       menuItem.state = displayOptions?.showsAnswerSeparator == true ? .on : .off
       // Answers written inline leave nothing for the rule to separate.

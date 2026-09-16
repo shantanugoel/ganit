@@ -5,6 +5,10 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Format ▸ Markdown Mode (formerly Prose Mode) writes answers in the lines,
+  treats sentences as paragraphs, and is also on a sheet's right-click menu.
+  Markdown sheets show a document mark in the sidebar. `=>` ends a calculation.
+
 ## 0.2.0
 
 - Help ▸ Ganit Help opens a searchable reference of the grammar, functions,

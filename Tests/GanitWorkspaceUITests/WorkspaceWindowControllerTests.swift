@@ -386,25 +386,26 @@ struct WorkspaceWindowControllerTests {
   }
 
   @Test
-  func proseModeAndTheAnswerRuleStayWithTheSheet() throws {
+  func markdownModeAndTheAnswerRuleStayWithTheSheet() throws {
     let (workspace, ids) = try makeWorkspace(["2 + 2"])
     defer { close(workspace) }
     let controller = workspace.openWindow(showing: ids[0])
 
     let prose = NSMenuItem(
-      title: "", action: #selector(WorkspaceCommands.toggleProseMode(_:)), keyEquivalent: "")
+      title: "", action: #selector(WorkspaceCommands.toggleMarkdownMode(_:)), keyEquivalent: "")
     let rule = NSMenuItem(
       title: "", action: #selector(WorkspaceCommands.toggleAnswerSeparator(_:)), keyEquivalent: "")
     #expect(controller.validateMenuItem(rule))
     #expect(rule.state == .on)
 
-    controller.toggleProseMode(nil)
+    controller.toggleMarkdownMode(nil)
     #expect(controller.validateMenuItem(prose))
     #expect(prose.state == .on)
+    #expect(controller.sidebar.sheets.first { $0.id == ids[0] }?.isMarkdown == true)
     // Inline answers leave no column, so the rule has nothing to mark.
     #expect(!controller.validateMenuItem(rule))
 
-    controller.toggleProseMode(nil)
+    controller.toggleMarkdownMode(nil)
     controller.toggleAnswerSeparator(nil)
     let stored = try workspace.library.store.load(id: ids[0]).metadata.preferences.display
     #expect(stored == DisplayOptions(writesAnswersInline: false, showsAnswerSeparator: false))

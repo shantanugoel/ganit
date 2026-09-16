@@ -56,7 +56,7 @@ import GanitEditorUI
   func restorePreviousVersion(_ sender: Any?)
   func setNumberFormat(_ sender: Any?)
   func toggleDigitGrouping(_ sender: Any?)
-  func toggleProseMode(_ sender: Any?)
+  func toggleMarkdownMode(_ sender: Any?)
   func toggleAnswerSeparator(_ sender: Any?)
 }
 
@@ -358,8 +358,8 @@ public enum MainMenu {
             #selector(WorkspaceCommands.toggleDigitGrouping(_:))),
           .separator(),
           item(
-            localized("menu.proseMode", "Prose Mode"),
-            #selector(WorkspaceCommands.toggleProseMode(_:))),
+            localized("menu.markdownMode", "Markdown Mode"),
+            #selector(WorkspaceCommands.toggleMarkdownMode(_:))),
         ]
       ),
       menu(

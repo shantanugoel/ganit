@@ -217,7 +217,10 @@ public final class Workspace {
   /// and rewriting what is on screen.
   func write(_ options: DisplayOptions, on id: UUID) throws {
     didChange(try library.update(id) { $0.preferences.display = options })
-    sheets[id]?.editor.writeAnswers(options)
+    guard let sheet = sheets[id] else {
+      return
+    }
+    sheet.editor.writeAnswers(options)
   }
 
   /// Changes a sheet's metadata as one undoable action. Undo returns the

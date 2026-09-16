@@ -74,11 +74,13 @@ public enum VisualStyle {
     public static let archive = "archivebox"
     public static let trash = "trash"
     public static let folder = "folder"
+    /// A sheet written as a markdown article.
+    public static let markdown = "doc.richtext"
     /// Ganit's mark in the menu bar.
     public static let menuBar = "function"
 
     public static let all = [
-      newSheet, allSheets, recent, favorites, archive, trash, folder, menuBar,
+      newSheet, allSheets, recent, favorites, archive, trash, folder, markdown, menuBar,
     ]
   }
 }

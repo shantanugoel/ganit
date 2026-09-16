@@ -12,13 +12,16 @@ public enum LineSyntax: Hashable, Sendable {
   /// An optional `label:`, an optional `name =` declaration, an optional
   /// expression, and an optional trailing `// comment`. At least one of the
   /// label and expression is present; a declaration always has an
-  /// expression range, which is empty when nothing follows `=`.
+  /// expression range, which is empty when nothing follows `=`. `=>` ends the
+  /// expression, Calca-style, and is not part of it.
   case calculation(
     label: SourceRange?,
     name: SourceRange?,
     expression: SourceRange?,
     comment: SourceRange?
   )
+  /// A markdown paragraph: words that are not a calculation, in markdown mode.
+  case markdown
 
   public init(_ text: String) {
     let characters = LineCharacters(text)
@@ -70,12 +73,19 @@ public enum LineSyntax: Hashable, Sendable {
     }
     var name: SourceRange?
     var expression = characters.trimmed(expressionStart..<body.upperBound)
-    if let equals = expression.first(where: { characters[$0] == "=" }) {
+    if let equals = expression.first(where: { characters[$0] == "=" }),
+      equals + 1 >= expression.upperBound || characters[equals + 1] != ">"
+    {
       let declared = characters.trimmed(expression.lowerBound..<equals)
       if !declared.isEmpty {
         name = characters.range(declared)
         expression = characters.trimmed((equals + 1)..<body.upperBound)
       }
+    }
+    if let arrow = expression.first(where: { characters[$0] == "=" }),
+      arrow + 1 < expression.upperBound, characters[arrow + 1] == ">"
+    {
+      expression = characters.trimmed(expression.lowerBound..<arrow)
     }
     self = .calculation(
       label: label,

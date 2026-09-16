@@ -173,7 +173,7 @@ public struct SheetCalculator: Sendable {
       case .divider:
         outcomes.endBlock()
         scope = inherited
-      case .comment, .calculation:
+      case .comment, .calculation, .markdown:
         break
       }
       results.append(SheetLineResult(id: line.id, source: source, evaluation: evaluation))
@@ -220,7 +220,10 @@ private final class LineSource: Sendable {
   ) {
     self.text = text
     self.units = units
-    syntax = LineSyntax(text)
+    let parsed = LineSyntax(text)
+    syntax =
+      context.isMarkdownMode
+      ? MarkdownLines.adjusted(parsed, text: text, engine: engine, context: context) : parsed
     var runs: [[String]] = [[]]
     for token in Lexer(source: text, configuration: context.lexingConfiguration).lex().tokens {
       if case .identifier(let word) = token.kind {

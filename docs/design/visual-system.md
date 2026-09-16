@@ -48,7 +48,8 @@ than 10 pt.
 
 SF Symbols only: `square.and.pencil` (New Sheet), `tray.full` (All Sheets),
 `clock` (Recent), `star` (Favorites), `archivebox` (Archive), `trash`
-(Trash), and `folder` (folders). A test checks that each symbol exists.
+(Trash), `folder` (folders), and `doc.richtext` (Markdown Mode). A test checks
+that each symbol exists.
 
 ## Materials
 

@@ -2,8 +2,11 @@
 
 A sheet is segmented into lines (see
 [sheet source](../engine/sheet-source.md)), and each line has exactly one
-structural role. Prose is recognized only through the explicit markers below;
-any other text is an expression and unknown words are reported, not skipped.
+structural role. On an ordinary sheet, prose is recognized only through the
+explicit markers below; any other text is an expression and unknown words are
+reported, not skipped. **Markdown Mode** writes answers in the lines and treats
+sentences that are not calculations as paragraphs, so a sheet can be an article
+with arithmetic in it, as in Calca.
 
 | Role | Form | Example |
 |---|---|---|
@@ -11,7 +14,8 @@ any other text is an expression and unknown words are reported, not skipped.
 | Divider | three or more `-` and nothing else | `---` |
 | Heading | first non-space character is `#` | `# Trip budget` |
 | Comment | first non-space characters are `//` | `// assumptions` |
-| Calculation | optional `label:`, optional `name =`, optional expression, optional `// comment` | `Rent: monthly rent = 2,100 // shared` |
+| Calculation | optional `label:`, optional `name =`, optional expression, optional `=>`, optional `// comment` | `Rent: monthly rent = 2,100 // shared` |
+| Markdown | Markdown Mode only: a line of words that is not a calculation | `Three cakes, each taking flour.` |
 
 Rules, applied in this order:
 
@@ -24,10 +28,12 @@ Rules, applied in this order:
 4. In the remaining text, the first `=` with a non-empty name before it makes
    a [variable declaration](variables.md), or a
    [unit definition](definitions.md) when that name is the word `unit` and one
-   more word.
+   more word. `=>` is not a declaration; it ends the expression, Calca-style.
 5. The remaining trimmed text is the expression. `Groceries:` is a label with
    no expression and produces no result; `total =` is an incomplete
-   declaration.
+   declaration. In Markdown Mode, leading words before a number, currency, or
+   function are skipped, so `The cost is 100 + 50` is `100 + 50`, and a line
+   with no calculation is a paragraph rather than an error.
 
 Dividers must contain only hyphens, so `---5` is still arithmetic. Line roles
 carry exact ranges for labels, expressions, titles, and comments, relative to

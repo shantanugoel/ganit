@@ -23,7 +23,8 @@ struct LineDecorationTests {
       ])
     #expect(
       try decoration(" # Trip").runs == [
-        .init(range: NSRange(location: 1, length: 1), style: .tertiary)
+        .init(range: NSRange(location: 1, length: 1), style: .tertiary),
+        .init(range: NSRange(location: 2, length: 5), style: .heading),
       ])
     #expect(try decoration("12 km").runs.isEmpty)
   }

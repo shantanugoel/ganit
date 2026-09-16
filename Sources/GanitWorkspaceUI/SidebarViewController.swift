@@ -253,6 +253,10 @@ extension SidebarViewController: NSMenuDelegate {
         localized("menu.duplicateSheet", "Duplicate"),
         #selector(WorkspaceCommands.duplicateSheet(_:)))
       add(
+        localized("menu.markdownMode", "Markdown Mode"),
+        #selector(WorkspaceCommands.toggleMarkdownMode(_:)))
+      menu.items.last?.state = sheet.isMarkdown ? .on : .off
+      add(
         sheet.isFavorite
           ? localized("menu.removeFavorite", "Remove from Favorites")
           : localized("menu.addFavorite", "Add to Favorites"),
@@ -359,11 +363,24 @@ extension SidebarViewController: NSTableViewDataSource, NSTableViewDelegate {
       labelWithString: sheet.title.isEmpty ? localized("sheet.untitled", "Untitled") : sheet.title
     )
     title.lineBreakMode = .byTruncatingTail
+    var titleViews: [NSView] = [title]
+    if sheet.isMarkdown {
+      let mark = NSImageView(
+        image: NSImage(
+          systemSymbolName: VisualStyle.Symbol.markdown,
+          accessibilityDescription: localized("menu.markdownMode", "Markdown Mode"))!)
+      mark.contentTintColor = VisualStyle.Color.secondary
+      titleViews.append(mark)
+    }
+    let titleRow = NSStackView(views: titleViews)
+    titleRow.orientation = .horizontal
+    titleRow.alignment = .centerY
+    titleRow.spacing = VisualStyle.Spacing.related
     let modified = NSTextField(
       labelWithString: sheet.modifiedAt.formatted(.relative(presentation: .named)))
     modified.textColor = VisualStyle.Color.secondary
     modified.font = VisualStyle.Typography.caption
-    let stack = NSStackView(views: [title, modified])
+    let stack = NSStackView(views: [titleRow, modified])
     stack.orientation = .vertical
     stack.alignment = .leading
     stack.spacing = VisualStyle.Spacing.tight

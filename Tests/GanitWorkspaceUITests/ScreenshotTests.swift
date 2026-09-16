@@ -55,9 +55,9 @@ struct ScreenshotTests {
     for open in workspace.windows { open.window?.orderOut(nil) }
   }
 
-  /// The same answers, read as prose: in the lines rather than beside them.
+  /// The same answers, read as a markdown article: in the lines rather than beside them.
   @Test
-  func proseMode() async throws {
+  func markdownMode() async throws {
     let (workspace, ids) = try makeWorkspace([
       """
       # Saturday

@@ -16,8 +16,12 @@ public struct DisplayOptions: Codable, Equatable, Sendable {
   public var numbers: NumberDisplay
 
   /// Writes each answer just after the line that produced it instead of in a
-  /// column down the right side, so a sheet can be written and read as prose.
+  /// column down the right side, so a sheet can be written as a markdown
+  /// article with calculations in the lines.
   public var writesAnswersInline: Bool
+
+  /// ISO 4217 code `$` means on this sheet.
+  public var dollarCurrency: String
 
   /// Draws a dim rule where the source ends and the answer column begins.
   /// Answers written inline have no column, and so no rule.
@@ -27,12 +31,14 @@ public struct DisplayOptions: Codable, Equatable, Sendable {
     groupsDigits: Bool = true,
     numbers: NumberDisplay = .automatic,
     writesAnswersInline: Bool = false,
-    showsAnswerSeparator: Bool = true
+    showsAnswerSeparator: Bool = true,
+    dollarCurrency: String = "USD"
   ) {
     self.groupsDigits = groupsDigits
     self.numbers = numbers
     self.writesAnswersInline = writesAnswersInline
     self.showsAnswerSeparator = showsAnswerSeparator
+    self.dollarCurrency = dollarCurrency
   }
 
   /// A sheet written before answers could sit inline names neither choice,
@@ -45,6 +51,7 @@ public struct DisplayOptions: Codable, Equatable, Sendable {
       try container.decodeIfPresent(Bool.self, forKey: .writesAnswersInline) ?? false
     showsAnswerSeparator =
       try container.decodeIfPresent(Bool.self, forKey: .showsAnswerSeparator) ?? true
+    dollarCurrency = try container.decodeIfPresent(String.self, forKey: .dollarCurrency) ?? "USD"
   }
 }
 

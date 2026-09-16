@@ -9,6 +9,8 @@ public struct SheetSummary: Equatable, Sendable {
   public let state: SheetState
   public let isFavorite: Bool
   public let modifiedAt: Date
+  /// The sheet is written as a markdown article, with answers in the lines.
+  public let isMarkdown: Bool
 }
 
 /// The outcome of rebuilding the index from sheet files.
@@ -25,7 +27,7 @@ public struct IndexRebuildReport: Equatable, Sendable {
 /// an unexpected schema version, replaces it with an empty index and sets
 /// `needsRebuild`; `rebuild(from:)` then repopulates it from the store.
 public final class SheetIndex {
-  static let schemaVersion: Int32 = 1
+  static let schemaVersion: Int32 = 2
 
   public private(set) var needsRebuild = false
   private let url: URL
@@ -57,7 +59,8 @@ public final class SheetIndex {
         state TEXT NOT NULL,
         is_favorite INTEGER NOT NULL,
         modified_at REAL NOT NULL,
-        source TEXT NOT NULL
+        source TEXT NOT NULL,
+        is_markdown INTEGER NOT NULL
       );
       PRAGMA user_version = \(Self.schemaVersion);
       """
@@ -71,13 +74,14 @@ public final class SheetIndex {
   public func upsert(_ metadata: SheetMetadata, source: String) throws {
     try run(
       """
-      INSERT OR REPLACE INTO sheets (id, title, folder_id, state, is_favorite, modified_at, source)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO sheets (id, title, folder_id, state, is_favorite, modified_at, source, is_markdown)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       """,
       [
         metadata.id.uuidString, metadata.title, metadata.folderID?.uuidString,
         metadata.state.rawValue, metadata.isFavorite ? 1 : 0,
         metadata.modifiedAt.timeIntervalSince1970, source,
+        metadata.preferences.display.writesAnswersInline ? 1 : 0,
       ]
     )
   }
@@ -89,7 +93,7 @@ public final class SheetIndex {
   /// All indexed sheets, most recently modified first.
   public func summaries() throws -> [SheetSummary] {
     try query(
-      "SELECT id, title, folder_id, state, is_favorite, modified_at FROM sheets ORDER BY modified_at DESC, id"
+      "SELECT id, title, folder_id, state, is_favorite, modified_at, is_markdown FROM sheets ORDER BY modified_at DESC, id"
     ) { row in
       SheetSummary(
         id: UUID(uuidString: row.text(0)) ?? UUID(),
@@ -97,7 +101,8 @@ public final class SheetIndex {
         folderID: row.optionalText(2).flatMap(UUID.init(uuidString:)),
         state: SheetState(rawValue: row.text(3)) ?? .active,
         isFavorite: row.integer(4) != 0,
-        modifiedAt: Date(timeIntervalSince1970: row.double(5))
+        modifiedAt: Date(timeIntervalSince1970: row.double(5)),
+        isMarkdown: row.integer(6) != 0
       )
     }
   }

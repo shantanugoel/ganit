@@ -31,7 +31,9 @@ func sheetOutcomes(_ source: String) throws -> [String?] {
   }
 }
 
-func sheetContext(angleMode: AngleMode = .radians) throws -> EvaluationContext {
+func sheetContext(angleMode: AngleMode = .radians, isMarkdownMode: Bool = false) throws
+  -> EvaluationContext
+{
   try EvaluationContext(
     localeIdentifier: "en-US",
     lexingConfiguration: .englishUnitedStates,
@@ -39,7 +41,8 @@ func sheetContext(angleMode: AngleMode = .radians) throws -> EvaluationContext {
     precision: PrecisionContext(significantDecimalDigits: 15),
     now: Date(timeIntervalSince1970: 0),
     calendar: Calendar(identifier: .gregorian),
-    timeZone: try #require(TimeZone(identifier: "UTC"))
+    timeZone: try #require(TimeZone(identifier: "UTC")),
+    isMarkdownMode: isMarkdownMode
   )
 }
 

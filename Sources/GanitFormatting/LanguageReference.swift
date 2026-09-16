@@ -81,11 +81,11 @@ extension LanguageReference {
       title: text("help.grammar.lines.title", "Lines"),
       summary: text(
         "help.grammar.lines.summary",
-        "Each line is one calculation, heading, comment, or divider."
+        "Each line is one calculation, heading, comment, divider, or markdown paragraph."
       ),
       body: text(
         "help.grammar.lines.body",
-        "Write one calculation to a line. The answer appears beside it. A label is a name followed by a colon. # starts a heading, // a comment, and --- a divider. Comments and headings have no answer."
+        "Write one calculation to a line. The answer appears beside it, or in the line in Markdown Mode. A label is a name followed by a colon. # starts a heading, // a comment, and --- a divider. Comments, headings, and markdown paragraphs have no answer. In Markdown Mode, sentences are paragraphs, and a calculation can follow them: The cost is 100 + 50. => ends a calculation, Calca-style."
       ),
       examples: ["Rent: 2,100 // shared", "# Trip", "---"],
       keywords: ["heading", "comment", "divider", "label"]

@@ -48,7 +48,7 @@ line's layout fragment, and truncates it when it exceeds the column. Answer text
 is never inserted into the text storage. The overlay also draws a dim rule down
 the middle of the gap, which **View ▸ Show Answer Separator** hides.
 
-A sheet whose display options ask for answers inline — **Format ▸ Prose Mode** —
+A sheet whose display options ask for answers inline — **Format ▸ Markdown Mode** —
 gives the source the full width and writes each answer a gap past where its own
 line's last row of text ends, in the secondary label color, so a sheet reads as
 prose with its arithmetic annotated rather than as two columns. There is no
@@ -71,6 +71,8 @@ from the line's role and result, in UTF-16 ranges relative to the line:
 |---|---|
 | comment, label | secondary label color |
 | divider, heading `#` marker | tertiary label color |
+| heading title | semibold |
+| markdown `**bold**` / `*italic*` | bold / italic |
 | error diagnostic or evaluation-error range | dotted red underline |
 | warning or ambiguity | dotted orange underline |
 

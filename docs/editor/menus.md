@@ -11,7 +11,7 @@ when the focused editor or window can perform it.
 | File | New Sheet ⌘N, Close ⌘W, Print… ⌘P |
 | Edit | Undo ⌘Z, Redo ⇧⌘Z, Cut ⌘X, Copy ⌘C, Paste ⌘V, Delete, Select All ⌘A, Find ▸ (Find… ⌘F, Find and Replace… ⌥⌘F, Find Next ⌘G, Find Previous ⇧⌘G, Use Selection for Find ⌘E), Autocomplete |
 | Calculate | Copy Result ⇧⌘C, Copy Full Precision ⌥⇧⌘C, Show Interpretation, Insert Reference ⌘\, Insert Subtotal ⌘T, Recalculate ⌘R, Stop ⌘. |
-| Format | Heading, Comment ⌘/, Divider, Step Number Up ⌃↑, Step Number Down ⌃↓, Number Format, Group Digits, Prose Mode |
+| Format | Heading, Comment ⌘/, Divider, Step Number Up ⌃↑, Step Number Down ⌃↓, Number Format, Group Digits, Markdown Mode |
 | View | Bigger ⌘+, Smaller ⌘-, Actual Size ⌘0, Show Answer Separator, Enter Full Screen ⌃⌘F |
 | Window | Minimize ⌘M, Zoom, Scratch ⇧⌘S, Definitions ⌘⇧D, Quick Ganit items, Bring All to Front, and the window list |
 | Help | Ganit Help ⌘?, Release Notes, Show Tour, Report a Problem…, menu search |

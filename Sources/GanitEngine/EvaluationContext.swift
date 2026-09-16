@@ -74,6 +74,11 @@ public struct EvaluationContext: Hashable, Sendable {
   /// Values `ask_assistant` already received, keyed by the prompt. The engine
   /// never talks to a model; the editor fills this in after it has asked.
   public private(set) var assistantAnswers: [String: AssistantAnswer]
+  /// ISO 4217 code `$` means. Right-click on `$` can change it for a sheet.
+  public private(set) var dollarCurrency: String
+  /// A markdown sheet: answers sit in the lines, and words that are not
+  /// calculations are paragraphs rather than errors.
+  public private(set) var isMarkdownMode: Bool
 
   public var calendarIdentifier: Calendar.Identifier {
     calendar.identifier
@@ -92,7 +97,9 @@ public struct EvaluationContext: Hashable, Sendable {
     calendar: Calendar,
     timeZone: TimeZone,
     currencyRates: CurrencyRates = .none,
-    assistantAnswers: [String: AssistantAnswer] = [:]
+    assistantAnswers: [String: AssistantAnswer] = [:],
+    dollarCurrency: String = "USD",
+    isMarkdownMode: Bool = false
   ) throws {
     guard Self.isStructurallyValidBCP47(localeIdentifier) else {
       throw EngineError(
@@ -124,6 +131,8 @@ public struct EvaluationContext: Hashable, Sendable {
     self.timeZone = timeZone
     self.currencyRates = currencyRates
     self.assistantAnswers = assistantAnswers
+    self.dollarCurrency = CurrencyCatalog.minorUnits[dollarCurrency] != nil ? dollarCurrency : "USD"
+    self.isMarkdownMode = isMarkdownMode
   }
 
   /// The same context at another finite moment.
@@ -145,6 +154,15 @@ public struct EvaluationContext: Hashable, Sendable {
   public func with(assistantAnswers: [String: AssistantAnswer]) -> EvaluationContext {
     var context = self
     context.assistantAnswers = assistantAnswers
+    return context
+  }
+
+  /// The same context with a sheet's markdown and dollar choices.
+  public func with(dollarCurrency: String, isMarkdownMode: Bool) -> EvaluationContext {
+    var context = self
+    context.dollarCurrency =
+      CurrencyCatalog.minorUnits[dollarCurrency] != nil ? dollarCurrency : "USD"
+    context.isMarkdownMode = isMarkdownMode
     return context
   }
 

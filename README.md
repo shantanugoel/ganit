@@ -65,10 +65,13 @@ anything.
 
 ![Quick Ganit](docs/images/quick.png)
 
-**Prose mode** (**Format ▸ Prose Mode**) moves the answers into the lines, for
-a sheet that reads as an explanation rather than a column of sums.
+**Markdown mode** (**Format ▸ Markdown Mode**, or the sheet's right-click menu)
+moves the answers into the lines, for a sheet that reads as an article with
+calculations in it. Headings, paragraphs, and `**bold**` sit beside ordinary
+Ganit arithmetic; `=>` ends a calculation, as in Calca. Markdown sheets show a
+small document mark in the sidebar.
 
-![A sheet in prose mode](docs/images/prose.png)
+![A sheet in Markdown Mode](docs/images/prose.png)
 
 **Scratch** (⇧⌘S) is the sheet that is always there, for a number you want to
 work out now and name later.

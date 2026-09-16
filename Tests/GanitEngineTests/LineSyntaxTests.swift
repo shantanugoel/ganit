@@ -43,6 +43,8 @@ struct LineSyntaxTests {
       ("10:30", nil, "10:30", nil),
       (": 5", nil, ": 5", nil),
       ("Q1: 20% of 50", "Q1", "20% of 50", nil),
+      ("2 + 2 =>", nil, "2 + 2", nil),
+      ("Total: 10 + 5 => leftover", "Total", "10 + 5", nil),
     ]
 
     for (source, label, expression, comment) in cases {
