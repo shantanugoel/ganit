@@ -288,6 +288,38 @@ public final class SheetEditorViewController: NSViewController {
     textDidChange()
   }
 
+  /// Lines an edit is adding or removing, until `renumberLineReferences`
+  /// applies them. Undo and redo restore text as it was, so they note none.
+  private var pendingLineShift: (firstMovedLine: Int, delta: Int, editedLines: ClosedRange<Int>)?
+
+  fileprivate func noteLineShift(replacing range: NSRange, with replacement: String?) {
+    guard let replacement, !documentUndoManager.isUndoing, !documentUndoManager.isRedoing,
+      let shift = LineReferenceRenumbering.shift(
+        replacing: range, in: textView.string, with: replacement)
+    else {
+      return
+    }
+    let first = lineIndex(atUTF16: range.location)
+    let inserted = replacement.utf16.reduce(0) { $0 + ($1 == 10 ? 1 : 0) }
+    pendingLineShift = (shift.firstMovedLine, shift.delta, first...(first + inserted))
+  }
+
+  /// Keeps each `line N` below an edit naming the line it named before.
+  fileprivate func renumberLineReferences() {
+    guard let shift = pendingLineShift else {
+      return
+    }
+    pendingLineShift = nil
+    let edits = LineReferenceRenumbering.edits(
+      in: textView.string, firstMovedLine: shift.firstMovedLine, delta: shift.delta,
+      editedLines: shift.editedLines, configuration: context.lexingConfiguration)
+    for edit in edits.reversed()
+    where textView.shouldChangeText(in: edit.range, replacementString: edit.number) {
+      textView.textStorage?.replaceCharacters(in: edit.range, with: edit.number)
+      textView.didChangeText()
+    }
+  }
+
   /// Schedules evaluation unless marked text is still being composed. A
   /// composition commit may clear its marked text only after the storage
   /// edit, so this also runs for `textDidChange`; a repeated schedule simply
@@ -1039,7 +1071,15 @@ private final class StorageObserver: NSObject, @preconcurrency NSTextStorageDele
     controller?.mirrorEdit(newRange: editedRange, changeInLength: delta)
   }
 
+  func textView(
+    _ textView: NSTextView, shouldChangeTextIn range: NSRange, replacementString: String?
+  ) -> Bool {
+    controller?.noteLineShift(replacing: range, with: replacementString)
+    return true
+  }
+
   func textDidChange(_ notification: Notification) {
+    controller?.renumberLineReferences()
     controller?.textDidChange()
   }
 

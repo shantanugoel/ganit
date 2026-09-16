@@ -17,8 +17,10 @@ Each of these also takes an explicit list of values, such as `median(3, 9, 4)`;
 see [listing the values](#listing-the-values-instead).
 
 `line N` counts physical sheet lines, including blank lines, comments, and
-headings. It follows the text: inserting a line above shifts which line a
-number names.
+headings. The editor keeps it naming the same line: adding or removing lines
+above that line rewrites `N` in the same undoable edit, as a spreadsheet
+adjusts a cell reference. Lines being typed, comments, and references past the
+last line are left as written.
 
 ## Blocks
 

@@ -26,6 +26,26 @@ struct SheetEditorViewControllerTests {
   }
 
   @Test
+  func lineReferencesFollowTheirLineAndOneUndoRestoresBoth() throws {
+    let source = "rent = 5\nfood = 2\nsubtotal\nsavings = 10 - line 3"
+    let editor = SheetEditorViewController(text: source, context: try testContext())
+    let textView = editor.textView
+
+    textView.setSelectedRange(NSRange(location: 8, length: 0))
+    textView.insertText("\nphone = 1", replacementRange: textView.selectedRange())
+    #expect(textView.string == "rent = 5\nphone = 1\nfood = 2\nsubtotal\nsavings = 10 - line 4")
+    #expect(editor.sheet.text == textView.string)
+
+    editor.documentUndoManager.undo()
+    #expect(textView.string == source)
+
+    // Deleting a line above moves the reference up.
+    textView.setSelectedRange(NSRange(location: 0, length: 9))
+    textView.insertText("", replacementRange: textView.selectedRange())
+    #expect(textView.string == "food = 2\nsubtotal\nsavings = 10 - line 2")
+  }
+
+  @Test
   func mirrorsMarkedTextCompositionAndCommit() throws {
     let editor = SheetEditorViewController(text: "1 + ", context: try testContext())
     let textView = editor.textView

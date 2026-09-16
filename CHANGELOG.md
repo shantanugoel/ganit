@@ -5,6 +5,9 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- `line N` keeps naming the same line when lines are added or removed above it:
+  the editor rewrites the number in the same undoable edit, instead of the
+  reference silently reading a different line.
 - `as %`, `in %`, `to %`, and `into %` show a ratio as a percentage:
   `savings / salary as %` is `40.6666666666667%`.
 - Lakh grouping reads as a number: `1,00,000 + 5,00,000` is `600,000`, and
