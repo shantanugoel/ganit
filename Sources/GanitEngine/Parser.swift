@@ -357,7 +357,7 @@ private final class TokenParser {
       if 29 >= minimumBindingPower,
         canAttachUnit(to: left),
         startsUnitExpression(at: 0),
-        !convertsToPercentage(at: 0)
+        !convertsToPercentage(at: 0), !convertsToCurrency(at: 0)
       {
         guard let quantity = parseQuantity(magnitude: left, depth: depth)
         else {
@@ -1096,6 +1096,14 @@ private final class TokenParser {
 
   private func token(at offset: Int) -> Token {
     tokens[min(cursor + offset, tokens.count - 1)]
+  }
+
+  /// `in EUR`, where `in` would otherwise be inches: `$10 in EUR`.
+  private func convertsToCurrency(at offset: Int) -> Bool {
+    guard let keyword = identifier(at: offset), let code = identifier(at: offset + 1) else {
+      return false
+    }
+    return ["in", "to", "as", "into"].contains(keyword) && CurrencyCatalog.minorUnits[code] != nil
   }
 
   /// `as %`, where `as` would otherwise be attoseconds and `in` inches.

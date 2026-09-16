@@ -220,7 +220,7 @@ private struct EvaluationWorker {
     operatorRange: SourceRange
   ) throws -> EngineValue {
     let lhs = try evaluate(left)
-    let rhs = try evaluate(right)
+    let rhs = try inCurrency(of: lhs, try evaluate(right), for: binaryOperator, at: right.range)
     let errorRange =
       binaryOperator == .divide || binaryOperator == .power
       ? right.range
@@ -228,6 +228,28 @@ private struct EvaluationWorker {
     return try located(at: errorRange) {
       try apply(binaryOperator, left: lhs, right: rhs)
     }
+  }
+
+  /// `€40 + $10` adds the dollars in euros, at the rates `in` uses, and
+  /// records that it used them.
+  @inline(never)
+  private mutating func inCurrency(
+    of left: EngineValue, _ right: EngineValue, for binaryOperator: BinaryOperator,
+    at range: SourceRange
+  ) throws -> EngineValue {
+    guard binaryOperator == .add || binaryOperator == .subtract,
+      case .money(let lhs) = left, case .money(let rhs) = right,
+      lhs.currency != rhs.currency, lhs.unit == rhs.unit
+    else {
+      return right
+    }
+    let (converted, use) = try located(at: range) {
+      try money.converted(rhs, to: lhs.currency)
+    }
+    if let use {
+      trace.rateUses.insert(use)
+    }
+    return .money(converted)
   }
 
   @inline(never)

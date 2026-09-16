@@ -229,6 +229,12 @@ private final class LineSource: Sendable {
     for token in Lexer(source: text, configuration: context.lexingConfiguration).lex().tokens {
       if case .identifier(let word) = token.kind {
         runs[runs.count - 1].append(word)
+      } else if case .currencySymbol(let symbol) = token.kind,
+        let code = CurrencyCatalog.currency(for: symbol, dollarCurrency: context.dollarCurrency)
+      {
+        // A symbol names its currency's manual rates as its code does.
+        runs.append([code])
+        runs.append([])
       } else if !runs[runs.count - 1].isEmpty {
         runs.append([])
       }

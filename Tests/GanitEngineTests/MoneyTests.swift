@@ -33,7 +33,7 @@ struct MoneyTests {
     #expect(try same(evaluate("50 EUR + 10%"), money("55", "EUR")))
     #expect(try same(evaluate("50 EUR - 10% off 20 EUR"), money("32", "EUR")))
     #expect(try same(evaluate("1 USD - 0.1 USD - 0.2 USD"), money("0.7", "USD")))
-    #expect(try error("10 EUR + 1 USD").code == .mixedCurrencies)
+    #expect(try error("10 EUR + 1 USD").code == .currencyRatesUnavailable)
     #expect(try error("10 EUR + 5").code == .typeMismatch)
     #expect(try error("10 EUR * 2 EUR").code == .typeMismatch)
     #expect(try error("10 EUR ^ 2").code == .typeMismatch)
@@ -64,6 +64,10 @@ struct MoneyTests {
     #expect(try error("100 USD in INR", rates: rates).code == .missingCurrencyRate)
     #expect(try error("100 USD in INR").code == .currencyRatesUnavailable)
     #expect(try error("100 in USD", rates: rates).code == .typeMismatch)
+    // A second currency adds in the first, at the same rates.
+    #expect(try same(evaluate("100 EUR + 115.51 USD", rates: rates), money("200", "EUR")))
+    #expect(try same(evaluate("$115.51 - €100 in EUR", rates: rates), money("0", "EUR")))
+    #expect(try same(evaluate("$10 in EUR", rates: rates), evaluate("10 USD in EUR", rates: rates)))
     #expect(throws: EngineError(code: .invalidCurrencyRate)) {
       try reference(["USD": "1.2.3"])
     }
@@ -80,6 +84,10 @@ struct MoneyTests {
     #expect(try same(results[0], money("83.25", "INR")))
     #expect(try same(results[1], money("8325", "INR")))
     #expect(try same(results[2], money("100", "USD")))
+    let symbols = try calculator.evaluate(
+      SheetSource("1 USD = 83.25 INR\n$1 + ₹83.25"), context: context(rates)
+    ).lines.map(\.result)
+    #expect(try same(symbols[1], money("2", "USD")))
     // A divider ends the manual rate, so reference rates apply again.
     #expect(try !same(results[4], money("8325", "INR")))
 

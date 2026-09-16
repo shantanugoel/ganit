@@ -5,6 +5,10 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- `€40 + $10` adds the dollars in euros at the day's rates, and
+  `€40 + $10 in USD` converts the total. `$10 in EUR` no longer reads `in` as
+  inches, and a manual rate such as `1 USD = 83 INR` applies to amounts written
+  with symbols.
 - Fuel economy: `mpg`, and conversion targets per a count of a unit such as
   `L/100 km`. Reciprocal units convert either way up: `35 mpg in L/100 km` is
   `6.72041666666667 L/100 km`.

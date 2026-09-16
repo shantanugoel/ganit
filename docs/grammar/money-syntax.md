@@ -36,8 +36,13 @@ currency. `¥` is yen.
   converted to the price's unit first: `$0.15/kWh * 2 MWh` is `$300`. Prices
   add only to prices per the same unit.
 
-Amounts in different currencies never combine: `10 EUR + 1 USD` fails with
+Adding or subtracting an amount in another currency converts it to the first
+amount's currency first, with the same rates as `in` and the same provenance:
+`€40 + $10` is in euros, and `€40 + $10 in USD` converts the total. Other
+operations and aggregates across currencies fail with
 `evaluation.mixedCurrencies`. Money plus a bare number is a type mismatch.
+A currency symbol names that currency's manual rates as its code does, so
+`1 USD = 83 INR` applies to `$1 + ₹83`.
 
 ## Conversion
 
