@@ -33,7 +33,9 @@ Rules, applied in this order:
    no expression and produces no result; `total =` is an incomplete
    declaration. In Markdown Mode, leading words before a number, currency, or
    function are skipped, so `The cost is 100 + 50` is `100 + 50`, and a line
-   with no calculation is a paragraph rather than an error.
+   with no calculation is a paragraph rather than an error. A line with a
+   spaced `+`, `*`, `/`, `^`, or `=` that does not calculate stays a calculation
+   and shows its problem; a spaced `-` is a dash.
 
 Dividers must contain only hyphens, so `---5` is still arithmetic. Line roles
 carry exact ranges for labels, expressions, titles, and comments, relative to

@@ -5,6 +5,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- In Markdown Mode, a line with a spaced `+`, `*`, `/`, `^`, or `=` that does
+  not calculate shows its problem instead of quietly becoming a paragraph.
 - Numbers at or above `1e21` or below `1e-6` show as a power of ten:
   `1e100` and `6.674e-11` instead of a hundred digits or a row of zeroes.
   `2^64` still shows every digit, and Copy Full Precision copies the exact value.

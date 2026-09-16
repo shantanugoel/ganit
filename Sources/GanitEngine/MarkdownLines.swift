@@ -26,10 +26,17 @@ enum MarkdownLines {
     ) {
       return .calculation(label: label, name: name, expression: kept, comment: comment)
     }
-    if name != nil {
+    // A spaced operator is arithmetic, not prose, so a mistyped calculation
+    // shows its problem instead of quietly becoming a paragraph.
+    if name != nil || hasSpacedOperator(slice) {
       return syntax
     }
     return .markdown
+  }
+
+  /// ` + `, ` * `, ` / `, ` ^ `, or ` = `. A spaced `-` is a dash in prose.
+  private static func hasSpacedOperator(_ text: String) -> Bool {
+    ["+", "*", "×", "/", "÷", "^", "="].contains { text.contains(" \($0) ") }
   }
 
   /// The range to evaluate, or `nil` when the text is a markdown paragraph.

@@ -16,6 +16,8 @@ struct MarkdownModeTests {
       The cost is 100 + 50
       Hello world
       2 + 2 =>
+      savings / salary as a share
+      Rent - the big one - is due
       """
     )
     let results = try calculator.evaluate(
@@ -47,6 +49,14 @@ struct MarkdownModeTests {
       return
     }
     #expect(sum == .integer(IntegerValue(4)))
+    // A spaced operator keeps a failing line a calculation, so it says why.
+    switch results[6].result {
+    case .syntaxFailure, .evaluationFailure:
+      break
+    default:
+      Issue.record("Expected the mistyped calculation to report its problem")
+    }
+    #expect(results[7].result == nil)
   }
 
   @Test
