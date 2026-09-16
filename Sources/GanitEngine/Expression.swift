@@ -30,13 +30,16 @@ public indirect enum UnitSyntax: Equatable, Sendable {
   case multiplied(UnitSyntax, UnitSyntax, range: SourceRange)
   case divided(UnitSyntax, UnitSyntax, range: SourceRange)
   case raised(UnitSyntax, exponent: Int, range: SourceRange)
+  /// A count of a unit as one unit, as in the `100 km` of `L/100 km`.
+  case counted(Int, UnitSyntax, range: SourceRange)
 
   public var range: SourceRange {
     switch self {
     case .named(_, _, let range),
       .multiplied(_, _, let range),
       .divided(_, _, let range),
-      .raised(_, _, let range):
+      .raised(_, _, let range),
+      .counted(_, _, let range):
       return range
     }
   }

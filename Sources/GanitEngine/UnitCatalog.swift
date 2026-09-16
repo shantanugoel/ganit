@@ -445,6 +445,9 @@ public struct UnitCatalog: Sendable {
       try entry(
         "mile-per-hour", "mph", .speed, 44_704, 100_000, ["mph"], nist),
       try entry(
+        "mile-per-gallon", "mpg", try Dimension(exponents: [.length: -2]),
+        201_168_000_000_000_000, 473_176_473_000, ["mpg"], nist),
+      try entry(
         "nautical-mile", "nmi", .length, 1_852, ["nmi", "NM"], nist),
       try entry(
         "knot", "kn", .speed, 463, 900, ["kn", "kt", "knot", "knots"], nist),

@@ -38,6 +38,10 @@ deterministically, it reports a ranged diagnostic instead of guessing.
   `(3 m)^2 in cm^2` converts, and `2^3 in` fails at `in`.
 - Prose is never skipped: `price in dollars` fails at `in`.
 
+A conversion to a reciprocal dimension inverts the quantity: `35 mpg in L/100 km`.
+A number after `/` in a conversion target counts the next unit (`L/100 km`);
+outside a target, `/ 2 h` divides by a quantity.
+
 `to`, `as`, and `into` are conversion keywords with the same rules and have no
 unit meaning.
 

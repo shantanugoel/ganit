@@ -5,6 +5,9 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Fuel economy: `mpg`, and conversion targets per a count of a unit such as
+  `L/100 km`. Reciprocal units convert either way up: `35 mpg in L/100 km` is
+  `6.72041666666667 L/100 km`.
 - A time of day converts to another zone: `3:00 pm in Tokyo` is 3 pm today
   here, shown in Tokyo.
 - Mixed units add: `5 ft 10 in in cm` is `177.8 cm` and `2 h 30 min in min` is

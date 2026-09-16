@@ -368,7 +368,7 @@ private struct EvaluationWorker {
     to targetSyntax: UnitSyntax
   ) throws -> EngineValue {
     let value = try evaluate(valueExpression)
-    guard case .quantity(let quantity) = value else {
+    guard case .quantity(var quantity) = value else {
       throw typeMismatch(
         expected: .quantity,
         actual: value.kind,
@@ -377,6 +377,15 @@ private struct EvaluationWorker {
     }
     let target = try located(at: targetSyntax.range) {
       try evaluate(targetSyntax)
+    }
+    // A reciprocal unit reads the other way up: `35 mpg in L/100 km`.
+    if quantity.unit.dimension != target.dimension, quantity.kind == .relative,
+      try quantity.unit.dimension.multiplied(by: target.dimension) == .dimensionless
+    {
+      quantity = QuantityValue(
+        magnitude: try operations.applying(
+          .divide, left: .integer(IntegerValue(1)), right: quantity.magnitude),
+        unit: try unitAlgebra.raised(quantity.unit, to: -1))
     }
     return .quantity(
       try located(at: targetSyntax.range) {
@@ -645,6 +654,17 @@ private struct EvaluationWorker {
       )
     case .raised(let unit, let exponent, _):
       return try unitAlgebra.raised(evaluate(unit), to: exponent)
+    case .counted(let count, let unit, _):
+      guard case .ratio(let ratio) = try evaluate(unit) else {
+        throw EngineError(code: .affineUnitInCompound)
+      }
+      let symbol = "\(count) \(ratio.symbol)"
+      return try unitAlgebra.unit(
+        UnitDefinition(
+          canonicalIdentifier: symbol, symbol: symbol, dimension: ratio.dimension,
+          transform: .ratio(
+            scale: try operations.applying(
+              .multiply, left: ratio.scaleToCanonical, right: .integer(IntegerValue(count))))))
     }
   }
 

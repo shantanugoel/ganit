@@ -24,7 +24,7 @@ ampere, volt, ohm (`Ω` or `ohm`), farad, henry, coulomb, ampere-hour, and hertz
 each taking decimal prefixes (`mA`, `kΩ`, `nF`, `mAh`, `MHz`). The mechanical
 horsepower and the electronvolt (`keV`, `MeV`) are exact too. `A`, `V`, `C`,
 `F`, and `H` are units now, so they cannot name a variable. The nautical mile
-(`nmi`) and knot (`kn`) are exact.
+(`nmi`), knot (`kn`), and US mile per gallon (`mpg`) are exact.
 
 Each entry records:
 

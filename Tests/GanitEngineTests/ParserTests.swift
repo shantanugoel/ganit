@@ -338,6 +338,8 @@ struct ParserTests {
       return "\(unitShape(left))/\(unitShape(right))"
     case .raised(let nested, let exponent, _):
       return "\(unitShape(nested))^\(exponent)"
+    case .counted(let count, let nested, _):
+      return "\(count) \(unitShape(nested))"
     }
   }
 

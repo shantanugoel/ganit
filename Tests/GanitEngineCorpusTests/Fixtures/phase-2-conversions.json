@@ -2,6 +2,26 @@
   "schemaVersion": 1,
   "cases": [
     {
+      "name": "fuel economy reads either way up",
+      "expression": "500 km / 40 L in mpg",
+      "expected": {
+        "status": "value",
+        "display": "29.4018229166667 mpg",
+        "fullPrecision": "112903/3840 mpg",
+        "approximate": false
+      }
+    },
+    {
+      "name": "consumption per a count of a unit",
+      "expression": "500 km / 40 L in L/100 km",
+      "expected": {
+        "status": "value",
+        "display": "8 L/100 km",
+        "fullPrecision": "8 L/100 km",
+        "approximate": false
+      }
+    },
+    {
       "name": "area word before a unit",
       "expression": "1200 sq ft in sq m",
       "expected": {

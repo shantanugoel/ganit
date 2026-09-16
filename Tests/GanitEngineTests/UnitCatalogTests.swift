@@ -10,7 +10,7 @@ struct UnitCatalogTests {
     let catalog = try UnitCatalog.minimal()
     let sourceIdentifiers = Set(catalog.sources.map(\.identifier))
 
-    #expect(catalog.entries.count == 54)
+    #expect(catalog.entries.count == 55)
     #expect(catalog.prefixes.count == 34)
     #expect(catalog.sources.count == 3)
     for entry in catalog.entries {
@@ -219,6 +219,10 @@ struct UnitCatalogTests {
       ("Hz", .frequency, integer(1)),
       ("nmi", .length, integer(1_852)),
       ("kn", .speed, try fraction(463, 900)),
+      (
+        "mpg", try GanitEngine.Dimension(exponents: [.length: -2]),
+        try fraction(201_168_000_000_000_000, 473_176_473_000)
+      ),
     ]
 
     // Every ratio unit is locked above; only the affine and approximate

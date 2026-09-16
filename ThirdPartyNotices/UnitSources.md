@@ -59,6 +59,7 @@ It does not claim conformance with any external unit standard.
 - `liter` (L): dimension `length^3`, transform `ratio 1/1000`, exact, source `bipm-si-9-v4.01`
 - `meter` (m): dimension `length`, transform `ratio 1`, exact, source `bipm-si-9-v4.01`
 - `mile` (mi): dimension `length`, transform `ratio 201168/125`, exact, source `nist-sp811-2008`
+- `mile-per-gallon` (mpg): dimension `length^-2`, transform `ratio 48000000000/112903`, exact, source `nist-sp811-2008`
 - `mile-per-hour` (mph): dimension `length·time^-1`, transform `ratio 1397/3125`, exact, source `nist-sp811-2008`
 - `minute` (min): dimension `time`, transform `ratio 60`, exact, source `bipm-si-9-v4.01`
 - `nautical-mile` (nmi): dimension `length`, transform `ratio 1852`, exact, source `nist-sp811-2008`

@@ -69,6 +69,12 @@ bounded integer powers. Incompatible conversions produce a ranged
 `evaluation.incompatibleDimensions` diagnostic. When multiplication, division, or a power cancels every dimension, the result
 is a plain number in canonical scale: `1 km / (1 m)` is `1,000`.
 
+A conversion to the reciprocal of a quantity's dimension reads it the other
+way up, as fuel economy is: `35 mpg in L/100 km` is `6.72041666666667 L/100 km`
+and `5 Hz in s` is `0.2 s`. A target may divide by a count of a unit, as in
+`L/100 km`; that count applies to the target only, so `30 km / 2 h` still
+divides by the quantity `2 h`. `mpg` is US miles per US gallon.
+
 Affine temperature units are valid only as standalone absolute quantities,
 such as `0 °C`, and can be explicitly converted (`0 °C as °F`). They cannot
 participate in compound unit algebra, scalar scaling, powers, or ordinary

@@ -893,8 +893,20 @@ private final class TokenParser {
       }
       return nil
     }
-    guard let target = parseUnitExpression(depth: depth + 1) else {
+    guard var target = parseUnitExpression(depth: depth + 1) else {
       return nil
+    }
+    // `in L/100 km`: a target unit per a count of another unit.
+    if current.kind == .divide, case .number(.integer(let digits, .decimal)) = token(at: 1).kind,
+      let count = Int(digits), count > 0, startsUnitExpression(at: 2)
+    {
+      advance()
+      let number = advance()
+      guard let unit = parseUnitFactor(depth: depth + 1) else {
+        return nil
+      }
+      let counted = UnitSyntax.counted(count, unit, range: number.range.union(unit.range))
+      target = .divided(target, counted, range: target.range.union(counted.range))
     }
     return .conversion(
       value: value,
@@ -1067,6 +1079,8 @@ private final class TokenParser {
       return .divided(left, right, range: range)
     case .raised(let unit, let exponent, _):
       return .raised(unit, exponent: exponent, range: range)
+    case .counted(let count, let unit, _):
+      return .counted(count, unit, range: range)
     }
   }
 
