@@ -22,8 +22,8 @@ release candidate.
 - Temperature differences have no syntax, so relative temperature arithmetic
   (`10 °C + 5 °C`) is unavailable.
 - `pm` after a plain number is picometres; write `3:00 pm` for a time.
-- No phrase rounds a single answer, such as `1/3 to 2 dp`; precision is a
-  sheet-wide setting.
+- No phrase rounds a single answer, such as `1/3 to 2 dp`; write `round(1/3, 2)`
+  or use the sheet-wide decimal setting.
 - A percentage and a bare number do not add (`50% + 0.5`), because the
   intended meaning is not knowable.
 

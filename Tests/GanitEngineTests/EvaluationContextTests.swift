@@ -191,6 +191,10 @@ struct EvaluationContextTests {
       try value("round(-2.1)", context: context)
         == .integer(IntegerValue(-3))
     )
+    #expect(
+      try value("round(2.11, 1)", context: context)
+        == .decimal(try DecimalValue(coefficient: IntegerValue(22), scale: 1))
+    )
   }
 
   @Test

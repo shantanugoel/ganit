@@ -102,22 +102,45 @@ struct NumericOperations {
 
   func rounded(
     _ value: NumericValue,
+    fractionDigits: Int = 0,
     rule: FloatingPointRoundingRule
   ) throws -> NumericValue {
+    if fractionDigits == 0 {
+      if case .approximate(let approximate) = value {
+        return .approximate(
+          try ApproximateValue(
+            estimate: approximate.estimate.rounded(rule),
+            source: .explicitRounding,
+            precision: .unspecified
+          )
+        )
+      }
+      let fraction = try exactFraction(value)
+      return try checkedInteger(
+        try roundedQuotient(fraction.numerator, fraction.denominator, rule: rule)
+      )
+    }
+
+    try validateScale(fractionDigits)
     if case .approximate(let approximate) = value {
+      let scale = Foundation.pow(10.0, Double(fractionDigits))
+      guard scale.isFinite else {
+        throw EngineError(code: .approximationOutOfRange)
+      }
+      let estimate = (approximate.estimate * scale).rounded(rule) / scale
+      guard estimate.isFinite else {
+        throw EngineError(code: .approximationOutOfRange)
+      }
       return .approximate(
         try ApproximateValue(
-          estimate: approximate.estimate.rounded(rule),
+          estimate: estimate,
           source: .explicitRounding,
           precision: .unspecified
         )
       )
     }
-
-    let fraction = try exactFraction(value)
-    return try checkedInteger(
-      try roundedQuotient(fraction.numerator, fraction.denominator, rule: rule)
-    )
+    let (decimal, _) = try value.rounded(fractionDigits: fractionDigits, rule: rule)
+    return .decimal(decimal)
   }
 
   /// Indices of `values` in ascending numeric order.

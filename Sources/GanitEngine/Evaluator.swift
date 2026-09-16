@@ -1038,8 +1038,18 @@ private struct EvaluationWorker {
       case .maximum:
         return try operations.extremum(values, selectMinimum: false)
       case .round:
+        let places: Int
+        if values.count == 2 {
+          guard let count = operations.exactInteger(values[1]), count >= 0 else {
+            throw EngineError(code: .invalidDomain)
+          }
+          places = count
+        } else {
+          places = 0
+        }
         return try operations.rounded(
           values[0],
+          fractionDigits: places,
           rule: context.precision.roundingRule.floatingPointRule
         )
       case .floor:

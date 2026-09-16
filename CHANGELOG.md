@@ -17,6 +17,7 @@ existing answer. See the [release train](docs/release/release-train.md).
 - Ganit ▸ Settings… gathers the app-wide switches in one window.
 - A short tour runs the first time Ganit opens a sheet. Skip dismisses it;
   Settings and Help ▸ Show Tour open it again.
+- `round(x, n)` keeps `n` digits after the decimal, including trailing zeroes.
 
 ## 0.1.1
 

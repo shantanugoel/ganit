@@ -132,6 +132,19 @@ struct EvaluatorTests {
     #expect(try evaluate("round(2.5)") == .integer(IntegerValue(2)))
     #expect(try evaluate("round(3.5)") == .integer(IntegerValue(4)))
     #expect(try evaluate("round(-2.5)") == .integer(IntegerValue(-2)))
+    #expect(try evaluate("round(2.5, 0)") == .integer(IntegerValue(2)))
+    #expect(
+      try evaluate("round(1/3, 2)")
+        == .decimal(try DecimalValue(coefficient: IntegerValue(33), scale: 2))
+    )
+    #expect(
+      try evaluate("round(1, 2)")
+        == .decimal(try DecimalValue(coefficient: IntegerValue(100), scale: 2))
+    )
+    #expect(
+      try evaluate("round(1.225, 2)")
+        == .decimal(try DecimalValue(coefficient: IntegerValue(122), scale: 2))
+    )
     #expect(
       try evaluate("min(1.00, 1)")
         == .decimal(
@@ -139,6 +152,12 @@ struct EvaluatorTests {
         )
     )
     #expect(try evaluate("max(-2, 3, 1)") == .integer(IntegerValue(3)))
+    guard case .approximate(let piPlaces) = try evaluate("round(pi, 2)") else {
+      Issue.record("Rounding an approximate value stays approximate")
+      return
+    }
+    #expect(abs(piPlaces.estimate - 3.14) < 1e-12)
+    #expect(piPlaces.source == .explicitRounding)
   }
 
   @Test
@@ -214,6 +233,9 @@ struct EvaluatorTests {
       argumentCount.context
         == .argumentCount(function: "sqrt", expected: 1...1, actual: 2)
     )
+    #expect(try error(evaluating: "round(1.2, -1)").code == .invalidDomain)
+    #expect(try error(evaluating: "round(1.2, 1.5)").code == .invalidDomain)
+    #expect(try error(evaluating: "round(1, 2, 3)").code == .argumentCountMismatch)
   }
 
   @Test

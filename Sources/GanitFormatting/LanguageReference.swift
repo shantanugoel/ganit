@@ -334,13 +334,16 @@ extension LanguageReference {
       )
     case .round:
       return functionHelp(
-        "round", signature: "round(x)",
-        summary: text("help.function.round.summary", "Rounds to a whole number."),
+        "round", signature: "round(x, places?)",
+        summary: text(
+          "help.function.round.summary",
+          "Rounds to a whole number, or to a number of decimal places."
+        ),
         body: text(
           "help.function.round.body",
-          "round(x) uses the sheet's rounding rule. Half values follow that rule rather than a hidden convention."
+          "round(x) uses the sheet's rounding rule. round(x, 2) keeps two digits after the decimal, including trailing zeroes. Half values follow that rule rather than a hidden convention."
         ),
-        examples: ["round(2.5)", "round(3.5)"]
+        examples: ["round(2.5)", "round(1/3, 2)"]
       )
     case .floor:
       return functionHelp(

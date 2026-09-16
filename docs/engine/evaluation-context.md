@@ -19,7 +19,7 @@ Construction rejects an empty locale identifier, a nonfinite date, and `TimeZone
 
 The current approximate backend is `Double`. A precision request accepts 1 through 17 digits for representational round trips. Constants, roots, and Foundation transcendental functions record the requested precision capped at 15 digits; this is explicitly request metadata, not a claim that every result has 15 mathematically accurate digits. Derived approximate arithmetic uses unspecified precision rather than inventing an error bound.
 
-`round(x)` uses the injected rounding rule. `floor` and `ceil` retain their mathematical direction regardless of that preference.
+`round(x)` and `round(x, n)` use the injected rounding rule. `floor` and `ceil` retain their mathematical direction regardless of that preference.
 
 ## Functions
 

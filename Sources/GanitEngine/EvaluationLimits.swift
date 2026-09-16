@@ -68,6 +68,8 @@ public enum BuiltInFunction: String, CaseIterable, Hashable, Sendable {
       return 2...Int.max
     case .root:
       return 2...2
+    case .round:
+      return 1...2
     default:
       return 1...1
     }

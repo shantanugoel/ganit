@@ -32,7 +32,9 @@ In comma-decimal locales, use a semicolon between function arguments (`max(1; 2)
 ## Evaluation
 
 - `π`, `pi`, and `e` are explicitly approximate constants.
-- `abs(x)`, `floor(x)`, `ceil(x)`, and `round(x)` take one argument. `round` uses the injected rounding rule.
+- `abs(x)`, `floor(x)`, and `ceil(x)` take one argument. `round(x)` rounds to
+  a whole number; `round(x, n)` keeps `n` digits after the decimal. Both use
+  the injected rounding rule. `n` is a non-negative whole number.
 - `min(x, y, ...)` and `max(x, y, ...)` require at least two arguments.
 - `sqrt(x)` is equivalent to `root(x, 2)`. `root(x, degree)` requires a positive exact integer degree.
 - `sin`, `cos`, and `tan` use the injected angle mode. `asin`, `acos`, and `atan` return angles in that mode.
@@ -46,7 +48,7 @@ In comma-decimal locales, use a semicolon between function arguments (`max(1; 2)
 
 Exact integer division produces an integer when evenly divisible and a reduced rational otherwise. Finite decimal results stay decimal where the operation remains naturally decimal. No exact value is silently coerced to floating point.
 
-Bitwise syntax is not part of this arithmetic grammar yet, while output-radix conversion belongs to result formatting. Decimal-place arguments for `round` are not accepted.
+Bitwise syntax is not part of this arithmetic grammar yet, while output-radix conversion belongs to result formatting.
 
 ## Syntax failures
 
