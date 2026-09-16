@@ -13,6 +13,7 @@ public struct SyntaxDiagnostic: Hashable, Sendable {
     case unknownUnit
     case unknownTimeZone
     case ambiguousCurrencySymbol
+    case ambiguousSlashDate
     case invalidUnitExponent
     case expectedUnitClosingParenthesis
     case expectedClosingParenthesis

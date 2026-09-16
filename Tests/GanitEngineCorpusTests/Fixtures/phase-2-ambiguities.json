@@ -522,6 +522,28 @@
       }
     },
     {
+      "name": "dates: day slash month slash year is not silently divided",
+      "expression": "16/09/2026",
+      "expected": {
+        "status": "syntaxFailure",
+        "code": "ambiguousSlashDate",
+        "messageKey": "syntax.ambiguousSlashDate",
+        "message": "Write a date as 2026-09-16 or 16 Sep 2026, or put spaces around / to divide.",
+        "lowerBound": 0,
+        "upperBound": 10
+      }
+    },
+    {
+      "name": "dates: spaced slashes divide",
+      "expression": "16 / 8 / 2",
+      "expected": {
+        "status": "value",
+        "display": "1",
+        "fullPrecision": "1",
+        "approximate": false
+      }
+    },
+    {
       "name": "dates: digits colon digits is a time of day",
       "expression": "10:30",
       "expected": {

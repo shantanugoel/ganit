@@ -125,6 +125,9 @@ Added in registry version 2, with zones in version 3; see
 - Exactly four digits, `-`, two digits, `-`, two digits is an ISO date, not
   subtraction: `2024-03-09` is March 9, 2024. Other digit counts stay
   arithmetic, so `2024-3-9` is `2012`.
+- One or two digits, `/`, one or two digits, `/`, four digits, with no spaces,
+  fails with `syntax.ambiguousSlashDate`: `16/09/2026` is a date to most readers
+  and would be a tiny quotient. `16 / 9 / 2026` divides.
 - Digits, `:`, and two digits form a time of day: `10:30`. `am` and `pm` apply
   only after such a time: `3:30 pm` is 15:30, while `3 pm` is three picometres.
 - A month name before a one- or two-digit number, or after one, is a date:

@@ -833,6 +833,11 @@ public struct DiagnosticFormatter: Sendable {
         "syntax.unknownUnit",
         defaultValue: "This unit is not recognized."
       )
+    case .ambiguousSlashDate:
+      return localized(
+        "syntax.ambiguousSlashDate",
+        defaultValue: "Write a date as 2026-09-16 or 16 Sep 2026, or put spaces around / to divide."
+      )
     case .ambiguousCurrencySymbol:
       return localized(
         "syntax.ambiguousCurrencySymbol",

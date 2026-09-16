@@ -379,6 +379,11 @@
         "en" : { "stringUnit" : { "state" : "translated", "value" : "A unit can only be raised to a whole number." } }
       }
     },
+    "syntax.ambiguousSlashDate" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Write a date as 2026-09-16 or 16 Sep 2026, or put spaces around / to divide." } }
+      }
+    },
     "syntax.invalidVariableName" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "This word is already a unit, function, or keyword. Choose another name." } }

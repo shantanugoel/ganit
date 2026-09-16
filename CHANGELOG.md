@@ -5,6 +5,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- `16/09/2026` and `09/16/2026` say to write a date as `2026-09-16` or
+  `16 Sep 2026` instead of silently dividing. Spaced slashes still divide.
 - `2 ** 10` is a power, `1,024`. A stray word inside parentheses, such as
   `(5 V - 2 V)`, is reported where it is instead of as a missing `)`, and
   `(2 m)^0.5` says a unit takes only a whole power instead of calling the

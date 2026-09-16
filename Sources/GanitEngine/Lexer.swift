@@ -546,6 +546,11 @@ private struct Scanner {
   /// and time (`2024-03-09T14:05`, optionally ending in `Z` or `±HH:MM`).
   private mutating func scanTemporal() -> Bool {
     let start = cursor
+    // `16/09/2026` is a date in most of the world and a division in the
+    // grammar; saying so beats a silently tiny number.
+    if let length = slashDateLength(at: start) {
+      diagnose(.ambiguousSlashDate, from: start, to: start + length, severity: .ambiguity)
+    }
     if let year = asciiNumber(at: start, digits: 4), character(at: start + 4) == "-",
       let month = asciiNumber(at: start + 5, digits: 2), character(at: start + 7) == "-",
       let day = asciiNumber(at: start + 8, digits: 2),
@@ -614,6 +619,29 @@ private struct Scanner {
   }
 
   /// The value of exactly `digits` ASCII digits at an index.
+  /// The length of `d/m/yyyy` or `m/d/yyyy` at `index`, with one or two digits
+  /// for day and month, written without spaces.
+  private func slashDateLength(at index: Int) -> Int? {
+    var cursor = index
+    for digits in [2, 2, 4] {
+      var count = 0
+      while count < digits, asciiNumber(at: cursor + count, digits: 1) != nil {
+        count += 1
+      }
+      guard count > 0, digits != 4 || count == 4 else {
+        return nil
+      }
+      cursor += count
+      if digits != 4 {
+        guard character(at: cursor) == "/" else {
+          return nil
+        }
+        cursor += 1
+      }
+    }
+    return asciiNumber(at: cursor, digits: 1) == nil ? cursor - index : nil
+  }
+
   private func asciiNumber(at index: Int, digits: Int) -> Int? {
     var value = 0
     for offset in 0..<digits {
