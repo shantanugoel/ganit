@@ -56,7 +56,7 @@ Write one calculation to a line. The answer appears on the right as you type.
 | `subtotal` | the lines above it, added |
 | `10% of line 6` | a tenth of line 6's answer |
 
-The [grammar reference](docs/public/grammar-reference.md) has the rest:
+**Help ▸ Ganit Help** is the same list, searchable, in the app. The [grammar reference](docs/public/grammar-reference.md) has the rest:
 percentages, dates and times, rates, finance, and the functions.
 
 **Quick Ganit** is the same calculator without a window to open. Give it a

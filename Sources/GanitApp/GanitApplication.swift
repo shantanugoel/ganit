@@ -33,6 +33,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   private var statusItem: NSStatusItem?
   private var shortcutWindow: NSWindow?
   private var assistantWindow: NSWindow?
+  private var help: HelpWindowController?
   /// The assistant's settings, read once so that asking about a line does not
   /// go to the keychain every time.
   private var assistantSettings = AssistantSettings.load()
@@ -265,6 +266,16 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     window.center()
     window.makeKeyAndOrderFront(nil)
     shortcutWindow = window
+  }
+
+  // MARK: Help
+
+  /// Opens the searchable grammar and function reference.
+  @objc func showHelp(_ sender: Any?) {
+    if help == nil {
+      help = HelpWindowController()
+    }
+    help?.show()
   }
 
   // MARK: The assistant

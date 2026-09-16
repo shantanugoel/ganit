@@ -21,6 +21,9 @@ struct MainMenuTests {
     #expect(application.windowsMenu?.title == "Window")
     #expect(application.helpMenu?.title == "Help")
     #expect(application.servicesMenu != nil)
+    let ganitHelp = items.first { $0.action == #selector(ApplicationCommands.showHelp(_:)) }
+    #expect(ganitHelp?.title == "Ganit Help")
+    #expect(ganitHelp?.keyEquivalent == "?")
 
     let expected: [(Selector, String, NSEvent.ModifierFlags)] = [
       (#selector(WorkspaceCommands.newSheet(_:)), "n", .command),

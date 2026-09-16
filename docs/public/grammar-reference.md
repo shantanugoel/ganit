@@ -1,7 +1,8 @@
 # Grammar reference
 
 Ganit reads each line as a calculation, heading, comment, or divider. Answers
-appear beside the line.
+appear beside the line. **Help ▸ Ganit Help** searches this same material
+inside the app.
 
 | Topic | Examples | Reference |
 | --- | --- | --- |

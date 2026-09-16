@@ -42,7 +42,7 @@ public struct EvaluationLimits: Hashable, Sendable {
   public static let `default` = EvaluationLimits()
 }
 
-public enum BuiltInFunction: String, Hashable, Sendable {
+public enum BuiltInFunction: String, CaseIterable, Hashable, Sendable {
   case absoluteValue = "abs"
   case minimum = "min"
   case maximum = "max"

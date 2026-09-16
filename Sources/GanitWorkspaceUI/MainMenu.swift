@@ -14,6 +14,7 @@ import GanitEditorUI
   func toggleAutomaticExchangeRateUpdates(_ sender: Any?)
   func toggleSpotlightTitles(_ sender: Any?)
   func showAssistantSettings(_ sender: Any?)
+  func showHelp(_ sender: Any?)
   func reportProblem(_ sender: Any?)
   func checkForUpdates(_ sender: Any?)
   func toggleAutomaticUpdateChecks(_ sender: Any?)
@@ -100,8 +101,13 @@ public enum MainMenu {
       localized("menu.help", "Help"),
       [
         item(
+          localized("menu.ganitHelp", "Ganit Help"),
+          #selector(ApplicationCommands.showHelp(_:)),
+          "?"
+        ),
+        item(
           localized("menu.reportProblem", "Report a Problem…"),
-          #selector(ApplicationCommands.reportProblem(_:)))
+          #selector(ApplicationCommands.reportProblem(_:))),
       ])
 
     let servicesItem = NSMenuItem(title: services.title, action: nil, keyEquivalent: "")

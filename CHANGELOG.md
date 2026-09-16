@@ -3,6 +3,11 @@
 Notable changes to Ganit's behavior, especially anything that changes an
 existing answer. See the [release train](docs/release/release-train.md).
 
+## Unreleased
+
+- Help ▸ Ganit Help opens a searchable reference of the grammar, functions,
+  and keywords.
+
 ## 0.1.1
 
 - Ganit can install its own updates. It looks for one only when asked, either
