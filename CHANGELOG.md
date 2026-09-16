@@ -5,6 +5,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- `sum`, `average`, `line N`, and a variable that read a failed line say which:
+  `Line 12 has an error, so this cannot use it.`
 - `sin`, `cos`, and `tan` take an angle with its unit: `sin(30°)` is `0.5` and
   `cos(1 rad)` works whatever the angle mode.
 - `16/09/2026` and `09/16/2026` say to write a date as `2026-09-16` or

@@ -954,6 +954,24 @@ public struct DiagnosticFormatter: Sendable {
         defaultValue: "This identifier is not defined."
       )
     case .unavailableReference:
+      if case .failedLine(let line) = error.context {
+        return String(
+          format: localized(
+            "error.evaluation.unavailableReference.line",
+            defaultValue: "Line %lld has an error, so this cannot use it."
+          ),
+          line
+        )
+      }
+      if case .failedVariable(let name) = error.context {
+        return String(
+          format: localized(
+            "error.evaluation.unavailableReference.variable",
+            defaultValue: "%@ has an error, so this cannot use it."
+          ),
+          name
+        )
+      }
       return localized(
         "error.evaluation.unavailableReference",
         defaultValue: "This refers to a result that has an error."

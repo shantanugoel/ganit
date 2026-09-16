@@ -491,6 +491,12 @@ struct ResultFormatterTests {
     #expect(formattedEvaluation.severity == .error)
     #expect(formattedEvaluation.ranges.count == 1)
     #expect(formattedEvaluation.message == "Cannot divide by zero.")
+    #expect(
+      formatter.format(EngineError(code: .unavailableReference, context: .failedLine(12))).message
+        == "Line 12 has an error, so this cannot use it.")
+    #expect(
+      formatter.format(EngineError(code: .unavailableReference, context: .failedVariable("rent")))
+        .message == "rent has an error, so this cannot use it.")
 
     guard
       case .syntaxFailure(let syntaxErrors) = engine.evaluate(

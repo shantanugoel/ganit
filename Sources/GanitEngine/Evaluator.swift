@@ -174,7 +174,8 @@ private struct EvaluationWorker {
   private func evaluateIdentifier(_ name: String, range: SourceRange) throws -> EngineValue {
     if let variable = variables[name] {
       guard let value = variable else {
-        throw EngineError(code: .unavailableReference, ranges: [range])
+        throw EngineError(
+          code: .unavailableReference, ranges: [range], context: .failedVariable(name))
       }
       return value
     }

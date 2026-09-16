@@ -165,7 +165,8 @@ public struct SheetCalculator: Sendable {
       case .value(let value):
         outcomes.append(.value(value), references: evaluation?.references ?? [])
       case .syntaxFailure, .evaluationFailure:
-        outcomes.append(.failure, references: evaluation?.references ?? [])
+        outcomes.append(
+          .failure(line: outcomes.nextLine), references: evaluation?.references ?? [])
       }
       switch source.syntax {
       case .blank, .heading:

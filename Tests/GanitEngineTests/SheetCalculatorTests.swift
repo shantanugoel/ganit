@@ -17,6 +17,26 @@ struct SheetCalculatorTests {
   }
 
   @Test
+  func aReferenceToAFailedLineNamesItAndFollowsItWhenItMoves() throws {
+    var calculator = SheetCalculator()
+    var sheet = SheetSource("1\n1 m + 1 s\nsum")
+    let context = try sheetContext()
+
+    func failedLine() throws -> EngineErrorContext? {
+      guard
+        case .evaluationFailure(let error) = try calculator.evaluate(sheet, context: context)
+          .lines.last?.result
+      else {
+        return nil
+      }
+      return error.context
+    }
+    #expect(try failedLine() == .failedLine(2))
+    sheet.replace(utf8Range: 0..<0, with: "2\n")
+    #expect(try failedLine() == .failedLine(3))
+  }
+
+  @Test
   func recalculatesClockReadingLinesOnlyAtTheirBoundaries() throws {
     var calculator = SheetCalculator()
     let sheet = SheetSource("a = 1\nstart = today\nnow\nstart + 1 day\na + 1")

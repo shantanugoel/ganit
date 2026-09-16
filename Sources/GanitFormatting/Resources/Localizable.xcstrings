@@ -384,6 +384,16 @@
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Write a date as 2026-09-16 or 16 Sep 2026, or put spaces around / to divide." } }
       }
     },
+    "error.evaluation.unavailableReference.line" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Line %lld has an error, so this cannot use it." } }
+      }
+    },
+    "error.evaluation.unavailableReference.variable" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "%@ has an error, so this cannot use it." } }
+      }
+    },
     "syntax.invalidVariableName" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "This word is already a unit, function, or keyword. Choose another name." } }

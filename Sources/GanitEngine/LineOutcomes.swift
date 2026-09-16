@@ -8,7 +8,8 @@ struct LineOutcomes: Sendable {
   enum Outcome: Hashable, Sendable {
     case none
     case value(EngineValue)
-    case failure
+    /// A failed line, by its one-based number, so a reader can be told which.
+    case failure(line: Int)
   }
 
   private var outcomes: [Outcome] = []
@@ -30,6 +31,11 @@ struct LineOutcomes: Sendable {
     if references.contains(.aggregate(.subtotal)) {
       subtotalStart = outcomes.count
     }
+  }
+
+  /// The number the next appended line will have.
+  var nextLine: Int {
+    outcomes.count + 1
   }
 
   mutating func endBlock() {
@@ -74,8 +80,8 @@ struct LineOutcomes: Sendable {
       throw EngineError(code: .invalidReference)
     case .value(let value):
       return value
-    case .failure:
-      throw EngineError(code: .unavailableReference)
+    case .failure(let line):
+      throw EngineError(code: .unavailableReference, context: .failedLine(line))
     }
   }
 }

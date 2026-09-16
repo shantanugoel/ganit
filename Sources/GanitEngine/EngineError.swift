@@ -72,6 +72,10 @@ public enum EngineErrorContext: Hashable, Sendable {
   case rootRadicand
   /// A unit raised to a power that is not a whole number.
   case unitPower
+  /// The one-based number of a line whose error a reference read.
+  case failedLine(Int)
+  /// A variable whose declaration failed.
+  case failedVariable(String)
   case evaluationContext(EvaluationContextField)
   case argumentCount(
     function: String,

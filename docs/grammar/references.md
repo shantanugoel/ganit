@@ -53,7 +53,9 @@ compares quantities after converting them to that unit. Mixing kinds fails with
 
 Errors never count as zero. If any line an aggregate or reference would read
 failed, including an incomplete line, the reference fails with
-`evaluation.unavailableReference`. A reference to a line with no expression,
+`evaluation.unavailableReference`, and its message names the first such line:
+`Line 12 has an error, so this cannot use it.` A variable whose declaration
+failed is named the same way. A reference to a line with no expression,
 to the current line or below, or an average or median of an empty block, fails
 with `evaluation.invalidReference`. `sum`, `subtotal`, and `count` of an empty
 block are `0`.
