@@ -20,7 +20,10 @@ struct MainMenuTests {
       ])
     #expect(application.windowsMenu?.title == "Window")
     #expect(application.helpMenu?.title == "Help")
-    #expect(application.servicesMenu != nil)
+    #expect(application.servicesMenu == nil)
+    #expect(items.filter { $0.action == #selector(WorkspaceCommands.printSheet(_:)) }.count == 1)
+    #expect(!items.contains { $0.action == #selector(NSView.printView(_:)) })
+    #expect(!items.contains { $0.title == "Services" })
     let ganitHelp = items.first { $0.action == #selector(ApplicationCommands.showHelp(_:)) }
     #expect(ganitHelp?.title == "Ganit Help")
     #expect(ganitHelp?.keyEquivalent == "?")

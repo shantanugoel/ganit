@@ -195,6 +195,15 @@ struct AnswerInteractionTests {
     item.representedObject = function
     textView.openLanguageHelp(item)
     #expect(opened == "function.sqrt")
+
+    let event = try mouseEvent(at: textView.bounds, in: textView, clicks: 1)
+    let menu = try #require(textView.menu(for: event))
+    let titles = menu.items.map(\.title)
+    #expect(titles.contains("Copy Result"))
+    #expect(titles.contains("Copy"))
+    #expect(!titles.contains(where: { $0.localizedCaseInsensitiveContains("spelling") }))
+    #expect(!titles.contains(where: { $0.localizedCaseInsensitiveContains("speech") }))
+    #expect(!titles.contains(where: { $0.localizedCaseInsensitiveContains("font") }))
   }
 
   /// Keeps the window, and with it the editor, alive for the test.

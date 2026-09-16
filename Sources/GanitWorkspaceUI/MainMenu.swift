@@ -66,7 +66,6 @@ import GanitEditorUI
 @MainActor
 public enum MainMenu {
   public static func install(in application: NSApplication) {
-    let services = NSMenu(title: localized("menu.services", "Services"))
     let window = menu(
       localized("menu.window", "Window"),
       [
@@ -123,8 +122,6 @@ public enum MainMenu {
           #selector(ApplicationCommands.reportProblem(_:))),
       ])
 
-    let servicesItem = NSMenuItem(title: services.title, action: nil, keyEquivalent: "")
-    servicesItem.submenu = services
     let main = NSMenu()
     for submenu in [
       menu(
@@ -154,8 +151,6 @@ public enum MainMenu {
           item(
             localized("menu.assistant", "Assistant…"),
             #selector(ApplicationCommands.showAssistantSettings(_:))),
-          .separator(),
-          servicesItem,
           .separator(),
           item(localized("menu.hide", "Hide Ganit"), #selector(NSApplication.hide(_:)), "h"),
           item(
@@ -246,8 +241,6 @@ public enum MainMenu {
             localized("menu.restorePreviousVersion", "Restore Previous Version…"),
             #selector(WorkspaceCommands.restorePreviousVersion(_:))
           ),
-          .separator(),
-          item(localized("menu.print", "Print…"), #selector(NSView.printView(_:)), "p"),
         ]
       ),
       menu(
@@ -403,7 +396,6 @@ public enum MainMenu {
     }
 
     application.mainMenu = main
-    application.servicesMenu = services
     application.windowsMenu = window
     application.helpMenu = help
   }

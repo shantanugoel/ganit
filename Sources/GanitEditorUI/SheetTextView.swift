@@ -406,15 +406,48 @@ final class SheetTextView: NSTextView {
     if !NSLocationInRange(offset, selectedRange()) {
       setSelectedRange(NSRange(location: offset, length: 0))
     }
-    let menu = super.menu(for: event) ?? NSMenu()
-    guard let help = lookupHelp(at: point) else {
-      return menu
+    let menu = NSMenu()
+    if let help = lookupHelp(at: point) {
+      let item = NSMenuItem(
+        title: help.menuTitle, action: #selector(openLanguageHelp(_:)), keyEquivalent: "")
+      item.representedObject = help
+      menu.addItem(item)
+      menu.addItem(.separator())
     }
-    let item = NSMenuItem(
-      title: help.menuTitle, action: #selector(openLanguageHelp(_:)), keyEquivalent: "")
-    item.representedObject = help
-    menu.insertItem(item, at: 0)
-    menu.insertItem(.separator(), at: 1)
+    for (title, action) in [
+      (
+        String(localized: "menu.copyResult", defaultValue: "Copy Result", bundle: .main),
+        #selector(copyResult(_:))
+      ),
+      (
+        String(
+          localized: "menu.copyFullPrecision", defaultValue: "Copy Full Precision", bundle: .main),
+        #selector(copyFullPrecision(_:))
+      ),
+      (
+        String(
+          localized: "menu.showInterpretation", defaultValue: "Show Interpretation", bundle: .main),
+        #selector(showInterpretation(_:))
+      ),
+      (
+        String(localized: "menu.insertReference", defaultValue: "Insert Reference", bundle: .main),
+        #selector(insertReference(_:))
+      ),
+    ] {
+      menu.addItem(NSMenuItem(title: title, action: action, keyEquivalent: ""))
+    }
+    menu.addItem(.separator())
+    for (title, action) in [
+      (String(localized: "menu.cut", defaultValue: "Cut", bundle: .main), #selector(cut(_:))),
+      (String(localized: "menu.copy", defaultValue: "Copy", bundle: .main), #selector(copy(_:))),
+      (String(localized: "menu.paste", defaultValue: "Paste", bundle: .main), #selector(paste(_:))),
+      (
+        String(localized: "menu.selectAll", defaultValue: "Select All", bundle: .main),
+        #selector(selectAll(_:))
+      ),
+    ] {
+      menu.addItem(NSMenuItem(title: title, action: action, keyEquivalent: ""))
+    }
     return menu
   }
 

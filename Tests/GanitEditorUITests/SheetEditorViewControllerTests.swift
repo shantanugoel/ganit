@@ -93,6 +93,7 @@ struct SheetEditorViewControllerTests {
     #expect(!textView.isAutomaticDashSubstitutionEnabled)
     #expect(!textView.isAutomaticTextReplacementEnabled)
     #expect(!textView.isAutomaticSpellingCorrectionEnabled)
+    #expect(!textView.usesFontPanel)
     #expect(!textView.smartInsertDeleteEnabled)
   }
 

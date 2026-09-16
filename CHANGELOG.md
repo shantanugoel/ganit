@@ -12,8 +12,11 @@ existing answer. See the [release train](docs/release/release-train.md).
   forward instead of opening another.
 - `$` is USD unless Format ▸ Dollar Means or a sheet's right-click menu picks
   another dollar currency. `USD 1.5`, `5 dollars`, `¥5`, and scale words such
-  as `11.5 million` / `11.5mn` / `3k` parse as everyday amounts. Ambiguity
-  registry version 6.
+  as `11.5 million` / `11.5mn` / `3k` parse as everyday amounts. Codes, names,
+  symbols, and units may sit before or after the number. Ambiguity registry
+  version 6.
+- The menu bar and the sheet's right-click menu list only Ganit commands;
+  Services, the second Print, and AppKit Font/Spelling/Speech items are gone.
 
 ## 0.2.0
 

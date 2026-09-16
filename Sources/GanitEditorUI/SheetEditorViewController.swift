@@ -233,6 +233,9 @@ public final class SheetEditorViewController: NSViewController {
     textView.isAutomaticDataDetectionEnabled = false
     textView.isAutomaticLinkDetectionEnabled = false
     textView.smartInsertDeleteEnabled = false
+    textView.usesFontPanel = false
+    textView.usesRuler = false
+    textView.enabledTextCheckingTypes = 0
     textView.setAccessibilityLabel(
       String(localized: "editor.accessibilityLabel", defaultValue: "Sheet", bundle: .main)
     )
