@@ -277,6 +277,16 @@ struct WorkspaceWindowControllerTests {
   }
 
   @Test
+  func showingTheCurrentWindowReusesItInsteadOfOpeningAnother() throws {
+    let (workspace, ids) = try makeWorkspace(["1 + 1"])
+    defer { close(workspace) }
+    let first = workspace.openWindow(showing: ids[0])
+    let shown = try workspace.showCurrentWindow()
+    #expect(shown === first)
+    #expect(workspace.windows.count == 1)
+  }
+
+  @Test
   func searchNarrowsTheListedSheets() throws {
     let (workspace, ids) = try makeWorkspace(["hotel = 85", "rent = 2100"])
     defer { close(workspace) }

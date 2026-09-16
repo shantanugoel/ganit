@@ -197,6 +197,17 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     }
   }
 
+  /// Brings the current workspace window forward, or opens the most recent
+  /// sheet when none is open.
+  @objc func showWorkspaceWindow(_ sender: Any?) {
+    do {
+      try workspace?.showCurrentWindow()
+      NSApplication.shared.activate()
+    } catch {
+      NSApplication.shared.presentError(error)
+    }
+  }
+
   // MARK: The menu bar
 
   /// Puts Ganit in the menu bar, or takes it out.
@@ -207,7 +218,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   }
 
   /// A short menu of the things worth reaching for without a window: the
-  /// scratch sheet, Quick Ganit, and a new sheet.
+  /// current window, the scratch sheet, Quick Ganit, and a new sheet.
   private func updateMenuBarItem() {
     guard UserDefaults.standard.bool(forKey: Self.menuBarDefaultsKey) else {
       statusItem.map(NSStatusBar.system.removeStatusItem)
@@ -222,6 +233,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       systemSymbolName: VisualStyle.Symbol.menuBar, accessibilityDescription: "Ganit")
     let menu = NSMenu()
     for (title, action) in [
+      (menuBarTitle("menu.showWindow", "Show Window"), #selector(showWorkspaceWindow(_:))),
       (menuBarTitle("menu.scratch", "Scratch"), #selector(showScratch(_:))),
       (menuBarTitle("menu.quickGanit", "Quick Ganit"), #selector(showQuickGanit(_:))),
       (menuBarTitle("menu.newSheet", "New Sheet"), #selector(newSheet(_:))),

@@ -137,6 +137,18 @@ public final class Workspace {
     reveal(try library.openScratch().id)
   }
 
+  /// Brings an existing workspace window forward, or opens the most recent
+  /// sheet when none is open, so the menu bar does not create a window every time.
+  @discardableResult
+  public func showCurrentWindow() throws -> WorkspaceWindowController {
+    if let shown = windows.last {
+      shown.window?.deminiaturize(nil)
+      shown.showWindow(nil)
+      return shown
+    }
+    return try openMostRecentSheet()
+  }
+
   /// Opens a window with the most recently modified active sheet, or with a
   /// new sheet in an empty library.
   @discardableResult

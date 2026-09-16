@@ -1281,6 +1281,16 @@
         }
       }
     },
+    "menu.showWindow" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Window"
+          }
+        }
+      }
+    },
     "menu.showAll" : {
       "localizations" : {
         "en" : {

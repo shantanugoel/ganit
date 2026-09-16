@@ -8,6 +8,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 - Format ▸ Markdown Mode (formerly Prose Mode) writes answers in the lines,
   treats sentences as paragraphs, and is also on a sheet's right-click menu.
   Markdown sheets show a document mark in the sidebar. `=>` ends a calculation.
+- The menu bar icon's menu has Show Window, which brings the current window
+  forward instead of opening another.
 
 ## 0.2.0
 
