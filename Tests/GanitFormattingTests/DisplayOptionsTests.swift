@@ -23,6 +23,10 @@ struct DisplayOptionsTests {
       (DisplayOptions(numbers: .scientific), "-7", "-7e0"),
       (DisplayOptions(numbers: .scientific), "0", "0"),
       (DisplayOptions(numbers: .scientific), "1/3", "3.33333333333333e-1"),
+      (.standard, "10^21", "1e21"),
+      (.standard, "10^21 - 1", "999,999,999,999,999,999,999"),
+      (.standard, "0.000001", "0.000001"),
+      (.standard, "0.0000001", "1e-7"),
     ]
 
     for (options, source, display) in cases {
