@@ -20,6 +20,7 @@ import GanitEditorUI
   func reportProblem(_ sender: Any?)
   func checkForUpdates(_ sender: Any?)
   func toggleAutomaticUpdateChecks(_ sender: Any?)
+  func toggleAutocomplete(_ sender: Any?)
 }
 
 /// Actions handled by the Quick Ganit panel while it is key.
@@ -269,6 +270,10 @@ public enum MainMenu {
                 "e"),
             ]
           ),
+          .separator(),
+          item(
+            localized("menu.autocomplete", "Autocomplete"),
+            #selector(ApplicationCommands.toggleAutocomplete(_:))),
         ]
       ),
       menu(

@@ -102,6 +102,10 @@ message only after the insertion point leaves the line.
 | Right-click a function, keyword, or error | Help for that name, or Show Interpretation |
 | Escape or typing | Clears the answer selection |
 
+Function and keyword names complete while typing. Return or Tab inserts the
+selected completion; Escape dismisses the list. **Edit ▸ Autocomplete** turns
+the list off.
+
 `copyResult:`, `copyFullPrecision:`, and `showInterpretation:` are responder
 actions that act on the selected answer or, without one, the insertion point's
 line, so menus and keyboard shortcuts can reach them. Copy Result has nothing

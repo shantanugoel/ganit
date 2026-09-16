@@ -93,8 +93,11 @@ final class SheetTextView: NSTextView {
   var openHelp: ((String) -> Void)?
   /// The diagnostic the newest evaluation flagged for a line, if any.
   var lineDiagnostic: (LineID) -> FormattedDiagnostic? = { _ in nil }
+  /// Overrides the Autocomplete preference, for tests.
+  var completesWhileTyping: Bool?
   private var helpTracking: NSTrackingArea?
   private var helpTooltip = ""
+  private let completionList = CompletionList()
 
   private var overlay: AnswerOverlayView?
 
@@ -157,6 +160,7 @@ final class SheetTextView: NSTextView {
     super.didChangeText()
     // Edits move lines, so answers must be redrawn in their new positions.
     answerOverlay().needsDisplay = true
+    updateCompletions()
   }
 
   override func didAddSubview(_ subview: NSView) {
@@ -226,6 +230,7 @@ final class SheetTextView: NSTextView {
     super.viewDidMoveToWindow()
     NSWorkspace.shared.notificationCenter.removeObserver(self)
     guard window != nil else {
+      completionList.hide()
       return
     }
     NSWorkspace.shared.notificationCenter.addObserver(
@@ -689,10 +694,101 @@ final class SheetTextView: NSTextView {
     }
   }
 
-  /// Escape cancels up the responder chain, such as dismissing Quick Ganit,
-  /// instead of offering text completion; it never changes the source.
+  /// Escape dismisses the completion list when it is showing, and otherwise
+  /// cancels up the responder chain, such as dismissing Quick Ganit.
   override func complete(_ sender: Any?) {
+    if completionList.isVisible {
+      completionList.hide()
+      return
+    }
     nextResponder?.tryToPerform(#selector(cancelOperation(_:)), with: sender)
+  }
+
+  override func insertNewline(_ sender: Any?) {
+    if insertSelectedCompletion() {
+      return
+    }
+    super.insertNewline(sender)
+  }
+
+  override func insertTab(_ sender: Any?) {
+    if insertSelectedCompletion() {
+      return
+    }
+    super.insertTab(sender)
+  }
+
+  override func moveUp(_ sender: Any?) {
+    if completionList.move(-1) {
+      return
+    }
+    super.moveUp(sender)
+  }
+
+  override func moveDown(_ sender: Any?) {
+    if completionList.move(1) {
+      return
+    }
+    super.moveDown(sender)
+  }
+
+  /// Completions currently offered, for tests.
+  var offeredCompletions: [String] {
+    completionList.titles
+  }
+
+  private func updateCompletions() {
+    guard completesWhileTyping ?? GanitPreferences.completesWhileTyping,
+      let prefix = completionPrefix()
+    else {
+      completionList.hide()
+      return
+    }
+    let matches = LanguageCompletions.matching(prefix.text).filter { $0 != prefix.text }
+    guard !matches.isEmpty, let window else {
+      completionList.hide()
+      return
+    }
+    var rect = firstRect(forCharacterRange: prefix.range, actualRange: nil)
+    rect = convert(window.convertFromScreen(rect), from: nil)
+    if rect.width <= 0 {
+      rect = NSRect(x: 0, y: 0, width: 12, height: 16)
+    }
+    completionList.show(matches, at: rect, in: self)
+  }
+
+  private func completionPrefix() -> (range: NSRange, text: String)? {
+    let cursor = selectedRange()
+    guard cursor.length == 0 else {
+      return nil
+    }
+    let text = string as NSString
+    var start = cursor.location
+    let characters = CharacterSet.letters.union(.decimalDigits).union(
+      CharacterSet(charactersIn: "_π"))
+    while start > 0 {
+      let previous = start - 1
+      let unit = text.substring(with: text.rangeOfComposedCharacterSequence(at: previous))
+      guard unit.unicodeScalars.allSatisfy({ characters.contains($0) }) else {
+        break
+      }
+      start = previous
+    }
+    let length = cursor.location - start
+    guard length > 0 else {
+      return nil
+    }
+    let range = NSRange(location: start, length: length)
+    return (range, text.substring(with: range))
+  }
+
+  @discardableResult
+  private func insertSelectedCompletion() -> Bool {
+    guard let item = completionList.selectedItem, let prefix = completionPrefix() else {
+      return false
+    }
+    completionList.hide()
+    return write(item, in: prefix.range)
   }
 
   override func copy(_ sender: Any?) {

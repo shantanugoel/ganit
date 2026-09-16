@@ -343,6 +343,11 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     return try? await Assistant(settings: settings).answer(to: line)
   }
 
+  /// Completes function and keyword names while typing, or not.
+  @objc func toggleAutocomplete(_ sender: Any?) {
+    GanitPreferences.completesWhileTyping.toggle()
+  }
+
   /// Chooses whether Quick Ganit restores its last text or starts empty.
   @objc func toggleQuickGanitStartsEmpty(_ sender: Any?) {
     let startsEmpty = !UserDefaults.standard.bool(forKey: Self.startsEmptyDefaultsKey)
@@ -502,6 +507,8 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       menuItem.state = checksForUpdatesAutomatically ? .on : .off
     case #selector(toggleQuickGanitStartsEmpty(_:)):
       menuItem.state = UserDefaults.standard.bool(forKey: Self.startsEmptyDefaultsKey) ? .on : .off
+    case #selector(toggleAutocomplete(_:)):
+      menuItem.state = GanitPreferences.completesWhileTyping ? .on : .off
     case #selector(toggleAutomaticExchangeRateUpdates(_:)):
       menuItem.state = rateRefresher?.isAutomatic == true ? .on : .off
     case #selector(updateExchangeRates(_:)):

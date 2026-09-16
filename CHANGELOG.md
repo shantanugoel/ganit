@@ -12,6 +12,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 - About names Shantanu Goel and links to x.com/shantanugoel and the GitHub
   repository.
 - Help ▸ Release Notes shows the changelog.
+- Function and keyword names complete while typing. Edit ▸ Autocomplete turns
+  that off.
 
 ## 0.1.1
 
