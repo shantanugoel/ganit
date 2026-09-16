@@ -177,6 +177,32 @@ public indirect enum Expression: Equatable, Sendable {
       return arguments.reduce(into: []) { $0.formUnion($1.references) }
     }
   }
+
+  /// Prompts `ask_assistant` and `prompt_assistant` would send.
+  package var assistantPrompts: [String] {
+    switch self {
+    case .assistantPrompt(_, let prompt, _, _):
+      return prompt.isEmpty ? [] : [prompt]
+    case .literal, .temporal, .identifier, .reference:
+      return []
+    case .prefix(_, let operand, _, _),
+      .percentage(let operand, _, _),
+      .quantity(let operand, _, _),
+      .period(let operand, _, _),
+      .relative(let operand, _, _),
+      .zoneConversion(let operand, _, _),
+      .money(let operand, _, _),
+      .currencyConversion(let operand, _, _),
+      .conversion(let operand, _, _, _),
+      .grouped(let operand, _):
+      return operand.assistantPrompts
+    case .infix(let left, _, let right, _, _),
+      .percentageOperation(_, let left, let right, _, _):
+      return left.assistantPrompts + right.assistantPrompts
+    case .call(_, _, let arguments, _):
+      return arguments.flatMap(\.assistantPrompts)
+    }
+  }
 }
 
 public struct ParsingResult: Equatable, Sendable {

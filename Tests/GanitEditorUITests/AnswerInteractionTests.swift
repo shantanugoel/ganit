@@ -210,6 +210,7 @@ struct AnswerInteractionTests {
     let menu = try #require(textView.menu(for: event))
     let titles = menu.items.map(\.title)
     #expect(titles.contains("Copy Result"))
+    #expect(titles.contains("Ask Assistant"))
     #expect(titles.contains("Copy"))
     #expect(!titles.contains(where: { $0.localizedCaseInsensitiveContains("spelling") }))
     #expect(!titles.contains(where: { $0.localizedCaseInsensitiveContains("speech") }))

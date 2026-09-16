@@ -5,6 +5,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Ask Assistant, on a line's right-click menu and under Calculate, asks again
+  about a line Ganit could not work out, or an `ask_assistant` prompt.
 - Copy Result copies a failure's message when that is what the column shows.
 - Hovering a truncated answer or error in the result column shows the full
   text.

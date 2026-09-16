@@ -35,6 +35,9 @@ this user can read.
   text that was asked, so the same line in two places costs one request, and
   editing a line and changing it back costs none.
 
+**Ask Assistant** on the line's right-click menu, or under Calculate, asks
+again about that line or prompt even when an answer is already on screen.
+
 `SheetEditorViewController` also asks about `ask_assistant(prompt)` and
 `prompt_assistant(prompt)` when those functions have no answer yet. The text
 inside the parentheses is the prompt. The reply is parsed as a Ganit value,

@@ -302,6 +302,10 @@ public enum MainMenu {
             #selector(SheetCommands.showInterpretation(_:))
           ),
           item(
+            localized("menu.askAssistant", "Ask Assistant"),
+            #selector(SheetCommands.askAssistant(_:))
+          ),
+          item(
             localized("menu.nextProblem", "Next Problem"),
             #selector(SheetCommands.nextProblem(_:)), "'"),
           item(

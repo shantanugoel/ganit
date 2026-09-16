@@ -69,6 +69,13 @@ struct ParserTests {
       shape(try parse("ask_assistant(10 kg of water in ml) * 2"))
         == "(ask_assistant{10 kg of water in ml} * 2)"
     )
+    #expect(
+      try parse("ask_assistant(10 kg of water in ml) * 2").assistantPrompts
+        == ["10 kg of water in ml"]
+    )
+    #expect(
+      try parse("prompt_assistant(density of water)").assistantPrompts == ["density of water"])
+    #expect(try parse("2 + 2").assistantPrompts.isEmpty)
   }
 
   @Test

@@ -93,6 +93,10 @@ final class SheetTextView: NSTextView {
   var openHelp: ((String) -> Void)?
   /// The diagnostic the newest evaluation flagged for a line, if any.
   var lineDiagnostic: (LineID) -> FormattedDiagnostic? = { _ in nil }
+  /// Whether Ask Assistant can send the current line.
+  var canAskAssistant: () -> Bool = { false }
+  /// Asks the assistant again about the current line.
+  var onAskAssistant: () -> Void = {}
   /// Overrides the Autocomplete preference, for tests.
   var completesWhileTyping: Bool?
   private var helpTracking: NSTrackingArea?
@@ -368,6 +372,10 @@ final class SheetTextView: NSTextView {
         #selector(showInterpretation(_:))
       ),
       (
+        String(localized: "menu.askAssistant", defaultValue: "Ask Assistant", bundle: .main),
+        #selector(askAssistant(_:))
+      ),
+      (
         String(localized: "menu.insertReference", defaultValue: "Insert Reference", bundle: .main),
         #selector(insertReference(_:))
       ),
@@ -440,6 +448,10 @@ final class SheetTextView: NSTextView {
         String(
           localized: "menu.showInterpretation", defaultValue: "Show Interpretation", bundle: .main),
         #selector(showInterpretation(_:))
+      ),
+      (
+        String(localized: "menu.askAssistant", defaultValue: "Ask Assistant", bundle: .main),
+        #selector(askAssistant(_:))
       ),
       (
         String(localized: "menu.insertReference", defaultValue: "Insert Reference", bundle: .main),
@@ -927,10 +939,16 @@ final class SheetTextView: NSTextView {
     interpretationPopover = popover
   }
 
+  @objc func askAssistant(_ sender: Any?) {
+    onAskAssistant()
+  }
+
   override func validateUserInterfaceItem(_ item: any NSValidatedUserInterfaceItem) -> Bool {
     switch item.action {
     case #selector(copyResult(_:)), #selector(showInterpretation(_:)):
       return targetAnswer != nil
+    case #selector(askAssistant(_:)):
+      return canAskAssistant()
     case #selector(openLanguageHelp(_:)):
       return true
     case #selector(copyFullPrecision(_:)):

@@ -103,6 +103,7 @@ message only after the insertion point leaves the line.
 | Hover a function, keyword, or error | Shows its signature or message |
 | Hover a cut-off answer or error | Shows the full text |
 | Right-click a function, keyword, or error | Help for that name, or Show Interpretation |
+| Right-click Ask Assistant | Asks again about a line Ganit could not work out, or an `ask_assistant` prompt |
 | Escape or typing | Clears the answer selection |
 
 Function and keyword names complete while typing. The list shows each
@@ -110,10 +111,12 @@ function with its parameters. Return, Tab, or a click inserts the selected
 completion and selects the first parameter; Tab then moves to the next one.
 Escape dismisses the list. **Edit ▸ Autocomplete** turns the list off.
 
-`copyResult:`, `copyFullPrecision:`, and `showInterpretation:` are responder
-actions that act on the selected answer or, without one, the insertion point's
-line, so menus and keyboard shortcuts can reach them. Copy Result copies a
-failure's message when that is what the column shows.
+`copyResult:`, `copyFullPrecision:`, `showInterpretation:`, and `askAssistant:`
+are responder actions that act on the selected answer or, without one, the
+insertion point's line, so menus and keyboard shortcuts can reach them. Copy
+Result copies a failure's message when that is what the column shows. Ask
+Assistant is enabled for a flagged line or an `ask_assistant` prompt when an
+assistant is set up, and asks again even if that text was already sent.
 
 The interpretation card is a transient popover listing the expression, result,
 full precision, value kind, and exactness, then one Assumption row for each
@@ -179,8 +182,9 @@ Reduce Motion and Reduce Transparency need no special handling.
 For accessibility, the text view appends one static-text element per visible
 answer to its children, labeled "Line N result" or "Line N error" with the
 answer or message as its value and its on-screen frame. Custom actions offer
-Copy Result, Copy Full Precision, Show Interpretation, and Insert Reference, so
-every mouse interaction with answers has a VoiceOver and keyboard equivalent.
+Copy Result, Copy Full Precision, Show Interpretation, Ask Assistant, and Insert
+Reference, so every mouse interaction with answers has a VoiceOver and keyboard
+equivalent.
 Answers are not announced as they change while typing.
 
 ## Latency instrumentation

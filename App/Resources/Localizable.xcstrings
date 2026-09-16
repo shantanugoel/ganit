@@ -591,6 +591,16 @@
         }
       }
     },
+    "menu.askAssistant" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ask Assistant"
+          }
+        }
+      }
+    },
     "menu.automaticFormat" : {
       "localizations" : {
         "en" : {

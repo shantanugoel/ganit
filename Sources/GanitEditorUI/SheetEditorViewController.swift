@@ -154,6 +154,12 @@ public final class SheetEditorViewController: NSViewController {
       }
       return flaggedDiagnostic(result, isEditing: id == editingLine)
     }
+    sheetTextView.canAskAssistant = { [weak self] in
+      self?.canAskAssistant() ?? false
+    }
+    sheetTextView.onAskAssistant = { [weak self] in
+      self?.refetchAssistant()
+    }
     sheetTextView.didDrawAnswers = { [weak self] in
       guard let self, let interval = pendingAnswerDraw else {
         return
@@ -420,60 +426,63 @@ public final class SheetEditorViewController: NSViewController {
   }
 
   private func askNow() {
-    guard let askAssistant else {
+    guard askAssistant != nil else {
       return
     }
     askAboutPrompts()
     for (id, shown) in shownLines {
-      guard let result = shown.result.result,
-        flaggedDiagnostic(result, isEditing: id == editingLine) != nil
+      guard let asked = lineLevelAssistantPrompt(for: shown, id: id),
+        assistantAnswers[asked] == nil
       else {
         continue
       }
-      if case .evaluationFailure(let error) = result,
-        error.code == .unresolvedAssistantPrompt
-          || error.code == .unusableAssistantAnswer
-          || error.code == .unavailableReference
-      {
-        continue
+      startLineAssistantRequest(asked)
+    }
+  }
+
+  /// Sends `asked` to the assistant and writes the reply beside the line.
+  private func startLineAssistantRequest(_ asked: String) {
+    guard let askAssistant else {
+      return
+    }
+    assistantAnswers[asked] = .some(nil)
+    Task { [weak self] in
+      let answer = await askAssistant(asked)
+      guard let self, let answer else {
+        return
       }
-      let asked = shown.text.trimmingCharacters(in: .whitespacesAndNewlines)
-      guard !asked.isEmpty, assistantAnswers[asked] == nil else {
-        continue
-      }
-      assistantAnswers[asked] = .some(nil)
-      Task { [weak self] in
-        let answer = await askAssistant(asked)
-        guard let self, let answer else {
-          return
-        }
-        assistantAnswers[asked] = answer
-        sheetTextView.answersDidChange()
-      }
+      assistantAnswers[asked] = answer
+      sheetTextView.answersDidChange()
     }
   }
 
   /// Asks about each `ask_assistant` prompt that still has no value, then
   /// evaluates again so later lines can use the answer.
   private func askAboutPrompts() {
-    guard let askAssistant, let evaluation = latestEvaluation else {
+    guard let evaluation = latestEvaluation else {
       return
     }
     for line in evaluation.lines {
       guard case .evaluationFailure(let error) = line.result,
         error.code == .unresolvedAssistantPrompt,
-        case .assistantPrompt(let prompt) = error.context,
-        !prompt.isEmpty,
-        assistantValues[prompt] == nil,
-        !assistantPromptsInFlight.contains(prompt)
+        case .assistantPrompt(let prompt) = error.context
       else {
         continue
       }
-      assistantPromptsInFlight.insert(prompt)
-      Task { [weak self] in
-        let answer = await askAssistant(prompt)
-        self?.finishAssistantPrompt(prompt, answer: answer)
-      }
+      requestAssistantPrompt(prompt)
+    }
+  }
+
+  private func requestAssistantPrompt(_ prompt: String) {
+    guard let askAssistant, !prompt.isEmpty, assistantValues[prompt] == nil,
+      !assistantPromptsInFlight.contains(prompt)
+    else {
+      return
+    }
+    assistantPromptsInFlight.insert(prompt)
+    Task { [weak self] in
+      let answer = await askAssistant(prompt)
+      self?.finishAssistantPrompt(prompt, answer: answer)
     }
   }
 
@@ -487,6 +496,102 @@ public final class SheetEditorViewController: NSViewController {
     context = context.with(assistantAnswers: assistantValues)
     scheduler?.context = context
     scheduler?.schedule(sheet)
+  }
+
+  /// Whether Ask Assistant can send the selected answer's line, or the
+  /// insertion point's, including a line already asked about.
+  func canAskAssistant() -> Bool {
+    askAssistant != nil && assistantTarget() != nil
+  }
+
+  /// Asks again about the selected answer's line, or the insertion point's,
+  /// even when that text already has an answer.
+  func refetchAssistant() {
+    guard askAssistant != nil, let target = assistantTarget() else {
+      NSSound.beep()
+      return
+    }
+    switch target {
+    case .prompts(let prompts):
+      for prompt in prompts {
+        assistantValues.removeValue(forKey: prompt)
+      }
+      context = context.with(assistantAnswers: assistantValues)
+      scheduler?.context = context
+      scheduler?.schedule(sheet)
+      for prompt in prompts {
+        requestAssistantPrompt(prompt)
+      }
+    case .line(let id, let asked):
+      assistantAnswers.removeValue(forKey: asked)
+      cells[id] = nil
+      sheetTextView.answersDidChange()
+      startLineAssistantRequest(asked)
+    }
+  }
+
+  private enum AssistantTarget {
+    case prompts([String])
+    case line(LineID, String)
+  }
+
+  /// What Ask Assistant would send for the selected answer or the insertion
+  /// point's line: `ask_assistant` prompts, or a flagged line's text.
+  private func assistantTarget() -> AssistantTarget? {
+    let id =
+      sheetTextView.selectedAnswer
+      ?? sheet.lines[lineIndex(atUTF16: textView.selectedRange().location)].id
+    guard let shown = shownLines[id] else {
+      return nil
+    }
+    let prompts = assistantPrompts(in: shown)
+    if !prompts.isEmpty {
+      return .prompts(prompts)
+    }
+    if let asked = lineLevelAssistantPrompt(for: shown, id: id) {
+      return .line(id, asked)
+    }
+    return nil
+  }
+
+  private func assistantPrompts(in shown: (text: String, result: SheetLineResult)) -> [String] {
+    var prompts: [String] = []
+    if case .evaluationFailure(let error) = shown.result.result,
+      case .assistantPrompt(let prompt) = error.context, !prompt.isEmpty
+    {
+      prompts.append(prompt)
+    }
+    if case .calculation(_, _, let range?, _) = shown.result.syntax,
+      let text = range.text(in: shown.text),
+      let found = CalculationEngine().parse(String(text), context: context).expression?
+        .assistantPrompts
+    {
+      for prompt in found where !prompts.contains(prompt) {
+        prompts.append(prompt)
+      }
+    }
+    return prompts
+  }
+
+  /// The line text the assistant is asked about when Ganit could not work the
+  /// line out, or `nil` when this is not such a line.
+  private func lineLevelAssistantPrompt(
+    for shown: (text: String, result: SheetLineResult), id: LineID
+  ) -> String? {
+    guard let result = shown.result.result,
+      flaggedDiagnostic(result, isEditing: id == editingLine) != nil
+    else {
+      return nil
+    }
+    if case .evaluationFailure(let error) = result,
+      error.code == .unresolvedAssistantPrompt
+        || error.code == .unusableAssistantAnswer
+        || error.code == .unavailableReference
+    {
+      return nil
+    }
+    let asked = shown.text.trimmingCharacters(in: .whitespacesAndNewlines)
+    return asked.isEmpty ? nil : asked
   }
 
   /// The formatted value of a line, or the message of a failure its

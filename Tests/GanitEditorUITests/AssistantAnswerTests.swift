@@ -87,6 +87,56 @@ struct AssistantAnswerTests {
     #expect(await asked.recorded == ["10 kg of water in ml"])
   }
 
+  @Test
+  func askAssistantAsksAFailedLineAgain() async throws {
+    let asked = Asked()
+    let editor = try makeEditor("10 kg of water in ml")
+    editor.askAssistant = { line in
+      await asked.record(line)
+      return await asked.recorded.count == 1 ? "10,000 ml" : "9,000 ml"
+    }
+    let textView = try #require(editor.textView as? SheetTextView)
+    await editor.scheduler?.waitUntilIdle()
+    _ = try await answers(of: textView) { $0.first?.isAssisted == true }
+
+    let item = NSMenuItem(
+      title: "", action: #selector(SheetCommands.askAssistant(_:)), keyEquivalent: "")
+    #expect(textView.validateUserInterfaceItem(item))
+    textView.askAssistant(nil)
+    let cells = try await answers(of: textView) { $0.first?.text == "9,000 ml" }
+    #expect(cells.first?.isAssisted == true)
+    #expect(await asked.recorded == ["10 kg of water in ml", "10 kg of water in ml"])
+  }
+
+  @Test
+  func askAssistantAsksAPromptAgain() async throws {
+    let asked = Asked()
+    let editor = try makeEditor("ask_assistant(10 kg of water in ml)")
+    editor.askAssistant = { line in
+      await asked.record(line)
+      return await asked.recorded.count == 1 ? "10000 ml" : "5000 ml"
+    }
+    let textView = try #require(editor.textView as? SheetTextView)
+    await editor.scheduler?.waitUntilIdle()
+    _ = try await answers(of: textView) { $0.first?.isFailure == false }
+
+    textView.askAssistant(nil)
+    let cells = try await answers(of: textView) { $0.first?.text.contains("5") == true }
+    #expect(cells.first?.isFailure == false)
+    #expect(await asked.recorded == ["10 kg of water in ml", "10 kg of water in ml"])
+  }
+
+  @Test
+  func askAssistantStaysOffForAWorkedOutLine() async throws {
+    let editor = try makeEditor("2 + 2")
+    editor.askAssistant = { _ in "no" }
+    let textView = try #require(editor.textView as? SheetTextView)
+    await editor.scheduler?.waitUntilIdle()
+    let item = NSMenuItem(
+      title: "", action: #selector(SheetCommands.askAssistant(_:)), keyEquivalent: "")
+    #expect(!textView.validateUserInterfaceItem(item))
+  }
+
   /// Collects the lines an assistant was asked about.
   private actor Asked {
     private(set) var recorded: [String] = []
