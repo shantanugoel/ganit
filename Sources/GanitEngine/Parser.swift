@@ -69,6 +69,9 @@ let reservedIdentifiers: Set<String> = [
   "ago",
 ]
 
+/// Words that raise the unit after them: `sq ft`, `cubic m`.
+let unitPowerWords: [String: Int] = ["sq": 2, "square": 2, "cu": 3, "cubic": 3]
+
 /// Reference keywords. A longer declared name may start with one.
 let referenceKeywords: [String: LineReference] = [
   "previous": .previous,
@@ -935,7 +938,9 @@ private final class TokenParser {
   private func parseUnitFactor(depth: Int) -> UnitSyntax? {
     let start = current
     var unit: UnitSyntax
-    if case .identifier(let alias) = start.kind,
+    if let powered = parsePoweredUnitWord() {
+      unit = powered
+    } else if case .identifier(let alias) = start.kind,
       let resolved = catalog.resolveUnit(matching: alias)
     {
       advance()
@@ -969,6 +974,23 @@ private final class TokenParser {
     }
 
     return applyOptionalUnitPower(to: unit)
+  }
+
+  /// `sq ft` and `cubic m`: a power written as a word before its unit.
+  @inline(never)
+  private func parsePoweredUnitWord() -> UnitSyntax? {
+    guard let word = identifier(at: 0), variables[word] == nil,
+      let exponent = unitPowerWords[word], let alias = identifier(at: 1),
+      let resolved = catalog.resolveUnit(matching: alias)
+    else {
+      return nil
+    }
+    let wordToken = advance()
+    let unitToken = advance()
+    return .raised(
+      .named(resolved.entry, prefix: resolved.prefix, range: unitToken.range),
+      exponent: exponent,
+      range: wordToken.range.union(unitToken.range))
   }
 
   private func applyOptionalUnitPower(to unit: UnitSyntax) -> UnitSyntax {
@@ -1445,6 +1467,9 @@ private final class TokenParser {
   private func startsKnownUnit(at offset: Int) -> Bool {
     guard let alias = identifier(at: offset) else {
       return false
+    }
+    if unitPowerWords[alias] != nil, variables[alias] == nil {
+      return startsKnownUnit(at: offset + 1)
     }
     return catalog.resolveUnit(matching: alias) != nil
   }

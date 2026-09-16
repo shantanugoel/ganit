@@ -2,6 +2,26 @@
   "schemaVersion": 1,
   "cases": [
     {
+      "name": "area word before a unit",
+      "expression": "1200 sq ft in sq m",
+      "expected": {
+        "status": "value",
+        "display": "111.483648 m^2",
+        "fullPrecision": "1741932/15625 m^2",
+        "approximate": false
+      }
+    },
+    {
+      "name": "knots over time in nautical miles",
+      "expression": "30 kn * 2 h in nmi",
+      "expected": {
+        "status": "value",
+        "display": "60 nmi",
+        "fullPrecision": "60 nmi",
+        "approximate": false
+      }
+    },
+    {
       "name": "ohm's law current",
       "expression": "5 V / 220 Ω in mA",
       "expected": {

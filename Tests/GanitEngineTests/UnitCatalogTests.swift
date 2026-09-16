@@ -10,7 +10,7 @@ struct UnitCatalogTests {
     let catalog = try UnitCatalog.minimal()
     let sourceIdentifiers = Set(catalog.sources.map(\.identifier))
 
-    #expect(catalog.entries.count == 52)
+    #expect(catalog.entries.count == 54)
     #expect(catalog.prefixes.count == 34)
     #expect(catalog.sources.count == 3)
     for entry in catalog.entries {
@@ -217,6 +217,8 @@ struct UnitCatalogTests {
       ("C", .charge, integer(1)),
       ("Ah", .charge, integer(3_600)),
       ("Hz", .frequency, integer(1)),
+      ("nmi", .length, integer(1_852)),
+      ("kn", .speed, try fraction(463, 900)),
     ]
 
     // Every ratio unit is locked above; only the affine and approximate

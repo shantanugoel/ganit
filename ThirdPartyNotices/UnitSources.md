@@ -55,11 +55,13 @@ It does not claim conformance with any external unit standard.
 - `joule` (J): dimension `length^2·mass·time^-2`, transform `ratio 1`, exact, source `bipm-si-9-v4.01`
 - `kelvin` (K): dimension `temperature`, transform `ratio 1`, exact, source `bipm-si-9-v4.01`
 - `kilogram` (kg): dimension `mass`, transform `ratio 1`, exact, source `bipm-si-9-v4.01`
+- `knot` (kn): dimension `length·time^-1`, transform `ratio 463/900`, exact, source `nist-sp811-2008`
 - `liter` (L): dimension `length^3`, transform `ratio 1/1000`, exact, source `bipm-si-9-v4.01`
 - `meter` (m): dimension `length`, transform `ratio 1`, exact, source `bipm-si-9-v4.01`
 - `mile` (mi): dimension `length`, transform `ratio 201168/125`, exact, source `nist-sp811-2008`
 - `mile-per-hour` (mph): dimension `length·time^-1`, transform `ratio 1397/3125`, exact, source `nist-sp811-2008`
 - `minute` (min): dimension `time`, transform `ratio 60`, exact, source `bipm-si-9-v4.01`
+- `nautical-mile` (nmi): dimension `length`, transform `ratio 1852`, exact, source `nist-sp811-2008`
 - `newton` (N): dimension `length·mass·time^-2`, transform `ratio 1`, exact, source `bipm-si-9-v4.01`
 - `ohm` (Ω): dimension `length^2·mass·time^-3·current^-2`, transform `ratio 1`, exact, source `bipm-si-9-v4.01`
 - `ounce` (oz): dimension `mass`, transform `ratio 45359237/1600000000`, exact, source `nist-sp811-2008`
