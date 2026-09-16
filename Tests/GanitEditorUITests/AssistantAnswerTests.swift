@@ -32,6 +32,25 @@ struct AssistantAnswerTests {
     #expect(answers[1].fullPrecision == nil)
   }
 
+  @Test
+  func askAssistantReturnsAValueLaterLinesCanUse() async throws {
+    let asked = Asked()
+    let editor = try makeEditor("ask_assistant(10 kg of water in ml)\nprevious * 2")
+    editor.askAssistant = { line in
+      await asked.record(line)
+      return "10000 ml"
+    }
+    let textView = try #require(editor.textView as? SheetTextView)
+    await editor.scheduler?.waitUntilIdle()
+    let answers = try await answers(of: textView) { $0.count == 2 && !$0[1].isFailure }
+
+    #expect(await asked.recorded == ["10 kg of water in ml"])
+    #expect(answers[0].text.contains("mL"))
+    #expect(answers[1].text.contains("mL"))
+    #expect(!answers[0].isFailure)
+    #expect(!answers[1].isFailure)
+  }
+
   /// Without an assistant a line Ganit cannot work out keeps saying so, and
   /// nothing is asked of anyone.
   @Test

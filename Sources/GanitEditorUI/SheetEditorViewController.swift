@@ -75,6 +75,9 @@ public final class SheetEditorViewController: NSViewController {
   /// answer outlives the evaluations and line identities of the text it
   /// belongs to. A line asked about but unanswered maps to `nil`.
   private var assistantAnswers: [String: String?] = [:]
+  /// Parsed values for `ask_assistant` prompts, reused across evaluations.
+  private var assistantValues: [String: AssistantAnswer] = [:]
+  private var assistantPromptsInFlight: Set<String> = []
   /// Each line's UTF-16 start offset, in line order.
   private var cachedUTF16Starts: [Int]?
   /// The text and result of each line in the newest shown evaluation.
@@ -416,10 +419,18 @@ public final class SheetEditorViewController: NSViewController {
     guard let askAssistant else {
       return
     }
+    askAboutPrompts()
     for (id, shown) in shownLines {
       guard let result = shown.result.result,
         flaggedDiagnostic(result, isEditing: id == editingLine) != nil
       else {
+        continue
+      }
+      if case .evaluationFailure(let error) = result,
+        error.code == .unresolvedAssistantPrompt
+          || error.code == .unusableAssistantAnswer
+          || error.code == .unavailableReference
+      {
         continue
       }
       let asked = shown.text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -436,6 +447,42 @@ public final class SheetEditorViewController: NSViewController {
         sheetTextView.answersDidChange()
       }
     }
+  }
+
+  /// Asks about each `ask_assistant` prompt that still has no value, then
+  /// evaluates again so later lines can use the answer.
+  private func askAboutPrompts() {
+    guard let askAssistant, let evaluation = latestEvaluation else {
+      return
+    }
+    for line in evaluation.lines {
+      guard case .evaluationFailure(let error) = line.result,
+        error.code == .unresolvedAssistantPrompt,
+        case .assistantPrompt(let prompt) = error.context,
+        !prompt.isEmpty,
+        assistantValues[prompt] == nil,
+        !assistantPromptsInFlight.contains(prompt)
+      else {
+        continue
+      }
+      assistantPromptsInFlight.insert(prompt)
+      Task { [weak self] in
+        let answer = await askAssistant(prompt)
+        self?.finishAssistantPrompt(prompt, answer: answer)
+      }
+    }
+  }
+
+  private func finishAssistantPrompt(_ prompt: String, answer: String?) {
+    assistantPromptsInFlight.remove(prompt)
+    if let answer, case .value(let value) = CalculationEngine().evaluate(answer, context: context) {
+      assistantValues[prompt] = .value(value)
+    } else {
+      assistantValues[prompt] = .unusable
+    }
+    context = context.with(assistantAnswers: assistantValues)
+    scheduler?.context = context
+    scheduler?.schedule(sheet)
   }
 
   /// The formatted value of a line, or the message of a failure its

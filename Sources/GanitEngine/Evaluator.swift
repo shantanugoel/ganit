@@ -133,6 +133,8 @@ private struct EvaluationWorker {
         return try evaluateInfix(left, binaryOperator, right, operatorRange: operatorRange)
       case .call(let name, let nameRange, let arguments, _):
         return try evaluateCall(name: name, nameRange: nameRange, arguments: arguments)
+      case .assistantPrompt(_, let prompt, let nameRange, _):
+        return try evaluateAssistantPrompt(prompt, nameRange: nameRange)
       case .percentage(let points, _, _):
         return try evaluatePercentage(points)
       case .percentageOperation(let percentageOperator, let left, let right, let operatorRange, _):
@@ -953,6 +955,31 @@ private struct EvaluationWorker {
   }
 
   @inline(never)
+  private func evaluateAssistantPrompt(_ prompt: String, nameRange: SourceRange) throws
+    -> EngineValue
+  {
+    guard !prompt.isEmpty else {
+      throw EngineError(code: .invalidDomain, ranges: [nameRange])
+    }
+    switch context.assistantAnswers[prompt] {
+    case .value(let value):
+      return value
+    case .unusable:
+      throw EngineError(
+        code: .unusableAssistantAnswer,
+        ranges: [nameRange],
+        context: .assistantPrompt(prompt)
+      )
+    case nil:
+      throw EngineError(
+        code: .unresolvedAssistantPrompt,
+        ranges: [nameRange],
+        context: .assistantPrompt(prompt)
+      )
+    }
+  }
+
+  @inline(never)
   private mutating func evaluateCall(
     name: String,
     nameRange: SourceRange,
@@ -1016,6 +1043,14 @@ private struct EvaluationWorker {
         degreeRange: nameRange
       )
     }
+    if function == .cubeRoot {
+      return try evaluateRoot(
+        value: values[0],
+        valueRange: arguments[0].range,
+        degree: .integer(IntegerValue(3)),
+        degreeRange: nameRange
+      )
+    }
     if function == .root {
       return try evaluateRoot(
         value: values[0],
@@ -1056,17 +1091,31 @@ private struct EvaluationWorker {
         return try operations.rounded(values[0], rule: .down)
       case .ceiling:
         return try operations.rounded(values[0], rule: .up)
-      case .squareRoot:
+      case .truncate:
+        return try operations.rounded(values[0], rule: .towardZero)
+      case .sign:
+        return try operations.sign(values[0])
+      case .factorial:
+        return try operations.factorial(values[0])
+      case .hypot:
+        return try operations.hypot(values[0], values[1])
+      case .remainder:
+        return try operations.remainder(values[0], values[1])
+      case .clamp:
+        return try operations.clamp(values[0], lower: values[1], upper: values[2])
+      case .arcTangent2:
+        return try operations.arcTangent2(y: values[0], x: values[1])
+      case .squareRoot, .cubeRoot:
         return try operations.root(
           values[0],
-          degree: .integer(IntegerValue(2))
+          degree: .integer(IntegerValue(function == .squareRoot ? 2 : 3))
         )
       case .root:
         return try operations.root(values[0], degree: values[1])
       case .sine, .cosine, .tangent,
         .arcSine, .arcCosine, .arcTangent,
         .naturalLogarithm, .commonLogarithm, .commonLogarithmExplicit,
-        .exponential:
+        .binaryLogarithm, .exponential:
         return try operations.transcendental(function, value: values[0])
       }
     }

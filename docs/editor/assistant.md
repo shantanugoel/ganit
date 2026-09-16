@@ -35,6 +35,13 @@ this user can read.
   text that was asked, so the same line in two places costs one request, and
   editing a line and changing it back costs none.
 
+`SheetEditorViewController` also asks about `ask_assistant(prompt)` and
+`prompt_assistant(prompt)` when those functions have no answer yet. The text
+inside the parentheses is the prompt. The reply is parsed as a Ganit value,
+so a later line can write `previous * 2`. The same pause, cache, and privacy
+rules apply: one prompt is one request, and nothing else from the sheet is
+sent.
+
 `Assistant` sends one `POST` carrying the line, the model name, and the
 instruction to answer with a value and nothing else. It sends nothing else from
 the sheet, the library, or the machine, and `NetworkPrivacyTests` reads the

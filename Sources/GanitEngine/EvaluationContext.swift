@@ -28,6 +28,13 @@ public enum RoundingRule: String, Hashable, Sendable {
   }
 }
 
+/// What `ask_assistant` received for a prompt. `unusable` means the model
+/// answered, but the text was not a value Ganit can calculate with.
+public enum AssistantAnswer: Hashable, Sendable {
+  case value(EngineValue)
+  case unusable
+}
+
 public struct PrecisionContext: Hashable, Sendable {
   public let significantDecimalDigits: Int
   public let roundingRule: RoundingRule
@@ -64,6 +71,9 @@ public struct EvaluationContext: Hashable, Sendable {
   public let calendar: Calendar
   public let timeZone: TimeZone
   public private(set) var currencyRates: CurrencyRates
+  /// Values `ask_assistant` already received, keyed by the prompt. The engine
+  /// never talks to a model; the editor fills this in after it has asked.
+  public private(set) var assistantAnswers: [String: AssistantAnswer]
 
   public var calendarIdentifier: Calendar.Identifier {
     calendar.identifier
@@ -81,7 +91,8 @@ public struct EvaluationContext: Hashable, Sendable {
     now: Date,
     calendar: Calendar,
     timeZone: TimeZone,
-    currencyRates: CurrencyRates = .none
+    currencyRates: CurrencyRates = .none,
+    assistantAnswers: [String: AssistantAnswer] = [:]
   ) throws {
     guard Self.isStructurallyValidBCP47(localeIdentifier) else {
       throw EngineError(
@@ -112,6 +123,7 @@ public struct EvaluationContext: Hashable, Sendable {
     self.calendar = normalizedCalendar
     self.timeZone = timeZone
     self.currencyRates = currencyRates
+    self.assistantAnswers = assistantAnswers
   }
 
   /// The same context at another finite moment.
@@ -126,6 +138,13 @@ public struct EvaluationContext: Hashable, Sendable {
   public func with(_ currencyRates: CurrencyRates) -> EvaluationContext {
     var context = self
     context.currencyRates = currencyRates
+    return context
+  }
+
+  /// The same context with answers already received for `ask_assistant`.
+  public func with(assistantAnswers: [String: AssistantAnswer]) -> EvaluationContext {
+    var context = self
+    context.assistantAnswers = assistantAnswers
     return context
   }
 

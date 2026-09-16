@@ -5,7 +5,8 @@ import GanitEngine
 public enum LanguageCompletions {
   public static let items: [String] = {
     let calls =
-      (BuiltInFunction.allCases.map(\.rawValue) + FinanceFunction.allCases.map(\.rawValue))
+      (BuiltInFunction.allCases.map(\.rawValue) + FinanceFunction.allCases.map(\.rawValue)
+      + AssistantFunction.allCases.map(\.rawValue))
       .map { "\($0)(" }
     let words = [
       "pi", "π", "e", "previous", "prev", "sum", "total", "subtotal", "average", "avg", "median",

@@ -14,6 +14,8 @@ public enum EngineErrorCode: String, Hashable, Sendable {
   case unavailableReference = "evaluation.unavailableReference"
   case invalidReference = "evaluation.invalidReference"
   case unknownFunction = "evaluation.unknownFunction"
+  case unresolvedAssistantPrompt = "evaluation.unresolvedAssistantPrompt"
+  case unusableAssistantAnswer = "evaluation.unusableAssistantAnswer"
   case argumentCountMismatch = "evaluation.argumentCountMismatch"
   case typeMismatch = "evaluation.typeMismatch"
   case incompatibleDimensions = "evaluation.incompatibleDimensions"
@@ -74,6 +76,7 @@ public enum EngineErrorContext: Hashable, Sendable {
     expected: ClosedRange<Int>,
     actual: Int
   )
+  case assistantPrompt(String)
   case typeMismatch(expected: EngineValueKind, actual: EngineValueKind)
   case dimensionMismatch(expected: Dimension, actual: Dimension)
   case resourceLimit(EvaluationResource)

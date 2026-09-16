@@ -229,6 +229,7 @@ extension LanguageReference {
 
   fileprivate static var functions: [LanguageTopic] {
     BuiltInFunction.allCases.map(functionTopic) + FinanceFunction.allCases.map(financeTopic)
+      + AssistantFunction.allCases.map(assistantTopic)
   }
 
   fileprivate static let keywords: [LanguageTopic] = [
@@ -440,7 +441,115 @@ extension LanguageReference {
         ),
         examples: ["exp(1)"]
       )
+    case .binaryLogarithm:
+      return functionHelp(
+        "log2", signature: "log2(x)",
+        summary: text("help.function.log2.summary", "The base-2 logarithm."),
+        body: text(
+          "help.function.log2.body",
+          "log2(x) is the power of two that makes x. x must be positive. The result is approximate."
+        ),
+        examples: ["log2(8)"]
+      )
+    case .cubeRoot:
+      return functionHelp(
+        "cbrt", signature: "cbrt(x)",
+        summary: text("help.function.cbrt.summary", "The cube root; the same as root(x, 3)."),
+        body: text(
+          "help.function.cbrt.body",
+          "A perfect cube stays exact. Other roots are marked approximate."
+        ),
+        examples: ["cbrt(27)"]
+      )
+    case .truncate:
+      return functionHelp(
+        "trunc", signature: "trunc(x)",
+        summary: text("help.function.trunc.summary", "Drops the fractional part toward zero."),
+        body: text(
+          "help.function.trunc.body",
+          "trunc(1.9) is 1 and trunc(-1.9) is -1. It ignores the sheet's rounding rule."
+        ),
+        examples: ["trunc(-1.9)"]
+      )
+    case .sign:
+      return functionHelp(
+        "sign", signature: "sign(x)",
+        summary: text("help.function.sign.summary", "−1, 0, or 1 according to the sign of x."),
+        body: text(
+          "help.function.sign.body",
+          "sign is 0 at zero, −1 when x is negative, and 1 when x is positive."
+        ),
+        examples: ["sign(-4)"]
+      )
+    case .arcTangent2:
+      return functionHelp(
+        "atan2", signature: "atan2(y, x)",
+        summary: text(
+          "help.function.atan2.summary", "The angle of the point (x, y) from the positive x-axis."
+        ),
+        body: text(
+          "help.function.atan2.body",
+          "atan2(y, x) uses the sheet's angle mode. The result is approximate. Both arguments zero is refused."
+        ),
+        examples: ["atan2(1, 1)"]
+      )
+    case .hypot:
+      return functionHelp(
+        "hypot", signature: "hypot(x, y)",
+        summary: text("help.function.hypot.summary", "The hypotenuse; sqrt(x² + y²)."),
+        body: text(
+          "help.function.hypot.body",
+          "A perfect Pythagorean pair stays exact, such as hypot(3, 4)."
+        ),
+        examples: ["hypot(3, 4)"]
+      )
+    case .clamp:
+      return functionHelp(
+        "clamp", signature: "clamp(x, low, high)",
+        summary: text("help.function.clamp.summary", "x limited to the range low…high."),
+        body: text(
+          "help.function.clamp.body",
+          "clamp(x, low, high) is low if x is below it, high if x is above it, and x otherwise. low must not exceed high."
+        ),
+        examples: ["clamp(26, 5, 25)"]
+      )
+    case .factorial:
+      return functionHelp(
+        "fact", signature: "fact(n)",
+        summary: text("help.function.fact.summary", "n × (n − 1) × … × 1 for a whole n ≥ 0."),
+        body: text(
+          "help.function.fact.body",
+          "fact(0) is 1. A negative or fractional n is refused. There is no postfix !."
+        ),
+        examples: ["fact(5)"]
+      )
+    case .remainder:
+      return functionHelp(
+        "mod", signature: "mod(a, b)",
+        summary: text("help.function.mod.summary", "The remainder of a divided by b, toward zero."),
+        body: text(
+          "help.function.mod.body",
+          "mod(a, b) is a − b × trunc(a / b). Dividing by zero is refused."
+        ),
+        examples: ["mod(7, 3)"]
+      )
     }
+  }
+
+  fileprivate static func assistantTopic(_ function: AssistantFunction) -> LanguageTopic {
+    functionHelp(
+      function.rawValue, signature: "\(function.rawValue)(prompt)",
+      summary: text(
+        "help.function.ask_assistant.summary",
+        "Asks the configured assistant and uses its answer as a value."
+      ),
+      body: text(
+        "help.function.ask_assistant.body",
+        "The text inside the parentheses is the prompt, not an expression. The assistant must be turned on under Ganit ▸ Assistant…. Its answer is parsed as a Ganit value, so later lines can calculate with it. prompt_assistant is the same function."
+      ),
+      examples: ["ask_assistant(10 kg of water in ml)"],
+      keywords: AssistantFunction.allCases.map(\.rawValue)
+    )
   }
 
   fileprivate static func financeTopic(_ function: FinanceFunction) -> LanguageTopic {

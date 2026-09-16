@@ -143,6 +143,98 @@ struct NumericOperations {
     return .decimal(decimal)
   }
 
+  func sign(_ value: NumericValue) throws -> NumericValue {
+    if value.isZero {
+      return .integer(IntegerValue(0))
+    }
+    return .integer(IntegerValue(value.isNegative ? -1 : 1))
+  }
+
+  func hypot(_ x: NumericValue, _ y: NumericValue) throws -> NumericValue {
+    if case .approximate = x {
+      return try approximateHypot(x, y)
+    }
+    if case .approximate = y {
+      return try approximateHypot(x, y)
+    }
+    let squares = try applying(
+      .add,
+      left: try applying(.power, left: x, right: .integer(IntegerValue(2))),
+      right: try applying(.power, left: y, right: .integer(IntegerValue(2)))
+    )
+    return try root(squares, degree: .integer(IntegerValue(2)))
+  }
+
+  func clamp(
+    _ value: NumericValue,
+    lower: NumericValue,
+    upper: NumericValue
+  ) throws -> NumericValue {
+    guard try compare(lower, upper) <= 0 else {
+      throw EngineError(code: .invalidDomain)
+    }
+    return try extremum(
+      [try extremum([value, lower], selectMinimum: false), upper],
+      selectMinimum: true
+    )
+  }
+
+  func remainder(_ left: NumericValue, _ right: NumericValue) throws -> NumericValue {
+    if right.isZero {
+      throw EngineError(code: .divisionByZero)
+    }
+    if case .approximate = left {
+      return try approximateRemainder(left, right)
+    }
+    if case .approximate = right {
+      return try approximateRemainder(left, right)
+    }
+    let quotient = try rounded(
+      try applying(.divide, left: left, right: right),
+      rule: .towardZero
+    )
+    return try applying(
+      .subtract,
+      left: left,
+      right: try applying(.multiply, left: right, right: quotient)
+    )
+  }
+
+  func factorial(_ value: NumericValue) throws -> NumericValue {
+    guard let n = exactInteger(value), n >= 0 else {
+      throw EngineError(code: .invalidDomain)
+    }
+    guard n <= 10_000 else {
+      throw limitError(.operations)
+    }
+    if n < 2 {
+      return .integer(IntegerValue(1))
+    }
+    var result = BigInt(1)
+    for k in 2...n {
+      result *= BigInt(k)
+      try validateInteger(result)
+    }
+    return try checkedInteger(result)
+  }
+
+  func arcTangent2(y: NumericValue, x: NumericValue) throws -> NumericValue {
+    let dy = try approximateEstimate(y)
+    let dx = try approximateEstimate(x)
+    guard dy != 0 || dx != 0 else {
+      throw EngineError(code: .invalidDomain)
+    }
+    return .approximate(
+      try ApproximateValue(
+        estimate: angleResult(Foundation.atan2(dy, dx)),
+        source: .transcendentalFunction,
+        precision: .requestedSignificantDecimalDigits(
+          context.precision.transcendentalSignificantDigits
+        )
+      )
+    )
+  }
+
   /// Indices of `values` in ascending numeric order.
   func ascendingIndices(_ values: [NumericValue]) throws -> [Int] {
     if values.contains(where: {
@@ -280,6 +372,8 @@ struct NumericOperations {
       result = try logarithm(of: value)
     case .commonLogarithm, .commonLogarithmExplicit:
       result = try logarithm(of: value) / Foundation.log(10)
+    case .binaryLogarithm:
+      result = try logarithm(of: value) / Foundation.log(2)
     case .exponential:
       result = Foundation.exp(try approximateEstimate(value))
     default:
@@ -668,6 +762,40 @@ struct NumericOperations {
       result == 0,
       inputs.allSatisfy({ $0 != 0 })
     {
+      throw EngineError(code: .approximationOutOfRange)
+    }
+    return .approximate(
+      try ApproximateValue(
+        estimate: result,
+        source: .derivedArithmetic,
+        precision: .unspecified
+      )
+    )
+  }
+
+  private func approximateHypot(_ x: NumericValue, _ y: NumericValue) throws -> NumericValue {
+    let result = Foundation.hypot(try approximateEstimate(x), try approximateEstimate(y))
+    guard result.isFinite else {
+      throw EngineError(code: .approximationOutOfRange)
+    }
+    return .approximate(
+      try ApproximateValue(
+        estimate: result,
+        source: .derivedArithmetic,
+        precision: .unspecified
+      )
+    )
+  }
+
+  private func approximateRemainder(_ left: NumericValue, _ right: NumericValue) throws
+    -> NumericValue
+  {
+    let divisor = try approximateEstimate(right)
+    guard divisor != 0 else {
+      throw EngineError(code: .divisionByZero)
+    }
+    let result = try approximateEstimate(left).truncatingRemainder(dividingBy: divisor)
+    guard result.isFinite else {
       throw EngineError(code: .approximationOutOfRange)
     }
     return .approximate(

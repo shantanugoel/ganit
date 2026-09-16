@@ -41,6 +41,8 @@ public struct Parser: Sendable {
     }
 
     var tokenParser = TokenParser(
+      source: source,
+      origin: origin,
       tokens: lexingResult.tokens,
       maximumParseDepth: limits.maximumParseDepth,
       catalog: catalog,
@@ -100,6 +102,8 @@ extension Token {
 private struct TokenParser {
   private static let prefixBindingPower = 25
 
+  private let source: String
+  private let origin: SourceLocation
   private let tokens: [Token]
   private let maximumParseDepth: Int
   private let catalog: UnitCatalog
@@ -109,11 +113,15 @@ private struct TokenParser {
   private(set) var diagnostics: [SyntaxDiagnostic] = []
 
   init(
+    source: String,
+    origin: SourceLocation,
     tokens: [Token],
     maximumParseDepth: Int,
     catalog: UnitCatalog,
     variables: [String: EngineValueKind]
   ) {
+    self.source = source
+    self.origin = origin
     self.tokens = tokens
     self.maximumParseDepth = maximumParseDepth
     self.catalog = catalog
@@ -364,6 +372,9 @@ private struct TokenParser {
         )
       }
       if current.kind == .leftParenthesis {
+        if AssistantFunction(rawValue: name) != nil {
+          return parseAssistantCall(name: name, identifierRange: token.range)
+        }
         return parseCall(
           name: name,
           identifierRange: token.range,
@@ -487,6 +498,60 @@ private struct TokenParser {
       operatorRange: startRange.union(change.range).union(to.range),
       range: startRange.union(newValue.range)
     )
+  }
+
+  /// The text between the parentheses is the prompt, including spaces and
+  /// words that are not expressions.
+  private mutating func parseAssistantCall(
+    name: String,
+    identifierRange: SourceRange
+  ) -> Expression {
+    advance()
+    let promptStart = current.range.lowerBound
+    var depth = 1
+    while current.kind != .endOfFile, current.kind != .newline {
+      if current.kind == .leftParenthesis {
+        depth += 1
+      } else if current.kind == .rightParenthesis {
+        depth -= 1
+        if depth == 0 {
+          let prompt = slice(from: promptStart, to: current.range.lowerBound)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+          let closing = advance()
+          return .assistantPrompt(
+            name: name,
+            prompt: prompt,
+            nameRange: identifierRange,
+            range: identifierRange.union(closing.range)
+          )
+        }
+      }
+      advance()
+    }
+    diagnose(
+      .expectedClosingParenthesis,
+      at: current.range,
+      severity: .incomplete
+    )
+    return .assistantPrompt(
+      name: name,
+      prompt: slice(from: promptStart, to: current.range.lowerBound)
+        .trimmingCharacters(in: .whitespacesAndNewlines),
+      nameRange: identifierRange,
+      range: identifierRange.union(current.range)
+    )
+  }
+
+  private func slice(from lowerBound: Int, to upperBound: Int) -> String {
+    let start = lowerBound - origin.utf8Offset
+    let length = upperBound - lowerBound
+    let utf8 = source.utf8
+    guard start >= 0, length >= 0, start + length <= utf8.count else {
+      return ""
+    }
+    let lower = utf8.index(utf8.startIndex, offsetBy: start)
+    let upper = utf8.index(lower, offsetBy: length)
+    return String(source[lower..<upper])
   }
 
   private mutating func parseCall(
@@ -1131,7 +1196,7 @@ private struct TokenParser {
     switch expression {
     case .identifier(let name, _):
       return variables[name] ?? .number
-    case .literal, .call, .reference:
+    case .literal, .call, .reference, .assistantPrompt:
       return .number
     case .quantity, .conversion:
       return .quantity
@@ -1236,7 +1301,7 @@ private struct TokenParser {
 
     let leftAllowsMultiplication: Bool
     switch expression {
-    case .literal, .grouped, .call:
+    case .literal, .grouped, .call, .assistantPrompt:
       leftAllowsMultiplication = true
     default:
       leftAllowsMultiplication = false

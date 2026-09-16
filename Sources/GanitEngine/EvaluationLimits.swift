@@ -60,18 +60,36 @@ public enum BuiltInFunction: String, CaseIterable, Hashable, Sendable {
   case naturalLogarithm = "ln"
   case commonLogarithm = "log"
   case commonLogarithmExplicit = "log10"
+  case binaryLogarithm = "log2"
   case exponential = "exp"
+  case cubeRoot = "cbrt"
+  case truncate = "trunc"
+  case sign
+  case arcTangent2 = "atan2"
+  case hypot
+  case clamp
+  case factorial = "fact"
+  case remainder = "mod"
 
   var argumentRange: ClosedRange<Int> {
     switch self {
     case .minimum, .maximum:
       return 2...Int.max
-    case .root:
+    case .root, .arcTangent2, .hypot, .remainder:
       return 2...2
+    case .clamp:
+      return 3...3
     case .round:
       return 1...2
     default:
       return 1...1
     }
   }
+}
+
+/// A call whose argument is the prompt sent to a configured assistant,
+/// not an expression. `prompt_assistant` is the same function.
+public enum AssistantFunction: String, CaseIterable, Hashable, Sendable {
+  case ask = "ask_assistant"
+  case prompt = "prompt_assistant"
 }

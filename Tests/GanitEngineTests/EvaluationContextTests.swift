@@ -215,6 +215,10 @@ struct EvaluationContextTests {
         < 1e-14
     )
     #expect(
+      abs(try approximate(try value("log2(8)", context: context)).estimate - 3)
+        < 1e-14
+    )
+    #expect(
       abs(try approximate(try value("ln(e)", context: context)).estimate - 1)
         < 1e-14
     )

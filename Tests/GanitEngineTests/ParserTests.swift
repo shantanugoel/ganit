@@ -56,6 +56,22 @@ struct ParserTests {
   }
 
   @Test
+  func keepsAssistantPromptTextUnparsed() throws {
+    #expect(
+      shape(try parse("ask_assistant(10 kg of water in ml)"))
+        == "ask_assistant{10 kg of water in ml}"
+    )
+    #expect(
+      shape(try parse("prompt_assistant(density of water)"))
+        == "prompt_assistant{density of water}"
+    )
+    #expect(
+      shape(try parse("ask_assistant(10 kg of water in ml) * 2"))
+        == "(ask_assistant{10 kg of water in ml} * 2)"
+    )
+  }
+
+  @Test
   func parsesPercentagePhrasesAndPrecedence() throws {
     #expect(try shape(parse("20%")) == "20%")
     #expect(try shape(parse("2^3%")) == "(2 ^ 3%)")
@@ -300,6 +316,8 @@ struct ParserTests {
       return "(\(shape(expression)))"
     case .reference(let reference, _):
       return "@\(reference)"
+    case .assistantPrompt(let name, let prompt, _, _):
+      return "\(name){\(prompt)}"
     }
   }
 

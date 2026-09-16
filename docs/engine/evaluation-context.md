@@ -23,6 +23,10 @@ The current approximate backend is `Double`. A precision request accepts 1 throu
 
 ## Functions
 
-The context-aware evaluator supports `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `ln`, `log`/`log10`, and `exp`. `log` is base 10; `ln` is natural logarithm. Invalid real domains and nonrepresentable approximate results are typed, ranged errors.
+The context-aware evaluator supports `sin`, `cos`, `tan`, `asin`, `acos`, `atan`,
+`atan2`, `ln`, `log`/`log10`, `log2`, and `exp`. `log` is base 10; `ln` is
+natural logarithm. Invalid real domains and nonrepresentable approximate
+results are typed, ranged errors. `ask_assistant` reads answers already
+received from the context and never talks to a model.
 
 Date, calendar, and time-zone values are injected so date grammar cannot introduce ambient state; see [temporal values](temporal-values.md) and [date and time syntax](../grammar/date-syntax.md). `at(_:)` returns the same context at another moment, which callers use to evaluate a sheet at the current time.

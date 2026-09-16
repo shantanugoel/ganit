@@ -32,9 +32,17 @@ In comma-decimal locales, use a semicolon between function arguments (`max(1; 2)
 ## Evaluation
 
 - `π`, `pi`, and `e` are explicitly approximate constants.
-- `abs(x)`, `floor(x)`, and `ceil(x)` take one argument. `round(x)` rounds to
-  a whole number; `round(x, n)` keeps `n` digits after the decimal. Both use
-  the injected rounding rule. `n` is a non-negative whole number.
+- `abs(x)`, `floor(x)`, `ceil(x)`, and `trunc(x)` take one argument. `round(x)`
+  rounds to a whole number; `round(x, n)` keeps `n` digits after the decimal.
+  Both `round` forms use the injected rounding rule. `n` is a non-negative whole
+  number.
+- `sign(x)` is −1, 0, or 1. `fact(n)` is factorial for a whole `n ≥ 0`.
+  `cbrt(x)` is `root(x, 3)`. `mod(a, b)` is the remainder toward zero.
+  `hypot(x, y)` is `sqrt(x² + y²)`. `clamp(x, low, high)` limits `x` to that
+  range. `atan2(y, x)` is the two-argument arctangent in the injected angle
+  mode. `log2(x)` is the base-2 logarithm.
+- `ask_assistant(prompt)` and `prompt_assistant(prompt)` send the text inside
+  the parentheses to a configured assistant and use the reply as a value.
 - `min(x, y, ...)` and `max(x, y, ...)` require at least two arguments.
 - `sqrt(x)` is equivalent to `root(x, 2)`. `root(x, degree)` requires a positive exact integer degree.
 - `sin`, `cos`, and `tan` use the injected angle mode. `asin`, `acos`, and `atan` return angles in that mode.

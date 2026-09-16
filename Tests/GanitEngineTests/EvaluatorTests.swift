@@ -152,12 +152,45 @@ struct EvaluatorTests {
         )
     )
     #expect(try evaluate("max(-2, 3, 1)") == .integer(IntegerValue(3)))
+    #expect(try evaluate("trunc(-1.9)") == .integer(IntegerValue(-1)))
+    #expect(try evaluate("sign(-4)") == .integer(IntegerValue(-1)))
+    #expect(try evaluate("sign(0)") == .integer(IntegerValue(0)))
+    #expect(try evaluate("cbrt(27)") == .integer(IntegerValue(3)))
+    #expect(try evaluate("hypot(3, 4)") == .integer(IntegerValue(5)))
+    #expect(try evaluate("clamp(26, 5, 25)") == .integer(IntegerValue(25)))
+    #expect(try evaluate("clamp(4, 5, 25)") == .integer(IntegerValue(5)))
+    #expect(try evaluate("mod(7, 3)") == .integer(IntegerValue(1)))
+    #expect(try evaluate("fact(5)") == .integer(IntegerValue(120)))
+    #expect(try evaluate("fact(0)") == .integer(IntegerValue(1)))
     guard case .approximate(let piPlaces) = try evaluate("round(pi, 2)") else {
       Issue.record("Rounding an approximate value stays approximate")
       return
     }
     #expect(abs(piPlaces.estimate - 3.14) < 1e-12)
     #expect(piPlaces.source == .explicitRounding)
+  }
+
+  @Test
+  func evaluatesAssistantPromptsFromInjectedAnswers() throws {
+    let parsing = Parser(source: "ask_assistant(10 kg of water in ml) * 2").parse()
+    #expect(parsing.diagnostics.isEmpty)
+    let expression = try #require(parsing.expression)
+    let unanswered = try error(evaluating: "ask_assistant(10 kg of water in ml)")
+    #expect(unanswered.code == .unresolvedAssistantPrompt)
+    #expect(
+      unanswered.context == .assistantPrompt("10 kg of water in ml")
+    )
+
+    let context = try fixedContext().with(
+      assistantAnswers: [
+        "10 kg of water in ml": .value(.number(.integer(IntegerValue(10_000))))
+      ]
+    )
+    let value = try Evaluator(context: context).evaluate(expression)
+    #expect(value == .number(.integer(IntegerValue(20_000))))
+    #expect(
+      try error(evaluating: "prompt_assistant()").code == .invalidDomain
+    )
   }
 
   @Test

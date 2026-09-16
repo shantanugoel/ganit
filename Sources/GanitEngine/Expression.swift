@@ -120,6 +120,13 @@ public indirect enum Expression: Equatable, Sendable {
   )
   case grouped(Expression, range: SourceRange)
   case reference(LineReference, range: SourceRange)
+  /// The text inside the parentheses is the prompt, not an expression.
+  case assistantPrompt(
+    name: String,
+    prompt: String,
+    nameRange: SourceRange,
+    range: SourceRange
+  )
 
   public var range: SourceRange {
     switch self {
@@ -139,7 +146,8 @@ public indirect enum Expression: Equatable, Sendable {
       .period(_, _, let range),
       .conversion(_, _, _, let range),
       .grouped(_, let range),
-      .reference(_, let range):
+      .reference(_, let range),
+      .assistantPrompt(_, _, _, let range):
       return range
     }
   }
@@ -149,7 +157,7 @@ public indirect enum Expression: Equatable, Sendable {
     switch self {
     case .reference(let reference, _):
       return [reference]
-    case .literal, .temporal, .identifier:
+    case .literal, .temporal, .identifier, .assistantPrompt:
       return []
     case .prefix(_, let operand, _, _),
       .percentage(let operand, _, _),
