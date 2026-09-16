@@ -175,6 +175,16 @@ struct EvaluationContextTests {
   }
 
   @Test
+  func anAngleWithItsUnitIgnoresTheAngleMode() throws {
+    for mode in [AngleMode.degrees, .radians] {
+      let context = try makeContext(angleMode: mode)
+      #expect(abs(try approximate(try value("sin(30°)", context: context)).estimate - 0.5) < 1e-12)
+      #expect(
+        abs(try approximate(try value("cos(1 rad)", context: context)).estimate - cos(1)) < 1e-12)
+    }
+  }
+
+  @Test
   func precisionAndRoundingComeFromContext() throws {
     let context = try makeContext(
       significantDigits: 7,

@@ -5,6 +5,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- `sin`, `cos`, and `tan` take an angle with its unit: `sin(30°)` is `0.5` and
+  `cos(1 rad)` works whatever the angle mode.
 - `16/09/2026` and `09/16/2026` say to write a date as `2026-09-16` or
   `16 Sep 2026` instead of silently dividing. Spaced slashes still divide.
 - `2 ** 10` is a power, `1,024`. A stray word inside parentheses, such as

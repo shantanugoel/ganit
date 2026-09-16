@@ -609,9 +609,9 @@ extension LanguageReference {
         )
         : text(
           "help.function.trig.body",
-          "sin, cos, and tan use the sheet's angle mode. The result is approximate."
+          "sin, cos, and tan read a bare number in the sheet's angle mode, and an angle in its own unit: sin(30°) is 0.5. The result is approximate."
         ),
-      examples: inverse ? ["asin(1)"] : ["sin(pi / 2)"]
+      examples: inverse ? ["asin(1)"] : ["sin(30°)", "sin(pi / 2)"]
     )
   }
 

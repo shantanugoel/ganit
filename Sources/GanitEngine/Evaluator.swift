@@ -1034,8 +1034,21 @@ private struct EvaluationWorker {
     nameRange: SourceRange
   ) throws -> NumericValue {
 
-    let values = try arguments.map { argument in
-      try requireNumber(try evaluate(argument), at: argument.range)
+    let evaluated = try arguments.map { try evaluate($0) }
+    // An angle carries its unit, so `sin(30°)` does not depend on the angle mode.
+    if [.sine, .cosine, .tangent].contains(function), evaluated.count == 1,
+      case .quantity(let angle) = evaluated[0], angle.unit.dimension == .angle,
+      case .ratio(let unit) = angle.unit
+    {
+      return try located(at: arguments[0].range) {
+        let radians = try operations.applying(
+          .multiply, left: angle.magnitude, right: unit.scaleToCanonical)
+        return try NumericOperations(context: context.with(angleMode: .radians), limits: limits)
+          .transcendental(function, value: radians)
+      }
+    }
+    let values = try zip(evaluated, arguments).map { value, argument in
+      try requireNumber(value, at: argument.range)
     }
     if function == .squareRoot {
       return try evaluateRoot(

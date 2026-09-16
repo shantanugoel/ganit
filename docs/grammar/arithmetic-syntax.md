@@ -47,7 +47,7 @@ In comma-decimal locales, use a semicolon between function arguments (`max(1; 2)
   the parentheses to a configured assistant and use the reply as a value.
 - `min(x, y, ...)` and `max(x, y, ...)` require at least two arguments.
 - `sqrt(x)` is equivalent to `root(x, 2)`. `root(x, degree)` requires a positive exact integer degree.
-- `sin`, `cos`, and `tan` use the injected angle mode. `asin`, `acos`, and `atan` return angles in that mode.
+- `sin`, `cos`, and `tan` use the injected angle mode for a bare number; an angle with its unit, `sin(30°)` or `cos(1 rad)`, is read in that unit whatever the mode. `asin`, `acos`, and `atan` return angles in that mode.
 - `ln(x)` is the natural logarithm; `log(x)` and `log10(x)` are base 10. `exp(x)` computes eˣ.
 - `fv`, `pv`, and `pmt` are the [finance functions](finance-functions.md), the
   only functions that take and return money.

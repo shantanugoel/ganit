@@ -65,7 +65,7 @@ public struct PrecisionContext: Hashable, Sendable {
 public struct EvaluationContext: Hashable, Sendable {
   public let localeIdentifier: String
   public let lexingConfiguration: LexingConfiguration
-  public let angleMode: AngleMode
+  public private(set) var angleMode: AngleMode
   public let precision: PrecisionContext
   public private(set) var now: Date
   public let calendar: Calendar
@@ -133,6 +133,13 @@ public struct EvaluationContext: Hashable, Sendable {
     self.assistantAnswers = assistantAnswers
     self.dollarCurrency = CurrencyCatalog.minorUnits[dollarCurrency] != nil ? dollarCurrency : "USD"
     self.isMarkdownMode = isMarkdownMode
+  }
+
+  /// The same context reading bare angles in `angleMode`.
+  public func with(angleMode: AngleMode) -> EvaluationContext {
+    var context = self
+    context.angleMode = angleMode
+    return context
   }
 
   /// The same context at another finite moment.
