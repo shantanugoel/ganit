@@ -176,6 +176,27 @@ struct AnswerInteractionTests {
     #expect(textView.interpretationPopover?.contentViewController is InterpretationViewController)
   }
 
+  @Test
+  func hoveringAndRightClickingOfferFunctionAndErrorHelp() async throws {
+    let (editor, textView) = try await makeEditor("sqrt(2)\n1 m + 1 s")
+    var opened: String?
+    editor.openHelp = { opened = $0 }
+
+    let function = try #require(textView.lookupHelp(atUTF16: 1))
+    #expect(function.topicID == "function.sqrt")
+    #expect(function.tooltip.contains("sqrt(x)"))
+
+    let plus = (textView.string as NSString).range(of: "+")
+    let error = try #require(textView.lookupHelp(atUTF16: plus.location))
+    #expect(error.topicID == nil)
+    #expect(error.tooltip.contains("incompatible dimensions"))
+
+    let item = NSMenuItem(title: function.menuTitle, action: nil, keyEquivalent: "")
+    item.representedObject = function
+    textView.openLanguageHelp(item)
+    #expect(opened == "function.sqrt")
+  }
+
   /// Keeps the window, and with it the editor, alive for the test.
   private static var windows: [NSWindow] = []
 

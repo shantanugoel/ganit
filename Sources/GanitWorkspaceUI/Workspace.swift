@@ -60,6 +60,15 @@ public final class Workspace {
       }
     }
   }
+  /// Opens Help on a topic a sheet asked to show.
+  public var openHelp: ((String) -> Void)? {
+    didSet {
+      for sheet in sheets.values {
+        sheet.editor.openHelp = openHelp
+      }
+      definitionsWindow?.editor.openHelp = openHelp
+    }
+  }
   private let definitionsStore: TextDocumentStore?
   private(set) var definitionsWindow: DefinitionsWindowController?
   private var sheets: [UUID: OpenSheet] = [:]
@@ -92,6 +101,7 @@ public final class Workspace {
       editor.definitionsDidChange = { [weak self] definitions in
         self?.definitions = definitions
       }
+      editor.openHelp = openHelp
       definitionsWindow = DefinitionsWindowController(store: store, editor: editor)
     }
     definitionsWindow?.showWindow(nil)
@@ -188,6 +198,7 @@ public final class Workspace {
     )
     editor.setDefinitions(definitions)
     editor.askAssistant = askAssistant
+    editor.openHelp = openHelp
     editor.textView.isEditable = stored.metadata.state != .trashed
     let autosaver = SheetAutosaver(
       library: library,

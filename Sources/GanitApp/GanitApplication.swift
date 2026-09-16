@@ -78,6 +78,9 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       workspace.askAssistant = { [weak self] line in
         await self?.assistantAnswer(to: line) ?? nil
       }
+      workspace.openHelp = { [weak self] id in
+        self?.showHelp(topicID: id)
+      }
       rateRefresher = refresher
       workspace.library.sheetsDidChange = { [weak self] in
         self?.updateSpotlight()
@@ -272,10 +275,14 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
 
   /// Opens the searchable grammar and function reference.
   @objc func showHelp(_ sender: Any?) {
+    showHelp(topicID: nil)
+  }
+
+  func showHelp(topicID: String?) {
     if help == nil {
       help = HelpWindowController()
     }
-    help?.show()
+    help?.show(topicID: topicID)
   }
 
   // MARK: The assistant
@@ -504,6 +511,9 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       }
       quickPanel?.editor.askAssistant = { [weak self] line in
         await self?.assistantAnswer(to: line) ?? nil
+      }
+      quickPanel?.editor.openHelp = { [weak self] id in
+        self?.showHelp(topicID: id)
       }
     }
     return quickPanel

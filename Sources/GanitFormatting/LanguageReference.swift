@@ -48,10 +48,15 @@ public enum LanguageReference {
   /// The topic for a written function or keyword name, such as `sqrt` or `sum`.
   public static func topic(named name: String) -> LanguageTopic? {
     let key = name.lowercased()
-    return topics.first {
+    if let exact = topics.first(where: {
       $0.title.lowercased() == key
         || $0.id == "function.\(key)"
         || $0.id == "keyword.\(key)"
+    }) {
+      return exact
+    }
+    return topics.first { topic in
+      topic.keywords.contains { $0.lowercased() == key }
     }
   }
 

@@ -28,6 +28,7 @@ struct LanguageReferenceTests {
     #expect(LanguageReference.topics(matching: "subtotal").contains { $0.title == "subtotal" })
     #expect(LanguageReference.topics(matching: "fv amount").contains { $0.title == "fv" })
     #expect(LanguageReference.topics(matching: "no-such-topic").isEmpty)
+    #expect(LanguageReference.topic(named: "pi")?.id == "grammar.constants")
   }
 
   @Test

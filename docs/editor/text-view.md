@@ -98,6 +98,8 @@ message only after the insertion point leaves the line.
 | Double-click an answer above the insertion point | Inserts `line N` at the insertion point |
 | Option-double-click an answer | Copies the displayed answer |
 | Space on a selected answer | Opens its interpretation card |
+| Hover a function, keyword, or error | Shows its signature or message |
+| Right-click a function, keyword, or error | Help for that name, or Show Interpretation |
 | Escape or typing | Clears the answer selection |
 
 `copyResult:`, `copyFullPrecision:`, and `showInterpretation:` are responder

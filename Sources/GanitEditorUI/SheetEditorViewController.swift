@@ -51,6 +51,12 @@ public final class SheetEditorViewController: NSViewController {
       askAboutUnansweredLines()
     }
   }
+  /// Opens Help on a topic the pointer is over, such as a function name.
+  public var openHelp: ((String) -> Void)? {
+    didSet {
+      sheetTextView.openHelp = openHelp
+    }
+  }
 
   private var context: EvaluationContext
   private let scrollView = NSScrollView()
@@ -137,6 +143,12 @@ public final class SheetEditorViewController: NSViewController {
     }
     sheetTextView.interpretation = { [weak self] id in
       self?.interpretation(for: id) ?? []
+    }
+    sheetTextView.lineDiagnostic = { [weak self] id in
+      guard let self, let shown = shownLines[id], let result = shown.result.result else {
+        return nil
+      }
+      return flaggedDiagnostic(result, isEditing: id == editingLine)
     }
     sheetTextView.didDrawAnswers = { [weak self] in
       guard let self, let interval = pendingAnswerDraw else {

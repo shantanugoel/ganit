@@ -1,6 +1,7 @@
 import AppKit
 import GanitDiagnostics
 import GanitEngine
+import GanitFormatting
 
 /// A sheet text view that draws each line's answer in a right-hand column.
 ///
@@ -88,6 +89,12 @@ final class SheetTextView: NSTextView {
   /// Where Copy Result writes.
   var pasteboard = NSPasteboard.general
   private(set) var interpretationPopover: NSPopover?
+  /// Opens Help on a topic id, such as `function.sqrt`.
+  var openHelp: ((String) -> Void)?
+  /// The diagnostic the newest evaluation flagged for a line, if any.
+  var lineDiagnostic: (LineID) -> FormattedDiagnostic? = { _ in nil }
+  private var helpTracking: NSTrackingArea?
+  private var helpTooltip = ""
 
   private var overlay: AnswerOverlayView?
 
@@ -366,6 +373,112 @@ final class SheetTextView: NSTextView {
     }
   }
 
+  // MARK: Hover and contextual help
+
+  override func updateTrackingAreas() {
+    super.updateTrackingAreas()
+    if let helpTracking {
+      removeTrackingArea(helpTracking)
+    }
+    let area = NSTrackingArea(
+      rect: bounds,
+      options: [.mouseMoved, .activeInKeyWindow, .inVisibleRect],
+      owner: self,
+      userInfo: nil
+    )
+    addTrackingArea(area)
+    helpTracking = area
+  }
+
+  override func mouseMoved(with event: NSEvent) {
+    super.mouseMoved(with: event)
+    updateHelpTooltip(at: convert(event.locationInWindow, from: nil))
+  }
+
+  override func menu(for event: NSEvent) -> NSMenu? {
+    let point = convert(event.locationInWindow, from: nil)
+    let offset = characterIndexForInsertion(at: point)
+    if !NSLocationInRange(offset, selectedRange()) {
+      setSelectedRange(NSRange(location: offset, length: 0))
+    }
+    let menu = super.menu(for: event) ?? NSMenu()
+    guard let help = lookupHelp(at: point) else {
+      return menu
+    }
+    let item = NSMenuItem(
+      title: help.menuTitle, action: #selector(openLanguageHelp(_:)), keyEquivalent: "")
+    item.representedObject = help
+    menu.insertItem(item, at: 0)
+    menu.insertItem(.separator(), at: 1)
+    return menu
+  }
+
+  @objc func openLanguageHelp(_ sender: Any?) {
+    guard let help = (sender as? NSMenuItem)?.representedObject as? SourceHelp else {
+      return
+    }
+    if let topicID = help.topicID {
+      openHelp?(topicID)
+    } else {
+      showInterpretation(nil)
+    }
+  }
+
+  func lookupHelp(atUTF16 offset: Int) -> SourceHelp? {
+    guard let info = line(offset),
+      let start = lineStarts().first(where: { $0.id == info.id })
+    else {
+      return nil
+    }
+    let text = (string as NSString).substring(
+      with: NSRange(location: start.start, length: start.length))
+    return SourceHelpLookup.at(
+      utf16Offset: offset - start.start,
+      in: text,
+      diagnostic: lineDiagnostic(info.id),
+      configuration: lexingConfiguration
+    )
+  }
+
+  func lookupHelp(at point: NSPoint) -> SourceHelp? {
+    if let hit = answerLayout(in: NSRect(x: point.x, y: point.y, width: 1, height: 1))
+      .first(where: { $0.rect.insetBy(dx: -4, dy: 0).contains(point) }),
+      let cell = answer(hit.line), cell.isFailure
+    {
+      return SourceHelp(
+        tooltip: cell.text,
+        topicID: nil,
+        menuTitle: String(
+          localized: "help.menu.problem", defaultValue: "Show Interpretation", bundle: .main)
+      )
+    }
+    return lookupHelp(atUTF16: characterIndexForInsertion(at: point))
+  }
+
+  private func updateHelpTooltip(at point: NSPoint) {
+    removeAllToolTips()
+    guard let help = lookupHelp(at: point) else {
+      helpTooltip = ""
+      return
+    }
+    helpTooltip = help.tooltip
+    let offset = characterIndexForInsertion(at: point)
+    var rect = firstRect(forCharacterRange: NSRange(location: offset, length: 1), actualRange: nil)
+    if let window, rect.width > 0 {
+      rect = convert(window.convertFromScreen(rect), from: nil)
+    } else {
+      rect = NSRect(x: point.x, y: point.y - 8, width: 12, height: 16)
+    }
+    addToolTip(rect, owner: self, userData: nil)
+  }
+
+  func view(
+    _ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint,
+    userData data: UnsafeMutableRawPointer?
+  ) -> String {
+    helpTooltip
+  }
+
   // MARK: Answer selection and commands
 
   override func mouseDown(with event: NSEvent) {
@@ -630,6 +743,8 @@ final class SheetTextView: NSTextView {
     switch item.action {
     case #selector(copyResult(_:)), #selector(showInterpretation(_:)):
       return targetAnswer != nil
+    case #selector(openLanguageHelp(_:)):
+      return true
     case #selector(copyFullPrecision(_:)):
       return targetAnswer?.cell.fullPrecision != nil
     case #selector(insertReference(_:)):
