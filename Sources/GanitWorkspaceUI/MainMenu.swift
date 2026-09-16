@@ -22,6 +22,7 @@ import GanitEditorUI
   func checkForUpdates(_ sender: Any?)
   func toggleAutomaticUpdateChecks(_ sender: Any?)
   func toggleAutocomplete(_ sender: Any?)
+  func showTour(_ sender: Any?)
 }
 
 /// Actions handled by the Quick Ganit panel while it is key.
@@ -113,6 +114,9 @@ public enum MainMenu {
           localized("menu.releaseNotes", "Release Notes"),
           #selector(ApplicationCommands.showReleaseNotes(_:))
         ),
+        item(
+          localized("menu.showTour", "Show Tour"),
+          #selector(ApplicationCommands.showTour(_:))),
         item(
           localized("menu.reportProblem", "Report a Problem…"),
           #selector(ApplicationCommands.reportProblem(_:))),

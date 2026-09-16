@@ -36,6 +36,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   private var help: HelpWindowController?
   private var releaseNotes: ReleaseNotesWindowController?
   private var settingsWindow: NSWindow?
+  private var tourSheet: NSWindow?
   /// The assistant's settings, read once so that asking about a line does not
   /// go to the keychain every time.
   private var assistantSettings = AssistantSettings.load()
@@ -117,6 +118,9 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       openMostRecentSheet()
     }
     NSApplication.shared.activate()
+    if !GanitPreferences.hasCompletedTour {
+      showTour(nil)
+    }
   }
 
   /// Ganit keeps running without windows so Quick Ganit's shortcut works.
@@ -331,6 +335,30 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       toggleAutomaticUpdateChecks(nil)
     }
     GanitPreferences.completesWhileTyping = settings.completesWhileTyping
+  }
+
+  /// The first-run walkthrough, or the same steps from Settings or Help.
+  @objc func showTour(_ sender: Any?) {
+    if tourSheet != nil {
+      return
+    }
+    guard
+      let parent =
+        workspace?.windows.first(where: { $0.window?.isVisible == true })?.window
+        ?? workspace?.windows.first?.window
+    else {
+      return
+    }
+    let tour = TourController { [weak self] in
+      GanitPreferences.hasCompletedTour = true
+      self?.tourSheet = nil
+    }
+    let sheet = NSWindow(contentViewController: tour)
+    sheet.styleMask = [.titled]
+    sheet.title = String(
+      localized: "tour.title", defaultValue: "Welcome to Ganit", bundle: .main)
+    parent.beginSheet(sheet)
+    tourSheet = sheet
   }
 
   // MARK: Help

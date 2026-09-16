@@ -15,6 +15,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 - Function and keyword names complete while typing. Edit ▸ Autocomplete turns
   that off.
 - Ganit ▸ Settings… gathers the app-wide switches in one window.
+- A short tour runs the first time Ganit opens a sheet. Skip dismisses it;
+  Settings and Help ▸ Show Tour open it again.
 
 ## 0.1.1
 

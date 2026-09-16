@@ -24,6 +24,8 @@ struct SettingsControllerTests {
     #expect(autocomplete.state == .on)
     autocomplete.performClick(nil)
     #expect(seen.last?.completesWhileTyping == false)
+    let tour = try #require(settings.view.buttons.first { $0.title == "Show Tour" })
+    #expect(tour.action == #selector(ApplicationCommands.showTour(_:)))
   }
 }
 

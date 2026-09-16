@@ -14,4 +14,13 @@ public enum GanitPreferences {
       UserDefaults.standard.set(newValue, forKey: completesWhileTypingKey)
     }
   }
+
+  public static let hasCompletedTourKey = "HasCompletedTour"
+
+  /// The first-run tour has been skipped or finished. A fresh copy leaves
+  /// this off, so the tour is shown once.
+  public static var hasCompletedTour: Bool {
+    get { UserDefaults.standard.bool(forKey: hasCompletedTourKey) }
+    set { UserDefaults.standard.set(newValue, forKey: hasCompletedTourKey) }
+  }
 }

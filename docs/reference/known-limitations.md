@@ -8,7 +8,8 @@ release candidate.
 - Apple silicon Macs only, macOS 14 or later.
 - No iCloud or other sync. Sheets live in the app's container; see the
   [recovery guide](../storage/recovery-guide.md) to move them.
-- No Settings window, Help book, or sharing menu. Options are menu items.
+- No sharing menu. Help is an in-app searchable reference rather than a Help
+  book.
 
 ## Language and numbers
 

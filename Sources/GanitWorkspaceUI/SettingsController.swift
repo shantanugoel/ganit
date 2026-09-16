@@ -80,14 +80,21 @@ public final class SettingsController: NSViewController {
     )
     explanation.textColor = VisualStyle.Color.secondary
 
-    let stack = NSStackView(views: [explanation] + boxes)
+    let tour = NSButton(
+      title: localized("settings.showTour", "Show Tour"),
+      target: nil,
+      action: #selector(ApplicationCommands.showTour(_:))
+    )
+    tour.keyEquivalent = ""
+
+    let stack = NSStackView(views: [explanation] + boxes + [tour])
     stack.orientation = .vertical
     stack.alignment = .leading
     stack.spacing = VisualStyle.Spacing.related
     let margin = VisualStyle.Spacing.window
     stack.edgeInsets = NSEdgeInsets(top: margin, left: margin, bottom: margin, right: margin)
     stack.translatesAutoresizingMaskIntoConstraints = false
-    let container = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 280))
+    let container = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 320))
     container.addSubview(stack)
     NSLayoutConstraint.activate([
       stack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
