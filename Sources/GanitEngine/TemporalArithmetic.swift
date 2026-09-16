@@ -178,6 +178,17 @@ struct TemporalArithmetic {
     return .instant(InstantValue(date: instant.date, timeZoneIdentifier: identifier))
   }
 
+  /// A time of day today in the evaluation time zone.
+  func today(at time: LocalTimeValue, range: SourceRange) throws -> InstantValue {
+    let date = try today()
+    let seconds = time.secondsSinceMidnight
+    return try instant(
+      DateTimeLiteral(
+        year: date.year, month: date.month, day: date.day, hour: seconds / 3_600,
+        minute: seconds / 60 % 60, second: seconds % 60),
+      at: range)
+  }
+
   /// The current moment in the evaluation time zone.
   var now: InstantValue {
     InstantValue(date: context.now, timeZoneIdentifier: context.timeZoneIdentifier)

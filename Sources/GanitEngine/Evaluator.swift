@@ -315,7 +315,13 @@ private struct EvaluationWorker {
   private mutating func evaluateZoneConversion(_ value: Expression, _ zone: String) throws
     -> EngineValue
   {
-    try temporal.converted(evaluate(value), toZone: zone)
+    var evaluated = try evaluate(value)
+    // `3:00 pm in Tokyo` is that time today here, shown there.
+    if case .time(let time) = evaluated {
+      readClock(.day)
+      evaluated = .instant(try temporal.today(at: time, range: value.range))
+    }
+    return try temporal.converted(evaluated, toZone: zone)
   }
 
   @inline(never)

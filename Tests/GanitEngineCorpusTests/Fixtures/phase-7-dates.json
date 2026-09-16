@@ -492,6 +492,16 @@
       }
     },
     {
+      "name": "frozen now: a time of day today in another zone",
+      "expression": "3:00 pm in Tokyo",
+      "expected": {
+        "status": "value",
+        "display": "Nov 15, 2023 at 12:00 AM Asia/Tokyo",
+        "fullPrecision": "2023-11-15T00:00:00+09:00[Asia/Tokyo]",
+        "approximate": false
+      }
+    },
+    {
       "name": "time: adding wraps past midnight",
       "expression": "23:30 + 45 min",
       "expected": {

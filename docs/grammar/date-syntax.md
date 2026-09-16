@@ -39,10 +39,11 @@ letter case. `ago` and `from now` apply to the whole expression before them:
 
 `in`, `to`, `as`, or `into` followed by a zone shows an instant in that zone,
 and a zone after an ISO date and time without an offset places its wall-clock
-time there:
+time there. A time of day alone is that time today in the sheet's zone:
 
 ```text
 now in Asia/Tokyo
+3:00 pm in Tokyo
 2024-03-09T17:00Z in New York
 2024-03-09T12:00 Europe/London
 ```
