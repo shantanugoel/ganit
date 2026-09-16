@@ -17,6 +17,7 @@ existing answer. See the [release train](docs/release/release-train.md).
   version 6.
 - The menu bar and the sheet's right-click menu list only Ganit commands;
   Services, the second Print, and AppKit Font/Spelling/Speech items are gone.
+- Help lists topics on the left and shows the selected topic on the right.
 
 ## 0.2.0
 

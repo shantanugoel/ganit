@@ -10,6 +10,7 @@ public final class HelpWindowController: NSWindowController, NSTableViewDataSour
   private let search = NSSearchField()
   private let table = NSTableView()
   private let detail = NSTextView()
+  fileprivate let split = NSSplitView()
   private var shown: [Row] = []
 
   private enum Row {
@@ -114,6 +115,7 @@ public final class HelpWindowController: NSWindowController, NSTableViewDataSour
     list.hasVerticalScroller = true
     list.borderType = .noBorder
     list.drawsBackground = false
+    list.autoresizingMask = [.height]
 
     detail.isEditable = false
     detail.isRichText = true
@@ -125,41 +127,38 @@ public final class HelpWindowController: NSWindowController, NSTableViewDataSour
     reading.hasVerticalScroller = true
     reading.borderType = .noBorder
     reading.drawsBackground = false
+    reading.autoresizingMask = [.width, .height]
     detail.minSize = NSSize(width: 0, height: 0)
     detail.maxSize = NSSize(
       width: CGFloat.greatestFiniteMagnitude, height: .greatestFiniteMagnitude)
     detail.isVerticallyResizable = true
     detail.isHorizontallyResizable = false
+    detail.autoresizingMask = [.width]
     detail.textContainer?.widthTracksTextView = true
     detail.textContainer?.containerSize = NSSize(
       width: reading.contentSize.width, height: .greatestFiniteMagnitude)
 
-    let split = NSSplitView()
     split.isVertical = true
     split.dividerStyle = .thin
     split.addArrangedSubview(list)
     split.addArrangedSubview(reading)
-    split.setHoldingPriority(NSLayoutConstraint.Priority(260), forSubviewAt: 0)
+    split.setHoldingPriority(.defaultLow, forSubviewAt: 0)
+    split.translatesAutoresizingMaskIntoConstraints = false
+    search.translatesAutoresizingMaskIntoConstraints = false
 
-    let stack = NSStackView(views: [search, split])
-    stack.orientation = .vertical
-    stack.spacing = VisualStyle.Spacing.standard
-    stack.edgeInsets = NSEdgeInsets(
-      top: VisualStyle.Spacing.group,
-      left: VisualStyle.Spacing.group,
-      bottom: VisualStyle.Spacing.group,
-      right: VisualStyle.Spacing.group
-    )
-    stack.translatesAutoresizingMaskIntoConstraints = false
+    let inset = VisualStyle.Spacing.group
     let container = NSView()
-    container.addSubview(stack)
+    container.addSubview(search)
+    container.addSubview(split)
     NSLayoutConstraint.activate([
-      stack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-      stack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-      stack.topAnchor.constraint(equalTo: container.topAnchor),
-      stack.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-      list.widthAnchor.constraint(greaterThanOrEqualToConstant: 180),
-      list.widthAnchor.constraint(lessThanOrEqualToConstant: 280),
+      search.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: inset),
+      search.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -inset),
+      search.topAnchor.constraint(equalTo: container.topAnchor, constant: inset),
+      split.leadingAnchor.constraint(equalTo: search.leadingAnchor),
+      split.trailingAnchor.constraint(equalTo: search.trailingAnchor),
+      split.topAnchor.constraint(
+        equalTo: search.bottomAnchor, constant: VisualStyle.Spacing.standard),
+      split.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -inset),
     ])
     return container
   }
@@ -328,5 +327,16 @@ private final class RootController: NSViewController {
 
   override func loadView() {
     view = owner?.buildView() ?? NSView()
+  }
+
+  override func viewDidLayout() {
+    super.viewDidLayout()
+    guard let split = owner?.split, split.frame.width > 400 else {
+      return
+    }
+    let listWidth = split.subviews.first?.frame.width ?? 0
+    if listWidth < 20 || listWidth > split.frame.width - 80 {
+      split.setPosition(220, ofDividerAt: 0)
+    }
   }
 }
