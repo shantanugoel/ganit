@@ -80,13 +80,14 @@ publishes, so that link finds it.
 
 ## Status
 
-The script refuses to run without a Developer ID identity and a notary
-profile. Only the Apple Development identities exist on the development Mac,
-so no notarized build has been produced yet.
+Every step has now been run. On 16 September 2026 `scripts/release.sh` built
+0.1.0 on the development Mac, signed it with `Developer ID Application:
+Shantanu Goel (A8L3M4746U)`, and Apple's notary service accepted both
+submissions, the app and then the disk image. Both were stapled and validated,
+and Gatekeeper assessed both as `source=Notarized Developer ID`. The image is
+2.8 MB, well inside the 15 MB download budget.
 
-Every step that does not need those credentials has been run: the build,
-`scripts/verify-app.sh`, and the packaging sequence, which produces a valid
-2.5 MB UDZO image of the 6.2 MB bundle, well inside the 15 MB download budget.
-What remains unexercised is exactly the credential-gated part: Developer ID
-signing, both notarization submissions, stapling, and the `spctl`
-assessments.
+So the credential-gated part is no longer theoretical: Developer ID signing,
+both notarizations, stapling, and the `spctl` assessments all behave as this
+document describes. What the workflow adds is doing the same thing from a
+keychain that exists only for that run.
