@@ -105,6 +105,8 @@ public enum MainMenu {
     let help = menu(
       localized("menu.help", "Help"),
       [
+        // `showHelp:` is also NSApplication's Help Viewer action; the
+        // application class opens the in-app reference instead.
         item(
           localized("menu.ganitHelp", "Ganit Help"),
           #selector(ApplicationCommands.showHelp(_:)),

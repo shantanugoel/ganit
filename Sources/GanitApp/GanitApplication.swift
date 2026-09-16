@@ -13,6 +13,18 @@ import Sparkle
   #error("Ganit supports Apple silicon only.")
 #endif
 
+/// AppKit sends Help ▸ Ganit Help to `showHelp:`, which `NSApplication`
+/// implements by opening Help Viewer. Ganit has no help book, so that alert
+/// says Help isn't available. Open the in-app reference instead.
+@objc(GanitNSApplication)
+final class GanitNSApplication: NSApplication {
+  override func showHelp(_ sender: Any?) {
+    MainActor.assumeIsolated {
+      (delegate as? ApplicationCommands)?.showHelp(sender)
+    }
+  }
+}
+
 @main
 @MainActor
 final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationCommands,
@@ -45,7 +57,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   }
 
   static func main() {
-    let application = NSApplication.shared
+    let application = GanitNSApplication.shared
     let delegate = GanitApplication()
 
     retainedDelegate = delegate

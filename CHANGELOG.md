@@ -5,6 +5,9 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Help ▸ Ganit Help opens the in-app reference instead of reporting that Help
+  isn't available.
+
 ## 0.2.1
 
 - Format ▸ Markdown Mode (formerly Prose Mode) writes answers in the lines,

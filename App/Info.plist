@@ -47,7 +47,7 @@
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>NSPrincipalClass</key>
-    <string>NSApplication</string>
+    <string>GanitNSApplication</string>
     <key>CFBundleURLTypes</key>
     <array>
         <dict>
