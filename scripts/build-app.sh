@@ -41,6 +41,22 @@ trap 'rm -rf "$staging"' EXIT
 mkdir -p "$staging/Contents/MacOS" "$staging/Contents/Resources" "$staging/Contents/Helpers"
 install -m 0755 "$binary_directory/GanitApp" "$staging/Contents/MacOS/Ganit"
 install -m 0755 "$binary_directory/ganit" "$staging/Contents/Helpers/ganit"
+
+# Sparkle installs updates in place, and the tools that do it live inside its
+# framework, so the framework is copied whole, with its symlinks, and its
+# nested code is signed before anything containing it.
+sparkle_framework=$(find "$repository_root/.build/artifacts/sparkle" \
+    -type d -path "*/Sparkle.xcframework/macos-*/Sparkle.framework" | head -1)
+if [[ -z "$sparkle_framework" ]]; then
+    echo "Sparkle.framework was not found; run swift build first." >&2
+    exit 1
+fi
+mkdir -p "$staging/Contents/Frameworks"
+ditto "$sparkle_framework" "$staging/Contents/Frameworks/Sparkle.framework"
+# Ganit asks for outgoing connections itself, so Sparkle's downloader service
+# is never used, and an unused service is one more thing to sign and trust.
+rm -rf "$staging/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Downloader.xpc"
+
 ditto \
     "$binary_directory/Ganit_GanitFormatting.bundle" \
     "$staging/Contents/Resources/Ganit_GanitFormatting.bundle"
@@ -54,6 +70,9 @@ install -m 0644 App/PrivacyInfo.xcprivacy "$staging/Contents/Resources/PrivacyIn
 install -m 0644 \
     ThirdPartyNotices/BigInt-LICENSE.md \
     "$staging/Contents/Resources/BigInt-LICENSE.md"
+install -m 0644 \
+    ThirdPartyNotices/Sparkle-LICENSE.md \
+    "$staging/Contents/Resources/Sparkle-LICENSE.md"
 install -m 0644 \
     ThirdPartyNotices/UnitSources.md \
     "$staging/Contents/Resources/UnitSources.md"
@@ -113,19 +132,7 @@ if [[ "$architectures" != "arm64" ]]; then
     exit 1
 fi
 
-codesign \
-    --force \
-    --sign - \
-    --timestamp=none \
-    --options runtime \
-    "$staging/Contents/Helpers/ganit"
-codesign \
-    --force \
-    --sign - \
-    --timestamp=none \
-    --options runtime \
-    --entitlements App/Ganit.entitlements \
-    "$staging"
+./scripts/sign-app.sh "$staging" -
 mv "$staging" "$application"
 trap - EXIT
 

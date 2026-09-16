@@ -26,7 +26,11 @@ let package = Package(
     .package(
       url: "https://github.com/attaswift/BigInt.git",
       exact: "6.0.1"
-    )
+    ),
+    .package(
+      url: "https://github.com/sparkle-project/Sparkle.git",
+      exact: "2.10.0"
+    ),
   ],
   targets: [
     .executableTarget(
@@ -39,6 +43,12 @@ let package = Package(
         "GanitWorkspaceUI",
         "GanitQuickUI",
         "GanitSystemIntegration",
+        .product(name: "Sparkle", package: "Sparkle"),
+      ],
+      // The bundle is assembled by `scripts/build-app.sh` rather than by
+      // Xcode, so the executable is told where its frameworks will live.
+      linkerSettings: [
+        .unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"])
       ]
     ),
     .target(

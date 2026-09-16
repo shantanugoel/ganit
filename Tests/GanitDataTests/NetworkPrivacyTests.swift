@@ -97,11 +97,12 @@ struct NetworkPrivacyTests {
   }
 }
 
+/// Sparkle is the third thing that can reach the network, and it is a
+/// framework rather than a file here, so the test below cannot see it. What
+/// keeps it honest is that it asks nothing until the reader asks.
 @Test
-func onlyTheRateDownloaderUsesTheNetwork() throws {
-  let sources = URL(fileURLWithPath: #filePath)
-    .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-    .appending(path: "Sources")
+func onlyTheRatesAndTheAssistantReachTheNetworkFromGanitsOwnCode() throws {
+  let sources = repositoryRoot.appending(path: "Sources")
   let files = try #require(
     FileManager.default.enumerator(at: sources, includingPropertiesForKeys: nil)?
       .compactMap { $0 as? URL }.filter { $0.pathExtension == "swift" })
@@ -113,3 +114,30 @@ func onlyTheRateDownloaderUsesTheNetwork() throws {
   }
   #expect(Set(networking.map(\.lastPathComponent)) == ["RateDownloader.swift", "Assistant.swift"])
 }
+
+/// The updater's settings are the whole of its privacy promise: it looks for
+/// a new version only when asked, tells the server nothing about the Mac it
+/// runs on, and takes an update only from Ganit's own releases.
+@Test
+func theUpdaterAsksNothingUntilItIsAsked() throws {
+  let information = try #require(
+    NSDictionary(contentsOf: repositoryRoot.appending(path: "App/Info.plist"))
+      as? [String: Any])
+
+  #expect(information["SUEnableAutomaticChecks"] as? Bool == false)
+  #expect(information["SUEnableSystemProfiling"] as? Bool == false)
+  #expect(information["SUEnableInstallerLauncherService"] as? Bool == true)
+  #expect(
+    information["SUFeedURL"] as? String
+      == "https://github.com/shantanugoel/ganit/releases/latest/download/appcast.xml")
+  #expect((information["SUPublicEDKey"] as? String)?.isEmpty == false)
+  // Sparkle compares CFBundleVersion, so it has to move with the version a
+  // reader sees, or a release offers itself to the people already running it.
+  #expect(
+    information["CFBundleVersion"] as? String
+      == information["CFBundleShortVersionString"] as? String
+  )
+}
+
+private let repositoryRoot = URL(fileURLWithPath: #filePath)
+  .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()

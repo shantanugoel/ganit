@@ -1,6 +1,6 @@
 # ADR 0011: Point to releases before in-app installation
 
-- Status: Accepted
+- Status: Superseded by [ADR 0013](0013-sparkle-updates.md)
 - Date: 2026-09-15
 
 ## Context

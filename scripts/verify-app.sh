@@ -44,6 +44,11 @@ cmp -s \
 cmp -s \
   ThirdPartyNotices/BigInt-LICENSE.md \
   "$application/Contents/Resources/BigInt-LICENSE.md"
+sparkle_license=$(find .build/artifacts/sparkle -maxdepth 3 -name LICENSE | head -1)
+cmp -s "$sparkle_license" ThirdPartyNotices/Sparkle-LICENSE.md
+cmp -s \
+  ThirdPartyNotices/Sparkle-LICENSE.md \
+  "$application/Contents/Resources/Sparkle-LICENSE.md"
 cmp -s \
   ThirdPartyNotices/UnitSources.md \
   "$application/Contents/Resources/UnitSources.md"
@@ -58,13 +63,46 @@ sorted_json() {
   ruby -rjson -e 'puts JSON.generate(JSON.parse(STDIN.read).sort.to_h)'
 }
 source_entitlements=$(plutil -convert json -o - App/Ganit.entitlements | sorted_json)
-test "$source_entitlements" = '{"com.apple.security.app-sandbox":true,"com.apple.security.files.user-selected.read-write":true,"com.apple.security.network.client":true}'
+test "$source_entitlements" = '{"com.apple.security.app-sandbox":true,"com.apple.security.files.user-selected.read-write":true,"com.apple.security.network.client":true,"com.apple.security.temporary-exception.mach-lookup.global-name":["com.shantanugoel.Ganit-spks","com.shantanugoel.Ganit-spki"]}'
+signed_json=$(codesign -d --entitlements - --xml "$application" 2>/dev/null | plutil -convert json -o - -)
+# A local build is signed ad-hoc and needs library validation off to load an
+# ad-hoc Sparkle. A release, signed with one Developer ID, must not ask for
+# that, so the exception is allowed only where there is no team.
+library_validation_off=$(
+  ruby -rjson -e 'puts JSON.parse(STDIN.read)["com.apple.security.cs.disable-library-validation"] == true' <<<"$signed_json"
+)
 signed_entitlements=$(
-  codesign -d --entitlements - --xml "$application" 2>/dev/null |
-    plutil -convert json -o - - | sorted_json
+  ruby -rjson -e '
+    entitlements = JSON.parse(STDIN.read)
+    entitlements.delete("com.apple.security.cs.disable-library-validation")
+    puts JSON.generate(entitlements.sort.to_h)
+  ' <<<"$signed_json"
 )
 test "$signed_entitlements" = "$source_entitlements"
-test ! -e "$application/Contents/Frameworks"
+if [[ "$signature_details" == *"TeamIdentifier=not set"* ]]; then
+  test "$library_validation_off" = "true"
+else
+  test "$library_validation_off" = "false"
+fi
+
+# Sparkle updates the app, so its tools ship inside it. The downloader service
+# does not, because Ganit does its own downloading.
+sparkle="$application/Contents/Frameworks/Sparkle.framework/Versions/B"
+test -x "$sparkle/Autoupdate"
+test -d "$sparkle/Updater.app"
+test -d "$sparkle/XPCServices/Installer.xpc"
+test ! -e "$sparkle/XPCServices/Downloader.xpc"
+codesign --verify --strict "$sparkle"
+
+# Updates are Ganit's own releases, compared by a version that moves, and are
+# never looked for until the reader asks.
+test "$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$application/Contents/Info.plist")" = "https://github.com/shantanugoel/ganit/releases/latest/download/appcast.xml"
+test -n "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$application/Contents/Info.plist")"
+test "$(/usr/libexec/PlistBuddy -c 'Print :SUEnableAutomaticChecks' "$application/Contents/Info.plist")" = "false"
+test "$(/usr/libexec/PlistBuddy -c 'Print :SUEnableInstallerLauncherService' "$application/Contents/Info.plist")" = "true"
+test \
+  "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$application/Contents/Info.plist")" = \
+  "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$application/Contents/Info.plist")"
 test "$(lipo -archs "$application/Contents/Helpers/ganit")" = "arm64"
 helper_signature=$(codesign -dvv "$application/Contents/Helpers/ganit" 2>&1)
 [[ "$helper_signature" == *"flags="*"runtime"* ]]

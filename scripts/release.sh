@@ -32,9 +32,7 @@ sign() {
     codesign --force --timestamp --options runtime --sign "$GANIT_SIGNING_IDENTITY" "$@"
 }
 
-# Nested code first, then the app with its entitlements.
-sign "$application/Contents/Helpers/ganit"
-sign --entitlements App/Ganit.entitlements "$application"
+./scripts/sign-app.sh "$application" "$GANIT_SIGNING_IDENTITY"
 codesign --verify --deep --strict "$application"
 
 # Notarize and staple the app, so it launches offline wherever it is copied.

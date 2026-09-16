@@ -24,7 +24,7 @@ turn automatic updates off with **Calculate ▸ Update Exchange Rates
 Automatically**; conversions then use the last rates Ganit accepted or rates
 you declare.
 
-The other is the assistant, and it is off. Nothing is sent until you fill in
+The second is the assistant, and it is off. Nothing is sent until you fill in
 an address and a model under **Ganit ▸ Assistant…** and turn it on. From then
 on, a line Ganit could not work out — and only such a line, one at a time,
 after you stop typing on it — is sent to the address you chose, with nothing
@@ -32,6 +32,14 @@ else: not the rest of the sheet, its title, or anything about your Mac. What
 comes back is written in purple, because a model's answer is a guess and a
 calculation is not. Your key is kept in the keychain. Pointing the address at
 a model running on your Mac keeps even these lines at home.
+
+The third is the update check, and it is also off. A fresh copy of Ganit never
+asks GitHub whether a newer version exists; choosing **Ganit ▸ Check for
+Updates…** asks once, and ticking **Check for Updates Automatically** asks
+once a day from then on. The request fetches a fixed file listing the latest
+release. Ganit sends no identifier with it and no system profile, and an
+update installs only if it is signed both by Ganit's Developer ID certificate
+and by Ganit's update key.
 
 ## Spotlight, services, and other apps
 

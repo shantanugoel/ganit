@@ -601,6 +601,16 @@
         }
       }
     },
+    "menu.automaticUpdateChecks" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check for Updates Automatically"
+          }
+        }
+      }
+    },
     "menu.biggerText" : {
       "localizations" : {
         "en" : {

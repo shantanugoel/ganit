@@ -18,8 +18,24 @@
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
     <string>0.1.0</string>
+    <!-- Sparkle compares this to decide what is newer, so it is the version,
+         not a build count. -->
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>0.1.0</string>
+    <key>SUFeedURL</key>
+    <string>https://github.com/shantanugoel/ganit/releases/latest/download/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>/g95Eo8FU7EYjqLutxiYo+Bq+1a8UlFJaElL15F6vkU=</string>
+    <!-- Ganit asks nothing until told to: no first-launch prompt, no check
+         until Check for Updates Automatically is ticked. -->
+    <key>SUEnableAutomaticChecks</key>
+    <false/>
+    <key>SUEnableSystemProfiling</key>
+    <false/>
+    <!-- A sandboxed app installs its update through Sparkle's installer
+         service. -->
+    <key>SUEnableInstallerLauncherService</key>
+    <true/>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.utilities</string>
     <key>LSMinimumSystemVersion</key>

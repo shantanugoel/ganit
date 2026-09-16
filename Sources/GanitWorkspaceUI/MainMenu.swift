@@ -16,6 +16,7 @@ import GanitEditorUI
   func showAssistantSettings(_ sender: Any?)
   func reportProblem(_ sender: Any?)
   func checkForUpdates(_ sender: Any?)
+  func toggleAutomaticUpdateChecks(_ sender: Any?)
 }
 
 /// Actions handled by the Quick Ganit panel while it is key.
@@ -116,6 +117,9 @@ public enum MainMenu {
           item(
             localized("menu.checkForUpdates", "Check for Updates…"),
             #selector(ApplicationCommands.checkForUpdates(_:))),
+          item(
+            localized("menu.automaticUpdateChecks", "Check for Updates Automatically"),
+            #selector(ApplicationCommands.toggleAutomaticUpdateChecks(_:))),
           .separator(),
           item(
             localized("menu.stayInMenuBar", "Stay in the Menu Bar"),

@@ -8,10 +8,12 @@ the check that keeps it true.
 | Item | State | Enforced by |
 | --- | --- | --- |
 | App Sandbox | On | `scripts/verify-app.sh` compares signed entitlements |
-| Entitlements | `app-sandbox`, `files.user-selected.read-write`, `network.client` only | Same exact comparison |
-| Network client | Used only for the ECB rate request and, when it is set up, the assistant | `onlyTheRateDownloaderUsesTheNetwork` source scan |
-| Hardened Runtime | On for the app and `Contents/Helpers/ganit` | `build-app.sh` signs with `--options runtime`; `verify-app.sh` checks the flag |
-| Embedded frameworks | None | `verify-app.sh` |
+| Entitlements | `app-sandbox`, `files.user-selected.read-write`, `network.client`, and the two mach-lookup names Sparkle's installer answers on | Same exact comparison |
+| Network client | The ECB rate request; the assistant, when it is set up; the update check, when it is asked for | `onlyTheRatesAndTheAssistantReachTheNetworkFromGanitsOwnCode` source scan, `theUpdaterAsksNothingUntilItIsAsked` |
+| Hardened Runtime | On for the app, `Contents/Helpers/ganit`, and Sparkle's tools | `scripts/sign-app.sh` signs with `--options runtime`; `verify-app.sh` checks the flag |
+| Library validation | On in a release; off only in an ad-hoc local build, which has no team to validate against | `verify-app.sh` allows the exception only when the signature has no team |
+| Embedded frameworks | Sparkle only, without its downloader service | `verify-app.sh` |
+| Update authenticity | Developer ID signature and Ganit's EdDSA key, both required | Sparkle; `SUPublicEDKey` checked by `verify-app.sh` |
 | Privacy manifest | No collected data, no tracking | `verify-app.sh` compares `PrivacyInfo.xcprivacy` |
 | Logging | App modules never log | `appModulesDoNotLog` source scan; signposts carry static names only |
 

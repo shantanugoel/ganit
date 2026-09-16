@@ -23,7 +23,8 @@ whole page — the workings as well as the total.
   answers through a Services item, a Shortcuts action, `ganit://` links, and a
   `ganit` command.
 - **Tells the truth.** Anything Ganit cannot work out says so, in place, and
-  never quietly guesses.
+  never quietly guesses. It checks for its own updates only once you ask it
+  to, under **Ganit ▸ Check for Updates Automatically**.
 
 ## Install
 

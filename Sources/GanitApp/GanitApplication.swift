@@ -7,6 +7,7 @@ import GanitEditorUI
 import GanitQuickUI
 import GanitSystemIntegration
 import GanitWorkspaceUI
+import Sparkle
 
 #if !arch(arm64)
   #error("Ganit supports Apple silicon only.")
@@ -329,13 +330,26 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
 
   // MARK: Updates
 
-  /// Where releases are published; see ADR 0011.
-  private static let releasesURL = URL(
-    string: "https://github.com/shantanugoel/ganit/releases/latest")!
+  /// Asks about updates, and installs the one it is told to; see ADR 0013.
+  /// Nothing is asked until the reader asks, either by choosing Check for
+  /// Updates… or by turning the automatic check on, because an app that
+  /// phones home on its own is the thing Ganit says it is not.
+  private lazy var updaterController = SPUStandardUpdaterController(
+    startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
 
-  /// Opens the latest release in the browser. Ganit itself makes no request.
+  /// Whether Ganit looks for a new version once a day on its own.
+  private var checksForUpdatesAutomatically: Bool {
+    get { updaterController.updater.automaticallyChecksForUpdates }
+    set { updaterController.updater.automaticallyChecksForUpdates = newValue }
+  }
+
   @objc func checkForUpdates(_ sender: Any?) {
-    NSWorkspace.shared.open(Self.releasesURL)
+    updaterController.checkForUpdates(sender)
+  }
+
+  /// Turns the daily check on or off. It is off in a fresh copy of Ganit.
+  @objc func toggleAutomaticUpdateChecks(_ sender: Any?) {
+    checksForUpdatesAutomatically.toggle()
   }
 
   // MARK: Problem reports
@@ -441,6 +455,8 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       menuItem.state = UserDefaults.standard.bool(forKey: Self.spotlightDefaultsKey) ? .on : .off
     case #selector(toggleMenuBarItem(_:)):
       menuItem.state = UserDefaults.standard.bool(forKey: Self.menuBarDefaultsKey) ? .on : .off
+    case #selector(toggleAutomaticUpdateChecks(_:)):
+      menuItem.state = checksForUpdatesAutomatically ? .on : .off
     case #selector(toggleQuickGanitStartsEmpty(_:)):
       menuItem.state = UserDefaults.standard.bool(forKey: Self.startsEmptyDefaultsKey) ? .on : .off
     case #selector(toggleAutomaticExchangeRateUpdates(_:)):

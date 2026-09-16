@@ -6,9 +6,12 @@ Ganit learns what to improve without watching anyone calculate.
 
 - No automatic analytics, telemetry, crash upload, or expression logging. Tests
   enforce it: app modules may not log (`appModulesDoNotLog`) and only the
-  exchange-rate downloader and the assistant may use the network
-  (`onlyTheRateDownloaderUsesTheNetwork`). The assistant is off until someone
-  sets it up, and then carries one line at a time and nothing else.
+  exchange-rate downloader and the assistant may use the network from Ganit's
+  own code (`onlyTheRatesAndTheAssistantReachTheNetworkFromGanitsOwnCode`). The
+  assistant is off until someone sets it up, and then carries one line at a
+  time and nothing else. The updater is off until someone asks for it, and
+  carries nothing about the Mac when it does
+  (`theUpdaterAsksNothingUntilItIsAsked`).
 - No collection hidden behind a default or a first-launch prompt.
 
 ## Voluntary feedback

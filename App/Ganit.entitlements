@@ -8,5 +8,12 @@
     <true/>
     <key>com.apple.security.network.client</key>
     <true/>
+    <!-- Sparkle's installer runs outside the sandbox, as it must to replace
+         the app, and these are the two ports Ganit talks to it through. -->
+    <key>com.apple.security.temporary-exception.mach-lookup.global-name</key>
+    <array>
+        <string>com.shantanugoel.Ganit-spks</string>
+        <string>com.shantanugoel.Ganit-spki</string>
+    </array>
 </dict>
 </plist>
