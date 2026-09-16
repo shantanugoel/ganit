@@ -3,9 +3,16 @@
 Notable changes to Ganit's behavior, especially anything that changes an
 existing answer. See the [release train](docs/release/release-train.md).
 
-## Unreleased
+## 0.1.1
 
-First release candidate in preparation (version 0.1.0).
+- Ganit can install its own updates. It looks for one only when asked, either
+  by choosing Check for Updates… or by ticking Check for Updates
+  Automatically, which a fresh copy leaves unticked. Copies of 0.1.0 cannot
+  update themselves and have to be replaced by hand, once.
+
+## 0.1.0
+
+First release.
 
 - Calculations with exact numbers, percentages, units, variables, references,
   dates and time zones, money with ECB and manual exchange rates, and finance
