@@ -15,9 +15,11 @@ struct AnswerCell: Equatable {
   /// An answer from the assistant, which Ganit did not work out itself and so
   /// writes in a colour of its own.
   var isAssisted = false
+  /// A request is in flight; the sheet stays editable.
+  var isPending = false
 
   var isFailure: Bool {
-    fullPrecision == nil && !isAssisted
+    fullPrecision == nil && !isAssisted && !isPending
   }
 }
 

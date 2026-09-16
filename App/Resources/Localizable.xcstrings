@@ -81,6 +81,16 @@
         }
       }
     },
+    "assistant.change" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change Answer"
+          }
+        }
+      }
+    },
     "assistant.enabled" : {
       "localizations" : {
         "en" : {
@@ -121,12 +131,22 @@
         }
       }
     },
+    "assistant.error.timeout" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The address is still working. Wait a moment and try again."
+          }
+        }
+      }
+    },
     "assistant.explanation" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ganit sends the one line it could not work out, and nothing else: not the rest of the sheet, its title, or anything about this Mac. It asks only about lines you are not typing on, and shows what comes back in purple, because a model's answer is not a calculation."
+            "value" : "The address is any OpenAI-compatible base, such as https://api.openai.com/v1, http://localhost:11434/v1, or https://host/v1. Ganit POSTs that base's chat/completions with the one line it could not work out, and nothing else: not the rest of the sheet, its title, or anything about this Mac. Answers can take a while; the sheet stays editable and shows Asking… until a value arrives, drawn in purple because a model's answer is not a calculation."
           }
         }
       }
@@ -651,6 +671,16 @@
         }
       }
     },
+    "menu.changeAnswer" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change Answer…"
+          }
+        }
+      }
+    },
     "menu.checkForUpdates" : {
       "localizations" : {
         "en" : {
@@ -707,6 +737,16 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Copy Result"
+          }
+        }
+      }
+    },
+    "menu.copyWithResults" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy with Results"
           }
         }
       }

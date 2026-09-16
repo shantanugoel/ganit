@@ -52,12 +52,13 @@ struct AssistantTests {
 
   @Test
   func acceptsHTTPSAnywhereAndPlainHTTPOnlyOnThisMac() {
+    #expect(Assistant.isAllowed(URL(string: "https://api.openai.com/v1")!))
     #expect(Assistant.isAllowed(URL(string: "https://api.openai.com/v1/chat/completions")!))
-    #expect(Assistant.isAllowed(URL(string: "http://localhost:11434/v1/chat/completions")!))
+    #expect(Assistant.isAllowed(URL(string: "http://localhost:11434/v1")!))
     #expect(Assistant.isAllowed(URL(string: "http://127.0.0.1:11434/v1/chat/completions")!))
-    #expect(!Assistant.isAllowed(URL(string: "http://example.com/v1/chat/completions")!))
+    #expect(!Assistant.isAllowed(URL(string: "http://example.com/v1")!))
     #expect(!Assistant.isAllowed(URL(string: "file:///etc/passwd")!))
-    #expect(!Assistant.isAllowed(URL(string: "https:///v1/chat/completions")!))
+    #expect(!Assistant.isAllowed(URL(string: "https:///v1")!))
   }
 
   /// Prose is not a question, and is never worth sending.
@@ -106,6 +107,52 @@ struct AssistantTests {
 
     let full = try Assistant(settings: settings(1_234, key: "")).request(for: "a line")
     #expect(full.url?.path == "/v1/chat/completions")
+
+    let nested = try Assistant(
+      settings: AssistantSettings(
+        isEnabled: true, endpoint: URL(string: "http://127.0.0.1:1234/openai/v1")!, model: "a-model"
+      )
+    ).request(for: "a line")
+    #expect(nested.url?.absoluteString == "http://127.0.0.1:1234/openai/v1/chat/completions")
+
+    let hostOnly = try Assistant(
+      settings: AssistantSettings(
+        isEnabled: true, endpoint: URL(string: "http://127.0.0.1:1234/")!, model: "a-model")
+    ).request(for: "a line")
+    #expect(hostOnly.url?.absoluteString == "http://127.0.0.1:1234/v1/chat/completions")
+  }
+
+  @Test
+  func asksForAJSONValue() throws {
+    let request = try Assistant(settings: settings(1_234, key: "")).request(for: "a line")
+    let body = String(decoding: try #require(request.httpBody), as: UTF8.self)
+    #expect(body.contains("\"response_format\":{\"type\":\"json_object\"}"))
+    #expect(body.contains("\"stream\":false"))
+  }
+
+  @Test
+  func readsAJSONValueOutOfTheReply() async throws {
+    let content = try String(
+      decoding: JSONEncoder().encode("{\"value\":\"10000 ml\"}"), as: UTF8.self)
+    let body = "{\"choices\":[{\"message\":{\"role\":\"assistant\",\"content\":\(content)}}]}"
+    let server = try LoopbackServer(body: body, contentType: "application/json")
+    defer { server.stop() }
+
+    let answer = try await Assistant(settings: settings(server.port))
+      .answer(to: "10 kg of water in ml")
+
+    #expect(answer == "10000 ml")
+  }
+
+  @Test
+  func readsTheValueFromReasoningWhenContentIsEmpty() async throws {
+    let body =
+      "{\"choices\":[{\"message\":{\"content\":\"\",\"reasoning_content\":\"10000 ml\"}}]}"
+    let server = try LoopbackServer(body: body, contentType: "application/json")
+    defer { server.stop() }
+
+    #expect(
+      try await Assistant(settings: settings(server.port)).answer(to: "a line") == "10000 ml")
   }
 
   @Test
@@ -156,5 +203,53 @@ struct AssistantTests {
     #expect(read.endpoint == settings.endpoint)
     #expect(read.model == "a-local-model")
     #expect(read.isReady)
+  }
+}
+
+@Suite
+struct AssistantReplyTests {
+  @Test
+  func takesTheValueFromJSON() {
+    #expect(AssistantReply.value(content: "{\"value\":\"10000 ml\"}") == "10000 ml")
+    #expect(AssistantReply.value(content: "{\"answer\":\"32 C\"}") == "32 C")
+    #expect(AssistantReply.value(content: "{\"result\":\"3.14\"}") == "3.14")
+  }
+
+  @Test
+  func dropsMultilineThinkTagsAroundJSON() {
+    let reply = """
+      <think>
+      water is 1 g/ml so 10 kg is 10000 ml
+      </think>
+      {"value":"10000 ml"}
+      """
+    #expect(AssistantReply.value(content: reply) == "10000 ml")
+  }
+
+  @Test
+  func takesTheValueAfterAnOrphanCloseTag() {
+    #expect(AssistantReply.value(content: "working\n</think>\n10000 ml") == "10000 ml")
+  }
+
+  @Test
+  func takesJSONFromAFence() {
+    #expect(
+      AssistantReply.value(content: "```json\n{\"answer\":\"10000 ml\"}\n```") == "10000 ml")
+  }
+
+  @Test
+  func dropsAnAnswerPrefixAndTakesTheLastLine() {
+    #expect(AssistantReply.value(content: "The conversion is\nAnswer: 10000 ml") == "10000 ml")
+  }
+
+  @Test
+  func usesReasoningWhenContentIsEmpty() {
+    #expect(AssistantReply.value(content: "", reasoning: "10000 ml") == "10000 ml")
+  }
+
+  @Test
+  func hasNoAnswerForUNKNOWNOrAnEssay() {
+    #expect(AssistantReply.value(content: "{\"value\":\"UNKNOWN\"}") == nil)
+    #expect(AssistantReply.value(content: String(repeating: "word ", count: 40)) == nil)
   }
 }

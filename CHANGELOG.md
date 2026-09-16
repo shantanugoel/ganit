@@ -5,11 +5,19 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
-- An assistant address of `https://host/v1` is treated as an OpenAI-compatible
-  base and posted to `chat/completions`, matching llama-swap and the OpenAI
-  SDK. The full `.../v1/chat/completions` path still works.
+- An assistant address is any OpenAI-compatible base (`https://api.openai.com/v1`,
+  `http://localhost:…/v1`, `https://host/v1`, or a host with no path). Ganit
+  POSTs `chat/completions` under it. The full `.../v1/chat/completions` path
+  still works.
+- While an assistant reply is in flight the sheet stays editable and shows
+  Asking… instead of the red diagnostic. Replies are requested as JSON and
+  stripped of think-tags and wrapping so a local model can still yield a short
+  value. The wait is long enough for a model that is still loading.
+- Change Answer…, on a line's right-click menu and under Calculate, replaces
+  an assistant value with text you type.
 - Ask Assistant, on a line's right-click menu and under Calculate, asks again
   about a line Ganit could not work out, or an `ask_assistant` prompt.
+- Copy with Results copies each selected line with the answer that line shows.
 - Copy Result copies a failure's message when that is what the column shows.
 - Hovering a truncated answer or error in the result column shows the full
   text.

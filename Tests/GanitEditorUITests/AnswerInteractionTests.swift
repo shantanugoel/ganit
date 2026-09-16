@@ -144,6 +144,20 @@ struct AnswerInteractionTests {
   }
 
   @Test
+  func copiesEachSelectedLineWithItsResult() async throws {
+    let (_, textView) = try await makeEditor("2 + 2\n1 m + 1 s")
+    textView.setSelectedRange(NSRange(location: 0, length: 0))
+    textView.copyLinesWithResults(nil)
+    #expect(textView.pasteboard.string(forType: .string) == "2 + 2\t4")
+
+    textView.setSelectedRange(NSRange(location: 0, length: textView.string.utf16.count))
+    textView.copyLinesWithResults(nil)
+    #expect(
+      textView.pasteboard.string(forType: .string)
+        == "2 + 2\t4\n1 m + 1 s\tThese quantities have incompatible dimensions.")
+  }
+
+  @Test
   func clickingSelectsAnswersAndCopyUsesTheSelection() async throws {
     let (_, textView) = try await makeEditor("12 km in miles\n5 + 5")
     let answer = try #require(textView.answerLayout(in: textView.bounds).last)

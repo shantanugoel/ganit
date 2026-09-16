@@ -43,7 +43,7 @@ public final class AssistantSettingsController: NSViewController {
     let explanation = NSTextField(
       wrappingLabelWithString: localized(
         "assistant.explanation",
-        "Ganit sends the one line it could not work out, and nothing else: not the rest of the sheet, its title, or anything about this Mac. It asks only about lines you are not typing on, and shows what comes back in purple, because a model's answer is not a calculation."
+        "The address is any OpenAI-compatible base, such as https://api.openai.com/v1, http://localhost:11434/v1, or https://host/v1. Ganit POSTs that base's chat/completions with the one line it could not work out, and nothing else: not the rest of the sheet, its title, or anything about this Mac. Answers can take a while; the sheet stays editable and shows Asking… until a value arrives, drawn in purple because a model's answer is not a calculation."
       )
     )
     status.textColor = VisualStyle.Color.secondary
@@ -79,7 +79,7 @@ public final class AssistantSettingsController: NSViewController {
     let margin = VisualStyle.Spacing.window
     stack.edgeInsets = NSEdgeInsets(top: margin, left: margin, bottom: margin, right: margin)
     stack.translatesAutoresizingMaskIntoConstraints = false
-    let container = NSView(frame: NSRect(x: 0, y: 0, width: 480, height: 300))
+    let container = NSView(frame: NSRect(x: 0, y: 0, width: 480, height: 360))
     container.addSubview(stack)
     NSLayoutConstraint.activate([
       stack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
@@ -147,6 +147,10 @@ public final class AssistantSettingsController: NSViewController {
     case AssistantError.payloadTooLarge, AssistantError.malformedPayload:
       return localized(
         "assistant.error.reply", "The address answered with something Ganit could not read.")
+    case let urlError as URLError where urlError.code == .timedOut:
+      return localized(
+        "assistant.error.timeout",
+        "The address is still working. Wait a moment and try again.")
     default:
       return error.localizedDescription
     }

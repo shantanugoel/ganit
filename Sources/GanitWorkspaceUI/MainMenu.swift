@@ -292,6 +292,10 @@ public enum MainMenu {
             [.command, .shift]
           ),
           item(
+            localized("menu.copyWithResults", "Copy with Results"),
+            #selector(SheetCommands.copyLinesWithResults(_:))
+          ),
+          item(
             localized("menu.copyFullPrecision", "Copy Full Precision"),
             #selector(SheetCommands.copyFullPrecision(_:)),
             "c",
@@ -304,6 +308,10 @@ public enum MainMenu {
           item(
             localized("menu.askAssistant", "Ask Assistant"),
             #selector(SheetCommands.askAssistant(_:))
+          ),
+          item(
+            localized("menu.changeAnswer", "Change Answer…"),
+            #selector(SheetCommands.changeAssistantAnswer(_:))
           ),
           item(
             localized("menu.nextProblem", "Next Problem"),

@@ -9,19 +9,21 @@ why it works this way.
 ## Setting one up
 
 **Ganit ▸ Assistant…** holds four things: whether to ask at all, the address,
-the model, and the key. The address is any OpenAI-compatible chat completions
-endpoint, so these are both valid:
+the model, and the key. The address is any OpenAI-compatible **base**, so
+these are all valid:
 
 | Where the model runs | Address | Key |
 |---|---|---|
 | A provider | `https://api.openai.com/v1` | Required |
-| This Mac or the LAN | `http://localhost:11434/v1` or `https://host/v1` | Not needed |
+| This Mac | `http://localhost:11434/v1` | Not needed |
+| Another host | `https://host/v1` | As that host asks |
 
-The address is the OpenAI-compatible **base**. Ganit POSTs to
-`chat/completions` under it, so `https://host/v1` and
-`https://host/v1/chat/completions` are the same setting. A base of `/v1`
-alone is what llama-swap and the OpenAI SDK use; posting to that path
-without `chat/completions` is a 404.
+Ganit POSTs `chat/completions` under the base, so `https://host/v1` and
+`https://host/v1/chat/completions` are the same setting. A `/v1` base is
+what the OpenAI SDK, llama-swap, Ollama, and other compatible servers
+publish; posting to that path without `chat/completions` is a 404. A host
+with no path is treated as `/v1` too. HTTP is only for this Mac; everything
+else is HTTPS.
 
 **Try It** asks the example line and shows the answer, or what went wrong, so a
 wrong address or key is found here rather than in the middle of a sheet.
@@ -43,6 +45,7 @@ this user can read.
 
 **Ask Assistant** on the line's right-click menu, or under Calculate, asks
 again about that line or prompt even when an answer is already on screen.
+**Change Answer…** replaces that value with text you type, without a request.
 
 `SheetEditorViewController` also asks about `ask_assistant(prompt)` and
 `prompt_assistant(prompt)` when those functions have no answer yet. The text
@@ -52,23 +55,27 @@ rules apply: one prompt is one request, and nothing else from the sheet is
 sent.
 
 `Assistant` sends one `POST` carrying the line, the model name, and the
-instruction to answer with a value and nothing else. It sends nothing else from
-the sheet, the library, or the machine, and `NetworkPrivacyTests` reads the
-bytes on the wire to keep that true. HTTPS is required except on the loopback
+instruction to reply with `{"value":"…"}`. It sends nothing else from the
+sheet, the library, or the machine, and `NetworkPrivacyTests` reads the bytes
+on the wire to keep that true. HTTPS is required except on the loopback
 address; redirects are refused, because a redirect would carry the line, and
-the key, somewhere the settings never named.
+the key, somewhere the settings never named. A host that rejects structured
+output is asked again without it. The request may take a few minutes; the
+sheet stays editable.
 
-A reply is used only if it is short enough to be an answer rather than an
-explanation. `UNKNOWN`, an empty reply, and anything over 120 characters leave
-the line as Ganit found it, and so does a failed request: a line Ganit could
-not work out already says so, and needs no second complaint.
+`AssistantReply` then takes the short value out of JSON, think-tags,
+markdown, and wrapping. `UNKNOWN`, an empty reply, and anything still over
+120 characters leave the line as Ganit found it, and so does a failed
+request: a line Ganit could not work out already says so, and needs no
+second complaint.
 
 ## What is shown
 
-An answer arrives after Ganit has already written its own, so it replaces the
-diagnostic in the answer column and is drawn in `VisualStyle.Color.assisted`,
-purple, rather than the colour of a result. The line keeps its underline: Ganit
-still could not read it. `AnswerCell.isAssisted` says which answers these are,
-and they carry no full precision, because there is no exact value behind them.
+While a request is in flight the answer column shows Asking… in secondary
+colour, not the red diagnostic. An answer replaces that and is drawn in
+`VisualStyle.Color.assisted`, purple, rather than the colour of a result. The
+line keeps its underline: Ganit still could not read it. `AnswerCell.isAssisted`
+says which answers these are, and they carry no full precision, because there
+is no exact value behind them.
 
 Answers are not saved with the sheet. They live as long as the sheet is open.

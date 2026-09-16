@@ -97,6 +97,10 @@ final class SheetTextView: NSTextView {
   var canAskAssistant: () -> Bool = { false }
   /// Asks the assistant again about the current line.
   var onAskAssistant: () -> Void = {}
+  /// Whether Change Answer can replace the current assistant value.
+  var canChangeAssistantAnswer: () -> Bool = { false }
+  /// Opens a field to replace the current assistant value.
+  var onChangeAssistantAnswer: () -> Void = {}
   /// Overrides the Autocomplete preference, for tests.
   var completesWhileTyping: Bool?
   private var helpTracking: NSTrackingArea?
@@ -132,6 +136,9 @@ final class SheetTextView: NSTextView {
     }
     if cell.isAssisted {
       return VisualStyle.Color.assisted
+    }
+    if cell.isPending {
+      return VisualStyle.Color.secondary
     }
     return writesAnswersInline ? VisualStyle.Color.secondary : VisualStyle.Color.primary
   }
@@ -354,12 +361,15 @@ final class SheetTextView: NSTextView {
       ])
   }
 
-  /// Keyboard and VoiceOver equivalents of answer mouse interactions.
-  override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
-    let actions: [(String, Selector)] = [
+  private var answerCommands: [(String, Selector)] {
+    [
       (
         String(localized: "menu.copyResult", defaultValue: "Copy Result", bundle: .main),
         #selector(copyResult(_:))
+      ),
+      (
+        String(localized: "menu.copyWithResults", defaultValue: "Copy with Results", bundle: .main),
+        #selector(copyLinesWithResults(_:))
       ),
       (
         String(
@@ -376,11 +386,19 @@ final class SheetTextView: NSTextView {
         #selector(askAssistant(_:))
       ),
       (
+        String(localized: "menu.changeAnswer", defaultValue: "Change Answer…", bundle: .main),
+        #selector(changeAssistantAnswer(_:))
+      ),
+      (
         String(localized: "menu.insertReference", defaultValue: "Insert Reference", bundle: .main),
         #selector(insertReference(_:))
       ),
     ]
-    return actions.map { name, action in
+  }
+
+  /// Keyboard and VoiceOver equivalents of answer mouse interactions.
+  override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
+    return answerCommands.map { name, action in
       NSAccessibilityCustomAction(name: name) { [weak self] in
         guard let self else {
           return false
@@ -434,30 +452,7 @@ final class SheetTextView: NSTextView {
       menu.addItem(item)
       menu.addItem(.separator())
     }
-    for (title, action) in [
-      (
-        String(localized: "menu.copyResult", defaultValue: "Copy Result", bundle: .main),
-        #selector(copyResult(_:))
-      ),
-      (
-        String(
-          localized: "menu.copyFullPrecision", defaultValue: "Copy Full Precision", bundle: .main),
-        #selector(copyFullPrecision(_:))
-      ),
-      (
-        String(
-          localized: "menu.showInterpretation", defaultValue: "Show Interpretation", bundle: .main),
-        #selector(showInterpretation(_:))
-      ),
-      (
-        String(localized: "menu.askAssistant", defaultValue: "Ask Assistant", bundle: .main),
-        #selector(askAssistant(_:))
-      ),
-      (
-        String(localized: "menu.insertReference", defaultValue: "Insert Reference", bundle: .main),
-        #selector(insertReference(_:))
-      ),
-    ] {
+    for (title, action) in answerCommands {
       menu.addItem(NSMenuItem(title: title, action: action, keyEquivalent: ""))
     }
     menu.addItem(.separator())
@@ -906,7 +901,7 @@ final class SheetTextView: NSTextView {
   /// Copies the displayed answer of the selected answer or the insertion
   /// point's line, including a failure's message.
   @objc func copyResult(_ sender: Any?) {
-    guard let cell = targetAnswer?.cell else {
+    guard let cell = targetAnswer?.cell, !cell.isPending else {
       NSSound.beep()
       return
     }
@@ -943,12 +938,28 @@ final class SheetTextView: NSTextView {
     onAskAssistant()
   }
 
+  @objc func changeAssistantAnswer(_ sender: Any?) {
+    onChangeAssistantAnswer()
+  }
+
+  /// Copies each selected line, or the insertion point's line, with the
+  /// answer that line shows.
+  @objc func copyLinesWithResults(_ sender: Any?) {
+    copyToPasteboard(linesWithResults(in: selectedRange()))
+  }
+
   override func validateUserInterfaceItem(_ item: any NSValidatedUserInterfaceItem) -> Bool {
     switch item.action {
-    case #selector(copyResult(_:)), #selector(showInterpretation(_:)):
+    case #selector(copyResult(_:)):
+      return targetAnswer.map { !$0.cell.isPending } ?? false
+    case #selector(showInterpretation(_:)):
       return targetAnswer != nil
     case #selector(askAssistant(_:)):
       return canAskAssistant()
+    case #selector(changeAssistantAnswer(_:)):
+      return canChangeAssistantAnswer()
+    case #selector(copyLinesWithResults(_:)):
+      return (string as NSString).length > 0
     case #selector(openLanguageHelp(_:)):
       return true
     case #selector(copyFullPrecision(_:)):
@@ -1027,7 +1038,9 @@ final class SheetTextView: NSTextView {
     var location = location
     while location > 0 {
       let previous = string.lineRange(for: NSRange(location: location - 1, length: 0))
-      if let id = lineID(previous.location), answer(id)?.isFailure == false {
+      if let id = lineID(previous.location), let cell = answer(id),
+        !cell.isFailure, !cell.isPending
+      {
         return id
       }
       location = previous.location
@@ -1039,9 +1052,9 @@ final class SheetTextView: NSTextView {
   /// Returns whether a result was copied.
   func copyCurrentOrLastResult() -> Bool {
     let id =
-      targetAnswer.flatMap { $0.cell.isFailure ? nil : $0.line }
+      targetAnswer.flatMap { $0.cell.isFailure || $0.cell.isPending ? nil : $0.line }
       ?? nearestResult(before: (string as NSString).length)
-    guard let cell = id.flatMap(answer) else {
+    guard let cell = id.flatMap(answer), !cell.isFailure, !cell.isPending else {
       return false
     }
     copyToPasteboard(cell.text)
@@ -1098,6 +1111,42 @@ final class SheetTextView: NSTextView {
     }
     selectedAnswer = nil
     insertText("line \(number)", replacementRange: selectedRange())
+  }
+
+  /// Each selected line, or the insertion point's line, with the answer it
+  /// shows. Pending Asking… text is omitted.
+  func linesWithResults(in range: NSRange) -> String {
+    let string = self.string as NSString
+    let range = range.length == 0 ? string.lineRange(for: range) : expandedToLines(range)
+    var pieces: [String] = []
+    var location = range.location
+    while location < range.upperBound {
+      let lineRange = string.lineRange(for: NSRange(location: location, length: 0))
+      var contentsEnd = 0
+      string.getLineStart(nil, end: nil, contentsEnd: &contentsEnd, for: lineRange)
+      let source = string.substring(
+        with: NSRange(location: lineRange.location, length: contentsEnd - lineRange.location))
+      let cell = line(lineRange.location).flatMap { answer($0.id) }
+      if let cell, !cell.isPending {
+        pieces.append("\(source)\t\(cell.text)")
+      } else {
+        pieces.append(source)
+      }
+      let next = lineRange.upperBound
+      if next <= location {
+        break
+      }
+      location = next
+    }
+    return pieces.joined(separator: "\n")
+  }
+
+  private func expandedToLines(_ range: NSRange) -> NSRange {
+    let string = self.string as NSString
+    let start = string.lineRange(for: NSRange(location: range.location, length: 0)).location
+    let last = max(range.upperBound - 1, range.location)
+    let end = string.lineRange(for: NSRange(location: last, length: 0)).upperBound
+    return NSRange(location: start, length: end - start)
   }
 
   private func copyToPasteboard(_ string: String) {

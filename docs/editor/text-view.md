@@ -92,7 +92,8 @@ drift onto new text.
 The answer column shows a line's formatted result. When a line's decoration
 flags a failure, the column shows its concise localized message in red instead;
 the message text is the non-color cue. Incomplete input therefore shows its
-message only after the insertion point leaves the line.
+message only after the insertion point leaves the line. A line waiting on an
+assistant shows Asking… until a value arrives.
 
 | Interaction | Effect |
 |---|---|
@@ -104,6 +105,8 @@ message only after the insertion point leaves the line.
 | Hover a cut-off answer or error | Shows the full text |
 | Right-click a function, keyword, or error | Help for that name, or Show Interpretation |
 | Right-click Ask Assistant | Asks again about a line Ganit could not work out, or an `ask_assistant` prompt |
+| Right-click Change Answer… | Replaces an assistant value on that line |
+| Right-click Copy with Results | Copies each selected line with the answer it shows |
 | Escape or typing | Clears the answer selection |
 
 Function and keyword names complete while typing. The list shows each
@@ -111,12 +114,15 @@ function with its parameters. Return, Tab, or a click inserts the selected
 completion and selects the first parameter; Tab then moves to the next one.
 Escape dismisses the list. **Edit ▸ Autocomplete** turns the list off.
 
-`copyResult:`, `copyFullPrecision:`, `showInterpretation:`, and `askAssistant:`
-are responder actions that act on the selected answer or, without one, the
+`copyResult:`, `copyFullPrecision:`, `copyLinesWithResults:`,
+`showInterpretation:`, `askAssistant:`, and `changeAssistantAnswer:` are
+responder actions that act on the selected answer or, without one, the
 insertion point's line, so menus and keyboard shortcuts can reach them. Copy
-Result copies a failure's message when that is what the column shows. Ask
+Result copies a failure's message when that is what the column shows. Copy with
+Results copies each selected line with that answer after a tab. Ask
 Assistant is enabled for a flagged line or an `ask_assistant` prompt when an
-assistant is set up, and asks again even if that text was already sent.
+assistant is set up, and asks again even if that text was already sent. Change
+Answer… is enabled when that line already has an assistant value.
 
 The interpretation card is a transient popover listing the expression, result,
 full precision, value kind, and exactness, then one Assumption row for each

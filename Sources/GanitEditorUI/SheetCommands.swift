@@ -7,8 +7,10 @@ import AppKit
 @objc public protocol SheetCommands {
   func copyResult(_ sender: Any?)
   func copyFullPrecision(_ sender: Any?)
+  func copyLinesWithResults(_ sender: Any?)
   func showInterpretation(_ sender: Any?)
   func askAssistant(_ sender: Any?)
+  func changeAssistantAnswer(_ sender: Any?)
   func insertReference(_ sender: Any?)
   func nextProblem(_ sender: Any?)
   func previousProblem(_ sender: Any?)

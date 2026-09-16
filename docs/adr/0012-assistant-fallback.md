@@ -20,9 +20,10 @@ is sent.
 
 - The assistant is off. It does nothing until someone fills in an address and
   a model under **Ganit ▸ Assistant…**, and turns it on.
-- The address is any OpenAI-compatible chat completions endpoint, so a hosted
-  model and one running on this Mac are the same setting. Ganit ships no key,
-  no default provider account, and no proxy of its own.
+- The address is any OpenAI-compatible base (`https://host/v1` and the like),
+  so OpenAI, llama-swap, Ollama, a hosted proxy, and a model on this Mac are
+  the same setting. Ganit POSTs `chat/completions` under that base. It ships
+  no key, no default provider account, and no proxy of its own.
 - HTTPS is required, except on the loopback address, where a local model
   answers without anything leaving the Mac.
 - A request carries one line: the text of the line, the model name, and the

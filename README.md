@@ -81,10 +81,12 @@ work out now and name later.
 
 ### An assistant, if you want one
 
-Under **Ganit ▸ Assistant…** you can name a model — one on the internet, or one
-running on your own Mac. Ganit asks it about the lines it could not work out,
-one line at a time, and marks its answers as its own. It is off until you set
-it up. See [the assistant](docs/editor/assistant.md).
+Under **Ganit ▸ Assistant…** you name any OpenAI-compatible base —
+`https://api.openai.com/v1`, a model on this Mac at
+`http://localhost:11434/v1`, or another HTTPS `/v1` — and a model. Ganit
+POSTs `chat/completions` under that base. It asks about the lines it could
+not work out, one at a time, and marks those answers as the assistant's. It
+is off until you set it up. See [the assistant](docs/editor/assistant.md).
 
 ### From the command line
 

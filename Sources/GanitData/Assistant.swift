@@ -14,20 +14,25 @@ public enum AssistantError: Error, Equatable, Sendable {
 /// the sheet, the library, or this Mac. An assistant is used for one request
 /// and then finished with, so no connection outlives an answer.
 public final class Assistant: NSObject, URLSessionTaskDelegate {
-  /// What the model is asked to do. A calculator's answer column has room for
-  /// a value, not for reasoning, so anything else is thrown away.
+  /// What the model is asked to do. The answer column only has room for a
+  /// value, so the instruction asks for JSON and forbids working.
   static let instruction = """
-    You answer lines from a calculator that could not work them out. \
-    Reply with the resulting value and its unit, and nothing else: no working, \
-    no sentence, no restatement of the question. \
-    If the line has no such answer, reply with exactly UNKNOWN.
+    You convert one calculator line into a single value. \
+    Reply with JSON only, of the form {"value":"<amount and unit>"}. \
+    The value must be something a calculator can parse, such as 10000 ml, 32 C, or 3.14. \
+    No markdown, no working, no sentence, no extra keys. \
+    If there is no such answer, {"value":"UNKNOWN"}.
     """
 
   /// Longer lines are prose, not questions, and are never sent.
   static let maximumLine = 500
-  /// A reply longer than this is an explanation, not an answer.
+  /// A reply longer than this, after cleanup, is an explanation, not a value.
   static let maximumAnswer = 120
-  static let maximumPayload = 64 * 1_024
+  static let maximumPayload = 256 * 1_024
+  /// Local models may still be loading; a short timeout looks like a wrong
+  /// answer. The sheet stays editable while this runs.
+  static let requestTimeout: TimeInterval = 120
+  static let resourceTimeout: TimeInterval = 180
 
   private let settings: AssistantSettings
   private let session: URLSession
@@ -41,7 +46,8 @@ public final class Assistant: NSObject, URLSessionTaskDelegate {
     configuration.urlCache = nil
     configuration.urlCredentialStorage = nil
     configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
-    configuration.timeoutIntervalForRequest = 30
+    configuration.timeoutIntervalForRequest = Self.requestTimeout
+    configuration.timeoutIntervalForResource = Self.resourceTimeout
     // Replace the system defaults, which name the OS version and the
     // user's preferred languages.
     configuration.httpAdditionalHeaders = ["User-Agent": "Ganit", "Accept-Language": "*"]
@@ -88,29 +94,35 @@ public final class Assistant: NSObject, URLSessionTaskDelegate {
     guard !asked.isEmpty, asked.count <= Self.maximumLine else {
       return nil
     }
-    let (data, response) = try await session.data(for: try request(for: asked), delegate: self)
-    guard let status = (response as? HTTPURLResponse)?.statusCode else {
-      throw AssistantError.malformedPayload
+    var structured = true
+    while true {
+      let (data, response) = try await session.data(
+        for: try request(for: asked, structured: structured), delegate: self)
+      guard let status = (response as? HTTPURLResponse)?.statusCode else {
+        throw AssistantError.malformedPayload
+      }
+      if status == 400 || status == 422, structured {
+        structured = false
+        continue
+      }
+      guard status == 200 else {
+        throw AssistantError.unexpectedStatus(status)
+      }
+      guard data.count <= Self.maximumPayload else {
+        throw AssistantError.payloadTooLarge(data.count)
+      }
+      guard let reply = try? JSONDecoder().decode(ChatCompletion.self, from: data) else {
+        throw AssistantError.malformedPayload
+      }
+      return AssistantReply.value(
+        content: reply.choices.first?.message.content,
+        reasoning: reply.choices.first?.message.reasoningContent
+      )
     }
-    guard status == 200 else {
-      throw AssistantError.unexpectedStatus(status)
-    }
-    guard data.count <= Self.maximumPayload else {
-      throw AssistantError.payloadTooLarge(data.count)
-    }
-    guard let reply = try? JSONDecoder().decode(ChatCompletion.self, from: data) else {
-      throw AssistantError.malformedPayload
-    }
-    let answer = (reply.choices.first?.message.content ?? "")
-      .trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !answer.isEmpty, answer != "UNKNOWN", answer.count <= Self.maximumAnswer else {
-      return nil
-    }
-    return answer
   }
 
   /// The only request Ganit sends for a line.
-  func request(for line: String) throws -> URLRequest {
+  func request(for line: String, structured: Bool = true) throws -> URLRequest {
     guard Self.isAllowed(settings.endpoint) else {
       throw AssistantError.disallowedURL
     }
@@ -128,7 +140,8 @@ public final class Assistant: NSObject, URLSessionTaskDelegate {
         messages: [
           ChatRequest.Message(role: "system", content: Self.instruction),
           ChatRequest.Message(role: "user", content: line),
-        ]
+        ],
+        structured: structured
       )
     )
     return request
@@ -152,14 +165,58 @@ private struct ChatRequest: Encodable {
     let content: String
   }
 
+  struct ResponseFormat: Encodable {
+    let type: String
+  }
+
   let model: String
   let messages: [Message]
+  let structured: Bool
+
+  func encode(to encoder: Encoder) throws {
+    var container = encoder.container(keyedBy: CodingKeys.self)
+    try container.encode(model, forKey: .model)
+    try container.encode(messages, forKey: .messages)
+    try container.encode(false, forKey: .stream)
+    if structured {
+      try container.encode(ResponseFormat(type: "json_object"), forKey: .responseFormat)
+    }
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case model
+    case messages
+    case stream
+    case responseFormat = "response_format"
+  }
 }
 
 private struct ChatCompletion: Decodable {
   struct Choice: Decodable {
     struct Message: Decodable {
       let content: String?
+      let reasoningContent: String?
+
+      enum CodingKeys: String, CodingKey {
+        case content
+        case reasoningContent = "reasoning_content"
+      }
+
+      init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        reasoningContent = try container.decodeIfPresent(String.self, forKey: .reasoningContent)
+        if let text = try? container.decode(String.self, forKey: .content) {
+          content = text
+        } else if let parts = try? container.decode([ContentPart].self, forKey: .content) {
+          content = parts.compactMap(\.text).joined()
+        } else {
+          content = nil
+        }
+      }
+    }
+
+    struct ContentPart: Decodable {
+      let text: String?
     }
 
     let message: Message

@@ -8,7 +8,7 @@ import Testing
 /// A line Ganit cannot work out can be passed to an assistant, whose answer
 /// arrives later and is written in a colour of its own.
 @MainActor
-@Suite
+@Suite(.serialized)
 struct AssistantAnswerTests {
   @Test
   func theAssistantAnswersTheLineGanitCouldNot() async throws {
@@ -120,10 +120,61 @@ struct AssistantAnswerTests {
     await editor.scheduler?.waitUntilIdle()
     _ = try await answers(of: textView) { $0.first?.isFailure == false }
 
+    textView.setSelectedRange(NSRange(location: 0, length: 0))
     textView.askAssistant(nil)
     let cells = try await answers(of: textView) { $0.first?.text.contains("5") == true }
     #expect(cells.first?.isFailure == false)
     #expect(await asked.recorded == ["10 kg of water in ml", "10 kg of water in ml"])
+  }
+
+  @Test
+  func showsAskingUntilTheAssistantAnswers() async throws {
+    let gate = Gate()
+    let editor = try makeEditor("10 kg of water in ml")
+    editor.askAssistant = { _ in
+      await gate.wait()
+      return "10,000 ml"
+    }
+    let textView = try #require(editor.textView as? SheetTextView)
+    await editor.scheduler?.waitUntilIdle()
+    let pending = try await answers(of: textView) { $0.first?.isPending == true }
+    #expect(pending.first?.text == "Asking…")
+    #expect(pending.first?.isFailure == false)
+    await gate.open()
+    let done = try await answers(of: textView) { $0.first?.isAssisted == true }
+    #expect(done.first?.text == "10,000 ml")
+  }
+
+  @Test
+  func aChangedAssistantAnswerReplacesThePurpleValue() async throws {
+    let editor = try makeEditor("10 kg of water in ml")
+    editor.askAssistant = { _ in "10,000 ml" }
+    let textView = try #require(editor.textView as? SheetTextView)
+    await editor.scheduler?.waitUntilIdle()
+    _ = try await answers(of: textView) { $0.first?.isAssisted == true }
+
+    let item = NSMenuItem(
+      title: "", action: #selector(SheetCommands.changeAssistantAnswer(_:)), keyEquivalent: "")
+    #expect(textView.validateUserInterfaceItem(item))
+    editor.applyAssistantAnswer("9,000 ml")
+    let cells = try await answers(of: textView) { $0.first?.text == "9,000 ml" }
+    #expect(cells.first?.isAssisted == true)
+  }
+
+  @Test
+  func aChangedAssistantPromptIsWhatLaterLinesUse() async throws {
+    let editor = try makeEditor("ask_assistant(10 kg of water in ml)\nprevious * 2")
+    editor.askAssistant = { _ in "10000 ml" }
+    let textView = try #require(editor.textView as? SheetTextView)
+    await editor.scheduler?.waitUntilIdle()
+    _ = try await answers(of: textView) { $0.count == 2 && !$0[1].isFailure }
+
+    textView.setSelectedRange(NSRange(location: 0, length: 0))
+    #expect(editor.canChangeAssistantAnswer())
+    editor.applyAssistantAnswer("5000 ml")
+    await editor.scheduler?.waitUntilIdle()
+    let cells = textView.answerLayout(in: textView.bounds).map(\.cell)
+    #expect(cells.map(\.text) == ["5,000 mL", "10,000 mL"])
   }
 
   @Test
@@ -135,6 +186,9 @@ struct AssistantAnswerTests {
     let item = NSMenuItem(
       title: "", action: #selector(SheetCommands.askAssistant(_:)), keyEquivalent: "")
     #expect(!textView.validateUserInterfaceItem(item))
+    let change = NSMenuItem(
+      title: "", action: #selector(SheetCommands.changeAssistantAnswer(_:)), keyEquivalent: "")
+    #expect(!textView.validateUserInterfaceItem(change))
   }
 
   /// Collects the lines an assistant was asked about.
@@ -143,6 +197,27 @@ struct AssistantAnswerTests {
 
     func record(_ line: String) {
       recorded.append(line)
+    }
+  }
+
+  /// Holds an assistant reply until the test has seen Asking….
+  private actor Gate {
+    private var isOpen = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    func wait() async {
+      if isOpen {
+        return
+      }
+      await withCheckedContinuation { waiters.append($0) }
+    }
+
+    func open() {
+      isOpen = true
+      for waiter in waiters {
+        waiter.resume()
+      }
+      waiters = []
     }
   }
 
@@ -188,6 +263,7 @@ struct AssistantAnswerTests {
     )
     window.contentViewController = editor
     window.layoutIfNeeded()
+    window.makeFirstResponder(editor.textView)
     Self.windows.append(window)
     return editor
   }
