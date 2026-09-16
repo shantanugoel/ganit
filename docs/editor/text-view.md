@@ -101,6 +101,7 @@ message only after the insertion point leaves the line.
 | Option-double-click an answer | Copies the displayed answer |
 | Space on a selected answer | Opens its interpretation card |
 | Hover a function, keyword, or error | Shows its signature or message |
+| Hover a cut-off answer or error | Shows the full text |
 | Right-click a function, keyword, or error | Help for that name, or Show Interpretation |
 | Escape or typing | Clears the answer selection |
 

@@ -411,6 +411,9 @@ final class SheetTextView: NSTextView {
 
   override func menu(for event: NSEvent) -> NSMenu? {
     let point = convert(event.locationInWindow, from: nil)
+    if let hit = answerHit(at: point) {
+      selectedAnswer = hit.line
+    }
     let offset = characterIndexForInsertion(at: point)
     if !NSLocationInRange(offset, selectedRange()) {
       setSelectedRange(NSRange(location: offset, length: 0))
@@ -488,12 +491,9 @@ final class SheetTextView: NSTextView {
   }
 
   func lookupHelp(at point: NSPoint) -> SourceHelp? {
-    if let hit = answerLayout(in: NSRect(x: point.x, y: point.y, width: 1, height: 1))
-      .first(where: { $0.rect.insetBy(dx: -4, dy: 0).contains(point) }),
-      let cell = answer(hit.line), cell.isFailure
-    {
+    if let hit = answerHit(at: point), hit.cell.isFailure {
       return SourceHelp(
-        tooltip: cell.text,
+        tooltip: hit.cell.text,
         topicID: nil,
         menuTitle: String(
           localized: "help.menu.problem", defaultValue: "Show Interpretation", bundle: .main)
@@ -502,21 +502,37 @@ final class SheetTextView: NSTextView {
     return lookupHelp(atUTF16: characterIndexForInsertion(at: point))
   }
 
+  /// The full answer or error beside the pointer, even when the column cuts it
+  /// off. Source help is what hovering a function or keyword in the line uses.
+  func tooltip(at point: NSPoint) -> String? {
+    if let hit = answerHit(at: point) {
+      return hit.cell.text
+    }
+    return lookupHelp(at: point)?.tooltip
+  }
+
   private func updateHelpTooltip(at point: NSPoint) {
     removeAllToolTips()
-    guard let help = lookupHelp(at: point) else {
+    guard let text = tooltip(at: point) else {
       helpTooltip = ""
       return
     }
-    helpTooltip = help.tooltip
-    let offset = characterIndexForInsertion(at: point)
-    var rect = firstRect(forCharacterRange: NSRange(location: offset, length: 1), actualRange: nil)
-    if let window, rect.width > 0 {
-      rect = convert(window.convertFromScreen(rect), from: nil)
-    } else {
-      rect = NSRect(x: point.x, y: point.y - 8, width: 12, height: 16)
+    helpTooltip = text
+    addToolTip(tooltipRect(at: point), owner: self, userData: nil)
+  }
+
+  /// The answer's own frame when the pointer is on one, so a cut-off result
+  /// still has a tooltip where it is drawn rather than on the source.
+  private func tooltipRect(at point: NSPoint) -> NSRect {
+    if let hit = answerHit(at: point) {
+      return hit.rect.insetBy(dx: -4, dy: 0)
     }
-    addToolTip(rect, owner: self, userData: nil)
+    let offset = characterIndexForInsertion(at: point)
+    let rect = firstRect(forCharacterRange: NSRange(location: offset, length: 1), actualRange: nil)
+    if let window, rect.width > 0 {
+      return convert(window.convertFromScreen(rect), from: nil)
+    }
+    return NSRect(x: point.x, y: point.y - 8, width: 12, height: 16)
   }
 
   func view(
@@ -528,12 +544,16 @@ final class SheetTextView: NSTextView {
 
   // MARK: Answer selection and commands
 
+  /// The answer under `point`, with a little extra width so a short result is
+  /// still easy to hit.
+  func answerHit(at point: NSPoint) -> (line: LineID, cell: AnswerCell, rect: NSRect)? {
+    answerLayout(in: NSRect(x: point.x, y: point.y, width: 1, height: 1))
+      .first { $0.rect.insetBy(dx: -4, dy: 0).contains(point) }
+  }
+
   override func mouseDown(with event: NSEvent) {
     let point = convert(event.locationInWindow, from: nil)
-    guard
-      let hit = answerLayout(in: NSRect(x: point.x, y: point.y, width: 1, height: 1))
-        .first(where: { $0.rect.insetBy(dx: -4, dy: 0).contains(point) })
-    else {
+    guard let hit = answerHit(at: point) else {
       selectedAnswer = nil
       if event.modifierFlags.contains(.option), beginScrub(at: point) {
         return

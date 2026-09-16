@@ -206,6 +206,23 @@ struct AnswerInteractionTests {
     #expect(!titles.contains(where: { $0.localizedCaseInsensitiveContains("font") }))
   }
 
+  @Test
+  func hoveringACutOffAnswerShowsTheFullText() async throws {
+    let (_, textView) = try await makeEditor("sqrt(2)\n1 m + 1 s")
+    let layout = textView.answerLayout(in: textView.bounds)
+    let value = try #require(layout.first)
+    let error = try #require(layout.last)
+    let errorSize = (error.cell.text as NSString).size(
+      withAttributes: textView.attributes(for: error.cell, selected: false))
+    #expect(error.rect.width < errorSize.width)
+
+    #expect(
+      textView.tooltip(at: NSPoint(x: value.rect.midX, y: value.rect.midY)) == value.cell.text)
+    #expect(
+      textView.tooltip(at: NSPoint(x: error.rect.midX, y: error.rect.midY)) == error.cell.text)
+    #expect(error.cell.text == "These quantities have incompatible dimensions.")
+  }
+
   /// Keeps the window, and with it the editor, alive for the test.
   private static var windows: [NSWindow] = []
 
