@@ -70,8 +70,10 @@ unit meaning.
   left, and a group, identifier, or (for non-literals) number on the right:
   `2(3 m)` is `6 m` and `(2 m)(3 m)` is `6 m^2`.
 - Whitespace never multiplies: `2 3` fails.
-- Adjacent quantities are neither summed nor multiplied: `5 ft 3 in` fails at
-  `3`. Write `5 ft + 3 in`.
+- A number with a unit right after another is a mixed-unit amount and adds,
+  binding as tightly as a unit: `5 ft 3 in` is `5.25 ft`, `2 h 30 min in min` is
+  `150 min`, and `2 * 5 ft 3 in` doubles the whole height. Units of different
+  dimensions fail: `1 m 2 kg`. Adjacent quantities never multiply.
 - Unit products must be explicit: `2 kg m` fails; write `2 kg·m`.
 - After a unit `/` or `*`, a parenthesized group continues the unit only when
   it starts with a unit: `1 m/(s^2)` is one unit, while `30 km / (2 h)` divides

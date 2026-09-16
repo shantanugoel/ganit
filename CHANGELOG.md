@@ -5,6 +5,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Mixed units add: `5 ft 10 in in cm` is `177.8 cm` and `2 h 30 min in min` is
+  `150 min`. Ambiguity registry version 7.
 - Knots and nautical miles, and area and volume words: `1200 sq ft in sq m`,
   `2 cubic m in L`, `1 knot in km/h`.
 - Electrical units: amperes, volts, ohms (`Ω` or `ohm`), farads, henries,

@@ -410,15 +410,13 @@
       }
     },
     {
-      "name": "implicit multiplication: adjacent quantities are not summed",
+      "name": "implicit multiplication: adjacent quantities are mixed units, summed",
       "expression": "5 ft 3 in",
       "expected": {
-        "status": "syntaxFailure",
-        "code": "unexpectedToken",
-        "messageKey": "syntax.unexpectedToken",
-        "message": "This part of the expression is unexpected.",
-        "lowerBound": 5,
-        "upperBound": 6
+        "status": "value",
+        "display": "5.25 ft",
+        "fullPrecision": "21/4 ft",
+        "approximate": false
       }
     },
     {

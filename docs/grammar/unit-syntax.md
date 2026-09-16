@@ -18,7 +18,7 @@ unit-factor    := ("sq" | "square" | "cu" | "cubic") unit-name
 Whitespace between a number and its unit is optional: `12 km` and `12km` are
 equivalent. The unit may also come first: `km 12` and `km/h 60`. Products must
 be explicit inside units. Examples include `75 MB/s`,
-`9.81 m/s^2`, `1 kg·m/s²`, and `1 m/(s^2)`. A power may be a word before its
+`9.81 m/s^2`, `1 kg·m/s²`, and `1 m/(s^2)`. Mixed units add: `5 ft 10 in` is `5.83333333333333 ft`. A power may be a word before its
 unit: `1200 sq ft`, `2 cubic m`; a declared variable with that name is still
 the variable.
 

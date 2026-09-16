@@ -320,6 +320,12 @@ private final class TokenParser {
         continue
       }
 
+      if 29 >= minimumBindingPower, let mixed = parseMixedUnits(after: left, depth: depth) {
+        left = mixed
+        depth += 1
+        continue
+      }
+
       if 29 >= minimumBindingPower, let price = parseUnitPrice(of: left, depth: depth) {
         left = price
         depth += 1
@@ -1247,6 +1253,27 @@ private final class TokenParser {
       return nil
     }
     return .money(amount: amount, currency: code, range: range.union(amount.range))
+  }
+
+  /// `5 ft 10 in` and `2 h 30 min`: a number with a unit right after another
+  /// adds to it, as people write mixed units.
+  @inline(never)
+  private func parseMixedUnits(after left: Expression, depth: Int) -> Expression? {
+    guard case .quantity(.literal, _, _) = left,
+      case .number(let literal) = current.kind, startsUnitExpression(at: 1)
+    else {
+      return nil
+    }
+    let number = advance()
+    guard let unit = parseUnitExpression(depth: depth + 1) else {
+      return nil
+    }
+    let right = Expression.quantity(
+      magnitude: .literal(literal, range: number.range), unit: unit,
+      range: number.range.union(unit.range))
+    return .infix(
+      left: left, operator: .add, right: right, operatorRange: number.range,
+      range: left.range.union(right.range))
   }
 
   /// `0.15 USD/kWh` is one price, binding as tightly as a unit does, so
