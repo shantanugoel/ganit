@@ -12,6 +12,9 @@ final class CompletionList {
   private let table = NSTableView()
   private var items: [String] = []
   private(set) var selected = 0
+  /// Set once an arrow key picks a row, so Return can still end a line that
+  /// happens to start a completion, such as `5 min`.
+  private(set) var isPicked = false
   private var isUpdating = false
   /// Inserts the highlighted row; a click sends this, arrows only move.
   var onChoose: (() -> Void)?
@@ -57,6 +60,7 @@ final class CompletionList {
     isUpdating = true
     self.items = Array(items.prefix(8))
     selected = 0
+    isPicked = false
     source.items = self.items
     table.reloadData()
     if !self.items.isEmpty {
@@ -89,6 +93,7 @@ final class CompletionList {
       return false
     }
     selected = min(max(selected + delta, 0), items.count - 1)
+    isPicked = true
     table.selectRowIndexes(IndexSet(integer: selected), byExtendingSelection: false)
     table.scrollRowToVisible(selected)
     return true

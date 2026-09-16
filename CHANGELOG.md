@@ -5,6 +5,9 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Return ends a line even when a completion is showing, so `5 min` or `2 m`
+  no longer turns into `min(x, y)` or `max(…)`. Tab or a click inserts a
+  completion, and Return does after an arrow key picks one.
 - Hovering an answer, error, or function shows its text again instead of the
   editor's internal description.
 

@@ -767,9 +767,10 @@ final class SheetTextView: NSTextView {
   }
 
   override func insertNewline(_ sender: Any?) {
-    if insertSelectedCompletion() {
+    if completionList.isPicked, insertSelectedCompletion() {
       return
     }
+    completionList.hide()
     super.insertNewline(sender)
   }
 

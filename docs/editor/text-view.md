@@ -110,8 +110,10 @@ assistant shows Asking… until a value arrives.
 | Escape or typing | Clears the answer selection |
 
 Function and keyword names complete while typing. The list shows each
-function with its parameters. Return, Tab, or a click inserts the selected
-completion and selects the first parameter; Tab then moves to the next one.
+function with its parameters. Tab or a click inserts the selected completion
+and selects the first parameter; Tab then moves to the next one. Return
+inserts it only after an arrow key picks a row, so a line ending in a word such
+as `min` or `m` still ends with Return.
 Escape dismisses the list. **Edit ▸ Autocomplete** turns the list off.
 
 `copyResult:`, `copyFullPrecision:`, `copyLinesWithResults:`,
