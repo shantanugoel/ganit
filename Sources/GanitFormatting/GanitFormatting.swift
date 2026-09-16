@@ -118,9 +118,16 @@ public struct NumericResultFormatter: Sendable {
       )
 
     case .decimal(let decimal):
+      // Like a fraction: exact underneath, shown to the context's precision
+      // without the zeroes an operand's scale carried in. The canonical form
+      // bounds the scale before rounding allocates its power of ten.
       let canonical = try canonicalDecimal(decimal)
+      let rounded = try decimal.decimal(
+        significantDigits: context.precision.significantDecimalDigits,
+        rule: context.precision.roundingRule
+      )
       return try exactResult(
-        display: try written(value, asDecimal: canonical),
+        display: try written(value, asDecimal: try canonicalDecimal(rounded)),
         fullPrecision: canonical
       )
 

@@ -26,8 +26,28 @@
       "expression": "1.20 + 2.3",
       "expected": {
         "status": "value",
-        "display": "3.50",
+        "display": "3.5",
         "fullPrecision": "3.50",
+        "approximate": false
+      }
+    },
+    {
+      "name": "decimal display drops an operand's zeroes",
+      "expression": "2500 * 1.1",
+      "expected": {
+        "status": "value",
+        "display": "2,750",
+        "fullPrecision": "2750.0",
+        "approximate": false
+      }
+    },
+    {
+      "name": "decimal display rounds to the precision",
+      "expression": "10000 * 1.05^10",
+      "expected": {
+        "status": "value",
+        "display": "16,288.9462677744",
+        "fullPrecision": "16288.94626777441406250000",
         "approximate": false
       }
     },

@@ -206,6 +206,19 @@ public struct DecimalValue: Hashable, Sendable {
     self.coefficient = coefficient
     self.scale = scale
   }
+
+  /// This value with at most `significantDigits` significant digits and no
+  /// trailing zeroes, as a fraction is shown: `125.00` reads `125`.
+  public func decimal(
+    significantDigits: Int,
+    rule: RoundingRule = .toNearestOrEven
+  ) throws -> DecimalValue {
+    try RationalValue(
+      numerator: IntegerValue(
+        storage: scale >= 0 ? coefficient.storage : coefficient.storage * powerOfTen(-scale)),
+      denominator: IntegerValue(storage: scale >= 0 ? powerOfTen(scale) : 1)
+    ).decimal(significantDigits: significantDigits, rule: rule)
+  }
 }
 
 public enum ApproximationSource: String, Hashable, Sendable {

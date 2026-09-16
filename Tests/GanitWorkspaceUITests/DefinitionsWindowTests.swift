@@ -54,8 +54,7 @@ struct DefinitionsWindowTests {
     await definitions.scheduler?.waitUntilIdle()
     await sheet.scheduler?.waitUntilIdle()
 
-    // The decimal keeps its scale, as it would in the sheet that declared it.
-    #expect(answer(sheet, try #require(sheet.sheet.lines.first?.id)) == "150.00")
+    #expect(answer(sheet, try #require(sheet.sheet.lines.first?.id)) == "150")
 
     workspace.definitionsWindow?.window?.performClose(nil)
     #expect(store.load() == "discount = 0.75")

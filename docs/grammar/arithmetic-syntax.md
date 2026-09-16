@@ -54,7 +54,7 @@ In comma-decimal locales, use a semicolon between function arguments (`max(1; 2)
 - Even roots of negative values are invalid. Odd roots preserve the sign.
 - Binary, octal, and hexadecimal literals evaluate to ordinary arbitrary-sized integers; their source radix does not change the value type.
 
-Exact integer division produces an integer when evenly divisible and a reduced rational otherwise. Finite decimal results stay decimal where the operation remains naturally decimal. No exact value is silently coerced to floating point.
+Exact integer division produces an integer when evenly divisible and a reduced rational otherwise. Finite decimal results stay decimal where the operation remains naturally decimal. No exact value is silently coerced to floating point. Like a fraction, a decimal is displayed to the sheet's significant digits without trailing zeroes (`1.20 + 2.3` shows `3.5`, `1.05^10` shows `1.62889462677744`); Copy Full Precision keeps every digit.
 
 Bitwise syntax is not part of this arithmetic grammar yet, while output-radix conversion belongs to result formatting.
 

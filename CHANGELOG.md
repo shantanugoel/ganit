@@ -5,6 +5,10 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Exact decimal answers show at most the sheet's significant digits and no
+  trailing zeroes: `100 * 1.25` is `125`, not `125.00`, and `10000 * 1.05^10`
+  is `16,288.9462677744`, not 26 digits ending in zeroes. Copy Full Precision
+  still copies the exact value.
 - The assistant no longer shows a line of a model's reasoning, such as "End of
   thought process", or bare punctuation as an answer. Reasoning counts only
   when it holds the JSON value Ganit asked for.

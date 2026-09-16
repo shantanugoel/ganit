@@ -325,8 +325,8 @@ struct ResultFormatterTests {
       )
     ).format(.decimal(decimal))
 
-    #expect(french.display == "1 234,50")
-    #expect(arabic.display == "١٬٢٣٤٫٥٠")
+    #expect(french.display == "1 234,5")
+    #expect(arabic.display == "١٬٢٣٤٫٥")
     #expect(french.fullPrecision == "1234.50")
     #expect(arabic.fullPrecision == "1234.50")
     #expect(decimal.coefficient == IntegerValue(123_450))
@@ -354,7 +354,7 @@ struct ResultFormatterTests {
       )
     )
 
-    #expect(trailingZeros.display == "1.00")
+    #expect(trailingZeros.display == "1")
     #expect(trailingZeros.fullPrecision == "1.00")
     #expect(negativeScale.display == "-12,000")
     #expect(negativeScale.fullPrecision == "-12000")
@@ -424,7 +424,7 @@ struct ResultFormatterTests {
     ).format(.integer(IntegerValue(-12)))
 
     #expect(exactFit.display == "512")
-    #expect(mismatchedParserSyntax.display == "1 234,50")
+    #expect(mismatchedParserSyntax.display == "1 234,5")
     #expect(arabicNegative.display == "؜-١٢")
     #expect(arabicNegative.fullPrecision == "-12")
   }
