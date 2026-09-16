@@ -56,6 +56,21 @@ struct UsageTests {
     #expect(money.currency == "CAD")
   }
 
+  @Test
+  func nestedParenthesesDoNotTrapTheSheetCalculator() throws {
+    let engine = CalculationEngine()
+    let context = try sheetContext()
+    let source = "((((((((((((((((1))))))))))))))))"
+    var calculator = SheetCalculator(engine: engine)
+    guard
+      case .value = try calculator.evaluate(SheetSource(source), context: context).lines[0]
+        .result
+    else {
+      Issue.record("Expected a value")
+      return
+    }
+  }
+
   private func equal(_ value: EngineValue, _ expected: EngineValue) throws -> Bool {
     let operations = NumericOperations(context: try sheetContext(), limits: .default)
     func amount(_ value: EngineValue) -> NumericValue? {

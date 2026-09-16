@@ -26,6 +26,7 @@ existing answer. See the [release train](docs/release/release-train.md).
 - Clicking a completion inserts it. The list is as wide as the longest
   signature. Markdown sheet titles truncate so the document mark stays in the
   sidebar. Help’s topic list holds its column and the page wraps beside it.
+- Nested parentheses no longer trap the sheet calculator in debug builds.
 
 ## 0.2.0
 

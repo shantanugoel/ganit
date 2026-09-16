@@ -43,7 +43,7 @@ public struct Parser: Sendable {
       )
     }
 
-    var tokenParser = TokenParser(
+    let tokenParser = TokenParser(
       source: source,
       origin: origin,
       tokens: lexingResult.tokens,
@@ -103,7 +103,9 @@ extension Token {
   }
 }
 
-private struct TokenParser {
+/// A class so recursive descent does not copy the token list onto every
+/// stack frame; debug builds overflow that way on nested parentheses.
+private final class TokenParser {
   private static let prefixBindingPower = 25
 
   private let source: String
@@ -137,7 +139,7 @@ private struct TokenParser {
       variables.keys.map { $0.split(separator: " ").count }.max() ?? 1
   }
 
-  mutating func parse() -> Expression? {
+  func parse() -> Expression? {
     let expression = parseExpression(minimumBindingPower: 0, depth: 1)
     if current.kind != .endOfFile, diagnostics.isEmpty {
       diagnose(.unexpectedToken, at: current.range)
@@ -150,7 +152,7 @@ private struct TokenParser {
   }
 
   @discardableResult
-  private mutating func advance() -> Token {
+  private func advance() -> Token {
     let token = current
     if cursor < tokens.count - 1 {
       cursor += 1
@@ -158,7 +160,7 @@ private struct TokenParser {
     return token
   }
 
-  private mutating func parseExpression(
+  private func parseExpression(
     minimumBindingPower: Int,
     depth: Int
   ) -> Expression? {
@@ -412,7 +414,7 @@ private struct TokenParser {
     return left
   }
 
-  private mutating func parsePrefix(depth: Int) -> Expression? {
+  private func parsePrefix(depth: Int) -> Expression? {
     let token = advance()
     switch token.kind {
     case .number(let literal):
@@ -518,7 +520,7 @@ private struct TokenParser {
     }
   }
 
-  private mutating func parsePercentageChange(
+  private func parsePercentageChange(
     startRange: SourceRange,
     depth: Int
   ) -> Expression? {
@@ -584,7 +586,7 @@ private struct TokenParser {
 
   /// The text between the parentheses is the prompt, including spaces and
   /// words that are not expressions.
-  private mutating func parseAssistantCall(
+  private func parseAssistantCall(
     name: String,
     identifierRange: SourceRange
   ) -> Expression {
@@ -636,7 +638,7 @@ private struct TokenParser {
     return String(source[lower..<upper])
   }
 
-  private mutating func parseCall(
+  private func parseCall(
     name: String,
     identifierRange: SourceRange,
     depth: Int
@@ -709,7 +711,7 @@ private struct TokenParser {
 
   // Phrase branches live outside parseExpression to keep its recursive stack
   // frame small in debug builds.
-  private mutating func parseRatioPhrase(
+  private func parseRatioPhrase(
     of value: Expression,
     depth: Int
   ) -> Expression? {
@@ -742,7 +744,7 @@ private struct TokenParser {
     )
   }
 
-  private mutating func parseReversePhrase(
+  private func parseReversePhrase(
     of value: Expression,
     depth: Int
   ) -> Expression? {
@@ -785,7 +787,7 @@ private struct TokenParser {
     )
   }
 
-  private mutating func parsePercentageOf(
+  private func parsePercentageOf(
     _ percentage: Expression,
     depth: Int
   ) -> Expression? {
@@ -821,7 +823,7 @@ private struct TokenParser {
     )
   }
 
-  private mutating func parseQuantity(
+  private func parseQuantity(
     magnitude: Expression,
     depth: Int
   ) -> Expression? {
@@ -835,7 +837,7 @@ private struct TokenParser {
     )
   }
 
-  private mutating func parseConversion(
+  private func parseConversion(
     of value: Expression,
     depth: Int
   ) -> Expression? {
@@ -865,7 +867,7 @@ private struct TokenParser {
     )
   }
 
-  private mutating func parseUnitExpression(depth: Int) -> UnitSyntax? {
+  private func parseUnitExpression(depth: Int) -> UnitSyntax? {
     guard depth <= maximumParseDepth else {
       diagnose(.resourceLimitExceeded, at: current.range)
       return nil
@@ -877,7 +879,7 @@ private struct TokenParser {
   }
 
   /// Continues `km/s` after the first factor has been read.
-  private mutating func parseUnitProduct(starting left: UnitSyntax, depth: Int) -> UnitSyntax {
+  private func parseUnitProduct(starting left: UnitSyntax, depth: Int) -> UnitSyntax {
     var left = left
     var factorCount = 1
     while current.kind == .multiply || current.kind == .divide {
@@ -902,7 +904,7 @@ private struct TokenParser {
     return left
   }
 
-  private mutating func parseUnitFactor(depth: Int) -> UnitSyntax? {
+  private func parseUnitFactor(depth: Int) -> UnitSyntax? {
     let start = current
     var unit: UnitSyntax
     if case .identifier(let alias) = start.kind,
@@ -941,7 +943,7 @@ private struct TokenParser {
     return applyOptionalUnitPower(to: unit)
   }
 
-  private mutating func applyOptionalUnitPower(to unit: UnitSyntax) -> UnitSyntax {
+  private func applyOptionalUnitPower(to unit: UnitSyntax) -> UnitSyntax {
     if case .superscript(let exponent) = current.kind {
       let exponentToken = advance()
       let raised = UnitSyntax.raised(
@@ -987,7 +989,7 @@ private struct TokenParser {
     return raised
   }
 
-  private mutating func diagnoseRepeatedUnitPower() {
+  private func diagnoseRepeatedUnitPower() {
     switch current.kind {
     case .power, .superscript:
       diagnose(.invalidUnitExponent, at: current.range)
@@ -1012,7 +1014,7 @@ private struct TokenParser {
     }
   }
 
-  private mutating func diagnose(
+  private func diagnose(
     _ code: SyntaxDiagnostic.Code,
     at range: SourceRange,
     severity: DiagnosticSeverity = .error
@@ -1034,7 +1036,7 @@ private struct TokenParser {
   }
 
   /// Consumes the longest declared multi-word name starting at `first`.
-  private mutating func variableName(
+  private func variableName(
     startingWith first: String,
     range: SourceRange
   ) -> Expression {
@@ -1091,7 +1093,7 @@ private struct TokenParser {
 
   /// `today`, `now`, `next friday`, or a month-name date such as `March 9`.
   @inline(never)
-  private mutating func parseDatePhrase(_ word: String, range: SourceRange) -> Expression? {
+  private func parseDatePhrase(_ word: String, range: SourceRange) -> Expression? {
     let lowercased = word.lowercased()
     if let days = relativeDays[lowercased] {
       return .temporal(.relativeDay(days), range: range)
@@ -1116,7 +1118,7 @@ private struct TokenParser {
 
   /// A date with the year that follows, as in `March 9, 2024` or `9 March
   /// 2024`, or in the current year.
-  private mutating func parseYear(month: Int, day: Int, range: SourceRange) -> Expression {
+  private func parseYear(month: Int, day: Int, range: SourceRange) -> Expression {
     let comma = current.kind == .argumentSeparator ? 1 : 0
     guard case .number(.integer(let digits, .decimal)) = token(at: comma).kind, digits.count == 4
     else {
@@ -1135,7 +1137,7 @@ private struct TokenParser {
   /// A currency code after a number, `12.50 EUR`, a currency name,
   /// `5 dollars`, or a conversion to one, `100 USD in INR`.
   @inline(never)
-  private mutating func parseMoneySuffix(
+  private func parseMoneySuffix(
     of left: Expression,
     minimumBindingPower: Int
   ) -> Expression? {
@@ -1163,7 +1165,7 @@ private struct TokenParser {
   /// An amount after a currency symbol, `$1.50` or `€12.50`. `$` means the
   /// sheet's dollar currency; `¥` means yen.
   @inline(never)
-  private mutating func parseCurrencySymbol(_ symbol: String, range: SourceRange, depth: Int)
+  private func parseCurrencySymbol(_ symbol: String, range: SourceRange, depth: Int)
     -> Expression?
   {
     guard let code = CurrencyCatalog.currency(for: symbol, dollarCurrency: dollarCurrency) else {
@@ -1180,7 +1182,7 @@ private struct TokenParser {
 
   /// An amount after a currency code, `USD 1.5`.
   @inline(never)
-  private mutating func parsePrefixedCurrency(_ code: String, range: SourceRange, depth: Int)
+  private func parsePrefixedCurrency(_ code: String, range: SourceRange, depth: Int)
     -> Expression?
   {
     guard let amount = parsePrefixedAmount(depth: depth) else {
@@ -1191,7 +1193,7 @@ private struct TokenParser {
 
   /// A quantity after a unit, `kg 5` or `km/h 60`.
   @inline(never)
-  private mutating func parsePrefixedQuantity(alias: String, range: SourceRange, depth: Int)
+  private func parsePrefixedQuantity(alias: String, range: SourceRange, depth: Int)
     -> Expression?
   {
     guard let resolved = catalog.resolveUnit(matching: alias) else {
@@ -1210,7 +1212,7 @@ private struct TokenParser {
 
   /// A calendar period after its unit, `days 3`.
   @inline(never)
-  private mutating func parsePrefixedPeriod(
+  private func parsePrefixedPeriod(
     _ unit: CalendarPeriodUnit,
     range: SourceRange,
     depth: Int
@@ -1223,7 +1225,7 @@ private struct TokenParser {
 
   /// A scale word before an amount, `million 11.5`.
   @inline(never)
-  private mutating func parsePrefixedScale(_ word: String, range: SourceRange, depth: Int)
+  private func parsePrefixedScale(_ word: String, range: SourceRange, depth: Int)
     -> Expression?
   {
     guard let digits = ScaleWord.digits[word], let amount = parsePrefixedAmount(depth: depth)
@@ -1241,7 +1243,7 @@ private struct TokenParser {
     return .grouped(product, range: product.range)
   }
 
-  private mutating func parsePrefixedAmount(depth: Int) -> Expression? {
+  private func parsePrefixedAmount(depth: Int) -> Expression? {
     parseExpression(minimumBindingPower: Self.prefixBindingPower, depth: depth + 1)
   }
 
@@ -1292,7 +1294,7 @@ private struct TokenParser {
   /// `2 h from now`, or `now in Asia/Tokyo`. Reports an unknown zone after an
   /// instant.
   @inline(never)
-  private mutating func parseTemporalSuffix(
+  private func parseTemporalSuffix(
     of left: Expression,
     minimumBindingPower: Int
   ) -> Expression? {
@@ -1337,8 +1339,7 @@ private struct TokenParser {
 
   /// A temporal token with the zone or `am`/`pm` that follows it.
   @inline(never)
-  private mutating func parseTemporal(_ literal: TemporalLiteral, range: SourceRange) -> Expression
-  {
+  private func parseTemporal(_ literal: TemporalLiteral, range: SourceRange) -> Expression {
     if case .dateTime(var dateTime) = literal {
       var range = range
       if let (zone, tokenCount) = timeZone(at: 0) {
