@@ -5,14 +5,16 @@ import Foundation
 /// Models wrap answers in JSON, think-tags, markdown, or a sentence. The
 /// answer column only has room for the value.
 enum AssistantReply {
-  /// The value hidden in `content`, or in `reasoning` when content is empty.
+  /// The value hidden in `content`. A model's reasoning is its working, not
+  /// an answer, so it counts only when it ends in the JSON value asked for.
   static func value(content: String?, reasoning: String? = nil) -> String? {
-    for text in [content, reasoning] {
-      if let value = value(in: text ?? "") {
-        return value
-      }
+    if let value = value(in: content ?? "") {
+      return value
     }
-    return nil
+    guard let json = jsonValue(in: stripThinkBlocks(reasoning ?? "")) else {
+      return nil
+    }
+    return value(in: json)
   }
 
   private static func value(in text: String) -> String? {
@@ -26,7 +28,8 @@ enum AssistantReply {
       text = json
     }
     text = stripDecorations(text)
-    guard !text.isEmpty, text.caseInsensitiveCompare("UNKNOWN") != .orderedSame,
+    guard text.rangeOfCharacter(from: .alphanumerics) != nil,
+      text.caseInsensitiveCompare("UNKNOWN") != .orderedSame,
       text.count <= Assistant.maximumAnswer
     else {
       return nil

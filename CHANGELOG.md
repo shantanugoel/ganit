@@ -5,6 +5,9 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- The assistant no longer shows a line of a model's reasoning, such as "End of
+  thought process", or bare punctuation as an answer. Reasoning counts only
+  when it holds the JSON value Ganit asked for.
 - Quick Ganit hides when one of Ganit's own windows comes forward, instead of
   floating over its answers. It still floats over other apps.
 - Quick Ganit selects the text it kept from last time when it opens, so typing

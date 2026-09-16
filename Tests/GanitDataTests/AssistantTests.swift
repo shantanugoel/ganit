@@ -145,9 +145,9 @@ struct AssistantTests {
   }
 
   @Test
-  func readsTheValueFromReasoningWhenContentIsEmpty() async throws {
+  func readsTheJSONValueFromReasoningWhenContentIsEmpty() async throws {
     let body =
-      "{\"choices\":[{\"message\":{\"content\":\"\",\"reasoning_content\":\"10000 ml\"}}]}"
+      "{\"choices\":[{\"message\":{\"content\":\"\",\"reasoning_content\":\"{\\\"value\\\":\\\"10000 ml\\\"}\"}}]}"
     let server = try LoopbackServer(body: body, contentType: "application/json")
     defer { server.stop() }
 
@@ -243,8 +243,20 @@ struct AssistantReplyTests {
   }
 
   @Test
-  func usesReasoningWhenContentIsEmpty() {
-    #expect(AssistantReply.value(content: "", reasoning: "10000 ml") == "10000 ml")
+  func usesReasoningOnlyForItsJSONValue() {
+    #expect(
+      AssistantReply.value(content: "", reasoning: "Working...\n{\"value\":\"10000 ml\"}")
+        == "10000 ml")
+    #expect(AssistantReply.value(content: "", reasoning: "10000 ml") == nil)
+    #expect(
+      AssistantReply.value(content: nil, reasoning: "Let me think.\nEnd of thought process.")
+        == nil)
+  }
+
+  @Test
+  func hasNoAnswerWithoutALetterOrDigit() {
+    #expect(AssistantReply.value(content: "...") == nil)
+    #expect(AssistantReply.value(content: "—") == nil)
   }
 
   @Test

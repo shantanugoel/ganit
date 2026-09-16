@@ -64,8 +64,10 @@ output is asked again without it. The request may take a few minutes; the
 sheet stays editable.
 
 `AssistantReply` then takes the short value out of JSON, think-tags,
-markdown, and wrapping. `UNKNOWN`, an empty reply, and anything still over
-120 characters leave the line as Ganit found it, and so does a failed
+markdown, and wrapping. A model's separate reasoning is its working, so it is
+read only for that JSON value, never for a last sentence. `UNKNOWN`, an empty
+reply, a reply with no letter or digit, and anything still over 120 characters
+leave the line as Ganit found it, and so does a failed
 request: a line Ganit could not work out already says so, and needs no
 second complaint.
 
