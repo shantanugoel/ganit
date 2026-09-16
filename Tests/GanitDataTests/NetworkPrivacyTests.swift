@@ -137,6 +137,7 @@ func theUpdaterAsksNothingUntilItIsAsked() throws {
     information["CFBundleVersion"] as? String
       == information["CFBundleShortVersionString"] as? String
   )
+  #expect(information["CFBundleIconFile"] as? String == "AppIcon")
 }
 
 private let repositoryRoot = URL(fileURLWithPath: #filePath)

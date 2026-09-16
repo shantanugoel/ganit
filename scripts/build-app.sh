@@ -66,6 +66,8 @@ xcrun xcstringstool compile \
     "$staging/Contents/Resources/Ganit_GanitFormatting.bundle"
 rm "$staging/Contents/Resources/Ganit_GanitFormatting.bundle/Localizable.xcstrings"
 install -m 0644 App/Info.plist "$staging/Contents/Info.plist"
+xcrun swift "$repository_root/scripts/generate-app-icon.swift" \
+    "$staging/Contents/Resources/AppIcon.icns"
 install -m 0644 App/PrivacyInfo.xcprivacy "$staging/Contents/Resources/PrivacyInfo.xcprivacy"
 install -m 0644 \
     ThirdPartyNotices/BigInt-LICENSE.md \

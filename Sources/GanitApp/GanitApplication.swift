@@ -102,6 +102,10 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     }
     self.serviceProvider = serviceProvider
     NSApplication.shared.servicesProvider = serviceProvider
+    if Bundle.main.object(forInfoDictionaryKey: "CFBundleIconFile") == nil {
+      NSApplication.shared.applicationIconImage = NSImage(
+        systemSymbolName: VisualStyle.Symbol.menuBar, accessibilityDescription: "Ganit")
+    }
     updateMenuBarItem()
     if let data = UserDefaults.standard.data(forKey: Self.shortcutDefaultsKey),
       let shortcut = try? JSONDecoder().decode(KeyboardShortcut.self, from: data)

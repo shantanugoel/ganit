@@ -18,6 +18,8 @@
     <string>Copyright © 2026 Shantanu Goel. All rights reserved.</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleShortVersionString</key>
     <string>0.2.0</string>
     <!-- Sparkle compares this to decide what is newer, so it is the version,
