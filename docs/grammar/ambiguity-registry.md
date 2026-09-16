@@ -1,6 +1,6 @@
 # Ambiguity registry
 
-**Registry version:** 6
+**Registry version:** 7
 
 This registry records how the English grammar resolves inputs that could
 reasonably mean more than one thing. Every entry is pinned by named cases in
@@ -91,10 +91,14 @@ unit meaning.
   `in = 1`, `pi = 3`, `min = 1`, `km = 5`, and `total km = 3` fail with
   `syntax.invalidVariableName`. Declaration rejects the collision instead of
   letting a variable shadow built-in meaning.
-- Reference keywords (`line`, `previous`, `prev`, `sum`, `total`, `subtotal`,
-  `average`, `avg`, `median`, `count`) cannot be a whole variable name, but a
-  declared longer name wins: with `total rent` declared, `total rent` is the
-  variable and `total` alone is the aggregate.
+- Reference keywords (`previous`, `prev`, `sum`, `total`, `subtotal`,
+  `average`, `avg`, `median`, `count`) may be a variable name, because a
+  budget's `total = price * qty` is ordinary. Below the declaration the word
+  is the variable; above it, and in sheets without it, it is the reference.
+  A declared longer name wins: with `total rent` declared, `total rent` is the
+  variable. `line` alone cannot be a name, because `line 3` is a reference.
+- The diagnostic for a name that cannot be declared marks the word that is
+  taken: in `hourly min wage = 7` it is `min`.
 
 ## `1 x =` — manual rate versus unit definition
 

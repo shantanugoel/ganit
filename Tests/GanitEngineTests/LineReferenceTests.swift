@@ -141,12 +141,17 @@ struct LineReferenceTests {
   }
 
   @Test
-  func referenceKeywordsCannotNameVariablesAlone() throws {
-    let results = try sheetOutcomes("total = 5\nline = 2\ntotal rent = 7\ntotal rent\nprev")
+  func aReferenceKeywordCanNameAVariableButLineCannot() throws {
+    let results = try sheetOutcomes(
+      "1\n2\ntotal\ntotal = 5\ntotal + 1\nline = 2\nline item = 3\ntotal rent = 7\ntotal rent\nprev"
+    )
 
-    #expect(results[0] == "syntax.invalidVariableName")
-    #expect(results[1] == "syntax.invalidVariableName")
-    #expect(results[3] == "7")
-    #expect(results[4] == "7")
+    #expect(results[2] == "3")
+    #expect(results[3] == "5")
+    #expect(results[4] == "6")
+    #expect(results[5] == "syntax.invalidVariableName")
+    #expect(results[6] == "3")
+    #expect(results[8] == "7")
+    #expect(results[9] == "7")
   }
 }

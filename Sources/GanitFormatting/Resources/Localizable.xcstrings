@@ -376,7 +376,7 @@
     },
     "syntax.invalidVariableName" : {
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Use words that are not units, functions, or keywords." } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This word is already a unit, function, or keyword. Choose another name." } }
       }
     },
     "syntax.invalidRadixDigit" : {

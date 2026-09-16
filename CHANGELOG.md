@@ -5,6 +5,10 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- `total`, `sum`, `count`, `average`, `median`, `previous`, and their short forms
+  can name a variable, so `total = price * qty` works; below it the word means
+  the variable. A name that is still taken, such as `min wage`, marks the
+  taken word and says to choose another name. Ambiguity registry version 7.
 - Exact decimal answers show at most the sheet's significant digits and no
   trailing zeroes: `100 * 1.25` is `125`, not `125.00`, and `10000 * 1.05^10`
   is `16,288.9462677744`, not 26 digits ending in zeroes. Copy Full Precision

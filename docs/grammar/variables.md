@@ -20,7 +20,9 @@ A word cannot be a grammar keyword (`in`, `to`, `as`, `into`, `of`, `off`, `on`,
 `e`), a built-in function name, a unit alias including prefixed forms, or an
 ISO 4217 currency code such as `USD`. A
 colliding or non-word name, such as `km = 5` or `2x = 1`, fails with
-`syntax.invalidVariableName` and declares nothing.
+`syntax.invalidVariableName`, marks the word that is taken, and declares
+nothing. A reference keyword such as `total` or `count` may be a name; below
+the declaration it means the variable. `line` alone may not.
 
 In an expression, adjacent identifier words resolve to the longest declared
 name that they begin. Otherwise each identifier is resolved alone.

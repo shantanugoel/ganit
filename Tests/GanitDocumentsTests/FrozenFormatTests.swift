@@ -16,8 +16,8 @@ func formatVersionsMatchTheFreeze() throws {
     .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
   let registry = try String(
     contentsOf: repository.appending(path: "docs/grammar/ambiguity-registry.md"), encoding: .utf8)
-  #expect(registry.contains("**Registry version:** 6"))
+  #expect(registry.contains("**Registry version:** 7"))
   let freeze = try String(
     contentsOf: repository.appending(path: "docs/reference/schema-freeze.md"), encoding: .utf8)
-  #expect(freeze.contains("| Ambiguity registry (grammar policy) | 6 |"))
+  #expect(freeze.contains("| Ambiguity registry (grammar policy) | 7 |"))
 }

@@ -868,7 +868,7 @@ public struct DiagnosticFormatter: Sendable {
     case .invalidVariableName:
       return localized(
         "syntax.invalidVariableName",
-        defaultValue: "Use words that are not units, functions, or keywords."
+        defaultValue: "This word is already a unit, function, or keyword. Choose another name."
       )
     case .resourceLimitExceeded:
       return localized(

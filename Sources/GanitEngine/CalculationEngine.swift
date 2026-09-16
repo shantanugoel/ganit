@@ -90,12 +90,22 @@ public struct CalculationEngine: Sendable {
 
   /// Returns a declaration's normalized name, or `nil` when it is not a
   /// sequence of words that are not keywords, constants, functions, or units.
-  /// A single-word name also cannot be a reference keyword.
+  /// A reference keyword such as `total` may be a name; below it, the name
+  /// means the variable.
   func variableName(
     in source: String,
     context: EvaluationContext
   ) -> String? {
-    name(in: source, context: context, redefinable: [])
+    name(in: source, context: context, redefinable: []).name
+  }
+
+  /// The word that keeps `source` from being a variable name, such as `min`
+  /// in `min wage`, relative to `source`.
+  func unusableNameWord(
+    in source: String,
+    context: EvaluationContext
+  ) -> SourceRange? {
+    name(in: source, context: context, redefinable: []).unusable
   }
 
   /// Returns a unit definition's name, or `nil` when it is not one word that
@@ -108,37 +118,41 @@ public struct CalculationEngine: Sendable {
     let custom = Set(
       unitCatalog.entries.filter { $0.sourceIdentifier == nil }.flatMap(\.aliases)
     )
-    return name(in: source, context: context, redefinable: custom)
+    return name(in: source, context: context, redefinable: custom).name
   }
 
   private func name(
     in source: String,
     context: EvaluationContext,
     redefinable: Set<String>
-  ) -> String? {
+  ) -> (name: String?, unusable: SourceRange?) {
     let lexing = Lexer(
       source: source,
       configuration: context.lexingConfiguration,
       limits: syntaxLimits
     ).lex()
+    guard lexing.diagnostics.isEmpty else {
+      return (nil, nil)
+    }
     var words: [String] = []
     for token in lexing.tokens.dropLast() {
-      guard case .identifier(let word) = token.kind,
-        !reservedIdentifiers.contains(word),
+      guard case .identifier(let word) = token.kind else {
+        return (nil, nil)
+      }
+      guard !reservedIdentifiers.contains(word),
         BuiltInFunction(rawValue: word) == nil,
         FinanceFunction(rawValue: word) == nil,
         unitCatalog.resolveUnit(matching: word) == nil || redefinable.contains(word),
         CurrencyCatalog.minorUnits[word] == nil
       else {
-        return nil
+        return (nil, token.range)
       }
       words.append(word)
     }
-    guard lexing.diagnostics.isEmpty, !words.isEmpty,
-      words.count > 1 || (referenceKeywords[words[0]] == nil && words[0] != "line")
-    else {
-      return nil
+    // `line 3` is a reference, so `line` alone cannot be a name.
+    if words == ["line"] {
+      return (nil, lexing.tokens.first?.range)
     }
-    return words.joined(separator: " ")
+    return words.isEmpty ? (nil, nil) : (words.joined(separator: " "), nil)
   }
 }

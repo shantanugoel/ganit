@@ -252,9 +252,20 @@ private final class LineSource: Sendable {
       ? oneOf.flatMap { engine.unitName(in: $0, context: context) } : nil
     let isNamed = rateCurrency != nil || unitName != nil
     declaredName = isNamed ? nil : engine.variableName(in: name, context: context)
+    // Point at the word that is taken, not the whole name.
+    let word = engine.unusableNameWord(in: name, context: context).map {
+      SourceRange(
+        lowerBound: nameRange.lowerBound + $0.lowerBound,
+        upperBound: nameRange.lowerBound + $0.upperBound,
+        graphemeLowerBound: nameRange.graphemeLowerBound + $0.graphemeLowerBound,
+        graphemeUpperBound: nameRange.graphemeLowerBound + $0.graphemeUpperBound
+      )
+    }
     nameFailure =
       declaredName == nil && !isNamed
-      ? .syntaxFailure([SyntaxDiagnostic(code: .invalidVariableName, range: nameRange)])
+      ? .syntaxFailure([
+        SyntaxDiagnostic(code: .invalidVariableName, range: word ?? nameRange)
+      ])
       : nil
   }
 }

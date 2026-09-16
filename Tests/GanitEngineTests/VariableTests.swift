@@ -98,6 +98,17 @@ struct VariableTests {
   }
 
   @Test
+  func anUnusableNameMarksTheTakenWord() throws {
+    let results = try evaluateSheet(SheetSource("hourly min wage = 7"))
+    guard case .syntaxFailure(let diagnostics) = results[0].result else {
+      Issue.record("Expected an unusable name")
+      return
+    }
+    #expect(diagnostics.first?.range.lowerBound == 7)
+    #expect(diagnostics.first?.range.upperBound == 10)
+  }
+
+  @Test
   func quantityVariablesKeepConversionAndMultiWordRanges() throws {
     let sheet = SheetSource("trip distance = 12 km\ntrip distance in miles\ntrip distance + 1")
     let results = try evaluateSheet(sheet)
