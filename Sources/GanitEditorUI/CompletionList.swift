@@ -4,7 +4,7 @@ import AppKit
 @MainActor
 final class CompletionList {
   private let panel = NSPanel(
-    contentRect: NSRect(x: 0, y: 0, width: 220, height: 140),
+    contentRect: NSRect(x: 0, y: 0, width: 280, height: 140),
     styleMask: [.borderless],
     backing: .buffered,
     defer: false
@@ -57,7 +57,7 @@ final class CompletionList {
     }
     let height = min(CGFloat(self.items.count) * table.rowHeight + 4, 140)
     var frame = rect
-    frame.size = NSSize(width: 220, height: height)
+    frame.size = NSSize(width: 280, height: height)
     if let window = view.window {
       frame.origin = window.convertToScreen(view.convert(rect, to: nil)).origin
       frame.origin.y -= height

@@ -748,6 +748,9 @@ final class SheetTextView: NSTextView {
     if insertSelectedCompletion() {
       return
     }
+    if selectNextCompletionArgument() {
+      return
+    }
     super.insertTab(sender)
   }
 
@@ -815,13 +818,39 @@ final class SheetTextView: NSTextView {
     return (range, text.substring(with: range))
   }
 
+  private var completionArguments: [NSRange] = []
+  private var completionArgument = 0
+
   @discardableResult
   private func insertSelectedCompletion() -> Bool {
     guard let item = completionList.selectedItem, let prefix = completionPrefix() else {
       return false
     }
     completionList.hide()
-    return write(item, in: prefix.range)
+    let arguments = LanguageCompletions.argumentRanges(in: item, at: prefix.range.location)
+    guard write(item, in: prefix.range) else {
+      return false
+    }
+    completionArguments = arguments
+    completionArgument = 0
+    if let first = arguments.first {
+      setSelectedRange(first)
+    } else {
+      setSelectedRange(NSRange(location: prefix.range.location + item.utf16.count, length: 0))
+    }
+    return true
+  }
+
+  /// Tab moves from one completed argument to the next, as a spreadsheet does.
+  @discardableResult
+  func selectNextCompletionArgument() -> Bool {
+    guard completionArgument + 1 < completionArguments.count else {
+      completionArguments = []
+      return false
+    }
+    completionArgument += 1
+    setSelectedRange(completionArguments[completionArgument])
+    return true
   }
 
   override func copy(_ sender: Any?) {

@@ -13,9 +13,22 @@ struct CompletionsTests {
     _ = editor
     textView.completesWhileTyping = true
     textView.insertText("sq", replacementRange: NSRange(location: 0, length: 0))
-    #expect(textView.offeredCompletions.contains("sqrt("))
+    #expect(textView.offeredCompletions.contains("sqrt(x)"))
     textView.insertNewline(nil)
-    #expect(textView.string == "sqrt(")
+    #expect(textView.string == "sqrt(x)")
+    #expect(textView.selectedRange() == NSRange(location: 5, length: 1))
+  }
+
+  @Test
+  func tabMovesFromOneCompletedArgumentToTheNext() async throws {
+    let (_, textView) = try await makeEditor("")
+    textView.completesWhileTyping = true
+    textView.insertText("round", replacementRange: NSRange(location: 0, length: 0))
+    textView.insertNewline(nil)
+    #expect(textView.string == "round(x, places)")
+    #expect(textView.selectedRange() == NSRange(location: 6, length: 1))
+    textView.insertTab(nil)
+    #expect(textView.selectedRange() == NSRange(location: 9, length: 6))
   }
 
   @Test
