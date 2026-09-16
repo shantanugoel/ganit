@@ -40,6 +40,12 @@ struct QuickPanelTests {
     #expect(!controller.isShown)
     controller.show()
     #expect(controller.editor.textView.string == "6 * 7")
+
+    // Kept text is selected, so what comes next replaces it.
+    #expect(controller.editor.textView.selectedRange() == NSRange(location: 0, length: 5))
+    controller.editor.textView.insertText(
+      "18% of 2499", replacementRange: controller.editor.textView.selectedRange())
+    #expect(controller.editor.textView.string == "18% of 2499")
   }
 
   @Test

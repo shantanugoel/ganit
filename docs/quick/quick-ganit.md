@@ -16,7 +16,8 @@ behave like any Mac panel.
 - It opens on the active Space, including over full-screen apps, instead of
   switching Spaces.
 - Showing it centers it on the screen with the pointer, slightly above center,
-  and focuses its text.
+  focuses its text, and selects any text kept from last time so typing
+  replaces it.
 - Escape hides it; the text stays for next time.
 
 Window ▸ Quick Ganit always opens the panel. Launching Ganit with the

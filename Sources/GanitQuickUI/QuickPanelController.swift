@@ -114,7 +114,8 @@ public final class QuickPanelController: NSWindowController, NSWindowDelegate {
   }
 
   /// Shows the panel near the center of the screen with the pointer, focused
-  /// on its text.
+  /// on its text. Text kept from last time is selected, so typing replaces it
+  /// rather than joining it.
   public func show() {
     guard let panel = window else {
       return
@@ -125,7 +126,8 @@ public final class QuickPanelController: NSWindowController, NSWindowDelegate {
         replacementRange: NSRange(location: 0, length: (editor.textView.string as NSString).length))
       editor.documentUndoManager.removeAllActions()
     }
-    if !panel.isVisible || !panel.isOnActiveSpace,
+    let wasHidden = !panel.isVisible
+    if wasHidden || !panel.isOnActiveSpace,
       let visible = Self.visibleFrame(
         containing: NSEvent.mouseLocation,
         screens: NSScreen.screens.map { ($0.frame, $0.visibleFrame) }
@@ -135,6 +137,9 @@ public final class QuickPanelController: NSWindowController, NSWindowDelegate {
     }
     panel.makeKeyAndOrderFront(nil)
     panel.makeFirstResponder(editor.textView)
+    if wasHidden {
+      editor.textView.selectAll(nil)
+    }
   }
 
   /// Hides the panel, keeping its text for next time.
