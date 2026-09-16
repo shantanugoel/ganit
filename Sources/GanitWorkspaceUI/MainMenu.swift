@@ -15,6 +15,7 @@ import GanitEditorUI
   func toggleSpotlightTitles(_ sender: Any?)
   func showAssistantSettings(_ sender: Any?)
   func showHelp(_ sender: Any?)
+  func showAbout(_ sender: Any?)
   func reportProblem(_ sender: Any?)
   func checkForUpdates(_ sender: Any?)
   func toggleAutomaticUpdateChecks(_ sender: Any?)
@@ -119,7 +120,7 @@ public enum MainMenu {
         [
           item(
             localized("menu.about", "About Ganit"),
-            #selector(NSApplication.orderFrontStandardAboutPanel(_:))),
+            #selector(ApplicationCommands.showAbout(_:))),
           item(
             localized("menu.checkForUpdates", "Check for Updates…"),
             #selector(ApplicationCommands.checkForUpdates(_:))),

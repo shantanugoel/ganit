@@ -271,6 +271,15 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     shortcutWindow = window
   }
 
+  // MARK: About
+
+  /// The standard About panel, with who made Ganit and where to find it.
+  @objc func showAbout(_ sender: Any?) {
+    NSApplication.shared.orderFrontStandardAboutPanel(
+      options: [.credits: AboutCredits.attributedString()]
+    )
+  }
+
   // MARK: Help
 
   /// Opens the searchable grammar and function reference.

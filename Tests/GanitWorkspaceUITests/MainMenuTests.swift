@@ -24,6 +24,7 @@ struct MainMenuTests {
     let ganitHelp = items.first { $0.action == #selector(ApplicationCommands.showHelp(_:)) }
     #expect(ganitHelp?.title == "Ganit Help")
     #expect(ganitHelp?.keyEquivalent == "?")
+    #expect(items.contains { $0.action == #selector(ApplicationCommands.showAbout(_:)) })
 
     let expected: [(Selector, String, NSEvent.ModifierFlags)] = [
       (#selector(WorkspaceCommands.newSheet(_:)), "n", .command),

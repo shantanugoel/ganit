@@ -9,6 +9,8 @@ existing answer. See the [release train](docs/release/release-train.md).
   and keywords.
 - Hovering a function, keyword, or error shows its signature or message;
   right-click opens Help or the interpretation card.
+- About names Shantanu Goel and links to x.com/shantanugoel and the GitHub
+  repository.
 
 ## 0.1.1
 
