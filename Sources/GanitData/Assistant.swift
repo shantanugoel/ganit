@@ -49,6 +49,24 @@ public final class Assistant: NSObject, URLSessionTaskDelegate {
     super.init()
   }
 
+  /// OpenAI-compatible servers, including llama-swap, name a base such as
+  /// `https://host/v1`. The request is a POST to `chat/completions` under
+  /// that base. An address that already ends there is left alone.
+  public static func chatCompletionsURL(_ endpoint: URL) -> URL {
+    var path = endpoint.path
+    if path.count > 1, path.hasSuffix("/") {
+      path.removeLast()
+    }
+    let lowered = path.lowercased()
+    if lowered.hasSuffix("/chat/completions") || lowered == "/chat/completions" {
+      return endpoint
+    }
+    if path.isEmpty || path == "/" {
+      return endpoint.appending(path: "v1/chat/completions")
+    }
+    return endpoint.appending(path: "chat/completions")
+  }
+
   /// A hosted model must be reached over HTTPS. A model running on this Mac
   /// answers over plain HTTP on the loopback address, where nothing leaves the
   /// machine.
@@ -96,7 +114,7 @@ public final class Assistant: NSObject, URLSessionTaskDelegate {
     guard Self.isAllowed(settings.endpoint) else {
       throw AssistantError.disallowedURL
     }
-    var request = URLRequest(url: settings.endpoint)
+    var request = URLRequest(url: Self.chatCompletionsURL(settings.endpoint))
     request.httpMethod = "POST"
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
     request.setValue("application/json", forHTTPHeaderField: "Accept")

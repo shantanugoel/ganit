@@ -82,6 +82,48 @@ struct AssistantTests {
     }
   }
 
+  /// OpenAI-compatible tools take a `/v1` base. The request still has to
+  /// land on `chat/completions`, or llama-swap answers 404.
+  @Test
+  func postsToChatCompletionsWhenTheAddressIsABase() throws {
+    let base = try Assistant(
+      settings: AssistantSettings(
+        isEnabled: true, endpoint: URL(string: "http://127.0.0.1:1234/v1")!, model: "a-model")
+    ).request(for: "a line")
+    #expect(base.url?.absoluteString == "http://127.0.0.1:1234/v1/chat/completions")
+
+    let trailing = try Assistant(
+      settings: AssistantSettings(
+        isEnabled: true, endpoint: URL(string: "http://127.0.0.1:1234/v1/")!, model: "a-model")
+    ).request(for: "a line")
+    #expect(trailing.url?.absoluteString == "http://127.0.0.1:1234/v1/chat/completions")
+
+    let host = try Assistant(
+      settings: AssistantSettings(
+        isEnabled: true, endpoint: URL(string: "http://127.0.0.1:1234")!, model: "a-model")
+    ).request(for: "a line")
+    #expect(host.url?.absoluteString == "http://127.0.0.1:1234/v1/chat/completions")
+
+    let full = try Assistant(settings: settings(1_234, key: "")).request(for: "a line")
+    #expect(full.url?.path == "/v1/chat/completions")
+  }
+
+  @Test
+  func aBaseAddressReachesChatCompletionsOnTheWire() async throws {
+    let server = try LoopbackServer(body: completion("10000 ml"), contentType: "application/json")
+    defer { server.stop() }
+    let settings = AssistantSettings(
+      isEnabled: true,
+      endpoint: URL(string: "http://127.0.0.1:\(server.port)/v1")!,
+      model: "a-model",
+      apiKey: "a-key"
+    )
+
+    _ = try await Assistant(settings: settings).answer(to: "10 kg of water in ml")
+    let raw = try #require(await server.request())
+    #expect(raw.hasPrefix("POST /v1/chat/completions HTTP/1.1"))
+  }
+
   /// A model running on this Mac usually wants no key, and asking without one
   /// must not send an empty header.
   @Test

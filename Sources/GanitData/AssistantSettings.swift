@@ -4,11 +4,12 @@ import Security
 /// Where Ganit may send a line it could not work out, and whether it sends any
 /// at all.
 ///
-/// The endpoint is any OpenAI-compatible chat completions address, so a hosted
-/// model and one running on this Mac are the same setting. Nothing is sent
-/// until someone fills this in and turns it on.
+/// The endpoint is an OpenAI-compatible base, such as `https://host/v1`.
+/// Ganit POSTs to `chat/completions` under it. A hosted model and one
+/// running on this Mac are the same setting. Nothing is sent until someone
+/// fills this in and turns it on.
 public struct AssistantSettings: Equatable, Sendable {
-  public static let defaultEndpoint = URL(string: "https://api.openai.com/v1/chat/completions")!
+  public static let defaultEndpoint = URL(string: "https://api.openai.com/v1")!
   public static let defaultModel = "gpt-4o-mini"
 
   public var isEnabled: Bool

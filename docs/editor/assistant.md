@@ -14,8 +14,14 @@ endpoint, so these are both valid:
 
 | Where the model runs | Address | Key |
 |---|---|---|
-| A provider | `https://api.openai.com/v1/chat/completions` | Required |
-| This Mac | `http://localhost:11434/v1/chat/completions` | Not needed |
+| A provider | `https://api.openai.com/v1` | Required |
+| This Mac or the LAN | `http://localhost:11434/v1` or `https://host/v1` | Not needed |
+
+The address is the OpenAI-compatible **base**. Ganit POSTs to
+`chat/completions` under it, so `https://host/v1` and
+`https://host/v1/chat/completions` are the same setting. A base of `/v1`
+alone is what llama-swap and the OpenAI SDK use; posting to that path
+without `chat/completions` is a 404.
 
 **Try It** asks the example line and shows the answer, or what went wrong, so a
 wrong address or key is found here rather than in the middle of a sheet.

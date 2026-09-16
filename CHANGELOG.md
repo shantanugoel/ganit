@@ -5,6 +5,9 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- An assistant address of `https://host/v1` is treated as an OpenAI-compatible
+  base and posted to `chat/completions`, matching llama-swap and the OpenAI
+  SDK. The full `.../v1/chat/completions` path still works.
 - Ask Assistant, on a line's right-click menu and under Calculate, asks again
   about a line Ganit could not work out, or an `ask_assistant` prompt.
 - Copy Result copies a failure's message when that is what the column shows.
