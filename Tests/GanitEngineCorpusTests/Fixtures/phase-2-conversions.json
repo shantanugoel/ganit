@@ -2,6 +2,36 @@
   "schemaVersion": 1,
   "cases": [
     {
+      "name": "ohm's law current",
+      "expression": "5 V / 220 Ω in mA",
+      "expected": {
+        "status": "value",
+        "display": "22.7272727272727 mA",
+        "fullPrecision": "250/11 mA",
+        "approximate": false
+      }
+    },
+    {
+      "name": "electrical power",
+      "expression": "12 V * 2 A in W",
+      "expected": {
+        "status": "value",
+        "display": "24 W",
+        "fullPrecision": "24 W",
+        "approximate": false
+      }
+    },
+    {
+      "name": "battery life",
+      "expression": "2000 mAh / 150 mA in h",
+      "expected": {
+        "status": "value",
+        "display": "13.3333333333333 h",
+        "fullPrecision": "40/3 h",
+        "approximate": false
+      }
+    },
+    {
       "name": "distance conversion",
       "expression": "12 km in miles",
       "expected": {

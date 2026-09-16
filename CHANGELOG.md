@@ -5,6 +5,11 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Electrical units: amperes, volts, ohms (`Ω` or `ohm`), farads, henries,
+  coulombs, ampere-hours, and hertz, with prefixes such as `mA`, `kΩ`, `nF`,
+  `mAh`, and `MHz`; plus horsepower and electronvolts. `5 V / 220 Ω in mA` is
+  `22.7272727272727 mA`. `A`, `V`, `C`, `F`, and `H` can no longer name a
+  variable.
 - Prices per unit: `$0.15/kWh * 45 kWh` is `$6.75`, `₹8/kWh * 1,245 kWh` and
   `1500 W * 3 h * 30 * 0.15 USD/kWh` work, and `$30 / 2 kWh` is `$15.00/kWh`.
 - `sum`, `average`, `line N`, and a variable that read a failed line say which:

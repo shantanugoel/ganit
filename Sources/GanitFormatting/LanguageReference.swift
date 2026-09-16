@@ -130,10 +130,13 @@ extension LanguageReference {
       ),
       body: text(
         "help.grammar.units.body",
-        "Write a number and a unit, or a unit and a number: 12 km and km 12. Convert with in, to, as, or into: 12 km in miles. Compatible units add; incompatible ones say so. Compound units multiply and divide: 75 MB/s * 2 s. Temperature converts on its scale: 0 °C as °F."
+        "Write a number and a unit, or a unit and a number: 12 km and km 12. Convert with in, to, as, or into: 12 km in miles. Compatible units add; incompatible ones say so. Compound units multiply and divide: 75 MB/s * 2 s. Temperature converts on its scale: 0 °C as °F. Electrical units take prefixes: 5 V / 220 Ω in mA, 12 V * 2 A in W."
       ),
-      examples: ["12 km in miles", "km 12", "75 MB/s * 2 s", "0 °C as °F"],
-      keywords: ["conversion", "length", "mass", "data"]
+      examples: ["12 km in miles", "km 12", "75 MB/s * 2 s", "0 °C as °F", "5 V / 220 Ω in mA"],
+      keywords: [
+        "conversion", "length", "mass", "data", "volt", "ampere", "ohm", "farad", "hertz",
+        "electronics", "horsepower",
+      ]
     ),
     topic(
       id: "grammar.variables",

@@ -19,6 +19,12 @@ thermochemical calorie and the watt-hour. The liter also answers to `l`, so
 `ml`, `cl`, and `dl` read as a decimal prefix on it, and `milliliters` reads as
 the prefix's long name. Every one of them is an exact rational conversion.
 
+Electronics followed: electric current joined the base dimensions, with the
+ampere, volt, ohm (`Ω` or `ohm`), farad, henry, coulomb, ampere-hour, and hertz,
+each taking decimal prefixes (`mA`, `kΩ`, `nF`, `mAh`, `MHz`). The mechanical
+horsepower and the electronvolt (`keV`, `MeV`) are exact too. `A`, `V`, `C`,
+`F`, and `H` are units now, so they cannot name a variable.
+
 Each entry records:
 
 - a stable Ganit-owned identifier and canonical symbol;

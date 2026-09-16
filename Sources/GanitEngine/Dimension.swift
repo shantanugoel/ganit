@@ -5,6 +5,8 @@ public enum BaseDimension: String, CaseIterable, Hashable, Sendable {
   case temperature
   case angle
   case data
+  /// Electric current.
+  case current
 }
 
 public struct Dimension: Hashable, Sendable {
@@ -136,6 +138,17 @@ extension Dimension {
     knownExponents: [.mass: 1, .length: 2, .time: -3]
   )
   public static let data = Dimension(.data)
+  public static let current = Dimension(.current)
+  public static let charge = Dimension(knownExponents: [.current: 1, .time: 1])
+  public static let voltage = Dimension(
+    knownExponents: [.mass: 1, .length: 2, .time: -3, .current: -1])
+  public static let resistance = Dimension(
+    knownExponents: [.mass: 1, .length: 2, .time: -3, .current: -2])
+  public static let capacitance = Dimension(
+    knownExponents: [.mass: -1, .length: -2, .time: 4, .current: 2])
+  public static let inductance = Dimension(
+    knownExponents: [.mass: 1, .length: 2, .time: -2, .current: -2])
+  public static let frequency = Dimension(knownExponents: [.time: -1])
   public static let dataRate = Dimension(
     knownExponents: [.data: 1, .time: -1]
   )

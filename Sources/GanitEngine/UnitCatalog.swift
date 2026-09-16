@@ -420,6 +420,29 @@ public struct UnitCatalog: Sendable {
         "watt", "W", .power, 1, ["W", "watt", "watts"], bipm,
         families: [.decimal]),
       try entry(
+        "horsepower", "hp", .power, 37_284_993_579_113_511, 50_000_000_000_000,
+        ["hp", "horsepower"], nist),
+      try entry(
+        "electronvolt", "eV", .energy, decimal(1_602_176_634, scale: 28),
+        ["eV", "electronvolt", "electronvolts"], bipm, families: [.decimal]),
+      try entry(
+        "ampere", "A", .current, 1, ["A", "amp", "amps", "ampere", "amperes"], bipm,
+        families: [.decimal]),
+      try entry(
+        "volt", "V", .voltage, 1, ["V", "volt", "volts"], bipm, families: [.decimal]),
+      try entry(
+        "ohm", "Ω", .resistance, 1, ["Ω", "ohm", "ohms"], bipm, families: [.decimal]),
+      try entry(
+        "farad", "F", .capacitance, 1, ["F", "farad", "farads"], bipm, families: [.decimal]),
+      try entry(
+        "henry", "H", .inductance, 1, ["H", "henry", "henries"], bipm, families: [.decimal]),
+      try entry(
+        "coulomb", "C", .charge, 1, ["C", "coulomb", "coulombs"], bipm, families: [.decimal]),
+      try entry(
+        "ampere-hour", "Ah", .charge, 3_600, ["Ah"], bipm, families: [.decimal]),
+      try entry(
+        "hertz", "Hz", .frequency, 1, ["Hz", "hertz"], bipm, families: [.decimal]),
+      try entry(
         "mile-per-hour", "mph", .speed, 44_704, 100_000, ["mph"], nist),
       try entry(
         "bit", "bit", .data, 1, ["bit", "bits", "b"], iec,
@@ -530,12 +553,26 @@ public struct UnitCatalog: Sendable {
     _ source: String,
     families: Set<UnitPrefixFamily> = []
   ) throws -> UnitCatalogEntry {
+    try entry(
+      identifier, symbol, dimension, try fraction(numerator, denominator), aliases, source,
+      families: families)
+  }
+
+  private static func entry(
+    _ identifier: String,
+    _ symbol: String,
+    _ dimension: Dimension,
+    _ scale: NumericValue,
+    _ aliases: [String],
+    _ source: String,
+    families: Set<UnitPrefixFamily> = []
+  ) throws -> UnitCatalogEntry {
     UnitCatalogEntry(
       definition: try UnitDefinition(
         canonicalIdentifier: identifier,
         symbol: symbol,
         dimension: dimension,
-        transform: .ratio(scale: try fraction(numerator, denominator)),
+        transform: .ratio(scale: scale),
         allowedPrefixFamilies: families
       ),
       aliases: aliases,

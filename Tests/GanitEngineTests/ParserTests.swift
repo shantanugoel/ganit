@@ -197,7 +197,7 @@ struct ParserTests {
     #expect(invalidGroupedSeparator.diagnostics.first?.severity == .error)
     // What is inside is the problem, not a missing `)`.
     #expect(invalidGroupedSeparator.diagnostics.first?.code == .unexpectedToken)
-    #expect(Parser(source: "(5 V)").parse().diagnostics.first?.code == .unexpectedToken)
+    #expect(Parser(source: "(5 apples)").parse().diagnostics.first?.code == .unexpectedToken)
     #expect(Parser(source: "(1 + 2").parse().diagnostics.first?.code == .expectedClosingParenthesis)
   }
 
