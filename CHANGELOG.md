@@ -5,6 +5,7 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Copy Result copies a failure's message when that is what the column shows.
 - Hovering a truncated answer or error in the result column shows the full
   text.
 - Help ▸ Ganit Help opens the in-app reference instead of reporting that Help

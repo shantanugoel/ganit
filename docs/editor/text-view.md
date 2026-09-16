@@ -112,8 +112,8 @@ Escape dismisses the list. **Edit ▸ Autocomplete** turns the list off.
 
 `copyResult:`, `copyFullPrecision:`, and `showInterpretation:` are responder
 actions that act on the selected answer or, without one, the insertion point's
-line, so menus and keyboard shortcuts can reach them. Copy Result has nothing
-to copy for a failure.
+line, so menus and keyboard shortcuts can reach them. Copy Result copies a
+failure's message when that is what the column shows.
 
 The interpretation card is a transient popover listing the expression, result,
 full precision, value kind, and exactness, then one Assumption row for each

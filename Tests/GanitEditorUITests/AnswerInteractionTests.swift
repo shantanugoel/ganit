@@ -130,7 +130,17 @@ struct AnswerInteractionTests {
     textView.setSelectedRange(NSRange(location: 9, length: 0))
     textView.pasteboard.clearContents()
     textView.copyResult(nil)
-    #expect(textView.pasteboard.string(forType: .string) == nil)
+    #expect(
+      textView.pasteboard.string(forType: .string)
+        == "These quantities have incompatible dimensions.")
+
+    let error = try #require(textView.answerLayout(in: textView.bounds).last)
+    textView.pasteboard.clearContents()
+    textView.mouseDown(with: try mouseEvent(at: error.rect, in: textView, clicks: 1))
+    textView.copy(nil)
+    #expect(
+      textView.pasteboard.string(forType: .string)
+        == "These quantities have incompatible dimensions.")
   }
 
   @Test

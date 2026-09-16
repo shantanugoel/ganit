@@ -892,9 +892,9 @@ final class SheetTextView: NSTextView {
   }
 
   /// Copies the displayed answer of the selected answer or the insertion
-  /// point's line.
+  /// point's line, including a failure's message.
   @objc func copyResult(_ sender: Any?) {
-    guard let cell = targetAnswer?.cell, !cell.isFailure else {
+    guard let cell = targetAnswer?.cell else {
       NSSound.beep()
       return
     }
