@@ -11,6 +11,8 @@ struct DisplayOptionsTests {
     let cases: [(DisplayOptions, String, String)] = [
       (.standard, "1234567.5", "1,234,567.5"),
       (DisplayOptions(groupsDigits: false), "1234567.5", "1234567.5"),
+      (DisplayOptions(groupsInLakhs: true), "123456789.5", "12,34,56,789.5"),
+      (DisplayOptions(groupsDigits: false, groupsInLakhs: true), "1234567", "1234567"),
       (DisplayOptions(numbers: .fixedDecimals(2)), "2", "2.00"),
       (DisplayOptions(numbers: .fixedDecimals(2)), "1.005", "1.01"),
       (DisplayOptions(numbers: .fixedDecimals(0)), "1234.6", "1,235"),
@@ -62,6 +64,7 @@ struct DisplayOptionsTests {
     for (options, display) in cases {
       #expect(try format("1234.50 USD", options) == display)
     }
+    #expect(try format("5000000 INR", DisplayOptions(groupsInLakhs: true)) == "₹50,00,000.00")
   }
 
   @Test

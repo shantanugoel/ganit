@@ -941,6 +941,16 @@
         }
       }
     },
+    "menu.groupInLakhs" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Group Digits in Lakhs"
+          }
+        }
+      }
+    },
     "menu.groupDigits" : {
       "localizations" : {
         "en" : {

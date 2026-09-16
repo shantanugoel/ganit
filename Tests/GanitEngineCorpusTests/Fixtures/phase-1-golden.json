@@ -52,6 +52,16 @@
       }
     },
     {
+      "name": "lakh grouping reads as the number it groups",
+      "expression": "1,00,000 + 5,00,000",
+      "expected": {
+        "status": "value",
+        "display": "600,000",
+        "fullPrecision": "600000",
+        "approximate": false
+      }
+    },
+    {
       "name": "programmer literals",
       "expression": "0xff + 0b1010",
       "expected": {

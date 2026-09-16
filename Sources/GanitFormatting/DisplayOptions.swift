@@ -11,6 +11,9 @@ public struct DisplayOptions: Codable, Equatable, Sendable {
   /// Groups digits as the locale does: `1,234,567` rather than `1234567`.
   public var groupsDigits: Bool
 
+  /// Groups in lakhs and crores after the first thousand: `12,34,567`.
+  public var groupsInLakhs: Bool
+
   /// How many decimals a number shows, and whether it is written as a power
   /// of ten.
   public var numbers: NumberDisplay
@@ -29,12 +32,14 @@ public struct DisplayOptions: Codable, Equatable, Sendable {
 
   public init(
     groupsDigits: Bool = true,
+    groupsInLakhs: Bool = false,
     numbers: NumberDisplay = .automatic,
     writesAnswersInline: Bool = false,
     showsAnswerSeparator: Bool = true,
     dollarCurrency: String = "USD"
   ) {
     self.groupsDigits = groupsDigits
+    self.groupsInLakhs = groupsInLakhs
     self.numbers = numbers
     self.writesAnswersInline = writesAnswersInline
     self.showsAnswerSeparator = showsAnswerSeparator
@@ -46,6 +51,7 @@ public struct DisplayOptions: Codable, Equatable, Sendable {
   public init(from decoder: any Decoder) throws {
     let container = try decoder.container(keyedBy: CodingKeys.self)
     groupsDigits = try container.decode(Bool.self, forKey: .groupsDigits)
+    groupsInLakhs = try container.decodeIfPresent(Bool.self, forKey: .groupsInLakhs) ?? false
     numbers = try container.decode(NumberDisplay.self, forKey: .numbers)
     writesAnswersInline =
       try container.decodeIfPresent(Bool.self, forKey: .writesAnswersInline) ?? false

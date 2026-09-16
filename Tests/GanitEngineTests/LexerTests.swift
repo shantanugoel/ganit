@@ -148,6 +148,20 @@ struct LexerTests {
   }
 
   @Test
+  func readsLakhGroupingWhereDigitsGroupInThrees() {
+    for (source, digits) in [("1,00,000", "100000"), ("12,34,56,789", "123456789")] {
+      let result = Lexer(source: source, configuration: .englishUnitedStates).lex()
+      #expect(result.diagnostics.isEmpty, "\(source)")
+      #expect(result.tokens.first?.kind == .number(.integer(digits: digits, radix: .decimal)))
+    }
+    // Groups either all of two or all of three, and leading digits no wider.
+    for source in ["1,00,000,000", "1,000,00,000", "123,45,678"] {
+      let result = Lexer(source: source, configuration: .englishUnitedStates).lex()
+      #expect(result.tokens.map(\.kind).contains(.argumentSeparator), "\(source)")
+    }
+  }
+
+  @Test
   func doesNotAcceptOversizedIndianLeadingGroup() {
     let configuration = LexingConfiguration(
       decimalSeparator: ".",

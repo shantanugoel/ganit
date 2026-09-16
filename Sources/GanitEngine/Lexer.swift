@@ -55,7 +55,9 @@ public struct Lexer: Sendable {
 
 private struct Scanner {
   private enum GroupingCacheEntry {
-    case valid(end: Int)
+    /// `maximumLeadingGroup` is the size of the groups between the leading
+    /// digits and the last group, which the leading digits may not exceed.
+    case valid(end: Int, maximumLeadingGroup: Int)
     case invalid
   }
 
@@ -433,7 +435,11 @@ private struct Scanner {
       return nil
     }
 
+    // Lakh grouping (`1,00,000`) is also read wherever digits group in
+    // threes, as it cannot mean anything else there.
+    let secondarySizes = Set([configuration.secondaryGroupingSize, 2])
     var suffixIsValid = true
+    var secondary: Int?
     for index in stride(from: groupSizes.count - 1, through: 0, by: -1) {
       if index == groupSizes.count - 1 {
         suffixIsValid =
@@ -441,11 +447,13 @@ private struct Scanner {
       } else {
         suffixIsValid =
           suffixIsValid
-          && groupSizes[index] == configuration.secondaryGroupingSize
+          && groupSizes[index] == (secondary ?? groupSizes[index])
+          && secondarySizes.contains(groupSizes[index])
+        secondary = groupSizes[index]
       }
       groupingCache[separatorPositions[index]] =
         suffixIsValid
-        ? .valid(end: probe)
+        ? .valid(end: probe, maximumLeadingGroup: secondary ?? secondarySizes.max()!)
         : .invalid
     }
 
@@ -459,13 +467,13 @@ private struct Scanner {
     from cacheEntry: GroupingCacheEntry,
     initialGroupSize: Int
   ) -> Int? {
-    guard case .valid(let end) = cacheEntry else {
+    guard case .valid(let end, let maximumLeadingGroup) = cacheEntry else {
       return nil
     }
 
     guard
       initialGroupSize > 0,
-      initialGroupSize <= configuration.secondaryGroupingSize
+      initialGroupSize <= maximumLeadingGroup
     else {
       return nil
     }

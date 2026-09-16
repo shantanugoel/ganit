@@ -20,7 +20,9 @@ Identifier starts and continuations use Unicode XID properties. Swift's canonica
 ## Numeric literals
 
 - Decimal integers: `1200`
-- Locale decimals and grouping: `1,234.50` in `en-US`, `1.234,50` in `de-DE`
+- Locale decimals and grouping: `1,234.50` in `en-US`, `1.234,50` in `de-DE`.
+  Where digits group in threes, lakh grouping reads too: `1,00,000` and
+  `₹50,00,000`
 - Scientific notation: `3.50e-2`
 - Programmer integers: `0b1010`, `0o755`, and `0xff`
 - Localized decimal digits, provided one literal does not mix digit scripts

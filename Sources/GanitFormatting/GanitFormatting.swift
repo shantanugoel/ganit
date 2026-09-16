@@ -418,7 +418,7 @@ public struct NumericResultFormatter: Sendable {
   }
 
   private var localeSecondaryGroupingSize: Int {
-    convention.secondaryGroupingSize
+    display.groupsInLakhs ? 2 : convention.secondaryGroupingSize
   }
 }
 
@@ -601,6 +601,9 @@ public struct ResultFormatter: Sendable {
     formatter.maximumFractionDigits = digits
     // The currency writes the decimals; the sheet still says how digits group.
     formatter.usesGroupingSeparator = display.groupsDigits
+    if display.groupsInLakhs {
+      formatter.secondaryGroupingSize = 2
+    }
     guard
       plain.count <= Self.currencyDigitCapacity,
       let value = Decimal(string: plain),

@@ -502,6 +502,14 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     write(options)
   }
 
+  @objc public func toggleLakhGrouping(_ sender: Any?) {
+    guard var options = displayOptions else {
+      return
+    }
+    options.groupsInLakhs.toggle()
+    write(options)
+  }
+
   @objc public func toggleMarkdownMode(_ sender: Any?) {
     let id = sidebar.targetSheet?.id ?? sheetID
     guard let id,
@@ -552,6 +560,9 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     case #selector(toggleDigitGrouping(_:)):
       menuItem.state = displayOptions?.groupsDigits == true ? .on : .off
       return displayOptions != nil
+    case #selector(toggleLakhGrouping(_:)):
+      menuItem.state = displayOptions?.groupsInLakhs == true ? .on : .off
+      return displayOptions?.groupsDigits == true
     case #selector(toggleMarkdownMode(_:)):
       menuItem.state =
         (target?.isMarkdown ?? displayOptions?.writesAnswersInline) == true ? .on : .off

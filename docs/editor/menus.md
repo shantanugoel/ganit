@@ -11,7 +11,7 @@ when the focused editor or window can perform it.
 | File | New Sheet ⌘N, Close ⌘W, Print… ⌘P |
 | Edit | Undo ⌘Z, Redo ⇧⌘Z, Cut ⌘X, Copy ⌘C, Paste ⌘V, Delete, Select All ⌘A, Find ▸ (Find… ⌘F, Find and Replace… ⌥⌘F, Find Next ⌘G, Find Previous ⇧⌘G, Use Selection for Find ⌘E), Autocomplete |
 | Calculate | Copy Result ⇧⌘C, Copy with Results, Copy Full Precision ⌥⇧⌘C, Show Interpretation, Ask Assistant, Change Answer…, Insert Reference ⌘\, Insert Subtotal ⌘T, Recalculate ⌘R, Stop ⌘. |
-| Format | Heading, Comment ⌘/, Divider, Step Number Up ⌃↑, Step Number Down ⌃↓, Number Format, Group Digits, Markdown Mode, Dollar Means |
+| Format | Heading, Comment ⌘/, Divider, Step Number Up ⌃↑, Step Number Down ⌃↓, Number Format, Group Digits, Group Digits in Lakhs, Markdown Mode, Dollar Means |
 | View | Bigger ⌘+, Smaller ⌘-, Actual Size ⌘0, Show Answer Separator, Enter Full Screen ⌃⌘F |
 | Window | Minimize ⌘M, Zoom, Scratch ⇧⌘S, Definitions ⌘⇧D, Quick Ganit items, Bring All to Front, and the window list |
 | Help | Ganit Help ⌘?, Release Notes, Show Tour, Report a Problem…, menu search |
@@ -41,8 +41,8 @@ workspace window with an empty sheet.
 - **Step Number Up** and **Step Number Down** step the number at the insertion
   point by one unit of its last decimal place, and are what a person who does
   not drag uses instead of scrubbing; see docs/editor/text-view.md.
-- **Number Format** and **Group Digits** say how the open sheet writes its
-  answers. The workspace window handles them, because the choice stays with the
+- **Number Format**, **Group Digits**, and **Group Digits in Lakhs**
+  (`12,34,567`) say how the open sheet writes its answers. The workspace window handles them, because the choice stays with the
   sheet; see docs/engine/result-formatting.md.
 - **Insert Reference** inserts `line N` for the selected answer when it is above
   the insertion point, or else for the nearest line above with a result.

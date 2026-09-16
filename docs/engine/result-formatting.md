@@ -54,8 +54,8 @@ an answer reads is not what it is, and copying still yields `2/3`.
 
 Money is written the way its currency is written, so a sheet's decimals and
 powers of ten leave it alone; its digits still group with the rest. The Format
-menu offers automatic, whole numbers, two and four decimals, scientific, and
-Group Digits, and a change rewrites the answers already on screen without
+menu offers automatic, whole numbers, two and four decimals, scientific, Group
+Digits, and Group Digits in Lakhs, and a change rewrites the answers already on screen without
 evaluating anything again.
 
 Formatting is bounded by `FormattingLimits`. The formatter preflights

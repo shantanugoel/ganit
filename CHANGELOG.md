@@ -5,6 +5,10 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Lakh grouping reads as a number: `1,00,000 + 5,00,000` is `600,000`, and
+  `pmt(₹50,00,000, 8.5% / 12, 240)` no longer splits the amount into
+  arguments. Format ▸ Group Digits in Lakhs writes a sheet's answers as
+  `12,34,567`.
 - `total`, `sum`, `count`, `average`, `median`, `previous`, and their short forms
   can name a variable, so `total = price * qty` works; below it the word means
   the variable. A name that is still taken, such as `min wage`, marks the

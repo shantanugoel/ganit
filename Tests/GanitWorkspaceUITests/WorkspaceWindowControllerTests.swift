@@ -354,6 +354,24 @@ struct WorkspaceWindowControllerTests {
   }
 
   @Test
+  func groupsASheetsAnswersInLakhsOnlyWhileItGroupsDigits() async throws {
+    let (workspace, ids) = try makeWorkspace(["1234567"])
+    defer { close(workspace) }
+    let controller = workspace.openWindow(showing: ids[0])
+    let editor = try #require(controller.editor)
+    let lakhs = NSMenuItem(
+      title: "", action: #selector(WorkspaceCommands.toggleLakhGrouping(_:)), keyEquivalent: "")
+
+    controller.toggleLakhGrouping(nil)
+    #expect(await editor.exportedLines().first?.answer == "12,34,567")
+    #expect(controller.validateMenuItem(lakhs))
+    #expect(lakhs.state == .on)
+
+    controller.toggleDigitGrouping(nil)
+    #expect(!controller.validateMenuItem(lakhs))
+  }
+
+  @Test
   func everyLibraryHasAScratchSheetThatCannotBePutAwayOrRenamed() throws {
     let (workspace, ids) = try makeWorkspace(["rent"])
     defer { close(workspace) }

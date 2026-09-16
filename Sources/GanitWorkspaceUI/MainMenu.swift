@@ -56,6 +56,7 @@ import GanitEditorUI
   func restorePreviousVersion(_ sender: Any?)
   func setNumberFormat(_ sender: Any?)
   func toggleDigitGrouping(_ sender: Any?)
+  func toggleLakhGrouping(_ sender: Any?)
   func toggleMarkdownMode(_ sender: Any?)
   func setDollarCurrency(_ sender: Any?)
   func toggleAnswerSeparator(_ sender: Any?)
@@ -364,6 +365,9 @@ public enum MainMenu {
           item(
             localized("menu.groupDigits", "Group Digits"),
             #selector(WorkspaceCommands.toggleDigitGrouping(_:))),
+          item(
+            localized("menu.groupInLakhs", "Group Digits in Lakhs"),
+            #selector(WorkspaceCommands.toggleLakhGrouping(_:))),
           .separator(),
           item(
             localized("menu.markdownMode", "Markdown Mode"),
