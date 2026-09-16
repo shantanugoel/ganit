@@ -412,6 +412,18 @@ struct WorkspaceWindowControllerTests {
     #expect(controller.validateMenuItem(prose))
     #expect(prose.state == .on)
     #expect(controller.sidebar.sheets.first { $0.id == ids[0] }?.isMarkdown == true)
+    let window = try #require(controller.window)
+    window.layoutIfNeeded()
+    let row = try #require(controller.sidebar.sheets.firstIndex { $0.id == ids[0] })
+    controller.sidebar.sheetsView.layoutSubtreeIfNeeded()
+    let cell = try #require(
+      controller.sidebar.sheetsView.view(atColumn: 0, row: row, makeIfNecessary: true)
+        as? NSTableCellView)
+    cell.layoutSubtreeIfNeeded()
+    let mark = try #require(firstImageView(in: cell))
+    let markFrame = mark.convert(mark.bounds, to: cell)
+    #expect(cell.bounds.width > 0)
+    #expect(markFrame.maxX <= cell.bounds.maxX + 1)
     // Inline answers leave no column, so the rule has nothing to mark.
     #expect(!controller.validateMenuItem(rule))
 
@@ -463,4 +475,17 @@ struct WorkspaceWindowControllerTests {
       controller.window?.orderOut(nil)
     }
   }
+}
+
+@MainActor
+private func firstImageView(in view: NSView) -> NSImageView? {
+  if let image = view as? NSImageView {
+    return image
+  }
+  for child in view.subviews {
+    if let image = firstImageView(in: child) {
+      return image
+    }
+  }
+  return nil
 }

@@ -21,6 +21,9 @@ existing answer. See the [release train](docs/release/release-train.md).
 - The Dock and Finder icon is the same `function` mark as the menu bar.
 - Completions show function parameters (`sqrt(x)`, `round(x, places)`).
   Inserting one selects the first parameter; Tab selects the next.
+- Clicking a completion inserts it. The list is as wide as the longest
+  signature. Markdown sheet titles truncate so the document mark stays in the
+  sidebar. Help’s topic list holds its column and the page wraps beside it.
 
 ## 0.2.0
 

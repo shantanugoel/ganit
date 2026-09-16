@@ -20,6 +20,17 @@ struct CompletionsTests {
   }
 
   @Test
+  func escapeDismissesTheListWithoutInserting() async throws {
+    let (_, textView) = try await makeEditor("")
+    textView.completesWhileTyping = true
+    textView.insertText("sq", replacementRange: NSRange(location: 0, length: 0))
+    #expect(textView.offeredCompletions.contains("sqrt(x)"))
+    textView.complete(nil)
+    #expect(textView.offeredCompletions.isEmpty)
+    #expect(textView.string == "sq")
+  }
+
+  @Test
   func tabMovesFromOneCompletedArgumentToTheNext() async throws {
     let (_, textView) = try await makeEditor("")
     textView.completesWhileTyping = true

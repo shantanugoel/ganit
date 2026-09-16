@@ -163,6 +163,21 @@ public final class HelpWindowController: NSWindowController, NSTableViewDataSour
     return container
   }
 
+  fileprivate func layoutPanes() {
+    guard split.frame.width > 400 else {
+      return
+    }
+    let listWidth = split.subviews.first?.frame.width ?? 0
+    if listWidth < 20 || listWidth > split.frame.width - 80 {
+      split.setPosition(220, ofDividerAt: 0)
+    }
+    if let reading = split.subviews.dropFirst().first as? NSScrollView {
+      let width = max(reading.contentSize.width, 1)
+      detail.textContainer?.containerSize = NSSize(
+        width: width, height: .greatestFiniteMagnitude)
+    }
+  }
+
   @objc private func searchChanged(_ sender: Any?) {
     reload(query: search.stringValue)
   }
@@ -331,12 +346,6 @@ private final class RootController: NSViewController {
 
   override func viewDidLayout() {
     super.viewDidLayout()
-    guard let split = owner?.split, split.frame.width > 400 else {
-      return
-    }
-    let listWidth = split.subviews.first?.frame.width ?? 0
-    if listWidth < 20 || listWidth > split.frame.width - 80 {
-      split.setPosition(220, ofDividerAt: 0)
-    }
+    owner?.layoutPanes()
   }
 }

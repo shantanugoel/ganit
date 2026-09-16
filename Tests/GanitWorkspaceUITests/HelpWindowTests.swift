@@ -49,6 +49,9 @@ struct HelpWindowTests {
     #expect(reading.width > 200)
     let text = try #require(first(NSTextView.self, in: split.subviews[1]))
     #expect(text.string.localizedCaseInsensitiveContains("round"))
+    let wrapped = try #require(text.textContainer?.containerSize.width)
+    #expect(wrapped > 200)
+    #expect(wrapped < .greatestFiniteMagnitude / 2)
   }
 }
 

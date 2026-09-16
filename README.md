@@ -71,7 +71,7 @@ calculations in it. Headings, paragraphs, and `**bold**` sit beside ordinary
 Ganit arithmetic; `=>` ends a calculation, as in Calca. Markdown sheets show a
 small document mark in the sidebar.
 
-![A sheet in Markdown Mode](docs/images/prose.png)
+![A sheet in Markdown Mode](docs/images/markdown.png)
 
 **Scratch** (⇧⌘S) is the sheet that is always there, for a number you want to
 work out now and name later.

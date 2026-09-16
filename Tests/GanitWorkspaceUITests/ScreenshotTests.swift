@@ -78,7 +78,7 @@ struct ScreenshotTests {
     try workspace.write(DisplayOptions(writesAnswersInline: true), on: ids[0])
     let window = try #require(controller.window)
     window.setContentSize(NSSize(width: 820, height: 320))
-    try await write(window, of: controller.editor, to: "prose.png")
+    try await write(window, of: controller.editor, to: "markdown.png")
     for open in workspace.windows { open.window?.orderOut(nil) }
   }
 

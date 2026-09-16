@@ -99,6 +99,15 @@ final class SheetTextView: NSTextView {
   private var helpTooltip = ""
   private let completionList = CompletionList()
 
+  private func configureCompletions() {
+    guard completionList.onChoose == nil else {
+      return
+    }
+    completionList.onChoose = { [weak self] in
+      _ = self?.insertSelectedCompletion()
+    }
+  }
+
   private var overlay: AnswerOverlayView?
 
   func attributes(for cell: AnswerCell, selected: Bool) -> [NSAttributedString.Key: Any] {
@@ -774,6 +783,7 @@ final class SheetTextView: NSTextView {
   }
 
   private func updateCompletions() {
+    configureCompletions()
     guard completesWhileTyping ?? GanitPreferences.completesWhileTyping,
       let prefix = completionPrefix()
     else {

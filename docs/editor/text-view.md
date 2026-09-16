@@ -105,9 +105,9 @@ message only after the insertion point leaves the line.
 | Escape or typing | Clears the answer selection |
 
 Function and keyword names complete while typing. The list shows each
-function with its parameters. Return or Tab inserts the selected completion
-and selects the first parameter; Tab then moves to the next one. Escape
-dismisses the list. **Edit ▸ Autocomplete** turns the list off.
+function with its parameters. Return, Tab, or a click inserts the selected
+completion and selects the first parameter; Tab then moves to the next one.
+Escape dismisses the list. **Edit ▸ Autocomplete** turns the list off.
 
 `copyResult:`, `copyFullPrecision:`, and `showInterpretation:` are responder
 actions that act on the selected answer or, without one, the insertion point's

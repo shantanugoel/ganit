@@ -368,6 +368,8 @@ extension SidebarViewController: NSTableViewDataSource, NSTableViewDelegate {
       labelWithString: sheet.title.isEmpty ? localized("sheet.untitled", "Untitled") : sheet.title
     )
     title.lineBreakMode = .byTruncatingTail
+    title.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+    title.setContentHuggingPriority(.defaultLow, for: .horizontal)
     var titleViews: [NSView] = [title]
     if sheet.isMarkdown {
       let mark = NSImageView(
@@ -375,16 +377,20 @@ extension SidebarViewController: NSTableViewDataSource, NSTableViewDelegate {
           systemSymbolName: VisualStyle.Symbol.markdown,
           accessibilityDescription: localized("menu.markdownMode", "Markdown Mode"))!)
       mark.contentTintColor = VisualStyle.Color.secondary
+      mark.setContentCompressionResistancePriority(.required, for: .horizontal)
       titleViews.append(mark)
     }
     let titleRow = NSStackView(views: titleViews)
     titleRow.orientation = .horizontal
     titleRow.alignment = .centerY
+    titleRow.distribution = .fill
     titleRow.spacing = VisualStyle.Spacing.related
     let modified = NSTextField(
       labelWithString: sheet.modifiedAt.formatted(.relative(presentation: .named)))
     modified.textColor = VisualStyle.Color.secondary
     modified.font = VisualStyle.Typography.caption
+    modified.lineBreakMode = .byTruncatingTail
+    modified.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
     let stack = NSStackView(views: [titleRow, modified])
     stack.orientation = .vertical
     stack.alignment = .leading
@@ -396,8 +402,11 @@ extension SidebarViewController: NSTableViewDataSource, NSTableViewDelegate {
     NSLayoutConstraint.activate([
       stack.leadingAnchor.constraint(
         equalTo: cell.leadingAnchor, constant: VisualStyle.Spacing.compact),
-      stack.trailingAnchor.constraint(lessThanOrEqualTo: cell.trailingAnchor),
+      stack.trailingAnchor.constraint(
+        equalTo: cell.trailingAnchor, constant: -VisualStyle.Spacing.compact),
       stack.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+      titleRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
+      modified.widthAnchor.constraint(lessThanOrEqualTo: stack.widthAnchor),
     ])
     return cell
   }
