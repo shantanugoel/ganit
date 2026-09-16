@@ -54,34 +54,32 @@ struct ScreenshotTests {
     let controller = workspace.openWindow(showing: ids[0])
     let window = try #require(controller.window)
     window.setContentSize(NSSize(width: 900, height: 480))
-    try await write(window, of: controller.editor, to: "library.png")
+    try await write(window, of: controller.editor, to: "library-dark.png")
     for open in workspace.windows { open.window?.orderOut(nil) }
   }
 
-  /// The same answers, read as a markdown article: in the lines rather than beside them.
+  /// A Calca-style article: sentences with arithmetic, answers after `=>`.
   @Test
   func markdownMode() async throws {
     let (workspace, ids) = try makeWorkspace([
       """
-      # Saturday
+      # Saturday baking
 
-      // three cakes, and each takes 500 g of flour and 1.5 l of milk
+      We need flour and milk for three cakes.
 
-      Flour for all three: 500 g * 3
-      Milk in millilitres: (1.5 l * 3) in ml
-      Half-litre bottles to buy: 4500 ml / 500 ml
+      Flour for all three is 500 g * 3 =>
+      Milk for all three is (1.5 l * 3) in ml =>
+      Half-litre bottles to buy: 4500 ml / 500 ml =>
 
-      // and the shopping, split three ways
-
-      Flour and milk cost: 240 + 315
-      Each of us pays: 555 / 3
+      Flour and milk together cost 240 + 315 =>
+      Each of us pays 555 / 3 =>
       """
     ])
     let controller = workspace.openWindow(showing: ids[0])
     try workspace.write(DisplayOptions(writesAnswersInline: true), on: ids[0])
     let window = try #require(controller.window)
-    window.setContentSize(NSSize(width: 900, height: 380))
-    try await write(window, of: controller.editor, to: "markdown.png")
+    window.setContentSize(NSSize(width: 900, height: 420))
+    try await write(window, of: controller.editor, to: "markdown-dark.png")
     for open in workspace.windows { open.window?.orderOut(nil) }
   }
 
@@ -104,7 +102,7 @@ struct ScreenshotTests {
     controller.editor?.askAssistant = workspace.askAssistant
     let window = try #require(controller.window)
     window.setContentSize(NSSize(width: 900, height: 280))
-    try await write(window, of: controller.editor, to: "assistant.png")
+    try await write(window, of: controller.editor, to: "assistant-dark.png")
     for open in workspace.windows { open.window?.orderOut(nil) }
   }
 
@@ -115,11 +113,11 @@ struct ScreenshotTests {
     panel.show()
     let window = try #require(panel.window)
     window.setContentSize(NSSize(width: 640, height: 140))
-    try await write(window, of: panel.editor, to: "quick.png")
+    try await write(window, of: panel.editor, to: "quick-dark.png")
     window.orderOut(nil)
   }
 
-  /// Draws a window, in Light Appearance, once its answers have settled,
+  /// Draws a window, in Dark Appearance, once its answers have settled,
   /// including the title bar and toolbar so the README shows the app as it
   /// appears on a Mac.
   private func write(
@@ -127,7 +125,9 @@ struct ScreenshotTests {
     of editor: SheetEditorViewController?,
     to name: String
   ) async throws {
-    window.appearance = NSAppearance(named: .aqua)
+    let appearance = NSAppearance(named: .darkAqua)
+    NSApp.appearance = appearance
+    window.appearance = appearance
     window.tabbingMode = .disallowed
     NSApp.setActivationPolicy(.regular)
     NSApp.activate()
@@ -204,7 +204,7 @@ struct ScreenshotTests {
     let canvas = NSSize(width: inner.width + pad * 2, height: inner.height + pad * 2)
     let image = NSImage(size: canvas)
     image.lockFocus()
-    NSAppearance(named: .aqua)?.performAsCurrentDrawingAppearance {
+    NSAppearance(named: .darkAqua)?.performAsCurrentDrawingAppearance {
       let ctx = NSGraphicsContext.current!.cgContext
       let frame = NSRect(x: pad, y: pad, width: inner.width, height: inner.height)
       ctx.setShadow(
@@ -320,7 +320,7 @@ struct ScreenshotTests {
     NSGraphicsContext.saveGraphicsState()
     defer { NSGraphicsContext.restoreGraphicsState() }
     NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
-    NSAppearance(named: .aqua)?.performAsCurrentDrawingAppearance {
+    NSAppearance(named: .darkAqua)?.performAsCurrentDrawingAppearance {
       image.draw(in: NSRect(origin: .zero, size: size))
     }
     return try #require(bitmap.representation(using: .png, properties: [:]))

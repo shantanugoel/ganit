@@ -7,7 +7,7 @@ The live notepad of [Soulver](https://soulver.app/) and [Numi](https://numi.app/
 [Download for Mac](https://github.com/shantanugoel/ganit/releases/latest) · Apple silicon · macOS 14+
 
 <p align="center">
-  <img src="docs/images/library.png" alt="Ganit window with a party budget and live answers beside each line" width="860">
+  <img src="docs/images/library-dark.png" alt="Ganit window with a party budget and live answers beside each line" width="860">
 </p>
 
 ## What it does
@@ -18,13 +18,13 @@ The live notepad of [Soulver](https://soulver.app/) and [Numi](https://numi.app/
 - **An AI assistant for the rest.** Arithmetic cannot do `10 kg of water in ml`. Name a model — on this Mac or on the internet — and Ganit asks it about those lines, one at a time, and marks the answers as the assistant's. Off until you set it up.
 
 <p align="center">
-  <img src="docs/images/assistant.png" alt="Ganit window with a purple assistant answer beside a line Ganit could not calculate" width="860">
+  <img src="docs/images/assistant-dark.png" alt="Ganit window with a purple assistant answer beside a line Ganit could not calculate" width="860">
 </p>
 
-- **Markdown Mode.** Answers move into the line so a sheet reads as an article. `=>` ends a calculation, as in Calca.
+- **Markdown Mode.** Answers move into the line so a sheet reads as an article. `Flour for all three is 500 g * 3 =>` puts the answer after `=>`, as in Calca.
 
 <p align="center">
-  <img src="docs/images/markdown.png" alt="Ganit window in Markdown Mode, with answers written into the lines" width="860">
+  <img src="docs/images/markdown-dark.png" alt="Ganit window in Markdown Mode, with answers written after => in the lines" width="860">
 </p>
 
 - **Anywhere on the Mac.** A shortcut summons **Quick Ganit** over any app. The same engine answers from the menu bar, Services, Shortcuts, `ganit://` links, and a `ganit` command.
@@ -68,7 +68,7 @@ shortcut in **Window ▸ Quick Ganit Shortcut…**, and it appears anywhere, ove
 anything.
 
 <p align="center">
-  <img src="docs/images/quick.png" alt="Quick Ganit overlay calculating a monthly amount and a percentage" width="640">
+  <img src="docs/images/quick-dark.png" alt="Quick Ganit overlay calculating a monthly amount and a percentage" width="640">
 </p>
 
 **Markdown mode** (**Format ▸ Markdown Mode**, or the sheet's right-click menu)
