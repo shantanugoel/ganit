@@ -921,12 +921,19 @@ public final class SheetEditorViewController: NSViewController {
         AnswerCell.Detail(
           label: localized("interpretation.problem", "Problem"), value: diagnostic.message)
       ]
+      // The text the underline marks, so the card says where as well as what.
+      if let range = diagnostic.ranges.first, !range.isEmpty,
+        let flagged = range.text(in: shown.text).map(String.init), flagged != details.first?.value
+      {
+        details.insert(
+          AnswerCell.Detail(
+            label: localized("interpretation.where", "Where"), value: "“\(flagged)”"),
+          at: details.count - 1)
+      }
       details += diagnostic.fixIts.map {
         AnswerCell.Detail(
           label: localized("interpretation.suggestion", "Suggestion"), value: $0.replacement)
       }
-      details.append(
-        AnswerCell.Detail(label: localized("interpretation.code", "Code"), value: diagnostic.code))
     }
     return details
   }

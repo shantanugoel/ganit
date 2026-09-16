@@ -445,7 +445,8 @@ final class SheetTextView: NSTextView {
       setSelectedRange(NSRange(location: offset, length: 0))
     }
     let menu = NSMenu()
-    if let help = lookupHelp(at: point) {
+    // A problem's interpretation is already among the answer commands.
+    if let help = lookupHelp(at: point), help.topicID != nil {
       let item = NSMenuItem(
         title: help.menuTitle, action: #selector(openLanguageHelp(_:)), keyEquivalent: "")
       item.representedObject = help
@@ -471,14 +472,12 @@ final class SheetTextView: NSTextView {
   }
 
   @objc func openLanguageHelp(_ sender: Any?) {
-    guard let help = (sender as? NSMenuItem)?.representedObject as? SourceHelp else {
+    guard let help = (sender as? NSMenuItem)?.representedObject as? SourceHelp,
+      let topicID = help.topicID
+    else {
       return
     }
-    if let topicID = help.topicID {
-      openHelp?(topicID)
-    } else {
-      showInterpretation(nil)
-    }
+    openHelp?(topicID)
   }
 
   func lookupHelp(atUTF16 offset: Int) -> SourceHelp? {

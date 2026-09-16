@@ -103,7 +103,7 @@ assistant shows Asking… until a value arrives.
 | Space on a selected answer | Opens its interpretation card |
 | Hover a function, keyword, or error | Shows its signature or message |
 | Hover a cut-off answer or error | Shows the full text |
-| Right-click a function, keyword, or error | Help for that name, or Show Interpretation |
+| Right-click a function or keyword | Help for that name |
 | Right-click Ask Assistant | Asks again about a line Ganit could not work out, or an `ask_assistant` prompt |
 | Right-click Change Answer… | Replaces an assistant value on that line |
 | Right-click Copy with Results | Copies each selected line with the answer it shows |
@@ -129,7 +129,8 @@ Answer… is enabled when that line already has an assistant value.
 The interpretation card is a transient popover listing the expression, result,
 full precision, value kind, and exactness, then one Assumption row for each
 [finance function](../grammar/finance-functions.md) the answer used; for a
-failure it lists the expression, message, and stable diagnostic code. Unit conversions, provenance,
+failure it lists the expression, the underlined text the problem is at
+(Where), the message, and any suggestions. Unit conversions, provenance,
 time zones, and references join the card as those details become available.
 
 ## Selection summary

@@ -5,6 +5,9 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- A failed line's interpretation card shows Where: the underlined text the
+  problem is at. It no longer shows the internal diagnostic code, and the
+  right-click menu lists Show Interpretation once.
 - `line N` keeps naming the same line when lines are added or removed above it:
   the editor rewrites the number in the same undoable edit, instead of the
   reference silently reading a different line.

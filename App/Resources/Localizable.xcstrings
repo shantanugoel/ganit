@@ -361,12 +361,12 @@
         }
       }
     },
-    "interpretation.code" : {
+    "interpretation.where" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Code"
+            "value" : "Where"
           }
         }
       }

@@ -25,7 +25,9 @@ struct AnswerInteractionTests {
     let failure = try #require(textView.answer(ids[1]))
     #expect(failure.isFailure)
     #expect(failure.text == "These quantities have incompatible dimensions.")
-    #expect(textView.interpretation(ids[1]).last?.value == "evaluation.incompatibleDimensions")
+    #expect(
+      textView.interpretation(ids[1]).map(\.label) == ["Expression", "Where", "Problem"])
+    #expect(textView.interpretation(ids[1])[1].value == "“+”")
 
     // Incomplete input shows its message only once editing leaves the line.
     textView.setSelectedRange(NSRange(location: textView.string.utf16.count, length: 0))
@@ -50,7 +52,7 @@ struct AnswerInteractionTests {
         "2024-11-03T01:30:00-04:00 America/New_York", "2024-11-03T01:30:00-05:00 America/New_York",
       ]
     )
-    #expect(overlap.last?.value == "evaluation.ambiguousLocalTime")
+    #expect(!overlap.contains { $0.value == "evaluation.ambiguousLocalTime" })
   }
 
   @Test
