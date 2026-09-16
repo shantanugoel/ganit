@@ -77,6 +77,9 @@ install -m 0644 \
     ThirdPartyNotices/UnitSources.md \
     "$staging/Contents/Resources/UnitSources.md"
 install -m 0644 \
+    ThirdPartyNotices/CurrencyDataSources.md \
+    "$staging/Contents/Resources/CurrencyDataSources.md"
+install -m 0644 \
     CHANGELOG.md \
     "$staging/Contents/Resources/CHANGELOG.md"
 xcrun xcstringstool compile \
