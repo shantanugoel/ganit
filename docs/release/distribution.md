@@ -108,5 +108,11 @@ and Gatekeeper assessed both as `source=Notarized Developer ID`. The image is
 
 So the credential-gated part is no longer theoretical: Developer ID signing,
 both notarizations, stapling, and the `spctl` assessments all behave as this
-document describes. What the workflow adds is doing the same thing from a
-keychain that exists only for that run.
+document describes.
+
+The workflow has since done the same from a keychain that existed only for its
+run. Pushing `v0.1.1` that afternoon tested, signed, notarized, and published a
+disk image and an appcast in five and a half minutes, unattended. A 0.1.0 in
+`/Applications` then found 0.1.1 through **Check for Updates…**, verified the
+signature, and replaced itself, which is the whole path a reader takes and the
+only way to know the nested signing and the sandboxed installer agree.
