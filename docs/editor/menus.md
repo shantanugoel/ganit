@@ -1,13 +1,13 @@
 # Menus and commands
 
 `MainMenu.install(in:)` builds the standard main menu. It lists only commands
-that exist; Settings, sidebar, toolbar, Open, Export, and Quick Ganit items
-arrive with those features. Every item uses a responder-chain action, so it is
-enabled only when the focused editor or window can perform it.
+that exist; sidebar, toolbar, Open, Export, and Quick Ganit items arrive with
+those features. Every item uses a responder-chain action, so it is enabled only
+when the focused editor or window can perform it.
 
 | Menu | Items |
 |---|---|
-| Ganit | About, Check for Updates…, Check for Updates Automatically, Stay in the Menu Bar, Show Sheet Titles in Spotlight, Assistant…, Services, Hide ⌘H, Hide Others ⌥⌘H, Show All, Quit ⌘Q |
+| Ganit | About, Settings… ⌘,, Check for Updates…, Check for Updates Automatically, Stay in the Menu Bar, Show Sheet Titles in Spotlight, Assistant…, Services, Hide ⌘H, Hide Others ⌥⌘H, Show All, Quit ⌘Q |
 | File | New Sheet ⌘N, Close ⌘W, Print… ⌘P |
 | Edit | Undo ⌘Z, Redo ⇧⌘Z, Cut ⌘X, Copy ⌘C, Paste ⌘V, Delete, Select All ⌘A, Find ▸ (Find… ⌘F, Find and Replace… ⌥⌘F, Find Next ⌘G, Find Previous ⇧⌘G, Use Selection for Find ⌘E), Autocomplete |
 | Calculate | Copy Result ⇧⌘C, Copy Full Precision ⌥⇧⌘C, Show Interpretation, Insert Reference ⌘\, Insert Subtotal ⌘T, Recalculate ⌘R, Stop ⌘. |

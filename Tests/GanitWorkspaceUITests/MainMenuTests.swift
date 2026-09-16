@@ -25,6 +25,7 @@ struct MainMenuTests {
     #expect(ganitHelp?.title == "Ganit Help")
     #expect(ganitHelp?.keyEquivalent == "?")
     #expect(items.contains { $0.action == #selector(ApplicationCommands.showAbout(_:)) })
+    #expect(items.contains { $0.action == #selector(ApplicationCommands.showSettings(_:)) })
     #expect(items.contains { $0.action == #selector(ApplicationCommands.toggleAutocomplete(_:)) })
 
     let expected: [(Selector, String, NSEvent.ModifierFlags)] = [

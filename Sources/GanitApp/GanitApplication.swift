@@ -35,6 +35,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   private var assistantWindow: NSWindow?
   private var help: HelpWindowController?
   private var releaseNotes: ReleaseNotesWindowController?
+  private var settingsWindow: NSWindow?
   /// The assistant's settings, read once so that asking about a line does not
   /// go to the keychain every time.
   private var assistantSettings = AssistantSettings.load()
@@ -279,6 +280,57 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     NSApplication.shared.orderFrontStandardAboutPanel(
       options: [.credits: AboutCredits.attributedString()]
     )
+  }
+
+  /// One window for the app-wide switches that also live in the menus.
+  @objc func showSettings(_ sender: Any?) {
+    if let settingsWindow {
+      (settingsWindow.contentViewController as? SettingsController)?.show(currentSettings())
+      settingsWindow.makeKeyAndOrderFront(nil)
+      return
+    }
+    let controller = SettingsController(state: currentSettings()) { [weak self] state in
+      self?.apply(state)
+    }
+    let window = NSWindow(contentViewController: controller)
+    window.title = String(localized: "menu.settings", defaultValue: "Settings", bundle: .main)
+    window.styleMask = [.titled, .closable]
+    window.isReleasedWhenClosed = false
+    window.center()
+    window.makeKeyAndOrderFront(nil)
+    settingsWindow = window
+  }
+
+  private func currentSettings() -> SettingsState {
+    SettingsState(
+      staysInMenuBar: UserDefaults.standard.bool(forKey: Self.menuBarDefaultsKey),
+      spotlightTitles: UserDefaults.standard.bool(forKey: Self.spotlightDefaultsKey),
+      quickGanitStartsEmpty: UserDefaults.standard.bool(forKey: Self.startsEmptyDefaultsKey),
+      automaticExchangeRates: rateRefresher?.isAutomatic == true,
+      automaticUpdates: checksForUpdatesAutomatically,
+      completesWhileTyping: GanitPreferences.completesWhileTyping
+    )
+  }
+
+  private func apply(_ settings: SettingsState) {
+    if UserDefaults.standard.bool(forKey: Self.menuBarDefaultsKey) != settings.staysInMenuBar {
+      toggleMenuBarItem(nil)
+    }
+    if UserDefaults.standard.bool(forKey: Self.spotlightDefaultsKey) != settings.spotlightTitles {
+      toggleSpotlightTitles(nil)
+    }
+    if UserDefaults.standard.bool(forKey: Self.startsEmptyDefaultsKey)
+      != settings.quickGanitStartsEmpty
+    {
+      toggleQuickGanitStartsEmpty(nil)
+    }
+    if (rateRefresher?.isAutomatic == true) != settings.automaticExchangeRates {
+      toggleAutomaticExchangeRateUpdates(nil)
+    }
+    if checksForUpdatesAutomatically != settings.automaticUpdates {
+      toggleAutomaticUpdateChecks(nil)
+    }
+    GanitPreferences.completesWhileTyping = settings.completesWhileTyping
   }
 
   // MARK: Help

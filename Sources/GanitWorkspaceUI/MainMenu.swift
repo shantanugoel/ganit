@@ -16,6 +16,7 @@ import GanitEditorUI
   func showAssistantSettings(_ sender: Any?)
   func showHelp(_ sender: Any?)
   func showAbout(_ sender: Any?)
+  func showSettings(_ sender: Any?)
   func showReleaseNotes(_ sender: Any?)
   func reportProblem(_ sender: Any?)
   func checkForUpdates(_ sender: Any?)
@@ -127,6 +128,11 @@ public enum MainMenu {
           item(
             localized("menu.about", "About Ganit"),
             #selector(ApplicationCommands.showAbout(_:))),
+          item(
+            localized("menu.settings", "Settings…"),
+            #selector(ApplicationCommands.showSettings(_:)),
+            ","),
+          .separator(),
           item(
             localized("menu.checkForUpdates", "Check for Updates…"),
             #selector(ApplicationCommands.checkForUpdates(_:))),

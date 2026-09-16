@@ -14,6 +14,7 @@ existing answer. See the [release train](docs/release/release-train.md).
 - Help ▸ Release Notes shows the changelog.
 - Function and keyword names complete while typing. Edit ▸ Autocomplete turns
   that off.
+- Ganit ▸ Settings… gathers the app-wide switches in one window.
 
 ## 0.1.1
 
