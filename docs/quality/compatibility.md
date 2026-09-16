@@ -63,7 +63,7 @@ Ganit 5c787c4, numi-cli v0.18.0.
 | `60 mi/h in km/h` | 60 mi. | 96.56064 km/h |
 | `20 °C in °F` | 68.00 °F | 68 °F |
 | `10 USD + 5 USD` | $15 | $15.00 |
-| `$20 + $5` | $25 | This symbol is used by several currencies. Write a code such as USD. |
+| `$20 + $5` | $25 | $25.00 |
 | `2024-01-31 + 1 month` | 2024-08-28 | Feb 29, 2024 |
 | `15 Jan 2024 + 10 days` | 25 day | Jan 25, 2024 |
 | `1 day in hours` | 24 h | This operation cannot combine these value types. |
@@ -92,8 +92,8 @@ precision and keeps the exact value for Copy Full Precision.
 
 ## What Ganit refuses on purpose
 
-- `$20 + $5` asks for a currency code, because `$` belongs to several
-  currencies and guessing one would silently change an amount of money.
+- `$20 + $5` is USD on a new sheet. Format ▸ Dollar Means or the sheet's
+  right-click menu picks another dollar currency when `$` should not be USD.
 - `1 day in hours` refuses because a calendar day is not always 24 hours;
   `24 h in min` and the other fixed-duration conversions work.
 - `3 pm + 2 hours` reads `pm` as picometres after a bare number, as the

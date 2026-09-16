@@ -130,9 +130,9 @@ extension LanguageReference {
       ),
       body: text(
         "help.grammar.units.body",
-        "Write a number and a unit, then convert with in, to, as, or into: 12 km in miles. Compatible units add; incompatible ones say so. Compound units multiply and divide: 75 MB/s * 2 s. Temperature converts on its scale: 0 °C as °F."
+        "Write a number and a unit, or a unit and a number: 12 km and km 12. Convert with in, to, as, or into: 12 km in miles. Compatible units add; incompatible ones say so. Compound units multiply and divide: 75 MB/s * 2 s. Temperature converts on its scale: 0 °C as °F."
       ),
-      examples: ["12 km in miles", "75 MB/s * 2 s", "0 °C as °F"],
+      examples: ["12 km in miles", "km 12", "75 MB/s * 2 s", "0 °C as °F"],
       keywords: ["conversion", "length", "mass", "data"]
     ),
     topic(
@@ -205,9 +205,9 @@ extension LanguageReference {
       ),
       body: text(
         "help.grammar.money.body",
-        "12.50 EUR and €5 are money. $ is refused because several currencies use it: write USD. 100 USD in INR converts with the European Central Bank daily rates, or a rate you declare: 1 USD = 83 INR. Automatic downloads can be turned off."
+        "12.50 EUR, EUR 12.50, €5, and 5€ are money. $ is USD unless Format ▸ Dollar Means or the sheet's right-click menu picks another dollar currency. USD 1.5, 5 dollars, dollars 5, and 11.5 million are the same kinds of amount. ¥ is yen. 100 USD in INR converts with the European Central Bank daily rates, or a rate you declare: 1 USD = 83 INR. Automatic downloads can be turned off."
       ),
-      examples: ["12.50 EUR", "100 USD in INR", "1 USD = 83 INR"],
+      examples: ["$1.5", "USD 1.5", "11.5 million", "12.50 EUR", "100 USD in INR"],
       keywords: ["currency", "exchange", "EUR", "USD"]
     ),
     topic(

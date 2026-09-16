@@ -6,7 +6,7 @@ The unit catalog is the authority for accepted unit names, aliases, and prefixes
 ## Grammar
 
 ```text
-quantity       := number unit-expression
+quantity       := number unit-expression | unit-expression number
 conversion     := expression ("in" | "to" | "as" | "into") unit-expression
 unit-expression := unit-factor (("*" | "×" | "·" | "/") unit-factor)*
 unit-factor    := unit-name unit-power?
@@ -15,7 +15,8 @@ unit-power     := "^" ("+" | "-")? integer | "²" | "³"
 ```
 
 Whitespace between a number and its unit is optional: `12 km` and `12km` are
-equivalent. Products must be explicit inside units. Examples include `75 MB/s`,
+equivalent. The unit may also come first: `km 12` and `km/h 60`. Products must
+be explicit inside units. Examples include `75 MB/s`,
 `9.81 m/s^2`, `1 kg·m/s²`, and `1 m/(s^2)`.
 
 Unit exponents, nesting, token counts, factor counts, and dimension exponents

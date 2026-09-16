@@ -11,7 +11,7 @@ notes. `FrozenFormatTests` fails if a version changes without this file.
 | Folders file | 1 | `SheetFolders`, [library](../workspace/library.md) |
 | `.ganit` package manifest | 1 | `GanitManifest.currentSchemaVersion`, [.ganit format](../storage/ganit-format.md) |
 | Exchange-rate snapshot metadata | 1 | `RateSnapshotMetadata.currentSchemaVersion`, [currency snapshots](../storage/currency-snapshots.md) |
-| Ambiguity registry (grammar policy) | 5 | [ambiguity registry](../grammar/ambiguity-registry.md) |
+| Ambiguity registry (grammar policy) | 6 | [ambiguity registry](../grammar/ambiguity-registry.md) |
 | Golden corpus fixtures | 1 | `Tests/GanitEngineCorpusTests/Fixtures` |
 
 Sheet source is plain UTF-8 text and has no version: every Ganit reads it.

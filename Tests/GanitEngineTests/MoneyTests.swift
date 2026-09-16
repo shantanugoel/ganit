@@ -12,11 +12,10 @@ struct MoneyTests {
     #expect(try same(evaluate("US$5"), money("5", "USD")))
     #expect(try same(evaluate("-£3"), money("-3", "GBP")))
     #expect(try same(evaluate("₹(2 + 3)"), money("5", "INR")))
-    for source in ["$5", "¥5"] {
-      let diagnostics = Parser(source: source).parse().diagnostics
-      #expect(diagnostics.map(\.code) == [.ambiguousCurrencySymbol])
-      #expect(diagnostics.map(\.severity) == [.ambiguity])
-    }
+    #expect(try same(evaluate("$5"), money("5", "USD")))
+    #expect(try same(evaluate("¥5"), money("5", "JPY")))
+    #expect(try same(evaluate("USD 1.5"), money("1.5", "USD")))
+    #expect(try same(evaluate("5 dollars"), money("5", "USD")))
     #expect(CurrencyCatalog.minorUnits["JPY"] == 0)
     #expect(CurrencyCatalog.minorUnits["KWD"] == 3)
     #expect(CurrencyCatalog.minorUnits["XAU"] == nil)

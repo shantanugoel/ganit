@@ -417,8 +417,17 @@ struct WorkspaceWindowControllerTests {
 
     controller.toggleMarkdownMode(nil)
     controller.toggleAnswerSeparator(nil)
+    let cad = NSMenuItem(
+      title: "", action: #selector(WorkspaceCommands.setDollarCurrency(_:)), keyEquivalent: "")
+    cad.representedObject = "CAD"
+    controller.setDollarCurrency(cad)
+    #expect(controller.validateMenuItem(cad))
+    #expect(cad.state == .on)
     let stored = try workspace.library.store.load(id: ids[0]).metadata.preferences.display
-    #expect(stored == DisplayOptions(writesAnswersInline: false, showsAnswerSeparator: false))
+    #expect(
+      stored
+        == DisplayOptions(
+          writesAnswersInline: false, showsAnswerSeparator: false, dollarCurrency: "CAD"))
 
     let reopened = try Workspace(library: try SheetLibrary(root: root))
     defer { close(reopened) }

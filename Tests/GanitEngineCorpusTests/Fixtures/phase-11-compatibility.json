@@ -314,15 +314,13 @@
       }
     },
     {
-      "name": "an ambiguous currency symbol",
+      "name": "a dollar amount",
       "expression": "$20 + $5",
       "expected": {
-        "status": "syntaxFailure",
-        "code": "ambiguousCurrencySymbol",
-        "messageKey": "syntax.ambiguousCurrencySymbol",
-        "message": "This symbol is used by several currencies. Write a code such as USD.",
-        "lowerBound": 0,
-        "upperBound": 1
+        "status": "value",
+        "display": "$25.00",
+        "fullPrecision": "25 USD",
+        "approximate": false
       }
     },
     {

@@ -57,7 +57,8 @@ public struct CalculationEngine: Sendable {
       limits: syntaxLimits,
       catalog: unitCatalog,
       origin: origin,
-      variables: variables
+      variables: variables,
+      dollarCurrency: context.dollarCurrency
     ).parse()
   }
 

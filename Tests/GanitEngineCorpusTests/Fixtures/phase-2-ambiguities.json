@@ -338,27 +338,23 @@
       }
     },
     {
-      "name": "symbols: dollar sign names several currencies",
+      "name": "symbols: dollar sign means the sheet dollar currency",
       "expression": "$5",
       "expected": {
-        "status": "syntaxFailure",
-        "code": "ambiguousCurrencySymbol",
-        "messageKey": "syntax.ambiguousCurrencySymbol",
-        "message": "This symbol is used by several currencies. Write a code such as USD.",
-        "lowerBound": 0,
-        "upperBound": 1
+        "status": "value",
+        "display": "$5.00",
+        "fullPrecision": "5 USD",
+        "approximate": false
       }
     },
     {
-      "name": "symbols: yen sign names several currencies",
+      "name": "symbols: yen sign means yen",
       "expression": "¥5",
       "expected": {
-        "status": "syntaxFailure",
-        "code": "ambiguousCurrencySymbol",
-        "messageKey": "syntax.ambiguousCurrencySymbol",
-        "message": "This symbol is used by several currencies. Write a code such as USD.",
-        "lowerBound": 0,
-        "upperBound": 2
+        "status": "value",
+        "display": "¥5",
+        "fullPrecision": "5 JPY",
+        "approximate": false
       }
     },
     {

@@ -256,6 +256,11 @@ extension SidebarViewController: NSMenuDelegate {
         localized("menu.markdownMode", "Markdown Mode"),
         #selector(WorkspaceCommands.toggleMarkdownMode(_:)))
       menu.items.last?.state = sheet.isMarkdown ? .on : .off
+      let dollar = NSMenuItem(
+        title: localized("menu.dollarMeans", "Dollar Means"), action: nil, keyEquivalent: "")
+      dollar.submenu = NSMenu()
+      dollar.submenu!.items = MainMenu.dollarCurrencyItems()
+      menu.addItem(dollar)
       add(
         sheet.isFavorite
           ? localized("menu.removeFavorite", "Remove from Favorites")

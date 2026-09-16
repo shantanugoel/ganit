@@ -31,7 +31,11 @@ func sheetOutcomes(_ source: String) throws -> [String?] {
   }
 }
 
-func sheetContext(angleMode: AngleMode = .radians, isMarkdownMode: Bool = false) throws
+func sheetContext(
+  angleMode: AngleMode = .radians,
+  isMarkdownMode: Bool = false,
+  dollarCurrency: String = "USD"
+) throws
   -> EvaluationContext
 {
   try EvaluationContext(
@@ -42,6 +46,7 @@ func sheetContext(angleMode: AngleMode = .radians, isMarkdownMode: Bool = false)
     now: Date(timeIntervalSince1970: 0),
     calendar: Calendar(identifier: .gregorian),
     timeZone: try #require(TimeZone(identifier: "UTC")),
+    dollarCurrency: dollarCurrency,
     isMarkdownMode: isMarkdownMode
   )
 }

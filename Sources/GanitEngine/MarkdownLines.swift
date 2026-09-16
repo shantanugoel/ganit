@@ -101,6 +101,10 @@ enum MarkdownLines {
       || FinanceFunction(rawValue: name) != nil
       || AssistantFunction(rawValue: name) != nil
       || CurrencyCatalog.minorUnits[name] != nil
+      || CurrencyCatalog.names[name.lowercased()] != nil
+      || ScaleWord.digits[name] != nil
+      || CalendarPeriodUnit(word: name) != nil
+      || builtInMinimalUnitCatalog.resolveUnit(matching: name) != nil
       || ["pi", "π", "e", "now", "today", "tomorrow", "yesterday"].contains(name)
   }
 

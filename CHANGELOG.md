@@ -10,6 +10,10 @@ existing answer. See the [release train](docs/release/release-train.md).
   Markdown sheets show a document mark in the sidebar. `=>` ends a calculation.
 - The menu bar icon's menu has Show Window, which brings the current window
   forward instead of opening another.
+- `$` is USD unless Format ▸ Dollar Means or a sheet's right-click menu picks
+  another dollar currency. `USD 1.5`, `5 dollars`, `¥5`, and scale words such
+  as `11.5 million` / `11.5mn` / `3k` parse as everyday amounts. Ambiguity
+  registry version 6.
 
 ## 0.2.0
 

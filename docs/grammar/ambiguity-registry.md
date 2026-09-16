@@ -1,6 +1,6 @@
 # Ambiguity registry
 
-**Registry version:** 5
+**Registry version:** 6
 
 This registry records how the English grammar resolves inputs that could
 reasonably mean more than one thing. Every entry is pinned by named cases in
@@ -52,9 +52,14 @@ unit meaning.
 - Currency codes are uppercase ISO 4217 codes and case-sensitive: `5 EUR` is
   money, `5 eur` is not. Added in registry version 4.
 - A symbol that names one currency is money: `€5`, `£5`, `₹5`, `US$5`.
-- `$` and `¥` name several currencies and fail with ambiguity severity as
-  `syntax.ambiguousCurrencySymbol`; locale never picks one. Write `5 USD` or
-  `US$5`.
+- `$` is the sheet's dollar currency, USD unless Format ▸ Dollar Means
+  or the sheet's right-click menu says otherwise. Locale never picks one.
+- `¥` is yen (`JPY`).
+- Prefix codes and English names are money: `USD 1.5`, `5 dollars`.
+- Scale words multiply a number: `11.5 million`, `11.5mn`, `3k`. A declared
+  variable or a catalog unit keeps its meaning: `k = 5` then `10k` is 50,
+  and `3 K` is 3 kelvin. Codes, names, symbols, and units may come before or
+  after the amount: `USD 1.5`, `1.5 USD`, `kg 5`, `5 kg`.
 
 ## `implicit multiplication` — products versus adjacent quantities
 

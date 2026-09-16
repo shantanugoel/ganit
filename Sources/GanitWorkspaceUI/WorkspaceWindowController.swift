@@ -513,6 +513,20 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     perform { try workspace.write(options, on: id) }
   }
 
+  @objc public func setDollarCurrency(_ sender: Any?) {
+    guard let code = (sender as? NSMenuItem)?.representedObject as? String else {
+      return
+    }
+    let id = sidebar.targetSheet?.id ?? sheetID
+    guard let id,
+      var options = (try? library.store.load(id: id))?.metadata.preferences.display
+    else {
+      return
+    }
+    options.dollarCurrency = code
+    perform { try workspace.write(options, on: id) }
+  }
+
   @objc public func toggleAnswerSeparator(_ sender: Any?) {
     guard var options = displayOptions else {
       return
@@ -541,6 +555,13 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     case #selector(toggleMarkdownMode(_:)):
       menuItem.state =
         (target?.isMarkdown ?? displayOptions?.writesAnswersInline) == true ? .on : .off
+      return target != nil || displayOptions != nil
+    case #selector(setDollarCurrency(_:)):
+      let code = menuItem.representedObject as? String
+      let current =
+        (try? target.flatMap { try library.store.load(id: $0.id) })?
+        .metadata.preferences.display.dollarCurrency ?? displayOptions?.dollarCurrency
+      menuItem.state = code == current ? .on : .off
       return target != nil || displayOptions != nil
     case #selector(toggleAnswerSeparator(_:)):
       menuItem.state = displayOptions?.showsAnswerSeparator == true ? .on : .off

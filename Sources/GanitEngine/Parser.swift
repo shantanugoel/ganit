@@ -5,6 +5,7 @@ public struct Parser: Sendable {
   private let catalog: UnitCatalog
   private let origin: SourceLocation
   private let variables: [String: EngineValueKind]
+  private let dollarCurrency: String
 
   /// `variables` maps declared names, whose words are joined by single
   /// spaces, to the kind of value they hold.
@@ -14,7 +15,8 @@ public struct Parser: Sendable {
     limits: SyntaxLimits = .default,
     catalog: UnitCatalog? = nil,
     origin: SourceLocation = .start,
-    variables: [String: EngineValueKind] = [:]
+    variables: [String: EngineValueKind] = [:],
+    dollarCurrency: String = "USD"
   ) {
     self.source = source
     self.configuration = configuration
@@ -22,6 +24,7 @@ public struct Parser: Sendable {
     self.catalog = catalog ?? builtInMinimalUnitCatalog
     self.origin = origin
     self.variables = variables
+    self.dollarCurrency = dollarCurrency
   }
 
   public func parse() -> ParsingResult {
@@ -46,7 +49,8 @@ public struct Parser: Sendable {
       tokens: lexingResult.tokens,
       maximumParseDepth: limits.maximumParseDepth,
       catalog: catalog,
-      variables: variables
+      variables: variables,
+      dollarCurrency: dollarCurrency
     )
     let parsedExpression = tokenParser.parse()
     let diagnostics = lexingResult.diagnostics + tokenParser.diagnostics
@@ -108,6 +112,7 @@ private struct TokenParser {
   private let maximumParseDepth: Int
   private let catalog: UnitCatalog
   private let variables: [String: EngineValueKind]
+  private let dollarCurrency: String
   private let maximumNameWords: Int
   private var cursor = 0
   private(set) var diagnostics: [SyntaxDiagnostic] = []
@@ -118,7 +123,8 @@ private struct TokenParser {
     tokens: [Token],
     maximumParseDepth: Int,
     catalog: UnitCatalog,
-    variables: [String: EngineValueKind]
+    variables: [String: EngineValueKind],
+    dollarCurrency: String
   ) {
     self.source = source
     self.origin = origin
@@ -126,6 +132,7 @@ private struct TokenParser {
     self.maximumParseDepth = maximumParseDepth
     self.catalog = catalog
     self.variables = variables
+    self.dollarCurrency = dollarCurrency
     maximumNameWords =
       variables.keys.map { $0.split(separator: " ").count }.max() ?? 1
   }
@@ -174,6 +181,26 @@ private struct TokenParser {
         return nil
       }
       if current.kind == .percent {
+        guard 40 >= minimumBindingPower else {
+          break
+        }
+        let percent = advance()
+        guard !isPercentage(left) else {
+          diagnose(.unexpectedToken, at: percent.range)
+          break
+        }
+        left = .percentage(
+          points: left,
+          percentRange: percent.range,
+          range: left.range.union(percent.range)
+        )
+        depth += 1
+        continue
+      }
+
+      if let word = identifier(at: 0),
+        ["percent", "percents", "pct"].contains(word.lowercased())
+      {
         guard 40 >= minimumBindingPower else {
           break
         }
@@ -242,6 +269,42 @@ private struct TokenParser {
           return left
         }
         left = operation
+        depth += 1
+        continue
+      }
+
+      if 29 >= minimumBindingPower,
+        canAttachUnit(to: left),
+        let word = identifier(at: 0),
+        variables[word] == nil,
+        catalog.resolveUnit(matching: word) == nil,
+        let digits = ScaleWord.digits[word]
+      {
+        let token = advance()
+        left = .grouped(
+          .infix(
+            left: left,
+            operator: .multiply,
+            right: .literal(.integer(digits: digits, radix: .decimal), range: token.range),
+            operatorRange: token.range,
+            range: left.range.union(token.range)
+          ),
+          range: left.range.union(token.range)
+        )
+        depth += 1
+        continue
+      }
+
+      if 29 >= minimumBindingPower, canAttachUnit(to: left),
+        case .currencySymbol(let symbol) = current.kind
+      {
+        let token = advance()
+        guard let code = CurrencyCatalog.currency(for: symbol, dollarCurrency: dollarCurrency)
+        else {
+          diagnose(.ambiguousCurrencySymbol, at: token.range, severity: .ambiguity)
+          return left
+        }
+        left = .money(amount: left, currency: code, range: left.range.union(token.range))
         depth += 1
         continue
       }
@@ -365,12 +428,6 @@ private struct TokenParser {
       if variables[name] == nil, let phrase = parseDatePhrase(name, range: token.range) {
         return phrase
       }
-      if name == "percentage", identifier(at: 0) == "change" {
-        return parsePercentageChange(
-          startRange: token.range,
-          depth: depth
-        )
-      }
       if current.kind == .leftParenthesis {
         if AssistantFunction(rawValue: name) != nil {
           return parseAssistantCall(name: name, identifierRange: token.range)
@@ -378,6 +435,31 @@ private struct TokenParser {
         return parseCall(
           name: name,
           identifierRange: token.range,
+          depth: depth
+        )
+      }
+      if variables[name] == nil, startsMoneyAmount {
+        if CurrencyCatalog.minorUnits[name] != nil {
+          return parsePrefixedCurrency(name, range: token.range, depth: depth)
+        }
+        if let code = CurrencyCatalog.names[name.lowercased()] {
+          return parsePrefixedCurrency(code, range: token.range, depth: depth)
+        }
+        if let period = CalendarPeriodUnit(word: name) {
+          return parsePrefixedPeriod(period, range: token.range, depth: depth)
+        }
+        if ScaleWord.digits[name] != nil {
+          return parsePrefixedScale(name, range: token.range, depth: depth)
+        }
+      }
+      if variables[name] == nil, catalog.resolveUnit(matching: name) != nil,
+        hasAmountAfterPrefixedUnit
+      {
+        return parsePrefixedQuantity(alias: name, range: token.range, depth: depth)
+      }
+      if name == "percentage", identifier(at: 0) == "change" {
+        return parsePercentageChange(
+          startRange: token.range,
           depth: depth
         )
       }
@@ -788,9 +870,15 @@ private struct TokenParser {
       diagnose(.resourceLimitExceeded, at: current.range)
       return nil
     }
-    guard var left = parseUnitFactor(depth: depth) else {
+    guard let left = parseUnitFactor(depth: depth) else {
       return nil
     }
+    return parseUnitProduct(starting: left, depth: depth)
+  }
+
+  /// Continues `km/s` after the first factor has been read.
+  private mutating func parseUnitProduct(starting left: UnitSyntax, depth: Int) -> UnitSyntax {
+    var left = left
     var factorCount = 1
     while current.kind == .multiply || current.kind == .divide {
       guard startsUnitExpression(at: 1) else {
@@ -850,6 +938,10 @@ private struct TokenParser {
       return nil
     }
 
+    return applyOptionalUnitPower(to: unit)
+  }
+
+  private mutating func applyOptionalUnitPower(to unit: UnitSyntax) -> UnitSyntax {
     if case .superscript(let exponent) = current.kind {
       let exponentToken = advance()
       let raised = UnitSyntax.raised(
@@ -1040,18 +1132,22 @@ private struct TokenParser {
   // Money and temporal parsing live in non-inlined methods so the recursive
   // `parseExpression` and `parsePrefix` frames stay small.
 
-  /// A currency code after a number, `12.50 EUR`, or a conversion to one,
-  /// `100 USD in INR`. Codes are uppercase and case-sensitive.
+  /// A currency code after a number, `12.50 EUR`, a currency name,
+  /// `5 dollars`, or a conversion to one, `100 USD in INR`.
   @inline(never)
   private mutating func parseMoneySuffix(
     of left: Expression,
     minimumBindingPower: Int
   ) -> Expression? {
     if 29 >= minimumBindingPower, canAttachUnit(to: left),
-      let code = identifier(at: 0), variables[code] == nil,
-      CurrencyCatalog.minorUnits[code] != nil
+      let word = identifier(at: 0), variables[word] == nil
     {
-      return .money(amount: left, currency: code, range: left.range.union(advance().range))
+      if CurrencyCatalog.minorUnits[word] != nil {
+        return .money(amount: left, currency: word, range: left.range.union(advance().range))
+      }
+      if let code = CurrencyCatalog.names[word.lowercased()] {
+        return .money(amount: left, currency: code, range: left.range.union(advance().range))
+      }
     }
     guard 1 >= minimumBindingPower, let keyword = identifier(at: 0),
       ["in", "to", "as", "into"].contains(keyword),
@@ -1064,13 +1160,13 @@ private struct TokenParser {
       value: left, currency: code, range: left.range.union(advance().range))
   }
 
-  /// An amount after a currency symbol, `€12.50`. A symbol that several
-  /// currencies share is an ambiguity rather than a guess.
+  /// An amount after a currency symbol, `$1.50` or `€12.50`. `$` means the
+  /// sheet's dollar currency; `¥` means yen.
   @inline(never)
   private mutating func parseCurrencySymbol(_ symbol: String, range: SourceRange, depth: Int)
     -> Expression?
   {
-    guard let code = CurrencyCatalog.symbols[symbol] else {
+    guard let code = CurrencyCatalog.currency(for: symbol, dollarCurrency: dollarCurrency) else {
       diagnose(.ambiguousCurrencySymbol, at: range, severity: .ambiguity)
       return nil
     }
@@ -1080,6 +1176,116 @@ private struct TokenParser {
       return nil
     }
     return .money(amount: amount, currency: code, range: range.union(amount.range))
+  }
+
+  /// An amount after a currency code, `USD 1.5`.
+  @inline(never)
+  private mutating func parsePrefixedCurrency(_ code: String, range: SourceRange, depth: Int)
+    -> Expression?
+  {
+    guard let amount = parsePrefixedAmount(depth: depth) else {
+      return nil
+    }
+    return .money(amount: amount, currency: code, range: range.union(amount.range))
+  }
+
+  /// A quantity after a unit, `kg 5` or `km/h 60`.
+  @inline(never)
+  private mutating func parsePrefixedQuantity(alias: String, range: SourceRange, depth: Int)
+    -> Expression?
+  {
+    guard let resolved = catalog.resolveUnit(matching: alias) else {
+      return nil
+    }
+    let unit = parseUnitProduct(
+      starting: applyOptionalUnitPower(
+        to: .named(resolved.entry, prefix: resolved.prefix, range: range)),
+      depth: depth + 1
+    )
+    guard let amount = parsePrefixedAmount(depth: depth) else {
+      return nil
+    }
+    return .quantity(magnitude: amount, unit: unit, range: range.union(amount.range))
+  }
+
+  /// A calendar period after its unit, `days 3`.
+  @inline(never)
+  private mutating func parsePrefixedPeriod(
+    _ unit: CalendarPeriodUnit,
+    range: SourceRange,
+    depth: Int
+  ) -> Expression? {
+    guard let count = parsePrefixedAmount(depth: depth) else {
+      return nil
+    }
+    return .period(count: count, unit: unit, range: range.union(count.range))
+  }
+
+  /// A scale word before an amount, `million 11.5`.
+  @inline(never)
+  private mutating func parsePrefixedScale(_ word: String, range: SourceRange, depth: Int)
+    -> Expression?
+  {
+    guard let digits = ScaleWord.digits[word], let amount = parsePrefixedAmount(depth: depth)
+    else {
+      return nil
+    }
+    let scale = Expression.literal(.integer(digits: digits, radix: .decimal), range: range)
+    let product = Expression.infix(
+      left: scale,
+      operator: .multiply,
+      right: amount,
+      operatorRange: range,
+      range: range.union(amount.range)
+    )
+    return .grouped(product, range: product.range)
+  }
+
+  private mutating func parsePrefixedAmount(depth: Int) -> Expression? {
+    parseExpression(minimumBindingPower: Self.prefixBindingPower, depth: depth + 1)
+  }
+
+  private var startsMoneyAmount: Bool {
+    switch current.kind {
+    case .number, .leftParenthesis, .plus, .minus:
+      return true
+    default:
+      return false
+    }
+  }
+
+  /// Whether `km 12` or `km/h 60` still has an amount after the unit.
+  private var hasAmountAfterPrefixedUnit: Bool {
+    var index = skipUnitPower(at: 0)
+    while token(at: index).kind == .multiply || token(at: index).kind == .divide {
+      guard startsKnownUnit(at: index + 1) else {
+        break
+      }
+      index = skipUnitPower(at: index + 2)
+    }
+    switch token(at: index).kind {
+    case .number:
+      return true
+    default:
+      return false
+    }
+  }
+
+  private func skipUnitPower(at index: Int) -> Int {
+    if case .superscript = token(at: index).kind {
+      return index + 1
+    }
+    guard token(at: index).kind == .power else {
+      return index
+    }
+    var next = index + 1
+    if token(at: next).kind == .plus || token(at: next).kind == .minus {
+      next += 1
+    }
+    if case .number = token(at: next).kind {
+      return next + 1
+    }
+    return index
   }
 
   /// A date phrase or zone that follows `left`: `9 March`, `3 days ago`,

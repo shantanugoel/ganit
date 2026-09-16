@@ -24,7 +24,7 @@ Some examples:
 | `2024-03-10T02:30 America/New_York` | This time is skipped when clocks move forward in this time zone. |
 | `2011-12-30T12:00 Pacific/Apia` | This time is skipped when clocks move forward in this time zone. |
 | `fv(10000 USD, 5%, 10)` | ≈ $16,288.95 |
-| `$5` | This symbol is used by several currencies. Write a code such as USD. |
+| `$5` | $5.00 |
 | `3 pm` | 3 pm (picometres) |
 
 Beyond the corpus, property tests check arithmetic identities and unit round

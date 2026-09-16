@@ -49,9 +49,35 @@ public enum CurrencyCatalog {
     "R$": "BRL", "MX$": "MXN",
   ]
 
-  /// Symbols shared by several currencies, such as `$` for USD, CAD, and
-  /// AUD, or `¥` for JPY and CNY. They never pick one.
+  /// Symbols shared by several currencies until a sheet picks one: `$` means
+  /// the sheet's dollar currency (USD unless changed), and `¥` means JPY.
   public static let ambiguousSymbols: Set<String> = ["$", "¥"]
+
+  /// English names people write after an amount: `5 dollars`.
+  public static let names: [String: String] = [
+    "dollar": "USD", "dollars": "USD", "buck": "USD", "bucks": "USD",
+    "euro": "EUR", "euros": "EUR",
+    "pound": "GBP", "pounds": "GBP",
+    "yen": "JPY",
+    "rupee": "INR", "rupees": "INR",
+    "yuan": "CNY",
+    "won": "KRW",
+    "peso": "MXN", "pesos": "MXN",
+  ]
+
+  /// Currencies a `$` can mean; USD is the default.
+  public static let dollarCurrencies = ["USD", "CAD", "AUD", "NZD", "HKD", "SGD", "MXN"]
+
+  /// The currency a symbol writes, given this sheet's choice for `$`.
+  public static func currency(for symbol: String, dollarCurrency: String) -> String? {
+    if symbol == "$" {
+      return minorUnits[dollarCurrency] != nil ? dollarCurrency : "USD"
+    }
+    if symbol == "¥" {
+      return "JPY"
+    }
+    return symbols[symbol]
+  }
 }
 
 /// How a conversion got its exchange rate.

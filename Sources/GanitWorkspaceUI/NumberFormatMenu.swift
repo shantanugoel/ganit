@@ -1,4 +1,5 @@
 import AppKit
+import GanitEngine
 import GanitFormatting
 
 /// The number formats the Format menu offers, carried in menu item tags
@@ -60,6 +61,20 @@ extension MainMenu {
         keyEquivalent: ""
       )
       item.tag = NumberFormatMenu.tag(of: display)
+      return item
+    }
+  }
+
+  /// The dollar currencies `$` can mean on a sheet.
+  static func dollarCurrencyItems() -> [NSMenuItem] {
+    CurrencyCatalog.dollarCurrencies.map { code in
+      let name = Locale.current.localizedString(forCurrencyCode: code) ?? code
+      let item = NSMenuItem(
+        title: "\(code) — \(name)",
+        action: #selector(WorkspaceCommands.setDollarCurrency(_:)),
+        keyEquivalent: ""
+      )
+      item.representedObject = code
       return item
     }
   }

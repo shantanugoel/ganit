@@ -57,6 +57,7 @@ import GanitEditorUI
   func setNumberFormat(_ sender: Any?)
   func toggleDigitGrouping(_ sender: Any?)
   func toggleMarkdownMode(_ sender: Any?)
+  func setDollarCurrency(_ sender: Any?)
   func toggleAnswerSeparator(_ sender: Any?)
 }
 
@@ -360,6 +361,7 @@ public enum MainMenu {
           item(
             localized("menu.markdownMode", "Markdown Mode"),
             #selector(WorkspaceCommands.toggleMarkdownMode(_:))),
+          submenuItem(localized("menu.dollarMeans", "Dollar Means"), dollarCurrencyItems()),
         ]
       ),
       menu(

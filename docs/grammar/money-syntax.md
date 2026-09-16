@@ -8,14 +8,17 @@ Amounts never pass through binary floating point.
 | Input | Value |
 | --- | --- |
 | `12.50 EUR`, `3 JPY` | an uppercase ISO 4217 code after a number |
-| `€12.50`, `£3`, `₹(2 + 3)` | a symbol that names one currency |
+| `€12.50`, `12.50€`, `£3`, `₹(2 + 3)` | a symbol that names one currency |
+| `$5`, `5$`, `$1.5 million` | the sheet's dollar currency, USD unless changed |
+| `¥5` | yen |
+| `USD 1.5`, `1.5 USD`, `5 dollars`, `dollars 5` | a code or English name before or after the amount |
 | `US$5`, `C$5`, `A$5`, `HK$5`, `R$5` | a prefixed dollar sign |
 
 `CurrencyCatalog` lists active ISO 4217 codes with their minor-unit digits;
 fund, precious-metal, and testing codes are excluded. Codes are
-case-sensitive and cannot be variable names. `$` and `¥` are used by several
-currencies, so `$5` and `¥5` fail with `syntax.ambiguousCurrencySymbol` at
-ambiguity severity; the locale never picks one.
+case-sensitive and cannot be variable names. `$` means USD on a new sheet;
+Format ▸ Dollar Means and the sheet's right-click menu pick another dollar
+currency. `¥` is yen.
 
 ## Arithmetic
 
