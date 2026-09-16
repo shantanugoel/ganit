@@ -1,30 +1,34 @@
 # Ganit
 
-A calculator you write in. Type a line, read its answer beside it, and keep the
-whole page — the workings as well as the total.
+A notepad calculator for Mac. Type a line, get the answer, keep the working.
 
-![A sheet with its answers beside it](docs/images/library.png)
+The live notepad of [Soulver](https://soulver.app/) and [Numi](https://numi.app/), the Markdown sheets of [Calca](https://calca.io/) — plus an optional **AI assistant**, **exact** arithmetic, and answers that **never quietly guess**.
+
+[Download for Mac](https://github.com/shantanugoel/ganit/releases/latest) · Apple silicon · macOS 14+
+
+<p align="center">
+  <img src="docs/images/library.png" alt="Ganit window with a party budget and live answers beside each line" width="860">
+</p>
 
 ## What it does
 
-- **Writes like a note.** Name things (`drinks = 2,400`), refer back to them,
-  add a `subtotal`, and leave `// notes` and `# headings` where you need them.
-  Change one number and every line that depends on it follows.
-- **Knows what things are.** Lengths, areas, volumes, mass, temperature,
-  duration, data, and money: `1.5 l in ml`, `200 °C in °F`, `9 in in cm`.
-  Currencies convert with the European Central Bank's daily reference rates,
-  which Ganit downloads at most once a day and you can turn off.
-- **Is exact where exactness exists.** Integers, fractions, decimals, and money
-  keep their exact value; **Copy Full Precision** gives you all of it.
-- **Keeps your sheets.** Plain text on your Mac, saved as you type, with
-  backups, Trash, folders, favourites, and export to CSV, HTML, PDF, or print.
-- **Answers without being opened.** A shortcut of your choosing summons Quick
-  Ganit over any app, Ganit can stay in the menu bar, and the same engine
-  answers through a Services item, a Shortcuts action, `ganit://` links, and a
-  `ganit` command.
-- **Tells the truth.** Anything Ganit cannot work out says so, in place, and
-  never quietly guesses. It checks for its own updates only once you ask it
-  to, under **Ganit ▸ Check for Updates Automatically**.
+- **A note that calculates.** Name amounts (`drinks = 2,400`), add a `subtotal`, write `10% of line 6`. Change one number and every line that depends on it follows. `// notes` and `# headings` stay put.
+- **Units, money, and dates.** `1.5 l in ml`, `200 °C in °F`, `100 USD in EUR`. Currencies use the ECB's daily rates (cached once a day; you can turn them off).
+- **Exact when it can be.** Integers, fractions, and money keep their true value. **Copy Full Precision** gives you all of it.
+- **An AI assistant for the rest.** Arithmetic cannot do `10 kg of water in ml`. Name a model — on this Mac or on the internet — and Ganit asks it about those lines, one at a time, and marks the answers as the assistant's. Off until you set it up.
+
+<p align="center">
+  <img src="docs/images/assistant.png" alt="Ganit window with a purple assistant answer beside a line Ganit could not calculate" width="860">
+</p>
+
+- **Markdown Mode.** Answers move into the line so a sheet reads as an article. `=>` ends a calculation, as in Calca.
+
+<p align="center">
+  <img src="docs/images/markdown.png" alt="Ganit window in Markdown Mode, with answers written into the lines" width="860">
+</p>
+
+- **Anywhere on the Mac.** A shortcut summons **Quick Ganit** over any app. The same engine answers from the menu bar, Services, Shortcuts, `ganit://` links, and a `ganit` command.
+- **Yours, and honest.** Sheets are plain text on this Mac: autosave, backups, folders, Trash, export to CSV, HTML, PDF, or print. No account, no analytics. If Ganit cannot work a line out, it says so in place.
 
 ## Install
 
@@ -63,29 +67,24 @@ percentages, dates and times, rates, finance, and the functions.
 shortcut in **Window ▸ Quick Ganit Shortcut…**, and it appears anywhere, over
 anything.
 
-![Quick Ganit](docs/images/quick.png)
+<p align="center">
+  <img src="docs/images/quick.png" alt="Quick Ganit overlay calculating a monthly amount and a percentage" width="640">
+</p>
 
 **Markdown mode** (**Format ▸ Markdown Mode**, or the sheet's right-click menu)
-moves the answers into the lines, for a sheet that reads as an article with
-calculations in it. Headings, paragraphs, and `**bold**` sit beside ordinary
-Ganit arithmetic; `=>` ends a calculation, as in Calca. Markdown sheets show a
-small document mark in the sidebar.
-
-![A sheet in Markdown Mode](docs/images/markdown.png)
+moves the answers into the lines. Headings, paragraphs, and `**bold**` sit
+beside ordinary Ganit arithmetic; `=>` ends a calculation. Markdown sheets show
+a small document mark in the sidebar.
 
 **Scratch** (⇧⌘S) is the sheet that is always there, for a number you want to
 work out now and name later.
 
 ### An assistant, if you want one
 
-Some fair questions are not arithmetic Ganit knows. Under **Ganit ▸
-Assistant…** you can name a model — one on the internet, or one running on your
-own Mac — and Ganit will ask it about the lines it could not work out, one line
-at a time, and mark its answers as its own.
-
-![An answer from the assistant](docs/images/assistant.png)
-
-It is off until you set it up. See [the assistant](docs/editor/assistant.md).
+Under **Ganit ▸ Assistant…** you can name a model — one on the internet, or one
+running on your own Mac. Ganit asks it about the lines it could not work out,
+one line at a time, and marks its answers as its own. It is off until you set
+it up. See [the assistant](docs/editor/assistant.md).
 
 ### From the command line
 

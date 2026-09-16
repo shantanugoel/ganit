@@ -1,4 +1,5 @@
 import AppKit
+import CoreGraphics
 import Foundation
 import GanitDocuments
 import GanitEngine
@@ -15,12 +16,14 @@ import Testing
 /// Pictures are drawn only when asked for:
 /// `GANIT_SCREENSHOTS=1 swift test --filter ScreenshotTests`.
 ///
-/// A window is drawn through `dataWithPDF`, which asks every view to draw
-/// itself. Reading the screen instead would need a screen-recording
-/// permission, and reading the layers of a window that was never on a screen
-/// returns nothing at all.
+/// A window is drawn from an on-screen capture of that window when the
+/// window server will give one, so the title bar and traffic lights match
+/// the running app. Otherwise the content is framed with a drawn title bar.
 @MainActor
-@Suite(.enabled(if: ProcessInfo.processInfo.environment["GANIT_SCREENSHOTS"] == "1"))
+@Suite(
+  .serialized,
+  .enabled(if: ProcessInfo.processInfo.environment["GANIT_SCREENSHOTS"] == "1")
+)
 struct ScreenshotTests {
   private let root = FileManager.default.temporaryDirectory
     .appending(path: "GanitScreenshots-\(UUID().uuidString)", directoryHint: .isDirectory)
@@ -50,7 +53,7 @@ struct ScreenshotTests {
     ])
     let controller = workspace.openWindow(showing: ids[0])
     let window = try #require(controller.window)
-    window.setContentSize(NSSize(width: 820, height: 420))
+    window.setContentSize(NSSize(width: 900, height: 480))
     try await write(window, of: controller.editor, to: "library.png")
     for open in workspace.windows { open.window?.orderOut(nil) }
   }
@@ -77,7 +80,7 @@ struct ScreenshotTests {
     let controller = workspace.openWindow(showing: ids[0])
     try workspace.write(DisplayOptions(writesAnswersInline: true), on: ids[0])
     let window = try #require(controller.window)
-    window.setContentSize(NSSize(width: 820, height: 320))
+    window.setContentSize(NSSize(width: 900, height: 380))
     try await write(window, of: controller.editor, to: "markdown.png")
     for open in workspace.windows { open.window?.orderOut(nil) }
   }
@@ -86,22 +89,23 @@ struct ScreenshotTests {
   /// that says the answer is not Ganit's arithmetic.
   @Test
   func theAssistant() async throws {
-    let editor = SheetEditorViewController(
-      text: "// water weighs a kilogram a litre\n10 kg of water in ml\n1,500 ml + 500 ml",
-      context: try SheetPreferences.standard.evaluationContext()
-    )
-    editor.assistantPause = .zero
-    editor.askAssistant = { _ in "10,000 ml" }
-    let window = NSWindow(
-      contentRect: NSRect(x: 0, y: 0, width: 620, height: 140),
-      styleMask: [.titled, .closable],
-      backing: .buffered,
-      defer: true
-    )
-    window.title = "Scratch"
-    window.contentViewController = editor
-    window.setContentSize(NSSize(width: 620, height: 130))
-    try await write(window, of: editor, to: "assistant.png")
+    let (workspace, ids) = try makeWorkspace([
+      """
+      # Density
+
+      // water weighs a kilogram a litre
+      10 kg of water in ml
+      1,500 ml + 500 ml
+      """
+    ])
+    workspace.askAssistant = { _ in "10,000 ml" }
+    let controller = workspace.openWindow(showing: ids[0])
+    controller.editor?.assistantPause = .zero
+    controller.editor?.askAssistant = workspace.askAssistant
+    let window = try #require(controller.window)
+    window.setContentSize(NSSize(width: 900, height: 280))
+    try await write(window, of: controller.editor, to: "assistant.png")
+    for open in workspace.windows { open.window?.orderOut(nil) }
   }
 
   @Test
@@ -110,37 +114,181 @@ struct ScreenshotTests {
     panel.editor.textView.string = "22,500 / 12\n15% of 1,875"
     panel.show()
     let window = try #require(panel.window)
-    window.setContentSize(NSSize(width: 620, height: 110))
+    window.setContentSize(NSSize(width: 640, height: 140))
     try await write(window, of: panel.editor, to: "quick.png")
     window.orderOut(nil)
   }
 
-  /// Draws a window, in Light Appearance, once its answers have settled.
+  /// Draws a window, in Light Appearance, once its answers have settled,
+  /// including the title bar and toolbar so the README shows the app as it
+  /// appears on a Mac.
   private func write(
     _ window: NSWindow,
     of editor: SheetEditorViewController?,
     to name: String
   ) async throws {
     window.appearance = NSAppearance(named: .aqua)
-    // The title bar and toolbar are the system's chrome. Taking them away
-    // leaves the window with nothing in it but what Ganit draws, and every
-    // part of it laid out against the same edges.
-    window.toolbar = nil
-    window.styleMask.remove([.titled, .fullSizeContentView])
+    window.tabbingMode = .disallowed
+    NSApp.setActivationPolicy(.regular)
+    NSApp.activate()
+    window.makeKeyAndOrderFront(nil)
     window.layoutIfNeeded()
     await editor?.scheduler?.waitUntilIdle()
     // Answers the assistant gives arrive after the sheet has settled.
     try await Task.sleep(for: .milliseconds(200))
     window.layoutIfNeeded()
+    window.displayIfNeeded()
     editor?.textView.scroll(.zero)
     // The sidebar scrolls to whichever sheet is open; start it at its top.
     scrollToTop(window.contentView)
-    let view = try #require(window.contentView)
-    // The title bar belongs to the system and is not drawn here, so the
-    // picture is of what Ganit draws beneath it.
-    let area = window.contentLayoutRect.intersection(view.bounds)
-    let page = try #require(NSPDFImageRep(data: view.dataWithPDF(inside: area)))
-    try png(of: page).write(to: try images().appending(path: name))
+    // The window server needs a turn to composite the title bar; without
+    // this, a screen capture of a just-ordered window is empty.
+    NSApp.activate(ignoringOtherApps: true)
+    window.makeKeyAndOrderFront(nil)
+    try await Task.sleep(for: .milliseconds(250))
+    let image = try #require(
+      windowImage(window) ?? framedContent(of: window),
+      "Could not draw \(name)"
+    )
+    try png(of: image).write(to: try images().appending(path: name))
+  }
+
+  /// The on-screen window, chrome and all, at the display's native scale.
+  private func windowImage(_ window: NSWindow) -> NSImage? {
+    let id = CGWindowID(window.windowNumber)
+    guard id != 0,
+      let cgImage = CGWindowListCreateImage(
+        .null,
+        .optionIncludingWindow,
+        id,
+        [.bestResolution]
+      ),
+      cgImage.width > 32,
+      cgImage.height > 32
+    else {
+      return nil
+    }
+    return NSImage(cgImage: cgImage, size: window.frame.size)
+  }
+
+  /// Content plus a drawn title bar, used when the screen capture of the
+  /// window is empty (no window-server picture of an off-screen test window).
+  private func framedContent(of window: NSWindow) -> NSImage? {
+    let titlebar: CGFloat = 52
+    let radius: CGFloat = 10
+    let pad: CGFloat = 28
+    let page: NSPDFImageRep
+    let drawsTitlebar: Bool
+    if window.titlebarAppearsTransparent || !window.styleMask.contains(.titled) {
+      guard let content = window.contentView else {
+        return nil
+      }
+      let area = content.bounds
+      guard let pdf = NSPDFImageRep(data: content.dataWithPDF(inside: area)) else {
+        return nil
+      }
+      page = pdf
+      drawsTitlebar = true
+    } else if let chrome = themeFrame(of: window),
+      let pdf = NSPDFImageRep(data: chrome.dataWithPDF(inside: chrome.bounds))
+    {
+      page = pdf
+      drawsTitlebar = false
+    } else {
+      return nil
+    }
+    let inner = NSSize(
+      width: page.bounds.width,
+      height: page.bounds.height + (drawsTitlebar ? titlebar : 0)
+    )
+    let canvas = NSSize(width: inner.width + pad * 2, height: inner.height + pad * 2)
+    let image = NSImage(size: canvas)
+    image.lockFocus()
+    NSAppearance(named: .aqua)?.performAsCurrentDrawingAppearance {
+      let ctx = NSGraphicsContext.current!.cgContext
+      let frame = NSRect(x: pad, y: pad, width: inner.width, height: inner.height)
+      ctx.setShadow(
+        offset: CGSize(width: 0, height: -8),
+        blur: 18,
+        color: NSColor.black.withAlphaComponent(0.28).cgColor
+      )
+      let path = NSBezierPath(roundedRect: frame, xRadius: radius, yRadius: radius)
+      NSColor.windowBackgroundColor.setFill()
+      path.fill()
+      ctx.setShadow(offset: .zero, blur: 0, color: nil)
+      ctx.saveGState()
+      path.addClip()
+      if drawsTitlebar {
+        let titlebarRect = NSRect(
+          x: frame.minX, y: frame.maxY - titlebar, width: frame.width, height: titlebar)
+        NSColor.windowBackgroundColor.setFill()
+        titlebarRect.fill()
+        drawTrafficLights(in: titlebarRect)
+        drawTitle(window.title, in: titlebarRect)
+        page.draw(
+          in: NSRect(
+            x: frame.minX, y: frame.minY, width: frame.width, height: frame.height - titlebar))
+        NSColor.separatorColor.setStroke()
+        let divider = NSBezierPath()
+        divider.move(to: NSPoint(x: frame.minX, y: frame.maxY - titlebar))
+        divider.line(to: NSPoint(x: frame.maxX, y: frame.maxY - titlebar))
+        divider.lineWidth = 1
+        divider.stroke()
+      } else {
+        page.draw(in: frame)
+        let titlebarRect = NSRect(
+          x: frame.minX, y: frame.maxY - titlebar, width: frame.width, height: titlebar)
+        drawTrafficLights(in: titlebarRect)
+      }
+      ctx.restoreGState()
+    }
+    image.unlockFocus()
+    return image
+  }
+
+  /// The window's frame view, which draws the title bar and toolbar around
+  /// the content.
+  private func themeFrame(of window: NSWindow) -> NSView? {
+    var view = window.contentView
+    while let superview = view?.superview {
+      view = superview
+    }
+    return view
+  }
+
+  private func drawTrafficLights(in titlebar: NSRect) {
+    let colors: [NSColor] = [
+      NSColor(calibratedRed: 1, green: 0.373, blue: 0.341, alpha: 1),
+      NSColor(calibratedRed: 1, green: 0.737, blue: 0.180, alpha: 1),
+      NSColor(calibratedRed: 0.157, green: 0.784, blue: 0.251, alpha: 1),
+    ]
+    let diameter: CGFloat = 12
+    let y = titlebar.midY - diameter / 2
+    for (index, color) in colors.enumerated() {
+      let x = titlebar.minX + 16 + CGFloat(index) * 20
+      let dot = NSRect(x: x, y: y, width: diameter, height: diameter)
+      color.setFill()
+      NSBezierPath(ovalIn: dot).fill()
+    }
+  }
+
+  private func drawTitle(_ title: String, in titlebar: NSRect) {
+    guard !title.isEmpty else {
+      return
+    }
+    let text = NSAttributedString(
+      string: title,
+      attributes: [
+        .font: NSFont.systemFont(ofSize: 13, weight: .regular),
+        .foregroundColor: NSColor.secondaryLabelColor,
+      ]
+    )
+    let size = text.size()
+    let origin = NSPoint(
+      x: titlebar.midX - size.width / 2,
+      y: titlebar.midY - size.height / 2
+    )
+    text.draw(at: origin)
   }
 
   private func scrollToTop(_ view: NSView?) {
@@ -151,10 +299,10 @@ struct ScreenshotTests {
     view.subviews.forEach(scrollToTop)
   }
 
-  /// A retina-sized bitmap of a drawn window, on the window background rather
-  /// than on nothing, since a page that is read in the dark still holds ink.
-  private func png(of page: NSPDFImageRep, scale: CGFloat = 2) throws -> Data {
-    let size = page.bounds.size
+  /// A retina-sized PNG of a window picture. Transparent padding is left as
+  /// it is, so a captured window shadow sits on the README page.
+  private func png(of image: NSImage, scale: CGFloat = 2) throws -> Data {
+    let size = image.size
     let bitmap = try #require(
       NSBitmapImageRep(
         bitmapDataPlanes: nil,
@@ -173,9 +321,7 @@ struct ScreenshotTests {
     defer { NSGraphicsContext.restoreGraphicsState() }
     NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: bitmap)
     NSAppearance(named: .aqua)?.performAsCurrentDrawingAppearance {
-      NSColor.windowBackgroundColor.setFill()
-      NSRect(origin: .zero, size: size).fill()
-      page.draw(in: NSRect(origin: .zero, size: size))
+      image.draw(in: NSRect(origin: .zero, size: size))
     }
     return try #require(bitmap.representation(using: .png, properties: [:]))
   }
