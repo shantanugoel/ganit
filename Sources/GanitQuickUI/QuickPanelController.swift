@@ -68,6 +68,12 @@ public final class QuickPanelController: NSWindowController, NSWindowDelegate {
       name: NSApplication.willTerminateNotification,
       object: nil
     )
+    NotificationCenter.default.addObserver(
+      self,
+      selector: #selector(otherWindowDidBecomeKey(_:)),
+      name: NSWindow.didBecomeKeyNotification,
+      object: nil
+    )
 
     let keep = NSButton(
       title: String(localized: "quick.keepAsSheet", defaultValue: "Keep as Sheet", bundle: .main),
@@ -150,6 +156,18 @@ public final class QuickPanelController: NSWindowController, NSWindowDelegate {
 
   public func windowDidResignKey(_ notification: Notification) {
     saveBuffer(nil)
+  }
+
+  /// Moving to one of Ganit's own windows hides the panel instead of leaving
+  /// it floating over that window. Other apps never post this, so the panel
+  /// still floats over them.
+  @objc func otherWindowDidBecomeKey(_ notification: Notification) {
+    guard isShown, let other = notification.object as? NSWindow, other !== window,
+      !(other is NSPanel)
+    else {
+      return
+    }
+    hide()
   }
 
   /// Stores the buffer for the next launch unless the panel starts empty.

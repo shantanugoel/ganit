@@ -49,6 +49,22 @@ struct QuickPanelTests {
   }
 
   @Test
+  func hidesWhenAnotherGanitWindowBecomesKey() async throws {
+    let controller = QuickPanelController(context: try context())
+    defer { controller.hide() }
+    controller.show()
+    #expect(controller.isShown)
+
+    let workspace = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 200, height: 100), styleMask: [.titled],
+      backing: .buffered, defer: false)
+    workspace.isReleasedWhenClosed = false
+    defer { workspace.orderOut(nil) }
+    NotificationCenter.default.post(name: NSWindow.didBecomeKeyNotification, object: workspace)
+    #expect(!controller.isShown)
+  }
+
+  @Test
   func formatsAndRecordsShortcutsWithModifiers() throws {
     let shortcut = KeyboardShortcut(
       keyCode: UInt32(kVK_ANSI_K), modifiers: [.command, .option, .shift], key: "K")

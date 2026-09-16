@@ -12,7 +12,8 @@ behave like any Mac panel.
 
 - It is non-activating, so it takes keyboard focus above the frontmost app
   without bringing Ganit's other windows forward.
-- It floats and does not hide when Ganit is inactive.
+- It floats and does not hide when Ganit is inactive. Moving to one of Ganit's
+  own windows hides it, so it never covers the sheet being worked on.
 - It opens on the active Space, including over full-screen apps, instead of
   switching Spaces.
 - Showing it centers it on the screen with the pointer, slightly above center,

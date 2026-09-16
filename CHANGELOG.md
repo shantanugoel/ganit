@@ -5,6 +5,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Quick Ganit hides when one of Ganit's own windows comes forward, instead of
+  floating over its answers. It still floats over other apps.
 - Quick Ganit selects the text it kept from last time when it opens, so typing
   replaces it instead of joining it into a different calculation.
 - Return ends a line even when a completion is showing, so `5 min` or `2 m`
