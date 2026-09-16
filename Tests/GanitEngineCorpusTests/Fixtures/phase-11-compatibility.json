@@ -46,7 +46,7 @@
       "expression": "2^100",
       "expected": {
         "status": "value",
-        "display": "1,267,650,600,228,229,401,496,703,205,376",
+        "display": "1.26765060022823e30",
         "fullPrecision": "1267650600228229401496703205376",
         "approximate": false
       }

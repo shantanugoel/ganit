@@ -91,8 +91,17 @@ public struct NumericResultFormatter: Sendable {
     switch value {
     case .integer(let integer):
       let canonical = try canonicalInteger(integer)
+      // Rounded like a decimal for display, so a huge integer's power of ten
+      // shows the context's digits rather than every one.
+      let shown =
+        Self.isOutsideDigitRange(canonical)
+        ? try canonicalDecimal(
+          try DecimalValue(coefficient: integer, scale: 0).decimal(
+            significantDigits: context.precision.significantDecimalDigits,
+            rule: context.precision.roundingRule))
+        : canonical
       return try exactResult(
-        display: try written(value, asDecimal: canonical),
+        display: try written(value, asDecimal: shown),
         fullPrecision: canonical
       )
 
@@ -218,7 +227,8 @@ public struct NumericResultFormatter: Sendable {
   ) throws -> String {
     switch display.numbers {
     case .automatic:
-      return try localizeDecimal(canonical)
+      return Self.isOutsideDigitRange(canonical)
+        ? try scientific(canonical) : try localizeDecimal(canonical)
     case .fixedDecimals(let places):
       let (rounded, _) = try value.rounded(
         fractionDigits: min(max(places, 0), NumberDisplay.decimalLimit)
@@ -227,6 +237,21 @@ public struct NumericResultFormatter: Sendable {
     case .scientific:
       return try scientific(canonical)
     }
+  }
+
+  /// Whether a canonical decimal is at least 1e21 or, not being zero, below
+  /// 1e-6, where a power of ten reads better than a row of zeroes.
+  static func isOutsideDigitRange(_ canonical: String) -> Bool {
+    let unsigned = canonical.drop { $0 == "-" }
+    let parts = unsigned.split(separator: ".", maxSplits: 1, omittingEmptySubsequences: false)
+    guard parts[0] == "0" else {
+      return parts[0].count > 21
+    }
+    let fraction = parts.count == 2 ? parts[1] : ""
+    guard let first = fraction.firstIndex(where: { $0 != "0" }) else {
+      return false
+    }
+    return fraction.distance(from: fraction.startIndex, to: first) >= 6
   }
 
   /// `1234.5` as `1.2345e3`: the significant digits, a point where the locale

@@ -42,7 +42,8 @@ with the sheet in `SheetPreferences.display`. It says two things:
 
 - `groupsDigits` groups digits the way the locale groups them, `1,234,567`, or
   leaves them alone, `1234567`.
-- `numbers` is one of `automatic`, the decimals the value needs;
+- `numbers` is one of `automatic`, the decimals the value needs, and a power
+  of ten at or above `1e21` or below `1e-6`, rounded to the context's digits;
   `fixedDecimals(n)`, always `n` of them, clamped to
   `NumberDisplay.decimalLimit`; or `scientific`, a power of ten such as
   `1.2e6`, which the grammar reads back.

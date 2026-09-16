@@ -5,6 +5,9 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Numbers at or above `1e21` or below `1e-6` show as a power of ten:
+  `1e100` and `6.674e-11` instead of a hundred digits or a row of zeroes.
+  `2^64` still shows every digit, and Copy Full Precision copies the exact value.
 - `€40 + $10` adds the dollars in euros at the day's rates, and
   `€40 + $10 in USD` converts the total. `$10 in EUR` no longer reads `in` as
   inches, and a manual rate such as `1 USD = 83 INR` applies to amounts written
