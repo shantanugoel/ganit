@@ -5,6 +5,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- `as %`, `in %`, `to %`, and `into %` show a ratio as a percentage:
+  `savings / salary as %` is `40.6666666666667%`.
 - Lakh grouping reads as a number: `1,00,000 + 5,00,000` is `600,000`, and
   `pmt(₹50,00,000, 8.5% / 12, 240)` no longer splits the amount into
   arguments. Format ▸ Group Digits in Lakhs writes a sheet's answers as

@@ -115,10 +115,10 @@ extension LanguageReference {
       ),
       body: text(
         "help.grammar.percentages.body",
-        "20% of 85 is 17, 20% off 85 is 68, and 85 + 20% is 102. 50 is what % of 200 is 25%. percentage change from 50 to 90 is 80%. A percentage of a quantity keeps the unit: 10% of 50 kg is 5 kg. Absolute quantities such as temperatures refuse a percentage of, because a tenth of 20 °C is not a temperature."
+        "20% of 85 is 17, 20% off 85 is 68, and 85 + 20% is 102. 50 is what % of 200 is 25%. percentage change from 50 to 90 is 80%. 0.25 as % shows a ratio as 25%. A percentage of a quantity keeps the unit: 10% of 50 kg is 5 kg. Absolute quantities such as temperatures refuse a percentage of, because a tenth of 20 °C is not a temperature."
       ),
-      examples: ["20% off 85", "15 is what % of 60", "10% of 50 kg"],
-      keywords: ["percent", "off", "tip", "change"]
+      examples: ["20% off 85", "15 is what % of 60", "10% of 50 kg", "3050 / 7500 as %"],
+      keywords: ["percent", "off", "tip", "change", "ratio"]
     ),
     topic(
       id: "grammar.units",

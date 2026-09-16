@@ -144,6 +144,26 @@
       }
     },
     {
+      "name": "%: as % converts a ratio, not attoseconds",
+      "expression": "0.25 as %",
+      "expected": {
+        "status": "value",
+        "display": "25%",
+        "fullPrecision": "25.00%",
+        "approximate": false
+      }
+    },
+    {
+      "name": "%: in % converts a whole expression, not inches",
+      "expression": "2 * 0.2 in %",
+      "expected": {
+        "status": "value",
+        "display": "40%",
+        "fullPrecision": "40.0%",
+        "approximate": false
+      }
+    },
+    {
       "name": "%: spaced percent is still a percentage",
       "expression": "20 %",
       "expected": {

@@ -14,6 +14,9 @@ deterministically, it reports a ranged diagnostic instead of guessing.
 ## `%` — percent versus modulo
 
 - `%` is only the percentage marker, with or without a space: `20 %` is `20%`.
+- `in`, `to`, `as`, or `into` before `%` converts the whole expression to a
+  percentage: `0.25 as %` is `25%` and `2 * 0.2 in %` is `40%`. The keyword is
+  never the attosecond or inch there.
 - `%` never means modulo. `10 % 3` and `5%3` fail at the operand after `%`.
 - A percentage cannot be marked twice: `50%%` fails at the second `%`.
 - `mod` is not an operator yet; `10 mod 3` fails at `mod` rather than being

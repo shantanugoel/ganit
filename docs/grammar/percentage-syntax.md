@@ -14,6 +14,8 @@ Supported forms:
 - `50 is what % of 200` evaluates to `25%`.
 - `percentage change from 80 to 100` evaluates to `25%`.
 - `80 after 20% off` and `120 after 20% on` evaluate to `100`.
+- `0.25 as %` (or `in`, `to`, `into`) evaluates to `25%`: the whole expression
+  on the left, times 100, as a percentage. Money and quantities refuse.
 
 A percentage of money keeps the currency and a percentage of a quantity keeps
 the unit, so `10% of 50 kg` is `5 kg` and `50 kg - 10%` is `45 kg`. Quantities

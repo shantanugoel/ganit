@@ -341,7 +341,8 @@ private final class TokenParser {
       // Exponents are dimensionless, so a unit never attaches inside one.
       if 29 >= minimumBindingPower,
         canAttachUnit(to: left),
-        startsUnitExpression(at: 0)
+        startsUnitExpression(at: 0),
+        !convertsToPercentage(at: 0)
       {
         guard let quantity = parseQuantity(magnitude: left, depth: depth)
         else {
@@ -349,6 +350,23 @@ private final class TokenParser {
         }
         left = quantity
         depth += 1
+        continue
+      }
+
+      // `0.25 as %` is the percentage a ratio is: `25%`.
+      if 1 >= minimumBindingPower, convertsToPercentage(at: 0) {
+        let keywordToken = advance()
+        let percent = advance()
+        let hundred = Expression.literal(
+          .integer(digits: "100", radix: .decimal), range: keywordToken.range)
+        left = .percentage(
+          points: .infix(
+            left: left, operator: .multiply, right: hundred, operatorRange: keywordToken.range,
+            range: left.range.union(keywordToken.range)),
+          percentRange: percent.range,
+          range: left.range.union(percent.range)
+        )
+        depth += 2
         continue
       }
 
@@ -1026,6 +1044,14 @@ private final class TokenParser {
 
   private func token(at offset: Int) -> Token {
     tokens[min(cursor + offset, tokens.count - 1)]
+  }
+
+  /// `as %`, where `as` would otherwise be attoseconds and `in` inches.
+  private func convertsToPercentage(at offset: Int) -> Bool {
+    guard let keyword = identifier(at: offset) else {
+      return false
+    }
+    return ["in", "to", "as", "into"].contains(keyword) && token(at: offset + 1).kind == .percent
   }
 
   private func identifier(at offset: Int) -> String? {
