@@ -5,6 +5,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+## 0.2.2
+
 - An assistant address is any OpenAI-compatible base (`https://api.openai.com/v1`,
   `http://localhost:…/v1`, `https://host/v1`, or a host with no path). Ganit
   POSTs `chat/completions` under it. The full `.../v1/chat/completions` path
