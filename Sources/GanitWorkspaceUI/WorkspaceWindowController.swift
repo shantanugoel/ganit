@@ -94,6 +94,7 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
   /// Shows a sheet in this window, or brings forward the window already
   /// showing it.
   func show(_ id: UUID) {
+    let previous = sheetID
     do {
       let next = try workspace.sheet(id)
       if let other = next.window, other !== self {
@@ -113,6 +114,7 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
       content.view.addSubview(next.editor.view)
       sidebar.select(sheet: id)
       window?.makeFirstResponder(next.editor.textView)
+      discardIfUntouched(previous)
     } catch {
       window?.presentError(error)
     }
@@ -164,8 +166,26 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
 
   public func windowWillClose(_ notification: Notification) {
     saveNow(nil)
+    let closing = sheetID
     sheet?.window = nil
     workspace.windowWillClose(self)
+    discardIfUntouched(closing)
+  }
+
+  /// Removes a sheet nothing was written in and nobody named, so ⌘N then a
+  /// change of mind leaves no empty Untitled behind. Scratch always stays, as
+  /// does a sheet open in another window.
+  private func discardIfUntouched(_ id: UUID?) {
+    guard let id, id != sheetID, id != SheetLibrary.scratchID,
+      workspace.windows.allSatisfy({ $0.sheetID != id }),
+      let stored = try? library.store.load(id: id),
+      stored.metadata.title.isEmpty, !stored.metadata.isFavorite,
+      stored.source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    else {
+      return
+    }
+    try? library.deletePermanently(id)
+    sidebar.reload()
   }
 
   // MARK: Restoration

@@ -35,7 +35,7 @@ selected sheet, and appear in both the File menu and context menus.
 
 | Command | Effect |
 |---|---|
-| New Sheet ⌘N | Creates an empty sheet, in the selected folder when one is selected, and opens it |
+| New Sheet ⌘N | Creates an empty sheet, in the selected folder when one is selected, and opens it. One nothing is written in and nobody names is discarded when it is left |
 | Open in New Window | Opens the sheet in a new window, or brings forward the window showing it |
 | New Folder ⇧⌘N | Creates and selects a folder |
 | Rename… | Names the sheet; an empty name returns to the first-line title |

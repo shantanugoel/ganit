@@ -5,6 +5,9 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- A new sheet nothing was written in and nobody named is discarded when you
+  move away from it or close its window, instead of leaving empty Untitled
+  sheets in the library.
 - The sidebar rewrites how long ago each sheet was written while the window
   stays open, instead of leaving "1 second ago" there for an hour.
 - A name that is not words, such as `Groceries (Costco) = 230`, says so and

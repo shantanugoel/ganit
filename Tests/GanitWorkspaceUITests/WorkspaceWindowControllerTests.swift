@@ -354,6 +354,30 @@ struct WorkspaceWindowControllerTests {
   }
 
   @Test
+  func anEmptyUntitledSheetIsDiscardedWhenItIsLeft() async throws {
+    let (workspace, ids) = try makeWorkspace(["rent = 1"])
+    defer { close(workspace) }
+    let controller = workspace.openWindow(showing: ids[0])
+
+    controller.newSheet(nil)
+    let untitled = try #require(controller.sheetID)
+    #expect(untitled != ids[0])
+
+    // Moving away from an empty, unnamed sheet leaves nothing behind.
+    controller.show(ids[0])
+    #expect(throws: (any Error).self) { try workspace.library.store.load(id: untitled) }
+
+    // One that was written in stays.
+    controller.newSheet(nil)
+    let written = try #require(controller.sheetID)
+    controller.editor?.textView.insertText(
+      "2 + 2", replacementRange: NSRange(location: 0, length: 0))
+    controller.saveNow(nil)
+    controller.show(ids[0])
+    #expect(try workspace.library.store.load(id: written).source == "2 + 2")
+  }
+
+  @Test
   func theSidebarRewritesHowLongAgoASheetWasWritten() throws {
     let then = Date(timeIntervalSince1970: 1_700_000_000)
     #expect(
