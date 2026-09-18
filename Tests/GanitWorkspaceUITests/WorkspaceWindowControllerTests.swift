@@ -397,6 +397,26 @@ struct WorkspaceWindowControllerTests {
   }
 
   @Test
+  func aSearchThatFindsNothingSaysSo() throws {
+    let (workspace, ids) = try makeWorkspace(["rent = 1"])
+    defer { close(workspace) }
+    let controller = workspace.openWindow(showing: ids[0])
+    let sidebar = controller.sidebar
+
+    #expect(sidebar.emptyLabel.isHidden)
+
+    sidebar.search = "nothing-matches-this"
+    #expect(!sidebar.emptyLabel.isHidden)
+    #expect(sidebar.emptyLabel.stringValue.contains("nothing-matches-this"))
+
+    sidebar.search = ""
+    #expect(sidebar.emptyLabel.isHidden)
+    sidebar.show(.trash)
+    #expect(!sidebar.emptyLabel.isHidden)
+    #expect(sidebar.emptyLabel.stringValue.localizedCaseInsensitiveContains("trash"))
+  }
+
+  @Test
   func theSidebarRewritesHowLongAgoASheetWasWritten() throws {
     let then = Date(timeIntervalSince1970: 1_700_000_000)
     #expect(

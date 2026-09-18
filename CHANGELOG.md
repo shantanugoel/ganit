@@ -5,6 +5,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- An empty sheet list says why it is empty: `No sheets match “rent”`, or that
+  the Trash is empty.
 - Format ▸ Angles in Degrees reads a sheet's bare angles as degrees, so
   `sin(90)` is `1`. It is kept with the sheet.
 - A sheet stops widening on a large display, so each answer stays beside its

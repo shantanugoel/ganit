@@ -12,7 +12,8 @@ name, user **Folders**. It sizes to
 its rows and scrolls past 60% of the sidebar. The lower list shows the selected
 collection's sheets, most recently modified first, with each title and a
 relative modification time, rewritten every minute while the window is open so
-it never says "1 second ago" an hour later; toolbar search narrows it to sheets whose title or
+it never says "1 second ago" an hour later. An empty list says why it is empty,
+such as `No sheets match “rent”`. Toolbar search narrows it to sheets whose title or
 source contains the text, ignoring case and diacritics.
 
 All Sheets, Recent, Favorites, and folders list only active sheets; Archive and

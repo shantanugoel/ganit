@@ -25,6 +25,8 @@ final class SidebarViewController: NSViewController {
   private var isSelectingProgrammatically = false
   /// Keeps "5 minutes ago" true while a window stays open.
   private var relativeTimes: Timer?
+  /// Shown in place of an empty list, so a search that finds nothing says so.
+  let emptyLabel = NSTextField(labelWithString: "")
 
   init(library: SheetLibrary, now: @escaping () -> Date = Date.init) {
     self.library = library
@@ -56,6 +58,12 @@ final class SidebarViewController: NSViewController {
     sheetsView.menu = contextMenu()
     sheetsView.setAccessibilityLabel(localized("sidebar.sheets", "Sheets"))
 
+    emptyLabel.textColor = VisualStyle.Color.secondary
+    emptyLabel.font = VisualStyle.Typography.caption
+    emptyLabel.alignment = .center
+    emptyLabel.lineBreakMode = .byTruncatingTail
+    emptyLabel.isHidden = true
+
     let collectionsScroll = scrollView(for: collectionsView)
     let sheetsScroll = scrollView(for: sheetsView)
     let separator = NSBox()
@@ -85,6 +93,17 @@ final class SidebarViewController: NSViewController {
         sheetsScroll.bottomAnchor.constraint(equalTo: container.bottomAnchor),
       ]
     )
+    emptyLabel.translatesAutoresizingMaskIntoConstraints = false
+    container.addSubview(emptyLabel)
+    NSLayoutConstraint.activate([
+      emptyLabel.centerXAnchor.constraint(equalTo: sheetsScroll.centerXAnchor),
+      emptyLabel.topAnchor.constraint(
+        equalTo: sheetsScroll.topAnchor, constant: VisualStyle.Spacing.related * 2),
+      emptyLabel.leadingAnchor.constraint(
+        greaterThanOrEqualTo: container.leadingAnchor, constant: VisualStyle.Spacing.related),
+      emptyLabel.trailingAnchor.constraint(
+        lessThanOrEqualTo: container.trailingAnchor, constant: -VisualStyle.Spacing.related),
+    ])
     view = container
     reload()
   }
@@ -114,6 +133,25 @@ final class SidebarViewController: NSViewController {
     scroll.hasVerticalScroller = true
     scroll.drawsBackground = false
     return scroll
+  }
+
+  /// What an empty list says: why there is nothing rather than nothing at all.
+  static func emptyText(searching search: String, in collection: SheetCollection) -> String {
+    let query = search.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard query.isEmpty else {
+      return String(
+        format: localized("sidebar.noMatches", "No sheets match “%@”"), query)
+    }
+    switch collection {
+    case .trash:
+      return localized("sidebar.emptyTrash", "The Trash is empty")
+    case .archive:
+      return localized("sidebar.emptyArchive", "Nothing is archived")
+    case .favorites:
+      return localized("sidebar.emptyFavorites", "No favourites yet")
+    default:
+      return localized("sidebar.emptySheets", "No sheets here yet")
+    }
   }
 
   /// How long ago a sheet was last written, as the list shows it.
@@ -226,6 +264,8 @@ final class SidebarViewController: NSViewController {
     sheets = (try? library.sheets(in: collection, matching: search, now: now())) ?? []
     sheetsView.reloadData()
     select(sheet: selected)
+    emptyLabel.stringValue = Self.emptyText(searching: search, in: collection)
+    emptyLabel.isHidden = !sheets.isEmpty
   }
 
   private func selectCollectionRow() {
