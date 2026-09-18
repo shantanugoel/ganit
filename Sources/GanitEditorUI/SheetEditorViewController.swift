@@ -646,18 +646,61 @@ public final class SheetEditorViewController: NSViewController {
     }
     let alert = NSAlert()
     alert.messageText = localized("assistant.change", "Change Answer")
+    alert.informativeText = localized(
+      "assistant.changeLifetime",
+      "Temporary corrections are discarded when Ganit quits. Save Value into Sheet replaces this line with your value and keeps the original as a comment."
+    )
     let field = NSTextField(string: currentAssistantAnswerText())
     field.frame = NSRect(x: 0, y: 0, width: 260, height: 24)
     alert.accessoryView = field
-    alert.addButton(withTitle: localized("alert.ok", "OK"))
+    alert.addButton(withTitle: localized("assistant.saveValue", "Save Value into Sheet"))
+    alert.addButton(withTitle: localized("assistant.useTemporarily", "Use Temporarily"))
     alert.addButton(withTitle: localized("restore.cancel", "Cancel"))
     alert.window.initialFirstResponder = field
     alert.beginSheetModal(for: window) { [weak self] response in
-      guard response == .alertFirstButtonReturn else {
-        return
+      guard let self else { return }
+      switch response {
+      case .alertFirstButtonReturn:
+        if !saveAssistantAnswerAsValue(field.stringValue) {
+          let error = NSAlert()
+          error.messageText = localized("assistant.invalidValue", "Enter a valid value")
+          error.informativeText = localized(
+            "assistant.saveValueHelp",
+            "Use a single-line value Ganit can calculate without assistance, such as 12345 ml. The sheet has not changed."
+          )
+          error.beginSheetModal(for: window)
+        }
+      case .alertSecondButtonReturn: applyAssistantAnswer(field.stringValue)
+      default: break
       }
-      self?.applyAssistantAnswer(field.stringValue)
     }
+  }
+
+  /// Saves a reviewed correction as ordinary source, retaining the original
+  /// line in a comment. No session-only answer cache is needed to reopen it.
+  @discardableResult
+  func saveAssistantAnswerAsValue(_ text: String) -> Bool {
+    let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !value.contains(where: { $0.isNewline }),
+      let expression = CalculationEngine().parse(value, context: context).expression,
+      expression.assistantPrompts.isEmpty,
+      case .value = CalculationEngine().evaluate(value, context: context)
+    else { return false }
+    let id =
+      sheetTextView.selectedAnswer
+      ?? sheet.lines[lineIndex(atUTF16: textView.selectedRange().location)].id
+    guard let index = sheet.lines.firstIndex(where: { $0.id == id }),
+      assistantTarget() != nil
+    else { return false }
+    let line = sheet.lines[index]
+    let replacement = value + " // Manual answer; original: " + line.text
+    textView.breakUndoCoalescing()
+    textView.insertText(
+      replacement,
+      replacementRange: NSRange(
+        location: utf16Starts()[index], length: line.text.utf16.count))
+    textView.breakUndoCoalescing()
+    return true
   }
 
   /// Replaces the current assistant value with `text`. An empty string drops

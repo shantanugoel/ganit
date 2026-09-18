@@ -45,7 +45,13 @@ this user can read.
 
 **Ask Assistant** on the line's right-click menu, or under Calculate, asks
 again about that line or prompt even when an answer is already on screen.
-**Change Answer…** replaces that value with text you type, without a request.
+**Change Answer…** offers **Save Value into Sheet** and **Use Temporarily**.
+Saving validates a single-line value Ganit can calculate without assistance,
+replaces the selected line with it, and retains the original source as a
+`// Manual answer; original:` comment. The value survives restart as sheet
+source and can be used by later formulas. Undo restores the original line.
+Using a correction temporarily replaces the displayed value without a request;
+the dialog explains that temporary corrections are discarded when Ganit quits.
 
 `SheetEditorViewController` also asks about `ask_assistant(prompt)` and
 `prompt_assistant(prompt)` when those functions have no answer yet. The text
@@ -80,4 +86,7 @@ line keeps its underline: Ganit still could not read it. `AnswerCell.isAssisted`
 says which answers these are, and they carry no full precision, because there
 is no exact value behind them.
 
-Answers are not saved with the sheet. They live as long as the sheet is open.
+Model answers and temporary corrections are not saved with the sheet. They
+remain in the open sheet's session cache, including after closing and reopening
+its tab, but are discarded when Ganit quits. A correction explicitly saved into
+sheet source is durable.

@@ -32,8 +32,9 @@ workspace window with an empty sheet.
   to the configured assistant again: a line Ganit could not work out, or an
   `ask_assistant` prompt. See docs/editor/assistant.md.
 
-- **Change Answer…** replaces an assistant value already on that line with
-  text you type, without sending another request.
+- **Change Answer…** offers saving a reviewed correction into sheet source
+  (with the original line retained as a comment), or using it temporarily until
+  Ganit quits. Neither option sends another request.
 
 - **Copy with Results** copies each selected line, or the insertion point's
   line, with the answer that line shows. Assisted display answers include an

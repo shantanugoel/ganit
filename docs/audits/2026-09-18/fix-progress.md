@@ -4,6 +4,7 @@ Work proceeds in audit order on `main`; each item is reviewed, tested, committed
 and pushed before starting the next. Release 0.4.0 follows all fifteen fixes.
 
 G01 full GitHub CI passed (run 35338124822).
+G02 full GitHub CI passed (run 35338582291).
 
 ## G01 — Undo and reference renumbering
 
@@ -44,7 +45,21 @@ G01 full GitHub CI passed (run 35338124822).
   empty selections. Validation: 483 package tests, formatting, pseudolocalized
   layout, debug app build, bundle verification, and diff whitespace checks pass.
 
+## G04 — Disclose correction lifetime and offer durable source
+
+- Chose the audit's explicit temporary-lifetime/save-value option rather than
+  adding a new answer storage format or saving stale model replies.
+- Change Answer warns that temporary corrections disappear on quit. Its default
+  action saves a validated single-line value into source and retains the original
+  line in a manual-answer comment; Use Temporarily remains an explicit choice.
+- Reviewed validation, session-cache independence, Undo isolation, source-change
+  persistence, and no network calls. Invalid or assistant-dependent input cannot
+  edit the sheet. Reopening saved source calculates without an assistant and
+  dependent formulas use the value.
+- Validation: 485 package tests, formatting, pseudolocalized layout, debug app
+  build, bundle verification, and whitespace checks pass.
+
 ## Remaining
 
-G04–G15, then release validation, version bump, and publication via the existing
+G05–G15, then release validation, version bump, and publication via the existing
 signed/notarized GitHub release workflow triggered by `v0.4.0`.

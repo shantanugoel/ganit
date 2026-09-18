@@ -5,6 +5,9 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Change Answer explains that temporary corrections disappear on quit and
+  offers Save Value into Sheet to keep a validated correction through restart.
+
 - Selection summaries count failed and pending calculations and hide Total
   and Average while a selection is incomplete.
 

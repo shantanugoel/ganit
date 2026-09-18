@@ -170,6 +170,40 @@ struct AssistantAnswerTests {
   }
 
   @Test
+  func savedManualCorrectionsReopenWithoutAnAssistant() async throws {
+    let source = "10 kg of water in ml\nprevious * 2"
+    let editor = try makeEditor(source)
+    editor.askAssistant = { _ in "10,000 ml" }
+    let textView = try #require(editor.textView as? SheetTextView)
+    await editor.scheduler?.waitUntilIdle()
+    _ = try await answers(of: textView) { $0.first?.isAssisted == true }
+    textView.setSelectedRange(NSRange(location: 0, length: 0))
+    #expect(editor.saveAssistantAnswerAsValue("12345 ml"))
+    let saved = editor.sheet.text
+    #expect(saved.hasPrefix("12345 ml // Manual answer; original: 10 kg of water in ml"))
+    let reopened = try makeEditor(saved)
+    let exported = await reopened.exportedLines()
+    #expect(exported.map(\.status) == [.calculated, .calculated])
+    #expect(exported[0].answer?.contains("12,345") == true)
+    #expect(exported[1].answer?.contains("24,690") == true)
+    editor.documentUndoManager.undo()
+    #expect(editor.sheet.text == source)
+    editor.documentUndoManager.redo()
+    #expect(editor.sheet.text == saved)
+  }
+
+  @Test
+  func savingRejectsInvalidOrAssistedValuesWithoutEditingSource() async throws {
+    let source = "10 kg of water in ml"
+    let editor = try makeEditor(source)
+    await editor.scheduler?.waitUntilIdle()
+    for value in ["", "not a value", "1/0", "1\n2", "ask_assistant(water)"] {
+      #expect(!editor.saveAssistantAnswerAsValue(value))
+      #expect(editor.sheet.text == source)
+    }
+  }
+
+  @Test
   func aChangedAssistantPromptIsWhatLaterLinesUse() async throws {
     let editor = try makeEditor("ask_assistant(10 kg of water in ml)\nprevious * 2")
     editor.askAssistant = { _ in "10000 ml" }
