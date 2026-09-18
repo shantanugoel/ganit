@@ -1085,7 +1085,11 @@ private struct EvaluationWorker {
     nameRange: SourceRange
   ) throws -> NumericValue {
 
-    let evaluated = try arguments.map { try evaluate($0) }
+    var evaluated = try arguments.map { try evaluate($0) }
+    // `npv(10%, …)` states its rate as a percentage, as a sheet writes rates.
+    if function == .netPresentValue, case .percentage(let percentage) = evaluated[0] {
+      evaluated[0] = .number(try percentageRate(percentage))
+    }
     // An angle carries its unit, so `sin(30°)` does not depend on the angle mode.
     if [.sine, .cosine, .tangent].contains(function), evaluated.count == 1,
       case .quantity(let angle) = evaluated[0], angle.unit.dimension == .angle,
@@ -1167,6 +1171,21 @@ private struct EvaluationWorker {
         return try operations.hypot(values[0], values[1])
       case .remainder:
         return try operations.remainder(values[0], values[1])
+      case .greatestCommonDivisor:
+        return try operations.greatestCommonDivisor(values[0], values[1])
+      case .leastCommonMultiple:
+        return try operations.leastCommonMultiple(values[0], values[1])
+      case .combinations:
+        return try operations.choose(values[0], values[1], ordered: false)
+      case .permutations:
+        return try operations.choose(values[0], values[1], ordered: true)
+      case .standardDeviation:
+        return try operations.standardDeviation(values, isSample: true)
+      case .populationStandardDeviation:
+        return try operations.standardDeviation(values, isSample: false)
+      case .netPresentValue:
+        return try operations.netPresentValue(
+          rate: values[0], amounts: Array(values.dropFirst()))
       case .clamp:
         return try operations.clamp(values[0], lower: values[1], upper: values[2])
       case .arcTangent2:

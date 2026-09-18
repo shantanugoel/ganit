@@ -322,6 +322,84 @@ extension LanguageReference {
 
   fileprivate static func functionTopic(_ function: BuiltInFunction) -> LanguageTopic {
     switch function {
+    case .greatestCommonDivisor:
+      return functionHelp(
+        "gcd", signature: "gcd(x, y)",
+        summary: text("help.function.gcd.summary", "The greatest common divisor."),
+        body: text(
+          "help.function.gcd.body",
+          "gcd(x, y) is the largest whole number dividing both. Both must be whole numbers."
+        ),
+        examples: ["gcd(12, 18)"],
+        keywords: ["divisor", "hcf", "factor"]
+      )
+    case .leastCommonMultiple:
+      return functionHelp(
+        "lcm", signature: "lcm(x, y)",
+        summary: text("help.function.lcm.summary", "The least common multiple."),
+        body: text(
+          "help.function.lcm.body",
+          "lcm(x, y) is the smallest whole number both divide. Zero with anything is zero."
+        ),
+        examples: ["lcm(4, 6)"],
+        keywords: ["multiple"]
+      )
+    case .combinations:
+      return functionHelp(
+        "ncr", signature: "ncr(n, k)",
+        summary: text("help.function.ncr.summary", "How many ways to choose k of n."),
+        body: text(
+          "help.function.ncr.body",
+          "ncr(n, k) counts the choices where order does not matter; npr(n, k) counts them where it does. Both take whole numbers with k no larger than n."
+        ),
+        examples: ["ncr(5, 2)"],
+        keywords: ["combination", "choose", "binomial", "probability"]
+      )
+    case .permutations:
+      return functionHelp(
+        "npr", signature: "npr(n, k)",
+        summary: text("help.function.npr.summary", "How many ordered ways to take k of n."),
+        body: text(
+          "help.function.npr.body",
+          "npr(n, k) counts the arrangements of k taken from n, where order matters."
+        ),
+        examples: ["npr(5, 2)"],
+        keywords: ["permutation", "arrangement", "probability"]
+      )
+    case .standardDeviation:
+      return functionHelp(
+        "stdev", signature: "stdev(x, y, ...)",
+        summary: text("help.function.stdev.summary", "The standard deviation of a sample."),
+        body: text(
+          "help.function.stdev.body",
+          "stdev divides by one less than the count, for a sample; stdevp divides by the count, for a whole population. Both need at least two values and are approximate."
+        ),
+        examples: ["stdev(78, 85, 91, 66)"],
+        keywords: ["deviation", "spread", "statistics", "variance"]
+      )
+    case .populationStandardDeviation:
+      return functionHelp(
+        "stdevp", signature: "stdevp(x, y, ...)",
+        summary: text(
+          "help.function.stdevp.summary", "The standard deviation of a whole population."),
+        body: text(
+          "help.function.stdevp.body",
+          "stdevp divides by the count rather than one less than it, for values that are the whole population."
+        ),
+        examples: ["stdevp(78, 85, 91, 66)"],
+        keywords: ["deviation", "spread", "statistics"]
+      )
+    case .netPresentValue:
+      return functionHelp(
+        "npv", signature: "npv(rate, amount, ...)",
+        summary: text("help.function.npv.summary", "Amounts discounted to today."),
+        body: text(
+          "help.function.npv.body",
+          "npv(rate, amount, …) discounts each amount by one more period than the one before it, with the first amount at period zero. The rate is for one period and may be a percentage."
+        ),
+        examples: ["npv(10%, -1000, 300, 400, 500)"],
+        keywords: ["discount", "cash flow", "present value", "investment"]
+      )
     case .absoluteValue:
       return functionHelp(
         "abs", signature: "abs(x)",

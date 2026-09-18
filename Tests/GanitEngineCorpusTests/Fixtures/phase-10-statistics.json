@@ -136,6 +136,46 @@
       }
     },
     {
+      "name": "statistics: sample standard deviation",
+      "expression": "stdev(78, 85, 91, 66)",
+      "expected": {
+        "status": "value",
+        "display": "≈ 10.7393357957247",
+        "fullPrecision": "≈ 10.739335795724676",
+        "approximate": true
+      }
+    },
+    {
+      "name": "statistics: whole-population standard deviation",
+      "expression": "stdevp(78, 85, 91, 66)",
+      "expected": {
+        "status": "value",
+        "display": "≈ 9.30053761886914",
+        "fullPrecision": "≈ 9.300537618869138",
+        "approximate": true
+      }
+    },
+    {
+      "name": "statistics: whole-number helpers",
+      "expression": "gcd(12, 18) + lcm(4, 6) + ncr(5, 2) + npr(5, 2)",
+      "expected": {
+        "status": "value",
+        "display": "48",
+        "fullPrecision": "48",
+        "approximate": false
+      }
+    },
+    {
+      "name": "statistics: net present value discounts each period",
+      "expression": "npv(10%, -1000, 300, 400, 500)",
+      "expected": {
+        "status": "value",
+        "display": "-21.0368144252442",
+        "fullPrecision": "-28000/1331",
+        "approximate": false
+      }
+    },
+    {
       "name": "statistics: a list statistic composes like any value",
       "expression": "median(3, 9, 4) * 2",
       "expected": {

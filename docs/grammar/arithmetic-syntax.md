@@ -46,6 +46,13 @@ In comma-decimal locales, use a semicolon between function arguments (`max(1; 2)
 - `ask_assistant(prompt)` and `prompt_assistant(prompt)` send the text inside
   the parentheses to a configured assistant and use the reply as a value.
 - `min(x, y, ...)` and `max(x, y, ...)` require at least two arguments.
+- `gcd(x, y)` and `lcm(x, y)` take whole numbers. `ncr(n, k)` and `npr(n, k)`
+  count choices and arrangements.
+- `stdev(x, y, ...)` is the sample standard deviation, over one less than the
+  count; `stdevp` is the whole-population one. Both need two values and are
+  approximate.
+- `npv(rate, amount, ...)` discounts each amount by one more period than the
+  one before, the first at period zero. The rate may be a percentage.
 - `sqrt(x)` is equivalent to `root(x, 2)`. `root(x, degree)` requires a positive exact integer degree.
 - `sin`, `cos`, and `tan` use the injected angle mode for a bare number; an angle with its unit, `sin(30°)` or `cos(1 rad)`, is read in that unit whatever the mode. `asin`, `acos`, and `atan` return angles in that mode.
 - `ln(x)` is the natural logarithm; `log(x)` and `log10(x)` are base 10. `exp(x)` computes eˣ.

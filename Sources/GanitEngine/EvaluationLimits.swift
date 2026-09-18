@@ -70,13 +70,23 @@ public enum BuiltInFunction: String, CaseIterable, Hashable, Sendable {
   case clamp
   case factorial = "fact"
   case remainder = "mod"
+  case greatestCommonDivisor = "gcd"
+  case leastCommonMultiple = "lcm"
+  case combinations = "ncr"
+  case permutations = "npr"
+  case standardDeviation = "stdev"
+  case populationStandardDeviation = "stdevp"
+  case netPresentValue = "npv"
 
   var argumentRange: ClosedRange<Int> {
     switch self {
     case .minimum, .maximum:
       return 2...Int.max
-    case .root, .arcTangent2, .hypot, .remainder:
+    case .root, .arcTangent2, .hypot, .remainder, .greatestCommonDivisor, .leastCommonMultiple,
+      .combinations, .permutations:
       return 2...2
+    case .standardDeviation, .populationStandardDeviation, .netPresentValue:
+      return 2...Int.max
     case .clamp:
       return 3...3
     case .round:

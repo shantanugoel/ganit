@@ -218,6 +218,103 @@ struct NumericOperations {
     return try checkedInteger(result)
   }
 
+  /// The greatest common divisor of two whole numbers, never negative.
+  func greatestCommonDivisor(_ left: NumericValue, _ right: NumericValue) throws -> NumericValue {
+    let (a, b) = try wholePair(left, right)
+    var (x, y) = (a.magnitude, b.magnitude)
+    while y != 0 {
+      (x, y) = (y, x % y)
+    }
+    return try checkedInteger(BigInt(x))
+  }
+
+  /// The least common multiple of two whole numbers, never negative. Zero
+  /// with anything is zero, as no smaller multiple exists.
+  func leastCommonMultiple(_ left: NumericValue, _ right: NumericValue) throws -> NumericValue {
+    let (a, b) = try wholePair(left, right)
+    guard !a.isZero, !b.isZero else {
+      return .integer(IntegerValue(0))
+    }
+    guard case .integer(let divisor) = try greatestCommonDivisor(left, right) else {
+      throw EngineError(code: .internalFailure)
+    }
+    let product = (a * b).magnitude
+    try validateInteger(BigInt(product))
+    return try checkedInteger(BigInt(product / divisor.storage.magnitude))
+  }
+
+  /// `ncr(n, k)`, the number of ways to choose `k` of `n`, and `npr(n, k)`,
+  /// the number of ordered ways.
+  func choose(_ n: NumericValue, _ k: NumericValue, ordered: Bool) throws -> NumericValue {
+    let (total, taken) = try wholePair(n, k)
+    guard let count = Int(exactly: total), let chosen = Int(exactly: taken), count >= 0,
+      chosen >= 0, chosen <= count
+    else {
+      throw EngineError(code: .invalidDomain)
+    }
+    guard count <= 10_000 else {
+      throw limitError(.operations)
+    }
+    var result = BigInt(1)
+    for step in 0..<chosen {
+      result *= BigInt(count - step)
+      try validateInteger(result)
+      if !ordered {
+        result /= BigInt(step + 1)
+      }
+    }
+    return try checkedInteger(result)
+  }
+
+  /// The standard deviation of the values, over `count - 1` for a sample and
+  /// `count` for a whole population.
+  func standardDeviation(_ values: [NumericValue], isSample: Bool) throws -> NumericValue {
+    let count = values.count
+    guard count >= 2 else {
+      throw EngineError(code: .invalidDomain)
+    }
+    var total = NumericValue.integer(IntegerValue(0))
+    for value in values {
+      total = try applying(.add, left: total, right: value)
+    }
+    let mean = try applying(.divide, left: total, right: .integer(IntegerValue(count)))
+    var squares = NumericValue.integer(IntegerValue(0))
+    for value in values {
+      let difference = try applying(.subtract, left: value, right: mean)
+      squares = try applying(
+        .add, left: squares,
+        right: try applying(.multiply, left: difference, right: difference))
+    }
+    let divisor = isSample ? count - 1 : count
+    let variance = try applying(
+      .divide, left: squares, right: .integer(IntegerValue(divisor)))
+    return try root(variance, degree: .integer(IntegerValue(2)))
+  }
+
+  /// `npv(rate, …)`, each amount discounted by one more period than the last,
+  /// with the first amount at period zero as spreadsheets' XNPV-free form.
+  func netPresentValue(rate: NumericValue, amounts: [NumericValue]) throws -> NumericValue {
+    let one = NumericValue.integer(IntegerValue(1))
+    let growth = try applying(.add, left: one, right: rate)
+    guard !growth.isZero else {
+      throw EngineError(code: .divisionByZero)
+    }
+    var total = NumericValue.integer(IntegerValue(0))
+    for (period, amount) in amounts.enumerated() {
+      let discount = try applying(.power, left: growth, right: .integer(IntegerValue(period)))
+      total = try applying(
+        .add, left: total, right: try applying(.divide, left: amount, right: discount))
+    }
+    return total
+  }
+
+  private func wholePair(_ left: NumericValue, _ right: NumericValue) throws -> (BigInt, BigInt) {
+    guard let a = exactInteger(left), let b = exactInteger(right) else {
+      throw EngineError(code: .invalidDomain)
+    }
+    return (BigInt(a), BigInt(b))
+  }
+
   func arcTangent2(y: NumericValue, x: NumericValue) throws -> NumericValue {
     let dy = try approximateEstimate(y)
     let dx = try approximateEstimate(x)

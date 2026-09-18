@@ -5,6 +5,7 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- New functions: `gcd`, `lcm`, `ncr`, `npr`, `stdev`, `stdevp`, and `npv`.
 - Help opens at a readable size again, lists the units Ganit knows under Units,
   and finds topics by everyday words such as mortgage, EMI, compound interest,
   or GST. A search with no match says what to try next.
