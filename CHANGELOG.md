@@ -5,6 +5,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- A sheet stops widening on a large display, so each answer stays beside its
+  line instead of at the far right edge.
 - A new sheet nothing was written in and nobody named is discarded when you
   move away from it or close its window, instead of leaving empty Untitled
   sheets in the library.

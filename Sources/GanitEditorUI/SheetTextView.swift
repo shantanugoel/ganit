@@ -21,6 +21,9 @@ final class SheetTextView: NSTextView {
   static let answerColumnFraction: CGFloat = 0.35
   static let answerColumnWidthRange: ClosedRange<CGFloat> = 140...360
   static let columnGap: CGFloat = 16
+  /// Source and answers together never take more than this, so a wide window
+  /// keeps each answer beside its line instead of at the far edge.
+  static let maximumContentWidth: CGFloat = 980
   static let baseFontSize = VisualStyle.Typography.editorSize
   /// Text size steps; 1 is the standard 14 pt.
   static let textScales: [CGFloat] = [0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3]
@@ -143,10 +146,17 @@ final class SheetTextView: NSTextView {
     return writesAnswersInline ? VisualStyle.Color.secondary : VisualStyle.Color.primary
   }
 
+  /// The width source and answers share, which stops growing once a window is
+  /// wider than a sheet needs.
+  var contentWidth: CGFloat {
+    min(
+      bounds.width - textContainerInset.width * 2, Self.maximumContentWidth * textScale)
+  }
+
   var answerColumnWidth: CGFloat {
     min(
       max(
-        bounds.width * Self.answerColumnFraction,
+        contentWidth * Self.answerColumnFraction,
         Self.answerColumnWidthRange.lowerBound * textScale
       ),
       Self.answerColumnWidthRange.upperBound * textScale
@@ -159,7 +169,7 @@ final class SheetTextView: NSTextView {
     guard showsAnswerSeparator, !writesAnswersInline else {
       return nil
     }
-    return (bounds.maxX - textContainerInset.width - answerColumnWidth - Self.columnGap / 2)
+    return (textContainerInset.width + contentWidth - answerColumnWidth - Self.columnGap / 2)
       .rounded()
   }
 
@@ -167,7 +177,7 @@ final class SheetTextView: NSTextView {
     super.setFrameSize(newSize)
     answerOverlay().frame = bounds
     answerOverlay().needsDisplay = true
-    let available = newSize.width - textContainerInset.width * 2
+    let available = contentWidth
     let sourceWidth =
       writesAnswersInline ? available : available - answerColumnWidth - Self.columnGap
     textContainer?.size = NSSize(
@@ -205,7 +215,7 @@ final class SheetTextView: NSTextView {
   /// right-aligned in the answer column on the line's first row, or, written
   /// inline, just past where the line's last row of text ends.
   func answerLayout(in rect: NSRect) -> [(line: LineID, cell: AnswerCell, rect: NSRect)] {
-    let rightEdge = bounds.maxX - textContainerInset.width
+    let rightEdge = textContainerInset.width + contentWidth
     let columnWidth = answerColumnWidth
     return visibleLines(in: rect).compactMap { line in
       guard let cell = answer(line.id) else {

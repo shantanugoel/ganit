@@ -36,6 +36,21 @@ struct AnswerPlacementTests {
   }
 
   @Test
+  func aWideWindowKeepsAnswersBesideTheirLines() async throws {
+    let (_, textView) = try await makeEditor("2 + 2")
+    let window = try #require(textView.window)
+
+    window.setContentSize(NSSize(width: 2_400, height: 400))
+    window.layoutIfNeeded()
+
+    // The sheet stops growing, so the answer does not run off to the far edge.
+    #expect(textView.contentWidth <= SheetTextView.maximumContentWidth)
+    let answer = try #require(textView.answerLayout(in: textView.bounds).first)
+    #expect(answer.rect.maxX < SheetTextView.maximumContentWidth + 40)
+    #expect(try #require(textView.answerSeparatorX) < SheetTextView.maximumContentWidth)
+  }
+
+  @Test
   func theRuleIsDrawnUntilASheetAsksForItToBeHidden() async throws {
     let (editor, textView) = try await makeEditor("2 + 2")
 

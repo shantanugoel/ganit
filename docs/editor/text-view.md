@@ -126,6 +126,10 @@ Assistant is enabled for a flagged line or an `ask_assistant` prompt when an
 assistant is set up, and asks again even if that text was already sent. Change
 Answer… is enabled when that line already has an assistant value.
 
+Source and answers together stop widening once a window is wider than a sheet
+needs, so an answer stays beside its line instead of at the far edge of a large
+display; the rest of the window is margin.
+
 The interpretation card is a transient popover listing the expression, result,
 full precision, value kind, and exactness, then one Assumption row for each
 [finance function](../grammar/finance-functions.md) the answer used; for a
