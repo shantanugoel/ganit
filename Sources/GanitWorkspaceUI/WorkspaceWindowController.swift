@@ -522,6 +522,13 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     write(options)
   }
 
+  @objc public func toggleDegrees(_ sender: Any?) {
+    guard let id = sheetID, let mode = sheet?.autosaver.metadata.preferences.angleMode else {
+      return
+    }
+    perform { try workspace.write(mode == .degrees ? .radians : .degrees, on: id) }
+  }
+
   @objc public func toggleLakhGrouping(_ sender: Any?) {
     guard var options = displayOptions else {
       return
@@ -580,6 +587,10 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     case #selector(toggleDigitGrouping(_:)):
       menuItem.state = displayOptions?.groupsDigits == true ? .on : .off
       return displayOptions != nil
+    case #selector(toggleDegrees(_:)):
+      menuItem.state =
+        sheet?.autosaver.metadata.preferences.angleMode == .degrees ? .on : .off
+      return sheetID != nil
     case #selector(toggleLakhGrouping(_:)):
       menuItem.state = displayOptions?.groupsInLakhs == true ? .on : .off
       return displayOptions?.groupsDigits == true

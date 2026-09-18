@@ -951,6 +951,11 @@
         }
       }
     },
+    "menu.anglesInDegrees" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Angles in Degrees" } }
+      }
+    },
     "menu.hexadecimal" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Hexadecimal" } }

@@ -332,6 +332,16 @@ public final class SheetEditorViewController: NSViewController {
   }
 
   /// Evaluates the sheet with new exchange rates.
+  /// Reads bare angles in degrees or radians, and answers again.
+  public func setAngleMode(_ mode: AngleMode) {
+    guard context.angleMode != mode else {
+      return
+    }
+    context = context.with(angleMode: mode)
+    scheduler?.context = context
+    scheduler?.schedule(sheet)
+  }
+
   public func setCurrencyRates(_ rates: CurrencyRates) {
     context = context.with(rates)
     scheduler?.context = context

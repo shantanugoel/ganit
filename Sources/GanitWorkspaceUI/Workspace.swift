@@ -235,6 +235,12 @@ public final class Workspace {
     sheet.editor.writeAnswers(options)
   }
 
+  /// Reads a sheet's bare angles in degrees or radians.
+  func write(_ angleMode: AngleMode, on id: UUID) throws {
+    didChange(try library.update(id) { $0.preferences.angleMode = angleMode })
+    sheets[id]?.editor.setAngleMode(angleMode)
+  }
+
   /// Changes a sheet's metadata as one undoable action. Undo returns the
   /// title, favorite flag, folder, and state to their previous values.
   func organize(

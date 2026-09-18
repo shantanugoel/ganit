@@ -378,6 +378,25 @@ struct WorkspaceWindowControllerTests {
   }
 
   @Test
+  func aSheetCanReadItsAnglesInDegrees() async throws {
+    let (workspace, ids) = try makeWorkspace(["sin(90)"])
+    defer { close(workspace) }
+    let controller = workspace.openWindow(showing: ids[0])
+    let editor = try #require(controller.editor)
+    let degrees = NSMenuItem(
+      title: "", action: #selector(WorkspaceCommands.toggleDegrees(_:)), keyEquivalent: "")
+
+    controller.toggleDegrees(nil)
+    await editor.scheduler?.waitUntilIdle()
+    #expect(await editor.exportedLines().first?.answer == "≈ 1")
+    #expect(controller.validateMenuItem(degrees))
+    #expect(degrees.state == .on)
+
+    let stored = try workspace.library.store.load(id: ids[0]).metadata.preferences.angleMode
+    #expect(stored == .degrees)
+  }
+
+  @Test
   func theSidebarRewritesHowLongAgoASheetWasWritten() throws {
     let then = Date(timeIntervalSince1970: 1_700_000_000)
     #expect(
