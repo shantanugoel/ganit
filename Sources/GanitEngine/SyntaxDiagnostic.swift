@@ -21,6 +21,8 @@ public struct SyntaxDiagnostic: Hashable, Sendable {
     case unexpectedToken
     case invalidVariableName
     case nonWordName
+    /// `2 + 3 =`: an expression ending in `=`, as on a calculator.
+    case trailingEquals
     case resourceLimitExceeded
   }
 

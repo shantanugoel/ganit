@@ -220,7 +220,21 @@ G04 full GitHub CI passed (run 35339826684).
   package tests, formatting, pseudolocalized layout, debug app build, bundle
   verification, and whitespace checks pass.
 
+## G15 — Diagnose a trailing equals sign
+
+- A declaration-shaped line with nothing after `=` whose left side contains a
+  number or operator and parses as an expression now reports the new
+  `trailingEquals` syntax code on the `=`: answers appear on their own, remove
+  it, or use `=>` before a note. Word-only names such as `Groceries (Costco) =`
+  and non-empty declarations keep their existing name diagnostics.
+- Such lines are not sent to the assistant. No grammar acceptance changed, so
+  the ambiguity registry is untouched.
+- Validation: sheet regression covers the trailing forms, spacing, the `=`
+  range, preserved name diagnostics, and `=>`. 501 package tests, the ASan
+  corpus, formatting, pseudolocalized layout, debug app build, bundle
+  verification, and whitespace checks pass.
+
 ## Remaining
 
-G15, then release validation, version bump, and publication via the existing
+Release validation, version bump, and publication via the existing
 signed/notarized GitHub release workflow triggered by `v0.4.0`.

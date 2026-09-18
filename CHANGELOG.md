@@ -5,6 +5,9 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- `2 + 3 =` says answers appear on their own and to remove the `=`, instead of
+  explaining how to name a variable, and is not sent to the assistant.
+
 - Quick Ganit shows its ⌘↩ Copy Result and Close action as a title-bar button
   beside Keep as Sheet, and says No Result to Copy when there is none.
 

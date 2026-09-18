@@ -136,6 +136,27 @@ struct VariableTests {
     #expect(diagnostics.first?.range.lowerBound == 10)
   }
 
+  /// A calculator's equals key after an expression asks for it to be
+  /// removed, while malformed declarations keep their own diagnostics.
+  @Test
+  func aTrailingEqualsSaysAnswersAppearOnTheirOwn() throws {
+    let results = try evaluateSheet(
+      SheetSource("2 + 3 =\nsqrt(9)  = \n2 + 3 = 5\nGroceries (Costco) =\n2 + 3 =>"))
+    let codes = results.map { result -> SyntaxDiagnostic.Code? in
+      guard case .syntaxFailure(let diagnostics) = result.result else {
+        return nil
+      }
+      return diagnostics.first?.code
+    }
+    #expect(codes == [.trailingEquals, .trailingEquals, .nonWordName, .nonWordName, nil])
+    guard case .syntaxFailure(let diagnostics) = results[1].result else {
+      Issue.record("Expected a trailing equals")
+      return
+    }
+    #expect(diagnostics.first?.range.lowerBound == 9)
+    #expect(diagnostics.first?.range.upperBound == 10)
+  }
+
   @Test
   func anUnusableNameMarksTheTakenWord() throws {
     let results = try evaluateSheet(SheetSource("hourly min wage = 7"))

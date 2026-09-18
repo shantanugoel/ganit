@@ -241,7 +241,7 @@ private final class LineSource: Sendable {
     }
     words = runs.filter { !$0.isEmpty }
 
-    guard case .calculation(_, let nameRange?, _, _) = syntax else {
+    guard case .calculation(_, let nameRange?, let expressionRange, _) = syntax else {
       declaredName = nil
       unitName = nil
       rateCurrency = nil
@@ -269,7 +269,7 @@ private final class LineSource: Sendable {
         graphemeUpperBound: nameRange.graphemeLowerBound + range.graphemeUpperBound
       )
     }
-    let diagnostic: SyntaxDiagnostic
+    var diagnostic: SyntaxDiagnostic
     // `1 km = 5 m` defines a unit, so its leading `1` is the shape rather than
     // a name that is not words; the word it names is what is taken.
     switch oneOf == nil ? problem : .takenWord(nameRange) {
@@ -280,7 +280,33 @@ private final class LineSource: Sendable {
     case nil:
       diagnostic = SyntaxDiagnostic(code: .invalidVariableName, range: nameRange)
     }
+    // `2 + 3 =` is a calculator's equals key, not a declaration: nothing
+    // follows it, and what precedes it is an expression with a number or an
+    // operator, where words alone, `Groceries (Costco)`, are a name.
+    if declaredName == nil, !isNamed, expressionRange?.isEmpty == true,
+      Self.isArithmetic(name, context.lexingConfiguration),
+      case let parsedName = engine.parse(name, context: context),
+      parsedName.expression != nil, parsedName.diagnostics.isEmpty,
+      let equals = text.utf8.dropFirst(nameRange.upperBound).firstIndex(of: UInt8(ascii: "="))
+    {
+      let offset = text.utf8.distance(from: text.utf8.startIndex, to: equals)
+      let graphemes = nameRange.graphemeUpperBound + (offset - nameRange.upperBound)
+      diagnostic = SyntaxDiagnostic(
+        code: .trailingEquals,
+        range: SourceRange(
+          lowerBound: offset, upperBound: offset + 1, graphemeLowerBound: graphemes,
+          graphemeUpperBound: graphemes + 1))
+    }
     nameFailure = declaredName == nil && !isNamed ? .syntaxFailure([diagnostic]) : nil
+  }
+
+  private static func isArithmetic(_ text: String, _ configuration: LexingConfiguration) -> Bool {
+    Lexer(source: text, configuration: configuration).lex().tokens.contains {
+      switch $0.kind {
+      case .identifier, .leftParenthesis, .rightParenthesis, .endOfFile: return false
+      default: return true
+      }
+    }
   }
 }
 

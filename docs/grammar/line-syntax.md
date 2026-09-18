@@ -31,7 +31,11 @@ Rules, applied in this order:
    more word. `=>` is not a declaration; it ends the expression, Calca-style.
 5. The remaining trimmed text is the expression. `Groceries:` is a label with
    no expression and produces no result; `total =` is an incomplete
-   declaration. In Markdown Mode, leading words before a number, currency, or
+   declaration. A "name" containing a number or operator with nothing after
+   `=`, such as `2 + 3 =`, is a calculator's equals key: it is diagnosed as
+   `syntax.trailingEquals` ("remove the =") on the `=` itself and never sent
+   to the assistant, while `Groceries (Costco) =` and `2 + 3 = 5` keep the
+   name diagnostics. In Markdown Mode, leading words before a number, currency, or
    function are skipped, so `The cost is 100 + 50` is `100 + 50`, and a line
    with no calculation is a paragraph rather than an error. A line with a
    spaced `+`, `*`, `/`, `^`, or `=` that does not calculate stays a calculation

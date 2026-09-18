@@ -394,6 +394,11 @@
         "en" : { "stringUnit" : { "state" : "translated", "value" : "%@ has an error, so this cannot use it." } }
       }
     },
+    "syntax.trailingEquals" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Answers appear on their own, so remove the =. Write => to end a line's calculation before a note." } }
+      }
+    },
     "syntax.nonWordName" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "A name is words: `Groceries Costco`, or a label ending in a colon." } }

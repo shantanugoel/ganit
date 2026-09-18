@@ -952,6 +952,12 @@ public struct DiagnosticFormatter: Sendable {
         "syntax.nonWordName",
         defaultValue: "A name is words: `Groceries Costco`, or a label ending in a colon."
       )
+    case .trailingEquals:
+      return localized(
+        "syntax.trailingEquals",
+        defaultValue:
+          "Answers appear on their own, so remove the =. Write => to end a line's calculation before a note."
+      )
     case .invalidVariableName:
       return localized(
         "syntax.invalidVariableName",

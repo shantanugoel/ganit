@@ -901,6 +901,10 @@ public final class SheetEditorViewController: NSViewController {
     else {
       return nil
     }
+    // A trailing `=` is answered by removing it, not by a model.
+    if case .syntaxFailure(let diagnostics) = result, diagnostics.first?.code == .trailingEquals {
+      return nil
+    }
     if case .evaluationFailure(let error) = result,
       error.code == .unresolvedAssistantPrompt
         || error.code == .unusableAssistantAnswer
