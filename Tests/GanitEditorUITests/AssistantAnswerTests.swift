@@ -40,6 +40,33 @@ struct AssistantAnswerTests {
       ).contains("10,000 ml [AI; unverified]"))
   }
 
+  /// An assistant's answer carries a textual AI badge, for readers, hover,
+  /// and VoiceOver, rather than relying on its colour.
+  @Test
+  func anAssistedAnswerIsLabelledAI() async throws {
+    let editor = try makeEditor("10 kg of water in ml")
+    editor.askAssistant = { _ in "10,000 ml" }
+    let textView = try #require(editor.textView as? SheetTextView)
+    await editor.scheduler?.waitUntilIdle()
+    _ = try await answers(of: textView) { $0.first?.isAssisted == true }
+
+    let answer = try #require(textView.answerLayout(in: textView.bounds).first)
+    let textWidth = ceil(
+      ("10,000 ml" as NSString).size(
+        withAttributes: textView.attributes(for: answer.cell, selected: false)
+      ).width)
+    #expect(textView.badgeWidth(for: answer.cell) > 0)
+    #expect(answer.rect.width == textWidth + textView.badgeWidth(for: answer.cell))
+    #expect(
+      textView.tooltip(at: NSPoint(x: answer.rect.midX, y: answer.rect.midY))
+        == "10,000 ml — AI answer, unverified. Formulas cannot use it.")
+    let element = try #require(
+      textView.accessibilityChildren()?.compactMap { $0 as? NSAccessibilityElement }
+        .first { $0.accessibilityValue() as? String == "10,000 ml" })
+    #expect(element.accessibilityLabel() == "Line 1 AI answer, unverified")
+    #expect(textView.badgeWidth(for: AnswerCell(text: "4", fullPrecision: "4")) == 0)
+  }
+
   @Test
   func askAssistantReturnsAValueLaterLinesCanUse() async throws {
     let asked = Asked()

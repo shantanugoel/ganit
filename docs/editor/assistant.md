@@ -89,7 +89,11 @@ second complaint.
 
 While a request is in flight the answer column shows Asking… in secondary
 colour, not the red diagnostic. An answer replaces that and is drawn in
-`VisualStyle.Color.assisted`, purple, rather than the colour of a result. The
+`VisualStyle.Color.assisted`, purple, rather than the colour of a result, after
+an outlined **AI** badge, so its origin does not depend on seeing colour or
+survive only in colour on a screenshot. Hovering it says it is an unverified AI
+answer formulas cannot use, and VoiceOver reads it as `Line N AI answer,
+unverified`. The
 line keeps its underline: Ganit still could not read it. `AnswerCell.isAssisted`
 says which answers these are, and they carry no full precision, because there
 is no exact value behind them.

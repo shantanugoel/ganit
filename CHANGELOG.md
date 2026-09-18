@@ -5,6 +5,10 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- An assistant's answer has an AI badge beside it, and its hover text and
+  VoiceOver label say it is an unverified AI answer, so its origin no longer
+  depends on noticing purple.
+
 - An exact answer rounded to be shown is marked `≈`, as rounded money already
   was: `1/3` reads `≈ 0.333333333333333`, and `2/3` at two decimals `≈ 0.67`.
   Its interpretation card names Format ▸ Number Format as the rounding, and

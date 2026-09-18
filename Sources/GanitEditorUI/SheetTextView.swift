@@ -136,6 +136,30 @@ final class SheetTextView: NSTextView {
     ]
   }
 
+  /// The text of the badge drawn before an assistant's answer, so its origin
+  /// does not depend on telling purple from black.
+  static let assistedBadge = "AI"
+
+  var badgeAttributes: [NSAttributedString.Key: Any] {
+    [
+      .font: NSFont.systemFont(
+        ofSize: VisualStyle.Typography.answer(scale: textScale).pointSize * 0.7, weight: .semibold),
+      .foregroundColor: VisualStyle.Color.assisted,
+    ]
+  }
+
+  /// The width the badge and its gap take before an assisted answer.
+  func badgeWidth(for cell: AnswerCell) -> CGFloat {
+    guard cell.isAssisted else {
+      return 0
+    }
+    return ceil((Self.assistedBadge as NSString).size(withAttributes: badgeAttributes).width)
+      + Self.badgePadding * 2 + Self.badgeGap
+  }
+
+  static let badgePadding: CGFloat = 3
+  static let badgeGap: CGFloat = 4
+
   /// What is drawn for `cell` in `width`: the answer when it fits, or else its
   /// shorter form. The full answer is its tooltip either way.
   func drawnText(for cell: AnswerCell, within width: CGFloat) -> String {
@@ -244,10 +268,13 @@ final class SheetTextView: NSTextView {
       let row = writesAnswersInline ? line.lastRow : line.firstRow
       let inlineX = line.frame.minX + row.typographicBounds.maxX + Self.columnGap
       let limit = writesAnswersInline ? max(rightEdge - inlineX, 0) : columnWidth
-      let wanted = ceil(
-        (drawnText(for: cell, within: limit) as NSString)
-          .size(withAttributes: attributes(for: cell, selected: false)).width
-      )
+      let badge = badgeWidth(for: cell)
+      let wanted =
+        badge
+        + ceil(
+          (drawnText(for: cell, within: limit - badge) as NSString)
+            .size(withAttributes: attributes(for: cell, selected: false)).width
+        )
       let x = writesAnswersInline ? inlineX : rightEdge - min(wanted, columnWidth)
       return (
         line.id,
@@ -312,11 +339,19 @@ final class SheetTextView: NSTextView {
             localized: "accessibility.lineError", defaultValue: "Line %lld error", bundle: .main),
           number
         )
-        : String(
-          format: String(
-            localized: "accessibility.lineResult", defaultValue: "Line %lld result", bundle: .main),
-          number
-        )
+        : cell.isAssisted
+          ? String(
+            format: String(
+              localized: "accessibility.lineAIAnswer",
+              defaultValue: "Line %lld AI answer, unverified", bundle: .main),
+            number
+          )
+          : String(
+            format: String(
+              localized: "accessibility.lineResult", defaultValue: "Line %lld result", bundle: .main
+            ),
+            number
+          )
       let frame = window?.convertToScreen(convert(rect, to: nil)) ?? rect
       let element =
         NSAccessibilityElement.element(
@@ -546,7 +581,14 @@ final class SheetTextView: NSTextView {
   /// off. Source help is what hovering a function or keyword in the line uses.
   func tooltip(at point: NSPoint) -> String? {
     if let hit = answerHit(at: point) {
-      return hit.cell.text
+      guard hit.cell.isAssisted else {
+        return hit.cell.text
+      }
+      return String(
+        format: String(
+          localized: "answer.aiTooltip",
+          defaultValue: "%@ — AI answer, unverified. Formulas cannot use it.", bundle: .main),
+        hit.cell.text)
     }
     return lookupHelp(at: point)?.tooltip
   }
@@ -1326,12 +1368,42 @@ private final class AnswerOverlayView: NSView {
         VisualStyle.Color.selectionBackground.setFill()
         NSBezierPath(roundedRect: rect.insetBy(dx: -4, dy: 0), xRadius: 4, yRadius: 4).fill()
       }
+      var rect = rect
+      if cell.isAssisted {
+        drawBadge(at: rect, selected: isSelected)
+        let badge = textView.badgeWidth(for: cell)
+        rect.origin.x += badge
+        rect.size.width = max(rect.width - badge, 0)
+      }
       (textView.drawnText(for: cell, within: rect.width) as NSString).draw(
         with: rect,
         options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine],
         attributes: textView.attributes(for: cell, selected: isSelected)
       )
     }
+  }
+}
+
+extension AnswerOverlayView {
+  /// Draws the AI badge at the leading edge of an assisted answer's `rect`.
+  fileprivate func drawBadge(at rect: NSRect, selected: Bool) {
+    var attributes = textView.badgeAttributes
+    if selected {
+      attributes[.foregroundColor] = VisualStyle.Color.selectionText
+    }
+    let text = SheetTextView.assistedBadge as NSString
+    let size = text.size(withAttributes: attributes)
+    let badge = NSRect(
+      x: rect.minX, y: rect.midY - size.height / 2 - 1,
+      width: ceil(size.width) + SheetTextView.badgePadding * 2, height: size.height + 2)
+    let color = attributes[.foregroundColor] as? NSColor ?? VisualStyle.Color.assisted
+    color.setStroke()
+    let outline = NSBezierPath(roundedRect: badge.insetBy(dx: 0.5, dy: 0.5), xRadius: 3, yRadius: 3)
+    outline.lineWidth = 1
+    outline.stroke()
+    text.draw(
+      at: NSPoint(x: badge.minX + SheetTextView.badgePadding, y: badge.minY + 1),
+      withAttributes: attributes)
   }
 }
 

@@ -137,7 +137,23 @@ G04 full GitHub CI passed (run 35339826684).
   precision. 492 package tests, the ASan corpus, formatting, pseudolocalized
   layout, debug app build, bundle verification, and whitespace checks pass.
 
+## G10 — Label AI answers in text
+
+- Assisted answers draw an outlined "AI" badge before the value; layout
+  reserves its width so the value never overlaps it and narrow columns shorten
+  the value instead. Selection recolours the badge with the answer.
+- Hover explains "AI answer, unverified. Formulas cannot use it." and the
+  answer's accessibility element is labelled "Line N AI answer, unverified";
+  copying and exports already carry the annotation from G02.
+- Reviewed a rendered sheet at normal and narrow widths; the badge, the G07
+  dependent message, and the G08 compact value all display as intended.
+  VoiceOver listening remains a manual check.
+- Validation: regression covers badge width in layout, hover text, the
+  accessibility label, and no badge on calculated answers. 493 package tests,
+  formatting, pseudolocalized layout, debug app build, bundle verification,
+  and whitespace checks pass.
+
 ## Remaining
 
-G10–G15, then release validation, version bump, and publication via the existing
+G11–G15, then release validation, version bump, and publication via the existing
 signed/notarized GitHub release workflow triggered by `v0.4.0`.
