@@ -5,6 +5,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- The `ganit` command answers each argument as a line of a sheet, so
+  `ganit 'rent = 3' 'rent * 12'` works where a declaration used to fail.
 - The known limitations say what `$` means now, when an answer is marked `≈`,
   and that number bases and fractions are a sheet-wide choice.
 - An empty sheet list says why it is empty: `No sheets match “rent”`, or that

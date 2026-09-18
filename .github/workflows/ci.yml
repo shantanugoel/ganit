@@ -58,6 +58,7 @@ jobs:
         run: |
           test "$(swift run ganit '20% off 85')" = "68"
           test "$(printf 'rent = 2,100\nrent * 12\n' | swift run ganit)" = "$(printf '2,100\n25,200')"
+          test "$(swift run ganit 'rent = 3' 'rent * 12')" = "$(printf '3\n36')"
           ! swift run ganit '1 m + 1 s'
 
       - name: Exercise internal engine harness

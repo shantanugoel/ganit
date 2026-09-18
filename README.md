@@ -94,6 +94,7 @@ The app carries the same engine as a small command:
 
 ```bash
 /Applications/Ganit.app/Contents/Helpers/ganit '20% off 85'   # 68
+/Applications/Ganit.app/Contents/Helpers/ganit 'rent = 2,100' 'rent * 12'
 printf 'rent = 2,100\nrent * 12\n' | /Applications/Ganit.app/Contents/Helpers/ganit
 ```
 

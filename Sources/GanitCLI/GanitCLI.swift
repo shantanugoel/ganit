@@ -6,19 +6,21 @@ import GanitSystemIntegration
 /// `ganit`, the command-line calculator. It answers with the same engine,
 /// grammar, and formatting as the app:
 ///
-///     ganit '20% off 85'        # one expression → 68
-///     ganit < budget.txt        # a sheet → one answer per line
+///     ganit '20% off 85'              # one expression → 68
+///     ganit 'rent = 3' 'rent * 12'    # each argument is a line
+///     ganit < budget.txt              # a sheet → one answer per line
 ///
 /// Currency uses the exchange rates the app last accepted; the command never
 /// reaches the network.
 @main
 enum GanitCLI {
   static let usage = """
-    usage: ganit EXPRESSION...
+    usage: ganit LINE...
            ganit < SHEET
 
-    Answers one expression, or reads a sheet from standard input and prints
-    one answer per line. Exits with status 1 when any line fails.
+    Answers each argument as one line of a sheet, so a line may declare a name
+    that a later one uses, or reads a sheet from standard input. Prints one
+    answer per line and exits with status 1 when any line fails.
 
     """
 
@@ -31,7 +33,18 @@ enum GanitCLI {
     let calculation = ExpressionCalculation(rates: storedRates())
     guard arguments.isEmpty else {
       do {
-        print(try calculation.answer(for: arguments.joined(separator: " ")))
+        // Each argument is a line, so `ganit 'rent = 3' 'rent * 12'` works.
+        let answers = try calculation.answers(forSheet: arguments.joined(separator: "\n"))
+        guard answers.count > 1 || answers.first?.isFailure != true else {
+          // One expression that failed reports on stderr, for a script.
+          fail(answers[0].text ?? usage)
+        }
+        for answer in answers {
+          print(answer.text ?? "")
+        }
+        if answers.contains(where: \.isFailure) {
+          exit(1)
+        }
       } catch {
         fail(error.localizedDescription)
       }

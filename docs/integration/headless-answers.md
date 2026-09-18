@@ -110,14 +110,18 @@ ln -s /Applications/Ganit.app/Contents/Helpers/ganit /usr/local/bin/ganit
 ```text
 $ ganit '20% off 85'
 68
+$ ganit 'rent = 2,100' 'rent * 12'
+2,100
+25,200
 $ printf 'rent = 2,100\nrent * 12\n' | ganit
 2,100
 25,200
 ```
 
-With arguments, `ganit` joins them with spaces and answers one expression
-through `ExpressionCalculation.answer(for:)`, keeping the 4 KB headless limit.
-Without arguments it reads a sheet of at most 1 MB of UTF-8 from standard input
+With arguments, `ganit` answers each one as a line of a sheet through
+`answers(forSheet:)`, so a line may declare a name that a later line uses. One
+argument that fails reports on standard error, as a script expects of a single
+expression. Without arguments it reads a sheet of at most 1 MB of UTF-8 from standard input
 and prints one line per source line through `answers(forSheet:)`: the answer,
 a failure message, or an empty line for headings, comments, and blank lines.
 It exits with status 1 when any line fails.
