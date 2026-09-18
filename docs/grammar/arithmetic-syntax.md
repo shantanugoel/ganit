@@ -9,6 +9,7 @@ evaluator, and separately layered result/diagnostic formatting.
   bit operators `&`, `|`, `<<`, and `>>`
 - Unary signs: `+` and `-`/`−`, and `√` before a value (`√2` is `sqrt(2)`)
 - A postfix `!` is the factorial: `5!` is `120`
+- A superscript after a value is its power: `x²`, `(2 m)³`
 - Parentheses for explicit grouping
 - Function-call syntax such as `sqrt(9)` and `max(1, 2)`
 - Unicode UAX #31 identifiers such as `π`; `_` is also accepted

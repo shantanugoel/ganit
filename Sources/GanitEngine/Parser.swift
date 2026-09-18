@@ -185,6 +185,18 @@ private final class TokenParser {
         diagnose(.resourceLimitExceeded, at: current.range)
         return nil
       }
+      // `x²` and `(2 m)³`: a superscript after a value is its power. A unit's
+      // own superscript is read with the unit, before this.
+      if case .superscript(let exponent) = current.kind, 40 >= minimumBindingPower {
+        let mark = advance()
+        left = .infix(
+          left: left, operator: .power,
+          right: .literal(.integer(digits: String(exponent), radix: .decimal), range: mark.range),
+          operatorRange: mark.range, range: left.range.union(mark.range))
+        depth += 1
+        continue
+      }
+
       // `5!` is the factorial, binding as tightly as a percent sign does.
       if current.kind == .factorial, 40 >= minimumBindingPower {
         let bang = advance()
@@ -291,7 +303,7 @@ private final class TokenParser {
       if 29 >= minimumBindingPower,
         canAttachUnit(to: left),
         let word = identifier(at: 0),
-        variables[word] == nil,
+        variable(word) == nil,
         catalog.resolveUnit(matching: word) == nil,
         let digits = ScaleWord.digits[word]
       {
@@ -355,7 +367,7 @@ private final class TokenParser {
       if 29 >= minimumBindingPower,
         canAttachUnit(to: left),
         let word = identifier(at: 0),
-        variables[word] == nil,
+        variable(word) == nil,
         let unit = CalendarPeriodUnit(word: word)
       {
         left = .period(count: left, unit: unit, range: left.range.union(advance().range))
@@ -470,7 +482,7 @@ private final class TokenParser {
       return parseCurrencySymbol(symbol, range: token.range, depth: depth)
 
     case .identifier(let name):
-      if variables[name] == nil, let phrase = parseDatePhrase(name, range: token.range) {
+      if variable(name) == nil, let phrase = parseDatePhrase(name, range: token.range) {
         return phrase
       }
       if current.kind == .leftParenthesis {
@@ -483,7 +495,7 @@ private final class TokenParser {
           depth: depth
         )
       }
-      if variables[name] == nil, startsMoneyAmount {
+      if variable(name) == nil, startsMoneyAmount {
         if CurrencyCatalog.minorUnits[name] != nil {
           return parsePrefixedCurrency(name, range: token.range, depth: depth)
         }
@@ -500,7 +512,7 @@ private final class TokenParser {
       if let unit = parseUnitAfterDivide(name, range: token.range, depth: depth) {
         return unit
       }
-      if variables[name] == nil, catalog.resolveUnit(matching: name) != nil,
+      if variable(name) == nil, catalog.resolveUnit(matching: name) != nil,
         hasAmountAfterPrefixedUnit
       {
         return parsePrefixedQuantity(alias: name, range: token.range, depth: depth)
@@ -1012,7 +1024,7 @@ private final class TokenParser {
   /// `sq ft` and `cubic m`: a power written as a word before its unit.
   @inline(never)
   private func parsePoweredUnitWord() -> UnitSyntax? {
-    guard let word = identifier(at: 0), variables[word] == nil,
+    guard let word = identifier(at: 0), variable(word) == nil,
       let exponent = unitPowerWords[word], let alias = identifier(at: 1),
       let resolved = catalog.resolveUnit(matching: alias)
     else {
@@ -1129,6 +1141,11 @@ private final class TokenParser {
     return ["in", "to", "as", "into"].contains(keyword) && token(at: offset + 1).kind == .percent
   }
 
+  /// A declared variable, matched without regard to letter case.
+  private func variable(_ name: String) -> EngineValueKind? {
+    variables[name.lowercased()]
+  }
+
   private func identifier(at offset: Int) -> String? {
     guard case .identifier(let name) = token(at: offset).kind else {
       return nil
@@ -1145,10 +1162,10 @@ private final class TokenParser {
     while words.count < maximumNameWords, let word = identifier(at: words.count - 1) {
       words.append(word)
     }
-    while words.count > 1, variables[words.joined(separator: " ")] == nil {
+    while words.count > 1, variable(words.joined(separator: " ")) == nil {
       words.removeLast()
     }
-    if words.count == 1, variables[first] == nil {
+    if words.count == 1, variable(first) == nil {
       if let reference = referenceKeywords[first] {
         return .reference(reference, range: range)
       }
@@ -1243,7 +1260,7 @@ private final class TokenParser {
     minimumBindingPower: Int
   ) -> Expression? {
     if 29 >= minimumBindingPower, canAttachUnit(to: left),
-      let word = identifier(at: 0), variables[word] == nil
+      let word = identifier(at: 0), variable(word) == nil
     {
       if CurrencyCatalog.minorUnits[word] != nil {
         return .money(amount: left, currency: word, range: left.range.union(advance().range))
@@ -1319,7 +1336,7 @@ private final class TokenParser {
   @inline(never)
   private func parseUnitPrice(of left: Expression, depth: Int) -> Expression? {
     guard case .money = left, current.kind == .divide,
-      let word = identifier(at: 1), variables[word] == nil,
+      let word = identifier(at: 1), variable(word) == nil,
       catalog.resolveUnit(matching: word) != nil
     else {
       return nil
@@ -1339,7 +1356,7 @@ private final class TokenParser {
   private func parseUnitAfterDivide(_ name: String, range: SourceRange, depth: Int)
     -> Expression?
   {
-    guard variables[name] == nil, cursor >= 2, tokens[cursor - 2].kind == .divide,
+    guard variable(name) == nil, cursor >= 2, tokens[cursor - 2].kind == .divide,
       let resolved = catalog.resolveUnit(matching: name)
     else {
       return nil
@@ -1463,7 +1480,7 @@ private final class TokenParser {
   ) -> Expression? {
     if 29 >= minimumBindingPower,
       case .literal(.integer(let digits, .decimal), let range) = left, digits.count <= 2,
-      let word = identifier(at: 0), variables[word] == nil,
+      let word = identifier(at: 0), variable(word) == nil,
       let month = monthNames[word.lowercased()]
     {
       let monthRange = advance().range
@@ -1532,7 +1549,7 @@ private final class TokenParser {
     guard let alias = identifier(at: offset) else {
       return false
     }
-    if unitPowerWords[alias] != nil, variables[alias] == nil {
+    if unitPowerWords[alias] != nil, variable(alias) == nil {
       return startsKnownUnit(at: offset + 1)
     }
     return catalog.resolveUnit(matching: alias) != nil
@@ -1568,7 +1585,7 @@ private final class TokenParser {
   private func inferredKind(of expression: Expression) -> EngineValueKind? {
     switch expression {
     case .identifier(let name, _):
-      return variables[name] ?? .number
+      return variable(name) ?? .number
     case .literal, .call, .reference, .assistantPrompt:
       return .number
     case .quantity, .conversion:

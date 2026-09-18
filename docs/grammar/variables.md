@@ -12,7 +12,9 @@ Yearly: monthly rent * months
 
 A name is one or more identifier words separated by whitespace. Whitespace
 between words is normalized, so `monthly   rent` refers to `monthly rent`.
-Names are case-sensitive and compare Unicode canonical equivalents as equal.
+Names match whatever their letter case, so `Rent`, `rent`, and `RENT` are one
+variable, and they compare Unicode canonical equivalents as equal. Units and
+function names keep their case, because `M` and `m` are different units.
 
 A word cannot be a grammar keyword (`in`, `to`, `as`, `into`, `of`, `off`, `on`,
 `is`, `what`, `after`, `percentage`, `change`, `from`, `today`, `tomorrow`,

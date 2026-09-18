@@ -91,6 +91,10 @@ unit meaning.
 
 ## `identifiers` — variable names versus prose and typos
 
+- A variable name matches whatever its letter case: `Monthly Rent` and
+  `monthly rent` are one variable. Unit aliases stay case-sensitive.
+- A superscript after a value is its power: `x²` is `x^2`, while `3 m²` is a
+  quantity, the superscript belonging to the unit.
 - Unknown identifiers are errors, never ignored prose: `tax + 1` fails with
   `evaluation.unknownIdentifier` until `tax` is declared above it.
 - A multi-word name matches the longest declared name across adjacent words:

@@ -444,7 +444,10 @@ private struct VariableScope: Sendable {
     return rates.filter { words.contains($0.key.from) || words.contains($0.key.to) }
   }
 
-  mutating func declare(_ name: String, result: CalculationResult) {
+  /// Names match whatever their letter case, so `Rent` and `rent` are one
+  /// variable; the sheet still shows each as it is written.
+  mutating func declare(_ rawName: String, result: CalculationResult) {
+    let name = rawName.lowercased()
     if case .value(let value) = result {
       variables[name] = value
     } else {
@@ -463,7 +466,7 @@ private struct VariableScope: Sendable {
     var found: [String: EngineValue?] = [:]
     for words in runs {
       for start in words.indices {
-        var name = words[start]
+        var name = words[start].lowercased()
         var end = start
         while true {
           if let value = variables[name] {
@@ -473,7 +476,7 @@ private struct VariableScope: Sendable {
           guard end < words.count, prefixes.contains(name) else {
             break
           }
-          name += " " + words[end]
+          name += " " + words[end].lowercased()
         }
       }
     }

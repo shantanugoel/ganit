@@ -5,6 +5,9 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Variable names match whatever their letter case: `Monthly Rent` and
+  `monthly rent` are one variable. Units keep their case. A superscript after a
+  value is its power, so `x²` works as `3 m²` already did.
 - Format ▸ Number Format adds Hexadecimal, Binary, and Fractions, so a sheet
   can write `0xff`, `0b1010`, or `3/4`.
 - `√2` is the square root, `5!` is the factorial, and `c` is the speed of

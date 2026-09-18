@@ -25,6 +25,29 @@ struct VariableTests {
   }
 
   @Test
+  func namesMatchWhateverTheirLetterCase() throws {
+    let results = try sheetOutcomes(
+      "Monthly Rent = 10\nmonthly rent * 2\nMONTHLY RENT + 1\nMonthly Rent")
+
+    #expect(results[1] == "20")
+    #expect(results[2] == "11")
+    #expect(results[3] == "10")
+    // Units keep their case, so `KM` is still not a kilometre and may be a name.
+    let units = try sheetOutcomes("KM = 2\nKM * 3\n1 MB in bits")
+    #expect(units[1] == "6")
+    #expect(units[2] == "value")
+  }
+
+  @Test
+  func aSuperscriptAfterAValueIsItsPower() throws {
+    let results = try sheetOutcomes("x = 5\nx²\n2²\nx³ - 1")
+
+    #expect(results[1] == "25")
+    #expect(results[2] == "4")
+    #expect(results[3] == "124")
+  }
+
+  @Test
   func matchesTheLongestDeclaredName() throws {
     let results = try sheetOutcomes("rent = 1\nrent total = 20\nrent total\nrent + rent total")
 
