@@ -549,6 +549,8 @@ public final class SheetEditorViewController: NSViewController {
       assistantAsked.insert(asked)
       if let answer {
         assistantAnswers[asked] = answer
+        // Lines referring to this one now say why they cannot use it.
+        cells.removeAll()
       }
       sheetTextView.answersDidChange()
       summarizeSelection()
@@ -686,7 +688,7 @@ public final class SheetEditorViewController: NSViewController {
       cancelAssistantRequests(lines: [asked], prompts: [])
       assistantAnswers.removeValue(forKey: asked)
       assistantAsked.remove(asked)
-      cells[id] = nil
+      cells.removeAll()
       sheetTextView.answersDidChange()
       startLineAssistantRequest(asked)
     }
@@ -769,14 +771,14 @@ public final class SheetEditorViewController: NSViewController {
       return
     }
     switch target {
-    case .line(let id, let asked):
+    case .line(_, let asked):
       cancelAssistantRequests(lines: [asked], prompts: [])
       if trimmed.isEmpty {
         assistantAnswers.removeValue(forKey: asked)
       } else {
         assistantAnswers[asked] = trimmed
       }
-      cells[id] = nil
+      cells.removeAll()
       sheetTextView.answersDidChange()
     case .prompts(let prompts):
       cancelAssistantRequests(lines: [], prompts: prompts)
@@ -988,12 +990,32 @@ public final class SheetEditorViewController: NSViewController {
     case .syntaxFailure(let diagnostics) where !diagnostics.isEmpty:
       diagnostic = diagnosticFormatter.format(diagnostics[0])
     case .evaluationFailure(let error):
-      diagnostic = diagnosticFormatter.format(error)
+      diagnostic = assistedReferenceDiagnostic(error) ?? diagnosticFormatter.format(error)
     default:
       return nil
     }
     return LineDecoration.style(for: diagnostic.severity, isEditing: isEditing) == nil
       ? nil : diagnostic
+  }
+
+  /// A reference to a line that shows only an AI display answer, which the
+  /// engine cannot read, says so and how to make that answer a value.
+  private func assistedReferenceDiagnostic(_ error: EngineError) -> FormattedDiagnostic? {
+    guard error.code == .unavailableReference, case .failedLine(let number) = error.context,
+      sheet.lines.indices.contains(number - 1),
+      assistantAnswer(to: sheet.lines[number - 1].text) != nil
+    else {
+      return nil
+    }
+    let formatted = diagnosticFormatter.format(error)
+    return FormattedDiagnostic(
+      code: formatted.code, severity: formatted.severity, ranges: formatted.ranges,
+      message: String(
+        format: localized(
+          "assistant.unreferenceable",
+          "Line %lld has an AI display answer, which formulas cannot use. Change Answer… can save it into the sheet."
+        ), number),
+      fixIts: formatted.fixIts)
   }
 
   /// The interpretation card rows for a line's shown answer.
@@ -1062,6 +1084,18 @@ public final class SheetEditorViewController: NSViewController {
     case .syntaxFailure, .evaluationFailure:
       guard let diagnostic = flaggedDiagnostic(result, isEditing: false) else {
         return details
+      }
+      if let assisted = assistantAnswer(to: shown.text) {
+        details += [
+          AnswerCell.Detail(
+            label: localized("interpretation.aiAnswer", "AI answer"), value: assisted),
+          AnswerCell.Detail(
+            label: localized("interpretation.aiAnswerUse", "Use"),
+            value: localized(
+              "interpretation.aiAnswerNote",
+              "An unverified AI display answer. Formulas cannot refer to it; Change Answer… ▸ Save Value into Sheet makes a reviewed value they can use."
+            )),
+        ]
       }
       details += [
         AnswerCell.Detail(

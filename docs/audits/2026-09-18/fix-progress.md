@@ -87,11 +87,26 @@ G04 full GitHub CI passed (run 35339826684).
   could be overwritten by the late reply; cancelling the request fixes it.
 - Validation: assistant regression tests cover Stop for line and prompt
   requests, no automatic re-asking, Ask Assistant retry, per-line Cancel
-  Request, and late-reply suppression. 492 package tests, formatting,
+  Request, and late-reply suppression. 489 package tests, formatting,
   pseudolocalized layout, debug app build, bundle verification, and
   whitespace checks pass.
 
+## G07 — Explain unreferenceable AI display answers
+
+- Kept the deliberate distinction: line-level answers stay display-only and
+  `ask_assistant` stays the computable path. G04's reviewed Save Value into
+  Sheet is the explicit accept-as-value action, so no second one was added.
+- A reference failing because its target shows an AI display answer now says
+  so and points to Change Answer…; ordinary failed references are unchanged.
+  The interpretation card lists the AI answer and how to make it a value.
+- Answer cells are redrawn when an assistant answer changes, so dependent lines
+  update without re-evaluation.
+- Validation: regression covers the dependent diagnostic, an unaffected
+  ordinary failure, the card rows, and dependents calculating after saving.
+  490 package tests, formatting, pseudolocalized layout, debug app build,
+  bundle verification, and whitespace checks pass.
+
 ## Remaining
 
-G07–G15, then release validation, version bump, and publication via the existing
+G08–G15, then release validation, version bump, and publication via the existing
 signed/notarized GitHub release workflow triggered by `v0.4.0`.

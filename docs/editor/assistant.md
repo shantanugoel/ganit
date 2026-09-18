@@ -94,6 +94,14 @@ line keeps its underline: Ganit still could not read it. `AnswerCell.isAssisted`
 says which answers these are, and they carry no full precision, because there
 is no exact value behind them.
 
+A line-level answer is a display answer only: the engine still cannot read the
+line, so `line N`, `previous`, and totals cannot use it. A line referring to
+one says `Line N has an AI display answer, which formulas cannot use`, rather
+than the general reference error, and the answer's interpretation card shows
+the AI answer and that **Change Answer… ▸ Save Value into Sheet** turns a
+reviewed value into source later lines can use. `ask_assistant(prompt)` is the
+computable path: its parsed value takes part in later arithmetic.
+
 Model answers and temporary corrections are not saved with the sheet. They
 remain in the open sheet's session cache, including after closing and reopening
 its tab, but are discarded when Ganit quits. A correction explicitly saved into

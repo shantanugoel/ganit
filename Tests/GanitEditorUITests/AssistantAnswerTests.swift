@@ -247,6 +247,32 @@ struct AssistantAnswerTests {
     #expect(cells.first?.isAssisted == true)
   }
 
+  /// A line referring to an AI display answer says why it cannot use it, and
+  /// the answer's card says how to make it a value.
+  @Test
+  func referencesToAnAIDisplayAnswerExplainThemselves() async throws {
+    let editor = try makeEditor("10 kg of water in ml\nline 1 * 2\n1/0\nprevious + 1")
+    editor.askAssistant = { line in line.hasPrefix("10") ? "10,000 ml" : nil }
+    let textView = try #require(editor.textView as? SheetTextView)
+    await editor.scheduler?.waitUntilIdle()
+    let cells = try await answers(of: textView) {
+      $0.count == 4 && $0[0].isAssisted && $0[1].text.contains("AI")
+    }
+    #expect(cells[1].isFailure)
+    #expect(cells[1].text.hasPrefix("Line 1 has an AI display answer"))
+    // An ordinary failure is still described as one.
+    #expect(!cells[3].text.contains("AI"))
+
+    let card = textView.interpretation(editor.sheet.lines[0].id)
+    #expect(card.contains { $0.label == "AI answer" && $0.value == "10,000 ml" })
+    #expect(card.contains { $0.value.contains("Formulas cannot refer to it") })
+
+    textView.setSelectedRange(NSRange(location: 0, length: 0))
+    #expect(editor.saveAssistantAnswerAsValue("10000 ml"))
+    let exported = await editor.exportedLines()
+    #expect(exported.map(\.status) == [.calculated, .calculated, .failure, .failure])
+  }
+
   @Test
   func aChangedAssistantAnswerReplacesThePurpleValue() async throws {
     let editor = try makeEditor("10 kg of water in ml")

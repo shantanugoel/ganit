@@ -5,6 +5,10 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- A line referring to an AI display answer says that formulas cannot use it
+  and that Change Answer… can save it into the sheet, and the answer's
+  interpretation card explains the same.
+
 - Calculate ▸ Stop cancels assistant requests as well as evaluation, and
   Cancel Request stops waiting for one line's answer. A cancelled line shows
   its diagnostic and is not asked about again until Ask Assistant.
