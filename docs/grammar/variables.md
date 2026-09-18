@@ -23,7 +23,9 @@ A word cannot be a grammar keyword (`in`, `to`, `as`, `into`, `of`, `off`, `on`,
 ISO 4217 currency code such as `USD`. A
 colliding or non-word name, such as `km = 5` or `2x = 1`, fails with
 `syntax.invalidVariableName`, marks the word that is taken, and declares
-nothing. A reference keyword such as `total` or `count` may be a name; below
+nothing. A name that is not words at all, such as `Groceries (Costco) = 230`,
+fails with `syntax.nonWordName` and says to write words or a label ending in a
+colon. A reference keyword such as `total` or `count` may be a name; below
 the declaration it means the variable. `line` alone may not.
 
 In an expression, adjacent identifier words resolve to the longest declared

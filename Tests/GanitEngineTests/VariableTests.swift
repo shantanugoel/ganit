@@ -121,6 +121,17 @@ struct VariableTests {
   }
 
   @Test
+  func aNameThatIsNotWordsSaysSo() throws {
+    let results = try evaluateSheet(SheetSource("Groceries (Costco) = 230"))
+    guard case .syntaxFailure(let diagnostics) = results[0].result else {
+      Issue.record("Expected a name that is not words")
+      return
+    }
+    #expect(diagnostics.first?.code == .nonWordName)
+    #expect(diagnostics.first?.range.lowerBound == 10)
+  }
+
+  @Test
   func anUnusableNameMarksTheTakenWord() throws {
     let results = try evaluateSheet(SheetSource("hourly min wage = 7"))
     guard case .syntaxFailure(let diagnostics) = results[0].result else {

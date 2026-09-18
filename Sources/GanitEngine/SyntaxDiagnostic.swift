@@ -20,6 +20,7 @@ public struct SyntaxDiagnostic: Hashable, Sendable {
     case expectedArgumentSeparator
     case unexpectedToken
     case invalidVariableName
+    case nonWordName
     case resourceLimitExceeded
   }
 

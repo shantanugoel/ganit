@@ -259,21 +259,26 @@ private final class LineSource: Sendable {
       ? oneOf.flatMap { engine.unitName(in: $0, context: context) } : nil
     let isNamed = rateCurrency != nil || unitName != nil
     declaredName = isNamed ? nil : engine.variableName(in: name, context: context)
-    // Point at the word that is taken, not the whole name.
-    let word = engine.unusableNameWord(in: name, context: context).map {
+    // Point at what is wrong, not the whole name, and say which it is.
+    let problem = engine.nameProblem(in: name, context: context)
+    func shifted(_ range: SourceRange) -> SourceRange {
       SourceRange(
-        lowerBound: nameRange.lowerBound + $0.lowerBound,
-        upperBound: nameRange.lowerBound + $0.upperBound,
-        graphemeLowerBound: nameRange.graphemeLowerBound + $0.graphemeLowerBound,
-        graphemeUpperBound: nameRange.graphemeLowerBound + $0.graphemeUpperBound
+        lowerBound: nameRange.lowerBound + range.lowerBound,
+        upperBound: nameRange.lowerBound + range.upperBound,
+        graphemeLowerBound: nameRange.graphemeLowerBound + range.graphemeLowerBound,
+        graphemeUpperBound: nameRange.graphemeLowerBound + range.graphemeUpperBound
       )
     }
-    nameFailure =
-      declaredName == nil && !isNamed
-      ? .syntaxFailure([
-        SyntaxDiagnostic(code: .invalidVariableName, range: word ?? nameRange)
-      ])
-      : nil
+    let diagnostic: SyntaxDiagnostic
+    switch problem {
+    case .takenWord(let range):
+      diagnostic = SyntaxDiagnostic(code: .invalidVariableName, range: shifted(range))
+    case .notWords(let range):
+      diagnostic = SyntaxDiagnostic(code: .nonWordName, range: shifted(range))
+    case nil:
+      diagnostic = SyntaxDiagnostic(code: .invalidVariableName, range: nameRange)
+    }
+    nameFailure = declaredName == nil && !isNamed ? .syntaxFailure([diagnostic]) : nil
   }
 }
 

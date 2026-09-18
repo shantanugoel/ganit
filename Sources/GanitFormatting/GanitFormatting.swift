@@ -920,6 +920,11 @@ public struct DiagnosticFormatter: Sendable {
         "syntax.unexpectedToken",
         defaultValue: "This part of the expression is unexpected."
       )
+    case .nonWordName:
+      return localized(
+        "syntax.nonWordName",
+        defaultValue: "A name is words: `Groceries Costco`, or a label ending in a colon."
+      )
     case .invalidVariableName:
       return localized(
         "syntax.invalidVariableName",

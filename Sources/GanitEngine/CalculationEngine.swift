@@ -99,13 +99,20 @@ public struct CalculationEngine: Sendable {
     name(in: source, context: context, redefinable: []).name
   }
 
-  /// The word that keeps `source` from being a variable name, such as `min`
-  /// in `min wage`, relative to `source`.
-  func unusableNameWord(
+  /// Why a declaration's name cannot be one, with the range it is at.
+  enum NameProblem {
+    /// A word that already means a unit, function, or keyword.
+    case takenWord(SourceRange)
+    /// Something that is not a word at all, such as `(` or a digit.
+    case notWords(SourceRange)
+  }
+
+  /// What keeps `source` from being a variable name, relative to `source`.
+  func nameProblem(
     in source: String,
     context: EvaluationContext
-  ) -> SourceRange? {
-    name(in: source, context: context, redefinable: []).unusable
+  ) -> NameProblem? {
+    name(in: source, context: context, redefinable: []).problem
   }
 
   /// Returns a unit definition's name, or `nil` when it is not one word that
@@ -125,7 +132,7 @@ public struct CalculationEngine: Sendable {
     in source: String,
     context: EvaluationContext,
     redefinable: Set<String>
-  ) -> (name: String?, unusable: SourceRange?) {
+  ) -> (name: String?, problem: NameProblem?) {
     let lexing = Lexer(
       source: source,
       configuration: context.lexingConfiguration,
@@ -137,7 +144,7 @@ public struct CalculationEngine: Sendable {
     var words: [String] = []
     for token in lexing.tokens.dropLast() {
       guard case .identifier(let word) = token.kind else {
-        return (nil, nil)
+        return (nil, .notWords(token.range))
       }
       guard !reservedIdentifiers.contains(word),
         BuiltInFunction(rawValue: word) == nil,
@@ -145,13 +152,13 @@ public struct CalculationEngine: Sendable {
         unitCatalog.resolveUnit(matching: word) == nil || redefinable.contains(word),
         CurrencyCatalog.minorUnits[word] == nil
       else {
-        return (nil, token.range)
+        return (nil, .takenWord(token.range))
       }
       words.append(word)
     }
     // `line 3` is a reference, so `line` alone cannot be a name.
-    if words == ["line"] {
-      return (nil, lexing.tokens.first?.range)
+    if words == ["line"], let first = lexing.tokens.first {
+      return (nil, .takenWord(first.range))
     }
     return words.isEmpty ? (nil, nil) : (words.joined(separator: " "), nil)
   }

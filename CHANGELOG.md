@@ -5,6 +5,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- A name that is not words, such as `Groceries (Costco) = 230`, says so and
+  points at the bracket instead of blaming a word.
 - Variable names match whatever their letter case: `Monthly Rent` and
   `monthly rent` are one variable. Units keep their case. A superscript after a
   value is its power, so `x²` works as `3 m²` already did.
