@@ -236,6 +236,27 @@ public struct NumericResultFormatter: Sendable {
       return try localizeDecimal(try canonicalDecimal(rounded))
     case .scientific:
       return try scientific(canonical)
+    case .hexadecimal, .binary:
+      guard case .integer(let integer) = value else {
+        // A value with no whole digits in that base keeps its usual form.
+        return try localizeDecimal(canonical)
+      }
+      let radix: NumericRadix = display.numbers == .hexadecimal ? .hexadecimal : .binary
+      let marker = radix == .hexadecimal ? "0x" : "0b"
+      let result =
+        (integer.isNegative ? localeMinusSign : "") + marker
+        + integer.magnitudeDigits(radix: radix)
+      try validateLength(result.count)
+      return result
+    case .fraction:
+      guard case .rational(let rational) = value else {
+        return try localizeDecimal(canonical)
+      }
+      let result = try joined(
+        try canonicalInteger(rational.numerator), "/",
+        try canonicalInteger(rational.denominator))
+      try validateLength(result.count)
+      return result
     }
   }
 

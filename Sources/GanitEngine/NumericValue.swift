@@ -52,6 +52,12 @@ public struct IntegerValue: Hashable, Sendable {
     String(storage)
   }
 
+  /// The magnitude's digits in a base, for a sheet that writes hexadecimal or
+  /// binary; the sign is written separately.
+  public func magnitudeDigits(radix: NumericRadix) -> String {
+    String(storage.magnitude, radix: radix.rawValue)
+  }
+
   public var magnitudeBitWidth: Int {
     storage.magnitude.bitWidth
   }

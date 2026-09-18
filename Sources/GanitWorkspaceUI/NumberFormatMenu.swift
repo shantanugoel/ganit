@@ -18,6 +18,12 @@ enum NumberFormatMenu {
       return places + 1
     case .scientific:
       return -1
+    case .hexadecimal:
+      return -2
+    case .binary:
+      return -3
+    case .fraction:
+      return -4
     }
   }
 
@@ -27,6 +33,12 @@ enum NumberFormatMenu {
       return .automatic
     case -1:
       return .scientific
+    case -2:
+      return .hexadecimal
+    case -3:
+      return .binary
+    case -4:
+      return .fraction
     default:
       return .fixedDecimals(tag - 1)
     }
@@ -45,6 +57,12 @@ enum NumberFormatMenu {
       )
     case .scientific:
       return localized("menu.scientific", "Scientific")
+    case .hexadecimal:
+      return localized("menu.hexadecimal", "Hexadecimal")
+    case .binary:
+      return localized("menu.binary", "Binary")
+    case .fraction:
+      return localized("menu.fractions", "Fractions")
     }
   }
 }
@@ -53,7 +71,8 @@ extension MainMenu {
   /// Automatic, the fixed-decimal counts, and scientific, in that order.
   static func numberFormatItems() -> [NSMenuItem] {
     let displays: [NumberDisplay] =
-      [.automatic] + NumberFormatMenu.decimalCounts.map { .fixedDecimals($0) } + [.scientific]
+      [.automatic] + NumberFormatMenu.decimalCounts.map { .fixedDecimals($0) }
+      + [.scientific, .hexadecimal, .binary, .fraction]
     return displays.map { display in
       let item = NSMenuItem(
         title: NumberFormatMenu.title(of: display),

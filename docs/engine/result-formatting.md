@@ -45,8 +45,11 @@ with the sheet in `SheetPreferences.display`. It says two things:
 - `numbers` is one of `automatic`, the decimals the value needs, and a power
   of ten at or above `1e21` or below `1e-6`, rounded to the context's digits;
   `fixedDecimals(n)`, always `n` of them, clamped to
-  `NumberDisplay.decimalLimit`; or `scientific`, a power of ten such as
-  `1.2e6`, which the grammar reads back.
+  `NumberDisplay.decimalLimit`; `scientific`, a power of ten such as
+  `1.2e6`; `hexadecimal` or `binary`, `0xff` and `0b1010`, all three of which
+  the grammar reads back; or `fraction`, `3/4`. Hexadecimal and binary write
+  whole numbers only, and fractions write fractions only; anything else keeps
+  the automatic form.
 
 A fixed count rounds the value itself, so `2/3` at two decimals is `0.67`
 rounded from the fraction rather than from a decimal already rounded to the

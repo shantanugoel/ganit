@@ -44,8 +44,9 @@ workspace window with an empty sheet.
 - **Ganit Help** opens the reference at a readable size, lists every built-in
   unit under Units, and answers everyday words such as mortgage or GST. A
   search with no match suggests one word to try and `ask_assistant(…)`.
-- **Number Format**, **Group Digits**, and **Group Digits in Lakhs**
-  (`12,34,567`) say how the open sheet writes its answers. The workspace window handles them, because the choice stays with the
+- **Number Format** (automatic, whole numbers, two or four decimals,
+  scientific, hexadecimal, binary, fractions), **Group Digits**, and **Group
+  Digits in Lakhs** (`12,34,567`) say how the open sheet writes its answers. The workspace window handles them, because the choice stays with the
   sheet; see docs/engine/result-formatting.md.
 - **Insert Reference** inserts `line N` for the selected answer when it is above
   the insertion point, or else for the nearest line above with a result.

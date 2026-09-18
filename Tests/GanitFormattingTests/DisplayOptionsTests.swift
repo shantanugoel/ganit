@@ -27,6 +27,13 @@ struct DisplayOptionsTests {
       (.standard, "10^21 - 1", "999,999,999,999,999,999,999"),
       (.standard, "0.000001", "0.000001"),
       (.standard, "0.0000001", "1e-7"),
+      (DisplayOptions(numbers: .hexadecimal), "255", "0xff"),
+      (DisplayOptions(numbers: .hexadecimal), "-255", "-0xff"),
+      (DisplayOptions(numbers: .binary), "10", "0b1010"),
+      // A value with no whole digits in that base keeps its usual form.
+      (DisplayOptions(numbers: .hexadecimal), "1.5", "1.5"),
+      (DisplayOptions(numbers: .fraction), "3/4", "3/4"),
+      (DisplayOptions(numbers: .fraction), "2", "2"),
     ]
 
     for (options, source, display) in cases {

@@ -75,6 +75,15 @@ public enum NumberDisplay: Codable, Equatable, Sendable {
   /// A power of ten, `1.2e6`, which the grammar reads back.
   case scientific
 
+  /// `0xff` and `0b1010`, which the grammar reads back. A value that is not a
+  /// whole number keeps the automatic form, having no digits in that base.
+  case hexadecimal
+  case binary
+
+  /// A fraction where the value is one, `3/4`, and the automatic form
+  /// otherwise.
+  case fraction
+
   /// The most decimals a fixed display can ask for. Past this the digits stop
   /// being the value's, because the sheet's precision runs out first.
   public static let decimalLimit = 15

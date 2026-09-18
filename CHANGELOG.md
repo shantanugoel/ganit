@@ -5,6 +5,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Format ▸ Number Format adds Hexadecimal, Binary, and Fractions, so a sheet
+  can write `0xff`, `0b1010`, or `3/4`.
 - `√2` is the square root, `5!` is the factorial, and `c` is the speed of
   light with its unit. A declared `c` still wins, and `Wow!` stays prose in
   Markdown Mode.

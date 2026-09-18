@@ -951,6 +951,21 @@
         }
       }
     },
+    "menu.hexadecimal" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Hexadecimal" } }
+      }
+    },
+    "menu.binary" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Binary" } }
+      }
+    },
+    "menu.fractions" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Fractions" } }
+      }
+    },
     "menu.groupDigits" : {
       "localizations" : {
         "en" : {
