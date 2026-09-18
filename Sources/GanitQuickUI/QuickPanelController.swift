@@ -75,20 +75,32 @@ public final class QuickPanelController: NSWindowController, NSWindowDelegate {
       object: nil
     )
 
+    copyButton.title = Self.copyTitle
+    copyButton.target = self
+    copyButton.action = #selector(copyResultAndDismiss(_:))
+    copyButton.toolTip = String(
+      localized: "quick.copyResultHelp",
+      defaultValue:
+        "Copies the answer on the insertion point's line, or else the last answer, and closes Quick Ganit. Keep as Sheet saves all of the text as a new sheet instead.",
+      bundle: .main)
     let keep = NSButton(
       title: String(localized: "quick.keepAsSheet", defaultValue: "Keep as Sheet", bundle: .main),
       target: self,
       action: #selector(keepAsSheet(_:))
     )
-    keep.bezelStyle = .accessoryBarAction
-    keep.controlSize = .small
     let accessory = NSTitlebarAccessoryViewController()
     accessory.layoutAttribute = .trailing
-    accessory.view = NSView(
-      frame: NSRect(x: 0, y: 0, width: keep.fittingSize.width + 12, height: 28))
-    keep.frame.origin = NSPoint(x: 0, y: (28 - keep.fittingSize.height) / 2)
-    keep.setFrameSize(keep.fittingSize)
-    accessory.view.addSubview(keep)
+    accessory.view = NSView(frame: .zero)
+    var x: CGFloat = 0
+    for button in [copyButton, keep] {
+      button.bezelStyle = .accessoryBarAction
+      button.controlSize = .small
+      button.setFrameSize(button.fittingSize)
+      button.frame.origin = NSPoint(x: x, y: (28 - button.fittingSize.height) / 2)
+      accessory.view.addSubview(button)
+      x += button.fittingSize.width + 6
+    }
+    accessory.view.setFrameSize(NSSize(width: x + 6, height: 28))
     panel.addTitlebarAccessoryViewController(accessory)
   }
 
@@ -190,11 +202,23 @@ public final class QuickPanelController: NSWindowController, NSWindowDelegate {
     hide()
   }
 
+  /// The button showing Command-Return's action, which also performs it.
+  let copyButton = NSButton(title: "", target: nil, action: nil)
+  static let copyTitle = String(
+    localized: "quick.copyResult", defaultValue: "⌘↩ Copy Result and Close", bundle: .main)
+
   /// Copies the insertion point's result, or else the last result, and hides
-  /// the panel. Without a result it beeps and stays open.
-  func copyResultAndDismiss() {
+  /// the panel. Without a result it beeps, says so on the button for a
+  /// moment, and stays open.
+  @objc func copyResultAndDismiss(_ sender: Any? = nil) {
     guard editor.copyCurrentOrLastResult() else {
       NSSound.beep()
+      copyButton.title = String(
+        localized: "quick.noResult", defaultValue: "No Result to Copy", bundle: .main)
+      Task { [weak self] in
+        try? await Task.sleep(for: .seconds(2))
+        self?.copyButton.title = Self.copyTitle
+      }
       return
     }
     hide()

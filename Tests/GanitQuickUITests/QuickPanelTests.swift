@@ -261,6 +261,33 @@ struct QuickPanelCommandTests {
     #expect(pasteboard.string(forType: .string) == "42")
   }
 
+  /// The panel shows Command-Return's action beside Keep as Sheet, and says
+  /// so when there is nothing to copy.
+  @Test
+  func showsTheCopyAndCloseActionAndExplainsWhenNothingCanBeCopied() async throws {
+    let controller = QuickPanelController(context: try standardContext())
+    let pasteboard = NSPasteboard(name: NSPasteboard.Name("GanitQuickTests-\(UUID().uuidString)"))
+    controller.editor.resultPasteboard = pasteboard
+    controller.show()
+    defer { controller.hide() }
+    let button = controller.copyButton
+    #expect(button.title == "⌘↩ Copy Result and Close")
+    #expect(button.window === controller.window)
+    #expect(button.toolTip?.contains("Keep as Sheet") == true)
+
+    // `performClick` would spin a nested run loop between concurrent tests.
+    NSApp.sendAction(try #require(button.action), to: button.target, from: button)
+    #expect(controller.isShown)
+    #expect(button.title == "No Result to Copy")
+
+    controller.editor.textView.insertText(
+      "6 * 7\n2 + 2", replacementRange: NSRange(location: 0, length: 0))
+    try await waitForAnswers(controller)
+    NSApp.sendAction(try #require(button.action), to: button.target, from: button)
+    #expect(pasteboard.string(forType: .string) == "4")
+    #expect(!controller.isShown)
+  }
+
   @Test
   func keepsTheBufferAsASheetAndStartsEmpty() throws {
     let controller = QuickPanelController(context: try standardContext())

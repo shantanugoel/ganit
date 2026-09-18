@@ -205,7 +205,22 @@ G04 full GitHub CI passed (run 35339826684).
   pseudolocalized layout, debug app build, bundle verification, and
   whitespace checks pass.
 
+## G14 — Show Quick Ganit's copy-and-close action
+
+- Added a "⌘↩ Copy Result and Close" title-bar button beside Keep as Sheet; it
+  performs the same action as ⌘Return. Its tooltip distinguishes it from Keep
+  as Sheet, and without a result it briefly reads "No Result to Copy" instead
+  of only beeping.
+- Reviewed the live debug panel: both buttons fit the title bar without
+  overlap. The regression test sends the button's action rather than
+  `performClick`, whose nested run loop ends Swift Testing's main executor
+  when UI tests interleave.
+- Validation: regression covers the title, tooltip, the no-result message
+  with the panel staying open, and copying and closing with a result. 500
+  package tests, formatting, pseudolocalized layout, debug app build, bundle
+  verification, and whitespace checks pass.
+
 ## Remaining
 
-G14–G15, then release validation, version bump, and publication via the existing
+G15, then release validation, version bump, and publication via the existing
 signed/notarized GitHub release workflow triggered by `v0.4.0`.

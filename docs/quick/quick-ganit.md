@@ -30,9 +30,11 @@ opens Quick Ganit instead of a sheet.
 - Return inserts a newline; lines evaluate as they do in sheets, each with its
   own answer, including the variables and units the
   [definitions sheet](../grammar/definitions.md) shares.
-- ⌘Return copies the insertion point's displayed result, or the buffer's last
-  result when that line has none, and hides the panel. Without any result it
-  beeps and stays open.
+- ⌘Return, or the title-bar **⌘↩ Copy Result and Close** button, copies the
+  insertion point's displayed result, or the buffer's last result when that
+  line has none, and hides the panel. Without any result it beeps, the button
+  reads No Result to Copy for two seconds, and the panel stays open. The
+  button's tooltip contrasts it with Keep as Sheet.
 - **Keep as Sheet** (⌘S, or the title-bar button) saves the buffer as a new
   library sheet, opens it in a workspace window, and activates Ganit. The
   buffer is then emptied and the panel hides.

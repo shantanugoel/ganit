@@ -5,6 +5,9 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Quick Ganit shows its ⌘↩ Copy Result and Close action as a title-bar button
+  beside Keep as Sheet, and says No Result to Copy when there is none.
+
 - An answer's right-click Answer Format menu writes that answer in its own
   number format, such as hexadecimal beside decimal answers, with Sheet
   Default to return to the sheet's format.
