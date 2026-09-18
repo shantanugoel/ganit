@@ -5,6 +5,9 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Selection summaries count failed and pending calculations and hide Total
+  and Average while a selection is incomplete.
+
 - CSV includes answer status, and assisted display answers retain an “AI;
   unverified” annotation in HTML, PDF, print, and Copy with Results.
 

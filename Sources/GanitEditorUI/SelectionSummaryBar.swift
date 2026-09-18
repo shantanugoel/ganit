@@ -1,9 +1,12 @@
 import AppKit
 
-/// What a selection of lines adds up to: the count of the answers it covers,
-/// and their total and average when they can be added.
+/// Counts selected calculations, including unresolved ones, and aggregates
+/// their values only when the whole selection is resolved.
 struct SelectionSummary: Equatable {
   let count: Int
+  let calculatedCount: Int
+  let failedCount: Int
+  let pendingCount: Int
   /// `nil` when the answers cannot be added, such as money and metres.
   let total: String?
   let average: String?
@@ -11,9 +14,8 @@ struct SelectionSummary: Equatable {
 
 /// A bar below the sheet showing what the selected lines add up to.
 ///
-/// It appears only while a selection covers more than one answer, because a
-/// single answer is already beside its line, and it shows a count alone when
-/// the answers cannot be added.
+/// It appears for multiple calculations, shows unresolved counts, and omits
+/// aggregates when calculations are unresolved or values cannot be added.
 final class SelectionSummaryBar: NSView {
   private let label = NSTextField(labelWithString: "")
 
@@ -68,8 +70,14 @@ final class SelectionSummaryBar: NSView {
 
   private static func text(_ summary: SelectionSummary) -> String {
     var parts = [
-      "\(localized("selection.count", "Count")) \(summary.count)"
+      "\(localized("selection.selected", "Selected")) \(summary.count)",
+      "\(localized("selection.calculated", "Calculated")) \(summary.calculatedCount)",
     ]
+    if summary.failedCount + summary.pendingCount > 0 {
+      parts.insert(localized("selection.incomplete", "Incomplete"), at: 0)
+      parts.append("\(localized("selection.failed", "Failed")) \(summary.failedCount)")
+      parts.append("\(localized("selection.pending", "Pending")) \(summary.pendingCount)")
+    }
     if let total = summary.total {
       parts.append("\(localized("selection.total", "Total")) \(total)")
     }

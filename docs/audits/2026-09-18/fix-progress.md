@@ -3,6 +3,8 @@
 Work proceeds in audit order on `main`; each item is reviewed, tested, committed,
 and pushed before starting the next. Release 0.4.0 follows all fifteen fixes.
 
+G01 full GitHub CI passed (run 35338124822).
+
 ## G01 — Undo and reference renumbering
 
 - Reproduced with a real window and normal event grouping: typing `5` before
@@ -29,7 +31,20 @@ and pushed before starting the next. Release 0.4.0 follows all fifteen fixes.
 - Validation: 480 package tests, formatting, pseudolocalized layout, debug app
   build, bundle verification, and diff whitespace checks pass.
 
+## G03 — Complete selection summaries
+
+- Count selected calculations, calculated values, failed calculations, and
+  pending calculations. Non-calculation lines do not contribute.
+- Mark unresolved selections Incomplete and suppress Total/Average. Show the
+  bar even for selections containing only failures. Reject stale edited-line
+  answers until their evaluation completes.
+- Refresh summaries at assistant request start and completion as well as
+  selection/evaluation changes. No implicit acceptance of AI display answers.
+- Reviewed classification, partial-line selection, incompatible values, and
+  empty selections. Validation: 483 package tests, formatting, pseudolocalized
+  layout, debug app build, bundle verification, and diff whitespace checks pass.
+
 ## Remaining
 
-G03–G15, then release validation, version bump, and publication via the existing
+G04–G15, then release validation, version bump, and publication via the existing
 signed/notarized GitHub release workflow triggered by `v0.4.0`.

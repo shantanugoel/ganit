@@ -139,18 +139,17 @@ time zones, and references join the card as those details become available.
 
 ## Selection summary
 
-A bar below the sheet shows what the selected lines add up to: the number of
-answers the selection covers, and their total and average. It appears only
-while a selection covers more than one answer, because a single answer is
-already beside its line, and it takes the editor's bottom edge while it is
-there.
+A bar below the sheet counts selected calculations and how many have engine
+values. It appears while a selection covers more than one calculation. Blank
+lines, headings, comments, and labels without expressions are excluded.
 
-A line contributes its answer when the selection reaches any part of it, so a
-selection dragged partway through the first and last lines still counts them.
-Lines without an answer — blank lines, headings, comments, labels, and
-failures — contribute nothing. Totals and averages follow the same rules as a
-[`total` line](../grammar/references.md), so answers that cannot be added,
-such as money and metres, leave the bar showing their count alone.
+When a selected calculation fails or is pending, the bar says **Incomplete**,
+shows failed and pending counts, and suppresses Total and Average. Assisted
+display answers still count as unresolved because the engine cannot use them.
+Once all selected calculations have values, Total and Average follow the same
+rules as a [`total` line](../grammar/references.md); incompatible kinds such as
+money and metres leave the counts alone. A selection reaching any part of a
+physical line includes that calculation.
 
 The bar is static text labeled "Selection summary" for accessibility, with no
 action of its own; a sheet's own `total`, `average`, and `subtotal` lines

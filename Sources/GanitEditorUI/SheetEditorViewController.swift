@@ -390,9 +390,8 @@ public final class SheetEditorViewController: NSViewController {
     askAboutUnansweredLines()
   }
 
-  /// Shows what the selected lines add up to, for a selection covering more
-  /// than one answer. Answers that cannot be added, such as money and metres,
-  /// leave their count alone.
+  /// Counts all selected calculations and aggregates only complete selections.
+  /// Incompatible values, such as money and metres, also leave counts alone.
   private func summarizeSelection() {
     let selection = textView.selectedRange()
     // An insertion point covers one line at most, which keeps moving it and
@@ -402,28 +401,49 @@ public final class SheetEditorViewController: NSViewController {
       view.needsLayout = true
       return
     }
-    let values = zip(sheet.lines, utf16Starts()).compactMap { line, start -> EngineValue? in
-      guard start < selection.upperBound, start + line.text.utf16.count > selection.location,
-        case .value(let value) = shownLines[line.id]?.result.result
-      else {
-        return nil
+    var values: [EngineValue] = []
+    var failedCount = 0
+    var pendingCount = 0
+    for (line, start) in zip(sheet.lines, utf16Starts()) {
+      guard start < selection.upperBound, start + line.text.utf16.count > selection.location else {
+        continue
       }
-      return value
+      let shown = shownLines[line.id]
+      let isCurrent = shown?.text == line.text
+      let syntax = isCurrent ? shown?.result.syntax : LineSyntax(line.text)
+      guard case .calculation(_, _, .some, _) = syntax else { continue }
+      guard isCurrent, let result = shown?.result.result else {
+        pendingCount += 1
+        continue
+      }
+      switch result {
+      case .value(let value): values.append(value)
+      case .syntaxFailure, .evaluationFailure:
+        if isAssistantPending(text: line.text, result: result) {
+          pendingCount += 1
+        } else {
+          failedCount += 1
+        }
+      }
     }
-    guard values.count > 1 else {
+    let count = values.count + failedCount + pendingCount
+    guard count > 1 else {
       summaryBar.summary = nil
       view.needsLayout = true
       return
     }
     let evaluator = Evaluator(context: context)
     func formatted(_ aggregate: Aggregate) -> String? {
-      guard let value = try? evaluator.aggregating(aggregate, of: values) else {
+      guard failedCount == 0, pendingCount == 0,
+        let value = try? evaluator.aggregating(aggregate, of: values)
+      else {
         return nil
       }
       return (try? resultFormatter.format(value))?.display
     }
     summaryBar.summary = SelectionSummary(
-      count: values.count,
+      count: count, calculatedCount: values.count, failedCount: failedCount,
+      pendingCount: pendingCount,
       total: formatted(.sum),
       average: formatted(.average)
     )
@@ -511,6 +531,7 @@ public final class SheetEditorViewController: NSViewController {
     }
     assistantLineInFlight.insert(asked)
     sheetTextView.answersDidChange()
+    summarizeSelection()
     Task { [weak self] in
       let answer = await askAssistant(asked)
       guard let self else {
@@ -522,6 +543,7 @@ public final class SheetEditorViewController: NSViewController {
         assistantAnswers[asked] = answer
       }
       sheetTextView.answersDidChange()
+      summarizeSelection()
     }
   }
 
@@ -550,6 +572,7 @@ public final class SheetEditorViewController: NSViewController {
     }
     assistantPromptsInFlight.insert(prompt)
     sheetTextView.answersDidChange()
+    summarizeSelection()
     Task { [weak self] in
       let answer = await askAssistant(prompt)
       self?.finishAssistantPrompt(prompt, answer: answer)
