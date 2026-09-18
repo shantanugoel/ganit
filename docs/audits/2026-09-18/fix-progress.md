@@ -106,7 +106,20 @@ G04 full GitHub CI passed (run 35339826684).
   490 package tests, formatting, pseudolocalized layout, debug app build,
   bundle verification, and whitespace checks pass.
 
+## G08 — Keep meaning in narrow answer columns
+
+- A value wider than the column is drawn from a six-significant-digit form
+  marked `≈`, which keeps its unit; rounding is therefore marked, distinct from
+  truncation. Anything still too wide is middle-truncated for values (keeping
+  unit or zone) and tail-truncated for messages.
+- Hover still shows the full answer and Show Interpretation the full message,
+  so no separate diagnostic titles or column-resize control were added.
+- Validation: regression checks the full text in a wide window, `≈ 142.857 mA`
+  at 320 points, no compact forms for short answers or failures, truncation
+  modes, and the hover text. 491 package tests, formatting, pseudolocalized
+  layout, debug app build, bundle verification, and whitespace checks pass.
+
 ## Remaining
 
-G08–G15, then release validation, version bump, and publication via the existing
+G09–G15, then release validation, version bump, and publication via the existing
 signed/notarized GitHub release workflow triggered by `v0.4.0`.

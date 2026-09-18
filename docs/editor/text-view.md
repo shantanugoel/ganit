@@ -44,7 +44,11 @@ incomplete and failing lines, show no answer.
 (35% of the width, clamped to 140–360 pt, with a 16 pt gap) so source wraps
 before it. A click-through overlay view above TextKit 2's text layout views
 draws each answer right-aligned, with tabular digits, on the first row of its
-line's layout fragment, and truncates it when it exceeds the column. Answer text
+line's layout fragment. A value too wide for the column is first written to six
+significant digits and marked `≈` (`≈ 142.857 mA`), so its unit or zone stays;
+a value still too wide is truncated in the middle, keeping its end, and a
+message is truncated at its end. Hovering shows the full answer, and Show
+Interpretation the full message. Answer text
 is never inserted into the text storage. The overlay also draws a dim rule down
 the middle of the gap, which **View ▸ Show Answer Separator** hides.
 

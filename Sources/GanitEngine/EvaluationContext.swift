@@ -66,7 +66,7 @@ public struct EvaluationContext: Hashable, Sendable {
   public let localeIdentifier: String
   public let lexingConfiguration: LexingConfiguration
   public private(set) var angleMode: AngleMode
-  public let precision: PrecisionContext
+  public private(set) var precision: PrecisionContext
   public private(set) var now: Date
   public let calendar: Calendar
   public let timeZone: TimeZone
@@ -147,6 +147,13 @@ public struct EvaluationContext: Hashable, Sendable {
     precondition(now.timeIntervalSinceReferenceDate.isFinite)
     var context = self
     context.now = now
+    return context
+  }
+
+  /// The same context rounding to another precision.
+  public func with(precision: PrecisionContext) -> EvaluationContext {
+    var context = self
+    context.precision = precision
     return context
   }
 

@@ -65,6 +65,8 @@ public final class SheetEditorViewController: NSViewController {
   private let storageObserver = StorageObserver()
   private(set) var scheduler: SheetEvaluationScheduler?
   private var resultFormatter: ResultFormatter
+  /// Writes values to fewer digits for an answer column too narrow for them.
+  private var compactFormatter: ResultFormatter
   private let diagnosticFormatter: DiagnosticFormatter
   /// Answer cells by line, reused while the line's result, editing state,
   /// assistant answer, and pending request are unchanged.
@@ -116,6 +118,7 @@ public final class SheetEditorViewController: NSViewController {
       dollarCurrency: display.dollarCurrency, isMarkdownMode: display.writesAnswersInline)
     displayOptions = display
     resultFormatter = ResultFormatter(context: context, display: display)
+    compactFormatter = Self.compactFormatter(context: context, display: display)
     diagnosticFormatter = DiagnosticFormatter(context: context)
     sheet = SheetSource(text)
     mirroredText = text
@@ -910,6 +913,7 @@ public final class SheetEditorViewController: NSViewController {
       dollarCurrency: options.dollarCurrency, isMarkdownMode: options.writesAnswersInline)
     scheduler?.context = context
     resultFormatter = ResultFormatter(context: context, display: options)
+    compactFormatter = Self.compactFormatter(context: context, display: options)
     placeAnswers(options)
     cells.removeAll()
     decorations.removeAll()
@@ -964,7 +968,11 @@ public final class SheetEditorViewController: NSViewController {
     switch result {
     case .value(let value):
       return (try? resultFormatter.format(value)).map {
-        AnswerCell(text: $0.display, fullPrecision: $0.fullPrecision)
+        var cell = AnswerCell(text: $0.display, fullPrecision: $0.fullPrecision)
+        if let compact = try? compactFormatter.format(value).display, compact != $0.display {
+          cell.compactText = compact.hasPrefix("≈") ? compact : "≈ " + compact
+        }
+        return cell
       }
     case .syntaxFailure, .evaluationFailure:
       if pending {
@@ -980,6 +988,16 @@ public final class SheetEditorViewController: NSViewController {
         AnswerCell(text: $0.message, fullPrecision: nil)
       }
     }
+  }
+
+  private static func compactFormatter(context: EvaluationContext, display: DisplayOptions)
+    -> ResultFormatter
+  {
+    let precision =
+      (try? PrecisionContext(
+        significantDecimalDigits: min(6, context.precision.significantDecimalDigits),
+        roundingRule: context.precision.roundingRule)) ?? context.precision
+    return ResultFormatter(context: context.with(precision: precision), display: display)
   }
 
   private func flaggedDiagnostic(_ result: CalculationResult, isEditing: Bool)

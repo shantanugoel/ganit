@@ -126,10 +126,26 @@ final class SheetTextView: NSTextView {
   private var overlay: AnswerOverlayView?
 
   func attributes(for cell: AnswerCell, selected: Bool) -> [NSAttributedString.Key: Any] {
-    [
+    // A value keeps its end, where its unit or zone is; a message its start.
+    let paragraph = NSMutableParagraphStyle()
+    paragraph.lineBreakMode = cell.isFailure ? .byTruncatingTail : .byTruncatingMiddle
+    return [
       .font: VisualStyle.Typography.answer(scale: textScale),
       .foregroundColor: color(cell, selected),
+      .paragraphStyle: paragraph,
     ]
+  }
+
+  /// What is drawn for `cell` in `width`: the answer when it fits, or else its
+  /// shorter form. The full answer is its tooltip either way.
+  func drawnText(for cell: AnswerCell, within width: CGFloat) -> String {
+    guard let compact = cell.compactText,
+      (cell.text as NSString).size(withAttributes: attributes(for: cell, selected: false)).width
+        > width
+    else {
+      return cell.text
+    }
+    return compact
   }
 
   /// An answer beside the source is a column of its own; an answer sitting in
@@ -225,14 +241,14 @@ final class SheetTextView: NSTextView {
       guard let cell = answer(line.id) else {
         return nil
       }
-      let wanted = ceil(
-        (cell.text as NSString).size(withAttributes: attributes(for: cell, selected: false)).width
-      )
       let row = writesAnswersInline ? line.lastRow : line.firstRow
-      let x =
-        writesAnswersInline
-        ? line.frame.minX + row.typographicBounds.maxX + Self.columnGap
-        : rightEdge - min(wanted, columnWidth)
+      let inlineX = line.frame.minX + row.typographicBounds.maxX + Self.columnGap
+      let limit = writesAnswersInline ? max(rightEdge - inlineX, 0) : columnWidth
+      let wanted = ceil(
+        (drawnText(for: cell, within: limit) as NSString)
+          .size(withAttributes: attributes(for: cell, selected: false)).width
+      )
+      let x = writesAnswersInline ? inlineX : rightEdge - min(wanted, columnWidth)
       return (
         line.id,
         cell,
@@ -1310,7 +1326,7 @@ private final class AnswerOverlayView: NSView {
         VisualStyle.Color.selectionBackground.setFill()
         NSBezierPath(roundedRect: rect.insetBy(dx: -4, dy: 0), xRadius: 4, yRadius: 4).fill()
       }
-      (cell.text as NSString).draw(
+      (textView.drawnText(for: cell, within: rect.width) as NSString).draw(
         with: rect,
         options: [.usesLineFragmentOrigin, .truncatesLastVisibleLine],
         attributes: textView.attributes(for: cell, selected: isSelected)

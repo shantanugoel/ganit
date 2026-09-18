@@ -17,6 +17,9 @@ struct AnswerCell: Equatable {
   var isAssisted = false
   /// A request is in flight; the sheet stays editable.
   var isPending = false
+  /// The value to fewer digits, marked `≈`, drawn when `text` does not fit so
+  /// a unit or time zone is not the part cut off.
+  var compactText: String?
 
   var isFailure: Bool {
     fullPrecision == nil && !isAssisted && !isPending

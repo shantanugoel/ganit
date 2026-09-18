@@ -5,6 +5,10 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- An answer too wide for a narrow window is written to fewer digits and marked
+  `≈`, keeping its unit, and a still-too-wide value is cut in the middle so its
+  unit or time zone stays visible.
+
 - A line referring to an AI display answer says that formulas cannot use it
   and that Change Answer… can save it into the sheet, and the answer's
   interpretation card explains the same.
