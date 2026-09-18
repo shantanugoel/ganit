@@ -8,6 +8,50 @@ import Testing
 @MainActor
 @Suite
 struct AnswerInteractionTests {
+  @Test(arguments: [NSSize(width: 1440, height: 900), NSSize(width: 640, height: 400)])
+  func mortgagePrecisionCannotExpandTheCardBeyondTheScreen(_ available: NSSize) async throws {
+    let (editor, textView) = try await makeEditor("pmt(300,000 USD, 6% / 12, 360)")
+    let id = editor.sheet.lines[0].id
+    let precision = try #require(textView.answer(id)?.fullPrecision)
+    #expect(precision.count > 200)
+    let pasteboard = NSPasteboard(name: .init("Ganit-interpretation-test"))
+    let card = InterpretationViewController(
+      details: textView.interpretation(id),
+      fullPrecision: precision, availableSize: available, pasteboard: pasteboard)
+    let window = NSWindow(
+      contentRect: NSRect(origin: .zero, size: card.view.fittingSize),
+      styleMask: [.titled], backing: .buffered, defer: true)
+    window.contentViewController = card
+    window.layoutIfNeeded()
+    #expect(card.view.fittingSize.width <= min(560, available.width - 32))
+    #expect(card.view.fittingSize.height <= min(600, available.height - 32))
+    #expect(card.view.frame.size == card.view.fittingSize)
+    let outer = try #require(card.view.subviews.first as? NSScrollView)
+    let grid = try #require(outer.documentView as? NSGridView)
+    let precisionRow = try #require(
+      (0..<grid.numberOfRows).first {
+        (grid.cell(atColumnIndex: 0, rowIndex: $0).contentView as? NSTextField)?.stringValue
+          == "Full precision"
+      })
+    let precisionScroll = try #require(
+      grid.cell(atColumnIndex: 1, rowIndex: precisionRow).contentView as? NSScrollView)
+    #expect(precisionScroll.frame.height <= 96)
+    #expect((precisionScroll.documentView as? NSTextView)?.string == precision)
+    let precisionText = try #require(precisionScroll.documentView as? NSTextView)
+    #expect(precisionText.frame.height > precisionScroll.contentSize.height)
+    #expect(precisionText.frame.width > 100)
+    let button = try #require(card.view.subviews.compactMap { $0 as? NSButton }.first)
+    button.performClick(nil)
+    #expect(pasteboard.string(forType: .string) == precision)
+    if available.width > 1000,
+      let bitmap = card.view.bitmapImageRepForCachingDisplay(in: card.view.bounds)
+    {
+      card.view.cacheDisplay(in: card.view.bounds, to: bitmap)
+      try bitmap.representation(using: .png, properties: [:])?.write(
+        to: URL(fileURLWithPath: "/tmp/ganit-g05-card.png"))
+    }
+  }
+
   @Test
   func cellsCarryInterpretationDetailsAndVisibleFailureMessages() async throws {
     let (editor, textView) = try await makeEditor("sqrt(2)\n1 m + 1 s\n2 +")

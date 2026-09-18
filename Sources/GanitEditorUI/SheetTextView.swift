@@ -931,7 +931,9 @@ final class SheetTextView: NSTextView {
     let popover = NSPopover()
     popover.behavior = .transient
     popover.contentViewController = InterpretationViewController(
-      details: interpretation(target.line)
+      details: interpretation(target.line), fullPrecision: target.cell.fullPrecision,
+      availableSize: window?.screen?.visibleFrame.size ?? NSScreen.main?.visibleFrame.size
+        ?? NSSize(width: 800, height: 600), pasteboard: pasteboard
     )
     popover.show(relativeTo: rect, of: self, preferredEdge: .maxY)
     interpretationPopover = popover

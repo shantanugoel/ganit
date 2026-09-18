@@ -5,6 +5,9 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Interpretation cards stay within the display, wrap explanations, scroll long
+  exact values, and offer Copy Full Precision without expanding the popover.
+
 - Change Answer explains that temporary corrections disappear on quit and
   offers Save Value into Sheet to keep a validated correction through restart.
 

@@ -136,6 +136,10 @@ full precision, value kind, and exactness, then one Assumption row for each
 failure it lists the expression, the underlined text the problem is at
 (Where), the message, and any suggestions. Unit conversions, provenance,
 time zones, and references join the card as those details become available.
+The card is at most 560×600 points and stays within the display's usable area.
+Explanations wrap; long values use a 96-point-high selectable scroll field.
+Copy Full Precision stays outside the scrolling details so an exact value can
+be copied in full.
 
 ## Selection summary
 

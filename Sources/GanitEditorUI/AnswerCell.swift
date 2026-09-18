@@ -27,9 +27,18 @@ struct AnswerCell: Equatable {
 @MainActor
 final class InterpretationViewController: NSViewController {
   private let details: [AnswerCell.Detail]
+  private let fullPrecision: String?
+  private let availableSize: NSSize
+  private let pasteboard: NSPasteboard
 
-  init(details: [AnswerCell.Detail]) {
+  init(
+    details: [AnswerCell.Detail], fullPrecision: String?, availableSize: NSSize,
+    pasteboard: NSPasteboard
+  ) {
     self.details = details
+    self.fullPrecision = fullPrecision
+    self.availableSize = availableSize
+    self.pasteboard = pasteboard
     super.init(nibName: nil, bundle: nil)
   }
 
@@ -39,32 +48,91 @@ final class InterpretationViewController: NSViewController {
   }
 
   override func loadView() {
+    let width = min(560, availableSize.width - 32)
+    let maximumHeight = min(600, availableSize.height - 32)
+    let contentWidth = width - 2 * VisualStyle.Spacing.card
+    let labelWidth = min(140, contentWidth * 0.3)
+    let valueWidth = contentWidth - labelWidth - VisualStyle.Spacing.group - 16
     let grid = NSGridView(
       views: details.map { detail in
-        let label = NSTextField(labelWithString: detail.label)
+        let label = NSTextField(wrappingLabelWithString: detail.label)
         label.textColor = VisualStyle.Color.secondary
         label.alignment = .right
-        let value = NSTextField(labelWithString: detail.value)
-        value.isSelectable = true
-        value.font = VisualStyle.Typography.detailValue
-        return [label, value]
-      }
-    )
+        label.preferredMaxLayoutWidth = labelWidth
+        return [label, valueView(detail.value, width: valueWidth)]
+      })
     grid.rowSpacing = VisualStyle.Spacing.related
     grid.columnSpacing = VisualStyle.Spacing.group
-    grid.translatesAutoresizingMaskIntoConstraints = false
+    grid.column(at: 0).width = labelWidth
+    grid.column(at: 1).width = valueWidth
+    grid.yPlacement = .top
+    grid.frame = NSRect(x: 0, y: 0, width: contentWidth, height: grid.fittingSize.height)
+
+    let scroll = NSScrollView()
+    scroll.hasVerticalScroller = true
+    scroll.autohidesScrollers = true
+    scroll.drawsBackground = false
+    scroll.documentView = grid
+    scroll.translatesAutoresizingMaskIntoConstraints = false
 
     let container = NSView()
-    container.addSubview(grid)
+    container.addSubview(scroll)
+    let buttonHeight: CGFloat = fullPrecision == nil ? 0 : 32
+    let height = min(maximumHeight, grid.fittingSize.height + 24 + buttonHeight)
     NSLayoutConstraint.activate([
-      grid.leadingAnchor.constraint(
-        equalTo: container.leadingAnchor, constant: VisualStyle.Spacing.card),
-      grid.trailingAnchor.constraint(
-        equalTo: container.trailingAnchor, constant: -VisualStyle.Spacing.card),
-      grid.topAnchor.constraint(equalTo: container.topAnchor, constant: VisualStyle.Spacing.group),
-      grid.bottomAnchor.constraint(
-        equalTo: container.bottomAnchor, constant: -VisualStyle.Spacing.group),
+      container.widthAnchor.constraint(equalToConstant: width),
+      container.heightAnchor.constraint(equalToConstant: height),
+      scroll.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 16),
+      scroll.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -16),
+      scroll.topAnchor.constraint(equalTo: container.topAnchor, constant: 12),
+      scroll.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -12 - buttonHeight),
     ])
+    if fullPrecision != nil {
+      let button = NSButton(
+        title: localized("menu.copyFullPrecision", "Copy Full Precision"),
+        target: self, action: #selector(copyFullPrecision(_:)))
+      button.translatesAutoresizingMaskIntoConstraints = false
+      container.addSubview(button)
+      NSLayoutConstraint.activate([
+        button.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -16),
+        button.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -8),
+      ])
+    }
+    container.setFrameSize(NSSize(width: width, height: height))
     view = container
+  }
+
+  private func valueView(_ value: String, width: CGFloat) -> NSView {
+    if value.count > 200 {
+      let scroll = NSTextView.scrollableTextView()
+      scroll.frame = NSRect(x: 0, y: 0, width: width, height: 96)
+      scroll.drawsBackground = false
+      scroll.translatesAutoresizingMaskIntoConstraints = false
+      scroll.widthAnchor.constraint(equalToConstant: width).isActive = true
+      let text = scroll.documentView as! NSTextView
+      text.setFrameSize(NSSize(width: width, height: 96))
+      text.minSize = NSSize(width: width, height: 96)
+      text.isEditable = false
+      text.isRichText = false
+      text.drawsBackground = false
+      text.font = VisualStyle.Typography.detailValue
+      text.textColor = .labelColor
+      text.string = value
+      text.scrollRangeToVisible(NSRange(location: 0, length: 0))
+      scroll.heightAnchor.constraint(equalToConstant: 96).isActive = true
+      return scroll
+    }
+    let field = NSTextField(wrappingLabelWithString: value)
+    field.isSelectable = true
+    field.font = VisualStyle.Typography.detailValue
+    field.lineBreakMode = .byCharWrapping
+    field.preferredMaxLayoutWidth = width
+    return field
+  }
+
+  @objc func copyFullPrecision(_ sender: Any?) {
+    guard let fullPrecision else { return }
+    pasteboard.clearContents()
+    pasteboard.setString(fullPrecision, forType: .string)
   }
 }

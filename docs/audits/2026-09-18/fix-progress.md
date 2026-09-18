@@ -5,6 +5,8 @@ and pushed before starting the next. Release 0.4.0 follows all fifteen fixes.
 
 G01 full GitHub CI passed (run 35338124822).
 G02 full GitHub CI passed (run 35338582291).
+G03 full GitHub CI passed (run 35339073557).
+G04 full GitHub CI passed (run 35339826684).
 
 ## G01 — Undo and reference renumbering
 
@@ -59,7 +61,21 @@ G02 full GitHub CI passed (run 35338582291).
 - Validation: 485 package tests, formatting, pseudolocalized layout, debug app
   build, bundle verification, and whitespace checks pass.
 
+## G05 — Bound interpretation cards
+
+- Bound the card to 560×600 points or the usable screen area minus margins.
+  Explanations wrap, long values use a 96-point selectable scroll field, and
+  Copy Full Precision stays outside the scrolling details.
+- The audited mortgage regression covers normal and compact screen sizes,
+  actual card bounds, usable scroll-document dimensions, and exact copying.
+- Reviewed the live built app through Computer Use. This caught a zero-width
+  scroll field missed by the first layout checks; added a regression and fixed
+  the field width. Relaunched the corrected bundle and confirmed visible exact
+  digits, readable result, finance assumption, and Copy Full Precision button.
+- Validation: 486 package tests, formatting, pseudolocalized layout, debug app
+  build, bundle verification, and whitespace checks pass.
+
 ## Remaining
 
-G05–G15, then release validation, version bump, and publication via the existing
+G06–G15, then release validation, version bump, and publication via the existing
 signed/notarized GitHub release workflow triggered by `v0.4.0`.
