@@ -41,6 +41,9 @@ workspace window with an empty sheet.
 - **Step Number Up** and **Step Number Down** step the number at the insertion
   point by one unit of its last decimal place, and are what a person who does
   not drag uses instead of scrubbing; see docs/editor/text-view.md.
+- **Ganit Help** opens the reference at a readable size, lists every built-in
+  unit under Units, and answers everyday words such as mortgage or GST. A
+  search with no match suggests one word to try and `ask_assistant(…)`.
 - **Number Format**, **Group Digits**, and **Group Digits in Lakhs**
   (`12,34,567`) say how the open sheet writes its answers. The workspace window handles them, because the choice stays with the
   sheet; see docs/engine/result-formatting.md.

@@ -118,7 +118,9 @@ extension LanguageReference {
         "20% of 85 is 17, 20% off 85 is 68, and 85 + 20% is 102. 50 is what % of 200 is 25%. percentage change from 50 to 90 is 80%. 0.25 as % shows a ratio as 25%. A percentage of a quantity keeps the unit: 10% of 50 kg is 5 kg. Absolute quantities such as temperatures refuse a percentage of, because a tenth of 20 °C is not a temperature."
       ),
       examples: ["20% off 85", "15 is what % of 60", "10% of 50 kg", "3050 / 7500 as %"],
-      keywords: ["percent", "off", "tip", "change", "ratio"]
+      keywords: [
+        "percent", "off", "tip", "change", "ratio", "discount", "tax", "gst", "vat", "markup",
+      ]
     ),
     topic(
       id: "grammar.units",
@@ -131,12 +133,18 @@ extension LanguageReference {
       body: text(
         "help.grammar.units.body",
         "Write a number and a unit, or a unit and a number: 12 km and km 12. Convert with in, to, as, or into: 12 km in miles. Compatible units add; incompatible ones say so. Compound units multiply and divide: 75 MB/s * 2 s. Temperature converts on its scale: 0 °C as °F. Electrical units take prefixes: 5 V / 220 Ω in mA, 12 V * 2 A in W."
-      ),
+      ) + "\n\n"
+        + String(
+          format: text(
+            "help.grammar.units.list",
+            "The units Ganit knows, before prefixes: %@. A decimal prefix such as k, m, or M goes in front of the ones that take one, as in km, mA, and MB."
+          ),
+          unitSymbols.joined(separator: ", ")
+        ),
       examples: ["12 km in miles", "km 12", "75 MB/s * 2 s", "0 °C as °F", "5 V / 220 Ω in mA"],
       keywords: [
-        "conversion", "length", "mass", "data", "volt", "ampere", "ohm", "farad", "hertz",
-        "electronics", "horsepower",
-      ]
+        "conversion", "length", "mass", "data", "electronics", "units",
+      ] + builtInMinimalUnitCatalog.entries.flatMap(\.aliases)
     ),
     topic(
       id: "grammar.variables",
@@ -213,7 +221,10 @@ extension LanguageReference {
       examples: [
         "$1.5", "USD 1.5", "11.5 million", "12.50 EUR", "100 USD in INR", "$0.15/kWh * 45 kWh",
       ],
-      keywords: ["currency", "exchange", "EUR", "USD", "price", "per", "unit price"]
+      keywords: [
+        "currency", "exchange", "EUR", "USD", "price", "per", "unit price", "conversion rate",
+        "budget", "cost",
+      ]
     ),
     topic(
       id: "grammar.constants",
@@ -570,7 +581,8 @@ extension LanguageReference {
           "help.function.fv.body",
           "fv(amount, rate, periods) is amount × (1 + rate)^periods. The rate is for one period, not a year. Money stays in its currency. The interpretation card records the compounding assumption."
         ),
-        examples: ["fv(10,000 USD, 5%, 10)"]
+        examples: ["fv(10,000 USD, 5%, 10)"],
+        keywords: ["compound interest", "savings", "growth", "investment", "future value"]
       )
     case .presentValue:
       return functionHelp(
@@ -583,7 +595,8 @@ extension LanguageReference {
           "help.function.pv.body",
           "pv(amount, rate, periods) is amount ÷ (1 + rate)^periods. The rate is for one period."
         ),
-        examples: ["pv(1,210, 10%, 2)"]
+        examples: ["pv(1,210, 10%, 2)"],
+        keywords: ["discount", "present value", "worth today"]
       )
     case .payment:
       return functionHelp(
@@ -596,7 +609,8 @@ extension LanguageReference {
           "help.function.pmt.body",
           "pmt(amount, rate, periods) is the payment at the end of each period. Write an annual rate as a per-period rate: pmt(300,000 USD, 6% / 12, 360). A rate of zero splits the amount equally."
         ),
-        examples: ["pmt(300,000 USD, 0.5%, 360)"]
+        examples: ["pmt(300,000 USD, 0.5%, 360)"],
+        keywords: ["mortgage", "loan", "emi", "repayment", "instalment", "installment", "payment"]
       )
     }
   }
@@ -641,6 +655,13 @@ extension LanguageReference {
       keywords: keywords
     )
   }
+
+  /// Every built-in unit's symbol, so a reader can see which units Ganit
+  /// knows rather than guess at them.
+  public static let unitSymbols: [String] =
+    builtInMinimalUnitCatalog.entries
+    .map(\.definition.symbol)
+    .sorted { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
 
   fileprivate static func functionHelp(
     _ name: String,

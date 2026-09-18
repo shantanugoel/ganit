@@ -17,6 +17,14 @@ struct HelpWindowTests {
   }
 
   @Test
+  func opensWideEnoughToReadTheTopicBesideTheList() throws {
+    let help = HelpWindowController()
+    let window = try #require(help.window)
+    #expect(window.contentLayoutRect.width >= 700)
+    #expect(window.contentLayoutRect.height >= 460)
+  }
+
+  @Test
   func revealSelectsANamedTopic() {
     let help = HelpWindowController()
     help.reveal("function.round")

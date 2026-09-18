@@ -278,7 +278,14 @@ public final class HelpWindowController: NSWindowController, NSTableViewDataSour
   private static func reading(for topic: LanguageTopic?) -> NSAttributedString {
     guard let topic else {
       return NSAttributedString(
-        string: localized("help.empty", "No matching topics."),
+        string: localized(
+          "help.empty",
+          """
+          No matching topics.
+
+          Try one word, such as percent, unit, or date. For a question the           reference does not answer, write ask_assistant(your question) on a           sheet line.
+          """
+        ),
         attributes: [
           .font: NSFont.systemFont(ofSize: NSFont.systemFontSize),
           .foregroundColor: VisualStyle.Color.secondary,
@@ -342,6 +349,11 @@ private final class RootController: NSViewController {
 
   override func loadView() {
     view = owner?.buildView() ?? NSView()
+    // A window adopts its content controller's view size, so the reading
+    // column opens with room rather than at the view's default size.
+    view.setFrameSize(NSSize(width: 720, height: 500))
+    view.layoutSubtreeIfNeeded()
+    owner?.layoutPanes()
   }
 
   override func viewDidLayout() {
