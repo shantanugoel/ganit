@@ -16,6 +16,10 @@ release candidate.
 - Keywords and function names are English only. The engine supports locale
   separators, but new sheets use `en-US` separators until a locale preference
   exists.
+- An exact answer is shown to the sheet's significant digits, and money to its
+  currency's minor units. Money marked `≈` was rounded to those units; a plain
+  number shows its rounded digits without a mark, as a fraction does. Copy Full
+  Precision copies the exact value either way.
 - Roots other than perfect powers, logarithms, trigonometry, and constants
   such as `π` are approximate, computed with binary floating point and marked
   `≈`.
@@ -23,7 +27,12 @@ release candidate.
   (`10 °C + 5 °C`) is unavailable.
 - `pm` after a plain number is picometres; write `3:00 pm` for a time.
 - No phrase rounds a single answer, such as `1/3 to 2 dp`; write `round(1/3, 2)`
-  or use the sheet-wide decimal setting.
+  or use the sheet-wide decimal setting. A single line cannot ask for its own
+  base or fraction either: Format ▸ Number Format sets hexadecimal, binary, or
+  fractions for the whole sheet.
+- There is no `irr`: a rate that solves a cash flow needs an iterative search
+  whose starting guess and convergence rule the answer would depend on. `npv`
+  discounts a flow at a rate you give.
 - A percentage and a bare number do not add (`50% + 0.5`), because the
   intended meaning is not knowable.
 
@@ -43,8 +52,9 @@ release candidate.
   need a manual rate such as `1 USD = 83 INR`.
 - Rates update on ECB working days, are indicative, and are not for
   transactions.
-- `$` and `¥` are ambiguous and must be written as `USD`, `US$`, `JPY`, and so
-  on.
+- `$` means the sheet's dollar currency, USD unless Format ▸ Dollar Means picks
+  another, and `¥` means JPY. Write a code such as `SGD` or a symbol such as
+  `S$` for any other dollar or yen.
 - Finance functions (`fv`, `pv`, `pmt`) use one rate per period, compounding
   once per period, with payments at the end of each period.
 

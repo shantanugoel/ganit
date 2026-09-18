@@ -5,6 +5,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- The known limitations say what `$` means now, when an answer is marked `≈`,
+  and that number bases and fractions are a sheet-wide choice.
 - An empty sheet list says why it is empty: `No sheets match “rent”`, or that
   the Trash is empty.
 - Format ▸ Angles in Degrees reads a sheet's bare angles as degrees, so
