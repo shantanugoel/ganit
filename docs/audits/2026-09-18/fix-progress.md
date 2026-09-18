@@ -170,7 +170,25 @@ G04 full GitHub CI passed (run 35339826684).
   formatting, pseudolocalized layout, debug app build, bundle verification,
   and whitespace checks pass.
 
+## G12 — Line numbers and Go to Line
+
+- View ▸ Show Line Numbers, stored in the sheet's display options beside the
+  answer separator, draws physical line numbers in a gutter; wrapped rows
+  share one number and blank lines are counted, as `line N` counts them.
+  The source moves right by overriding `textContainerOrigin`; the answer
+  column keeps its right edge.
+- Edit ▸ Go to Line… (⌘L) selects the start of a line, scrolls to it, and
+  flashes it; out-of-range numbers beep. Reference-target highlighting was
+  not added; numbered lines and Go to Line cover the navigation gap.
+- Reviewed renders at a narrow width and the live debug app: numbers align
+  to the source baseline, and clicking beside the gutter puts the caret at
+  the start of the clicked line. The QA sheet's setting was turned back off.
+- Validation: regression covers the gutter offset, numbering with a wrapped
+  line and blank line, unchanged answer column, and Go to Line bounds. 497
+  package tests, formatting, pseudolocalized layout, debug app build, bundle
+  verification, and whitespace checks pass.
+
 ## Remaining
 
-G12–G15, then release validation, version bump, and publication via the existing
+G13–G15, then release validation, version bump, and publication via the existing
 signed/notarized GitHub release workflow triggered by `v0.4.0`.

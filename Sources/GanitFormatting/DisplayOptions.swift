@@ -30,12 +30,16 @@ public struct DisplayOptions: Codable, Equatable, Sendable {
   /// Answers written inline have no column, and so no rule.
   public var showsAnswerSeparator: Bool
 
+  /// Numbers each source line in a gutter, as `line N` counts them.
+  public var showsLineNumbers: Bool
+
   public init(
     groupsDigits: Bool = true,
     groupsInLakhs: Bool = false,
     numbers: NumberDisplay = .automatic,
     writesAnswersInline: Bool = false,
     showsAnswerSeparator: Bool = true,
+    showsLineNumbers: Bool = false,
     dollarCurrency: String = "USD"
   ) {
     self.groupsDigits = groupsDigits
@@ -43,6 +47,7 @@ public struct DisplayOptions: Codable, Equatable, Sendable {
     self.numbers = numbers
     self.writesAnswersInline = writesAnswersInline
     self.showsAnswerSeparator = showsAnswerSeparator
+    self.showsLineNumbers = showsLineNumbers
     self.dollarCurrency = dollarCurrency
   }
 
@@ -57,6 +62,8 @@ public struct DisplayOptions: Codable, Equatable, Sendable {
       try container.decodeIfPresent(Bool.self, forKey: .writesAnswersInline) ?? false
     showsAnswerSeparator =
       try container.decodeIfPresent(Bool.self, forKey: .showsAnswerSeparator) ?? true
+    showsLineNumbers =
+      try container.decodeIfPresent(Bool.self, forKey: .showsLineNumbers) ?? false
     dollarCurrency = try container.decodeIfPresent(String.self, forKey: .dollarCurrency) ?? "USD"
   }
 }

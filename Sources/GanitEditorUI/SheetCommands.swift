@@ -13,6 +13,7 @@ import AppKit
   func changeAssistantAnswer(_ sender: Any?)
   func cancelAssistantRequest(_ sender: Any?)
   func insertReference(_ sender: Any?)
+  func goToLine(_ sender: Any?)
   func nextProblem(_ sender: Any?)
   func previousProblem(_ sender: Any?)
   func insertSubtotal(_ sender: Any?)

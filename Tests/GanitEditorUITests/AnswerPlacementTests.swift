@@ -91,6 +91,32 @@ struct AnswerPlacementTests {
     #expect(textView.tooltip(at: hover) == "≈ 142.857142857143 mA")
   }
 
+  /// Line numbers count physical lines, as `line N` does, in a gutter the
+  /// source moves over for; Go to Line reaches one by that number.
+  @Test
+  func lineNumbersCountPhysicalLinesAndGoToLineReachesThem() async throws {
+    let wrapped = "rent = 2100 // " + String(repeating: "a comment that wraps ", count: 8)
+    let (editor, textView) = try await makeEditor("# Budget\n\(wrapped)\n\nline 2 + 1")
+    let plainOrigin = textView.textContainerOrigin.x
+    let plainColumn = try #require(textView.answerLayout(in: textView.bounds).first?.rect.maxX)
+    #expect(textView.lineNumberLayout(in: textView.bounds).isEmpty)
+
+    editor.writeAnswers(DisplayOptions(showsLineNumbers: true))
+    #expect(textView.gutterWidth > 0)
+    #expect(textView.textContainerOrigin.x == plainOrigin + textView.gutterWidth)
+    let numbers = textView.lineNumberLayout(in: textView.bounds)
+    #expect(numbers.map(\.number) == [1, 2, 3, 4])
+    #expect(numbers.allSatisfy { $0.rect.maxX < textView.textContainerOrigin.x })
+    // The answer column keeps its right edge; only the source moves over.
+    #expect(textView.answerLayout(in: textView.bounds).first?.rect.maxX == plainColumn)
+    #expect(textView.goToLine(4))
+    #expect(
+      textView.selectedRange().location
+        == (textView.string as NSString).range(of: "line 2").location)
+    #expect(!textView.goToLine(5))
+    #expect(!textView.goToLine(0))
+  }
+
   private static var windows: [NSWindow] = []
 
   private func makeEditor(_ text: String) async throws -> (SheetEditorViewController, SheetTextView)

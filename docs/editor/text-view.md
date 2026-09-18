@@ -49,7 +49,9 @@ significant digits and marked `≈` (`≈ 142.857 mA`), so its unit or zone stay
 a value still too wide is truncated in the middle, keeping its end, and a
 message is truncated at its end. Hovering shows the full answer, and Show
 Interpretation the full message. Answer text
-is never inserted into the text storage. The overlay also draws a dim rule down
+is never inserted into the text storage. With Show Line Numbers, the overlay also
+draws each line's number, on its first row, in a gutter that
+`textContainerOrigin` moves the source past. The overlay also draws a dim rule down
 the middle of the gap, which **View ▸ Show Answer Separator** hides.
 
 A sheet whose display options ask for answers inline — **Format ▸ Markdown Mode** —

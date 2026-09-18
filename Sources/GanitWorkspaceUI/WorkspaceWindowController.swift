@@ -577,6 +577,14 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     write(options)
   }
 
+  @objc public func toggleLineNumbers(_ sender: Any?) {
+    guard var options = displayOptions else {
+      return
+    }
+    options.showsLineNumbers.toggle()
+    write(options)
+  }
+
   private func write(_ options: DisplayOptions) {
     guard let id = sheetID else {
       return
@@ -616,6 +624,9 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
         .metadata.preferences.display.dollarCurrency ?? displayOptions?.dollarCurrency
       menuItem.state = code == current ? .on : .off
       return target != nil || displayOptions != nil
+    case #selector(toggleLineNumbers(_:)):
+      menuItem.state = displayOptions?.showsLineNumbers == true ? .on : .off
+      return displayOptions != nil
     case #selector(toggleAnswerSeparator(_:)):
       menuItem.state = displayOptions?.showsAnswerSeparator == true ? .on : .off
       // Answers written inline leave nothing for the rule to separate.

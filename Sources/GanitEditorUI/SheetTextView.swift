@@ -52,6 +52,44 @@ final class SheetTextView: NSTextView {
     didSet { answerOverlay().needsDisplay = true }
   }
 
+  /// Numbers each line in a gutter before the source. Wrapped rows share
+  /// their line's number.
+  var showsLineNumbers = false {
+    didSet {
+      guard showsLineNumbers != oldValue else {
+        return
+      }
+      setFrameSize(frame.size)
+      needsDisplay = true
+    }
+  }
+
+  var lineNumberAttributes: [NSAttributedString.Key: Any] {
+    let paragraph = NSMutableParagraphStyle()
+    paragraph.alignment = .right
+    return [
+      .font: NSFont.monospacedDigitSystemFont(
+        ofSize: VisualStyle.Typography.source(scale: textScale).pointSize * 0.85, weight: .regular),
+      .foregroundColor: VisualStyle.Color.secondary,
+      .paragraphStyle: paragraph,
+    ]
+  }
+
+  /// Room for four-digit line numbers and a gap before the source.
+  var gutterWidth: CGFloat {
+    guard showsLineNumbers else {
+      return 0
+    }
+    return ceil(("0000" as NSString).size(withAttributes: lineNumberAttributes).width)
+      + VisualStyle.Spacing.standard
+  }
+
+  override var textContainerOrigin: NSPoint {
+    var origin = super.textContainerOrigin
+    origin.x += gutterWidth
+    return origin
+  }
+
   /// A line's answer cell, computed when the line is drawn; lines without
   /// one show nothing.
   var answer: (LineID) -> AnswerCell? = { _ in nil }
@@ -194,7 +232,8 @@ final class SheetTextView: NSTextView {
   /// wider than a sheet needs.
   var contentWidth: CGFloat {
     min(
-      bounds.width - textContainerInset.width * 2, Self.maximumContentWidth * textScale)
+      bounds.width - textContainerInset.width * 2 - gutterWidth,
+      Self.maximumContentWidth * textScale)
   }
 
   var answerColumnWidth: CGFloat {
@@ -213,7 +252,9 @@ final class SheetTextView: NSTextView {
     guard showsAnswerSeparator, !writesAnswersInline else {
       return nil
     }
-    return (textContainerInset.width + contentWidth - answerColumnWidth - Self.columnGap / 2)
+    return
+      (textContainerInset.width + gutterWidth + contentWidth - answerColumnWidth
+      - Self.columnGap / 2)
       .rounded()
   }
 
@@ -259,7 +300,7 @@ final class SheetTextView: NSTextView {
   /// right-aligned in the answer column on the line's first row, or, written
   /// inline, just past where the line's last row of text ends.
   func answerLayout(in rect: NSRect) -> [(line: LineID, cell: AnswerCell, rect: NSRect)] {
-    let rightEdge = textContainerInset.width + contentWidth
+    let rightEdge = textContainerInset.width + gutterWidth + contentWidth
     let columnWidth = answerColumnWidth
     return visibleLines(in: rect).compactMap { line in
       guard let cell = answer(line.id) else {
@@ -1285,6 +1326,74 @@ final class SheetTextView: NSTextView {
     let lastRow: NSTextLineFragment
   }
 
+  /// Each visible line's number and where it is drawn in the gutter: right
+  /// aligned on the line's first row.
+  func lineNumberLayout(in rect: NSRect) -> [(number: Int, rect: NSRect)] {
+    guard showsLineNumbers else {
+      return []
+    }
+    // The smaller numbers share the source's baseline.
+    let numberFont = lineNumberAttributes[.font] as? NSFont
+    let drop =
+      VisualStyle.Typography.source(scale: textScale).ascender - (numberFont?.ascender ?? 0)
+    return visibleLines(in: rect).compactMap { line in
+      lineNumber(line.id).map {
+        (
+          $0,
+          NSRect(
+            x: textContainerInset.width,
+            y: line.frame.minY + line.firstRow.typographicBounds.minY + drop,
+            width: gutterWidth - VisualStyle.Spacing.standard / 2,
+            height: line.firstRow.typographicBounds.height)
+        )
+      }
+    }
+  }
+
+  /// Moves the insertion point to the start of physical line `number` and
+  /// shows it. Returns `false` for a line the sheet does not have.
+  @discardableResult
+  func goToLine(_ number: Int) -> Bool {
+    let lines = lineStarts()
+    guard lines.indices.contains(number - 1) else {
+      return false
+    }
+    let line = lines[number - 1]
+    setSelectedRange(NSRange(location: line.start, length: 0))
+    scrollRangeToVisible(NSRange(location: line.start, length: line.length))
+    showFindIndicator(for: NSRange(location: line.start, length: line.length))
+    return true
+  }
+
+  /// Asks for a line number and goes to it.
+  @objc func goToLine(_ sender: Any?) {
+    guard let window else {
+      return
+    }
+    let alert = NSAlert()
+    alert.messageText = String(
+      localized: "goToLine.title", defaultValue: "Go to Line", bundle: .main)
+    alert.informativeText = String(
+      format: String(
+        localized: "goToLine.range", defaultValue: "Enter a line from 1 to %lld.", bundle: .main),
+      lineStarts().count)
+    let field = NSTextField(string: "")
+    field.frame = NSRect(x: 0, y: 0, width: 120, height: 24)
+    alert.accessoryView = field
+    alert.addButton(withTitle: String(localized: "goToLine.go", defaultValue: "Go", bundle: .main))
+    alert.addButton(
+      withTitle: String(localized: "restore.cancel", defaultValue: "Cancel", bundle: .main))
+    alert.window.initialFirstResponder = field
+    alert.beginSheetModal(for: window) { [weak self] response in
+      guard response == .alertFirstButtonReturn, let self else {
+        return
+      }
+      if !goToLine(Int(field.stringValue.trimmingCharacters(in: .whitespaces)) ?? 0) {
+        NSSound.beep()
+      }
+    }
+  }
+
   /// Lines whose layout fragment intersects `rect`, in order.
   private func visibleLines(in rect: NSRect) -> [VisibleLine] {
     guard let layoutManager = textLayoutManager,
@@ -1348,6 +1457,10 @@ private final class AnswerOverlayView: NSView {
     defer {
       layoutInterval.end()
       textView.didDrawAnswers()
+    }
+    for (number, rect) in textView.lineNumberLayout(in: dirtyRect) {
+      (String(number) as NSString).draw(
+        with: rect, options: [.usesLineFragmentOrigin], attributes: textView.lineNumberAttributes)
     }
     if let x = textView.answerSeparatorX {
       VisualStyle.Color.separator.setFill()

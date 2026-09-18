@@ -5,6 +5,9 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- View ▸ Show Line Numbers numbers a sheet's lines as `line N` counts them,
+  and Edit ▸ Go to Line… (⌘L) jumps to one.
+
 - Format ▸ Decimal Comma reads and writes a sheet's numbers as `1.234,56`, and
   is kept with the sheet. New sheets start with it when the Mac's region uses a
   decimal comma. A line written with the other separators says so and suggests

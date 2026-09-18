@@ -62,6 +62,7 @@ import GanitEditorUI
   func toggleMarkdownMode(_ sender: Any?)
   func setDollarCurrency(_ sender: Any?)
   func toggleAnswerSeparator(_ sender: Any?)
+  func toggleLineNumbers(_ sender: Any?)
 }
 
 /// The standard main menu. It lists only commands that exist, with
@@ -279,6 +280,8 @@ public enum MainMenu {
                 "e"),
             ]
           ),
+          item(
+            localized("menu.goToLine", "Go to Line…"), #selector(SheetCommands.goToLine(_:)), "l"),
           .separator(),
           item(
             localized("menu.autocomplete", "Autocomplete"),
@@ -409,6 +412,9 @@ public enum MainMenu {
           item(
             localized("menu.showAnswerSeparator", "Show Answer Separator"),
             #selector(WorkspaceCommands.toggleAnswerSeparator(_:))),
+          item(
+            localized("menu.showLineNumbers", "Show Line Numbers"),
+            #selector(WorkspaceCommands.toggleLineNumbers(_:))),
           item(
             localized("menu.enterFullScreen", "Enter Full Screen"),
             #selector(NSWindow.toggleFullScreen(_:)),

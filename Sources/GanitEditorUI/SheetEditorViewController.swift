@@ -950,6 +950,7 @@ public final class SheetEditorViewController: NSViewController {
   private func placeAnswers(_ options: DisplayOptions) {
     sheetTextView.writesAnswersInline = options.writesAnswersInline
     sheetTextView.showsAnswerSeparator = options.showsAnswerSeparator
+    sheetTextView.showsLineNumbers = options.showsLineNumbers
   }
 
   private func answerCell(for id: LineID) -> AnswerCell? {
