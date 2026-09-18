@@ -5,12 +5,27 @@ public struct ExportedLine: Equatable, Sendable {
   public let source: String
   /// The displayed answer or failure message, or `nil` for lines without one.
   public let answer: String?
-  public let isFailure: Bool
+  public enum Status: String, Sendable {
+    case none, calculated
+    case aiUnverified = "ai-unverified"
+    case failure, pending
+  }
+  public let status: Status
+  public var isFailure: Bool { status == .failure }
 
-  public init(source: String, answer: String?, isFailure: Bool) {
+  public init(source: String, answer: String?, status: Status) {
     self.source = source
     self.answer = answer
-    self.isFailure = isFailure
+    self.status = status
+  }
+
+  /// Human-readable formats retain provenance even when copied without color.
+  var annotatedAnswer: String? {
+    answer.map { status == .aiUnverified ? Self.annotateAI($0) : $0 }
+  }
+
+  static func annotateAI(_ answer: String) -> String {
+    answer + " [" + localized("export.aiUnverified", "AI; unverified") + "]"
   }
 }
 
@@ -19,13 +34,16 @@ public struct ExportedLine: Equatable, Sendable {
 /// editor displays.
 @MainActor
 public enum SheetDocumentRenderer {
-  /// `Line,Source,Answer` rows quoted per RFC 4180. A cell that a spreadsheet
+  /// `Line,Source,Answer,Status` rows quoted per RFC 4180. A cell that a spreadsheet
   /// would run as a formula starts with an apostrophe instead.
   public static func csv(_ lines: [ExportedLine]) -> String {
     let rows =
-      [["Line", "Source", "Answer"]]
+      [["Line", "Source", "Answer", "Status"]]
       + lines.enumerated().map {
-        [String($0.offset + 1), $0.element.source, $0.element.answer ?? ""]
+        [
+          String($0.offset + 1), $0.element.source, $0.element.answer ?? "",
+          $0.element.status.rawValue,
+        ]
       }
     return rows.map { $0.map(csvCell).joined(separator: ",") }.joined(separator: "\r\n") + "\r\n"
   }
@@ -46,7 +64,7 @@ public enum SheetDocumentRenderer {
     let rows = lines.map { line in
       let answerClass = line.isFailure ? " class=\"failure\"" : ""
       return "<tr><td dir=\"auto\">\(escape(line.source))</td>"
-        + "<td\(answerClass) dir=\"auto\">\(escape(line.answer ?? ""))</td></tr>"
+        + "<td\(answerClass) dir=\"auto\">\(escape(line.annotatedAnswer ?? ""))</td></tr>"
     }
     return """
       <!doctype html>
@@ -92,7 +110,7 @@ public enum SheetDocumentRenderer {
         NSAttributedString(
           string: line.source,
           attributes: [.font: VisualStyle.Typography.source(scale: 1), .paragraphStyle: paragraph]))
-      if let answer = line.answer {
+      if let answer = line.annotatedAnswer {
         text.append(
           NSAttributedString(
             string: "\t" + answer,

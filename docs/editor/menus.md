@@ -36,7 +36,8 @@ workspace window with an empty sheet.
   text you type, without sending another request.
 
 - **Copy with Results** copies each selected line, or the insertion point's
-  line, with the answer that line shows.
+  line, with the answer that line shows. Assisted display answers include an
+  “AI; unverified” annotation; pending requests are omitted.
 
 - **Step Number Up** and **Step Number Down** step the number at the insertion
   point by one unit of its last decimal place, and are what a person who does

@@ -9,25 +9,36 @@ import Testing
 @Suite
 struct SheetDocumentRendererTests {
   private let lines = [
-    ExportedLine(source: "# Trip, \"2026\"", answer: nil, isFailure: false),
-    ExportedLine(source: "hotel = 85 * 3", answer: "255", isFailure: false),
+    ExportedLine(source: "# Trip, \"2026\"", answer: nil, status: .none),
+    ExportedLine(source: "hotel = 85 * 3", answer: "255", status: .calculated),
     ExportedLine(
-      source: "=HYPERLINK(\"x\")", answer: "This identifier is not defined.", isFailure: true),
-    ExportedLine(source: "-5", answer: "-5", isFailure: false),
-    ExportedLine(source: "<b>&", answer: nil, isFailure: false),
+      source: "=HYPERLINK(\"x\")", answer: "This identifier is not defined.", status: .failure),
+    ExportedLine(source: "-5", answer: "-5", status: .calculated),
+    ExportedLine(source: "<b>&", answer: nil, status: .none),
   ]
 
   @Test
   func writesQuotedCSVThatSpreadsheetsCannotRunAsFormulas() {
     let rows = [
-      "Line,Source,Answer",
-      ##"1,"# Trip, ""2026""","##,
-      "2,hotel = 85 * 3,255",
-      #"3,"'=HYPERLINK(""x"")",This identifier is not defined."#,
-      "4,-5,-5",
-      "5,<b>&,",
+      "Line,Source,Answer,Status",
+      ##"1,"# Trip, ""2026""",,none"##,
+      "2,hotel = 85 * 3,255,calculated",
+      #"3,"'=HYPERLINK(""x"")",This identifier is not defined.,failure"#,
+      "4,-5,-5,calculated",
+      "5,<b>&,,none",
     ]
     #expect(SheetDocumentRenderer.csv(lines) == rows.joined(separator: "\r\n") + "\r\n")
+  }
+
+  @Test
+  func retainsAIProvenanceInEveryRenderedFormat() throws {
+    let lines = [ExportedLine(source: "1,5 + 2,5", answer: "4", status: .aiUnverified)]
+    #expect(SheetDocumentRenderer.csv(lines).contains("\"1,5 + 2,5\",4,ai-unverified"))
+    #expect(SheetDocumentRenderer.html(lines, title: "AI").contains("4 [AI; unverified]"))
+    #expect(
+      SheetDocumentRenderer.printableView(
+        lines, printInfo: SheetDocumentRenderer.printInfo()
+      ).string.contains("4 [AI; unverified]"))
   }
 
   @Test
@@ -44,7 +55,7 @@ struct SheetDocumentRendererTests {
   @Test
   func rendersPaginatedPDFAndAThumbnail() throws {
     let long = (1...200).map {
-      ExportedLine(source: "\($0) * 2", answer: "\($0 * 2)", isFailure: false)
+      ExportedLine(source: "\($0) * 2", answer: "\($0 * 2)", status: .calculated)
     }
     let pdf = try SheetDocumentRenderer.pdf(long, title: "Long")
     #expect(pdf.starts(with: Data("%PDF".utf8)))

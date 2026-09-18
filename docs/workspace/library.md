@@ -93,7 +93,7 @@ recent sheet only when no window was restored.
   is needed; import ignores them.
 - **Plain Text** — the source exactly as written.
 - **PDF** — source beside answers, paginated like printing.
-- **CSV** — `Line,Source,Answer` rows quoted per RFC 4180. A cell that a
+- **CSV** — `Line,Source,Answer,Status` rows quoted per RFC 4180. A cell that a
   spreadsheet would run as a formula (starting with `=`, `+`, `-`, `@`, tab, or
   return, and not a plain number) gets a leading apostrophe.
 - **HTML** — a standalone page with one escaped table row per line that loads
@@ -102,7 +102,10 @@ recent sheet only when no window was restored.
 **File ▸ Print…** (⌘P) prints the same layout as the PDF. Every format uses the
 answers the editor shows once evaluation settles (`exportedLines()`), including
 exchange rates and definitions, and reports failures with their messages
-rather than hiding them. `SheetDocumentRenderer` produces all of them.
+rather than hiding them. CSV status is `none`, `calculated`, `ai-unverified`,
+`failure`, or `pending`. Assisted display answers carry “AI; unverified” in
+HTML, PDF, print, and Quick Look previews. Plain Text remains source only.
+`SheetDocumentRenderer` produces all of them.
 
 ## Spotlight
 

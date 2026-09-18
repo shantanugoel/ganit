@@ -1131,7 +1131,8 @@ final class SheetTextView: NSTextView {
         with: NSRange(location: lineRange.location, length: contentsEnd - lineRange.location))
       let cell = line(lineRange.location).flatMap { answer($0.id) }
       if let cell, !cell.isPending {
-        pieces.append("\(source)\t\(cell.text)")
+        let answer = cell.isAssisted ? ExportedLine.annotateAI(cell.text) : cell.text
+        pieces.append("\(source)\t\(answer)")
       } else {
         pieces.append(source)
       }

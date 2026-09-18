@@ -762,10 +762,19 @@ public final class SheetEditorViewController: NSViewController {
     await scheduler?.waitUntilIdle()
     return sheet.lines.map { line in
       let cell = shownLines[line.id]?.result.result.flatMap {
-        makeCell(for: $0, isEditing: false, assisted: assistantAnswer(to: line.text))
+        makeCell(
+          for: $0, isEditing: false, assisted: assistantAnswer(to: line.text),
+          pending: isAssistantPending(text: line.text, result: $0))
       }
       return ExportedLine(
-        source: line.text, answer: cell?.text, isFailure: cell?.isFailure ?? false)
+        source: line.text, answer: cell?.text,
+        status: cell.map {
+          $0.isPending
+            ? .pending
+            : $0.isAssisted
+              ? .aiUnverified
+              : $0.isFailure ? .failure : .calculated
+        } ?? .none)
     }
   }
 

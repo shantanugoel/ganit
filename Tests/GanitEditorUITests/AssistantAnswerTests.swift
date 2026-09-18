@@ -30,6 +30,14 @@ struct AssistantAnswerTests {
     // either, so it is written as neither.
     #expect(!answers[1].isFailure)
     #expect(answers[1].fullPrecision == nil)
+    let exported = await editor.exportedLines()
+    #expect(exported.map(\.status) == [.calculated, .aiUnverified])
+    #expect(SheetDocumentRenderer.csv(exported).contains("ai-unverified"))
+    #expect(
+      textView.linesWithResults(
+        in: NSRange(
+          location: 0, length: textView.string.utf16.count)
+      ).contains("10,000 ml [AI; unverified]"))
   }
 
   @Test

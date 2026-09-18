@@ -5,6 +5,9 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- CSV includes answer status, and assisted display answers retain an “AI;
+  unverified” annotation in HTML, PDF, print, and Copy with Results.
+
 - Inserting or deleting lines and updating their references now undo and redo
   together, so Undo cannot silently leave formulas referring to different values.
 

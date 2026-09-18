@@ -16,7 +16,20 @@ and pushed before starting the next. Release 0.4.0 follows all fifteen fixes.
   attribution, pseudolocalized layout, debug app build, bundle verification,
   and `git diff --check` pass. Remaining CI checks run after pushing.
 
+## G02 — Export assisted display-answer provenance
+
+- Added an explicit export status (none, calculated, ai-unverified, failure,
+  pending) instead of inferring origin from the answer text or color.
+- CSV writes Status beside the unchanged readable Answer. HTML and the shared
+  PDF/print view annotate assisted answers; Copy with Results uses the same
+  localized annotation. Pending requests are exported as pending.
+- Regression coverage checks the editor's actual assisted answer, CSV status,
+  HTML/print annotations, and copied text. G07 will address the separate
+  computable `ask_assistant` path and dependency provenance.
+- Validation: 480 package tests, formatting, pseudolocalized layout, debug app
+  build, bundle verification, and diff whitespace checks pass.
+
 ## Remaining
 
-G02–G15, then release validation, version bump, and publication via the existing
+G03–G15, then release validation, version bump, and publication via the existing
 signed/notarized GitHub release workflow triggered by `v0.4.0`.
