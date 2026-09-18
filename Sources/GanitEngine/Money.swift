@@ -169,7 +169,7 @@ struct MoneyArithmetic {
       case .divide:
         return .number(
           try operations.applying(.divide, left: lhs.amount, right: rhs.amount))
-      case .multiply, .power:
+      case .multiply, .power, .bitwiseAnd, .bitwiseOr, .shiftLeft, .shiftRight:
         throw mismatch(.number, .money)
       }
     case (.money(let money), .number(let number)):
@@ -191,7 +191,7 @@ struct MoneyArithmetic {
         return .money(try amount(binaryOperator, money, change))
       case .multiply, .divide:
         return .money(try amount(binaryOperator, money, rate))
-      case .power:
+      case .power, .bitwiseAnd, .bitwiseOr, .shiftLeft, .shiftRight:
         throw mismatch(.number, .percentage)
       }
     case (.percentage(let percentage), .money(let money)) where binaryOperator == .multiply:

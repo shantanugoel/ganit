@@ -5,6 +5,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Bit operators on whole numbers: `0xff & 0x0f`, `0xf0 | 0x0f`, `1 << 10`,
+  `1024 >> 3`, and `xor(12, 10)`.
 - New functions: `gcd`, `lcm`, `ncr`, `npr`, `stdev`, `stdevp`, and `npv`.
 - Help opens at a readable size again, lists the units Ganit knows under Units,
   and finds topics by everyday words such as mortgage, EMI, compound interest,

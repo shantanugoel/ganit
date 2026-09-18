@@ -21,6 +21,8 @@ struct NumericOperations {
     }
 
     switch binaryOperator {
+    case .bitwiseAnd, .bitwiseOr, .shiftLeft, .shiftRight:
+      return try bitwise(binaryOperator, left, right)
     case .add:
       return try add(left, right)
     case .subtract:
@@ -216,6 +218,40 @@ struct NumericOperations {
       try validateInteger(result)
     }
     return try checkedInteger(result)
+  }
+
+  /// Bit operations on whole numbers, as a programmer writes them.
+  func bitwise(
+    _ binaryOperator: BinaryOperator, _ left: NumericValue, _ right: NumericValue
+  ) throws -> NumericValue {
+    guard let a = exactInteger(left), let b = exactInteger(right) else {
+      throw EngineError(code: .invalidDomain)
+    }
+    switch binaryOperator {
+    case .bitwiseAnd:
+      return try checkedInteger(BigInt(a & b))
+    case .bitwiseOr:
+      return try checkedInteger(BigInt(a | b))
+    case .shiftLeft, .shiftRight:
+      guard b >= 0, b <= limits.maximumPowerExponent else {
+        throw EngineError(code: .invalidDomain)
+      }
+      let shifted =
+        binaryOperator == .shiftLeft
+        ? BigInt(a) * BigInt(2).power(b) : BigInt(a) / BigInt(2).power(b)
+      try validateInteger(shifted)
+      return try checkedInteger(shifted)
+    default:
+      throw EngineError(code: .invalidDomain)
+    }
+  }
+
+  /// `xor(x, y)`, the bits set in one of the two but not both.
+  func exclusiveOr(_ left: NumericValue, _ right: NumericValue) throws -> NumericValue {
+    guard let a = exactInteger(left), let b = exactInteger(right) else {
+      throw EngineError(code: .invalidDomain)
+    }
+    return try checkedInteger(BigInt(a ^ b))
   }
 
   /// The greatest common divisor of two whole numbers, never negative.
@@ -784,6 +820,9 @@ struct NumericOperations {
     let rhs = try approximateEstimate(right)
     let result: Double
     switch binaryOperator {
+    case .bitwiseAnd, .bitwiseOr, .shiftLeft, .shiftRight:
+      // Bits belong to whole numbers, and an estimate has none.
+      throw EngineError(code: .invalidDomain)
     case .add:
       result = lhs + rhs
     case .subtract:

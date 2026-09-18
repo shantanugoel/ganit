@@ -322,6 +322,17 @@ extension LanguageReference {
 
   fileprivate static func functionTopic(_ function: BuiltInFunction) -> LanguageTopic {
     switch function {
+    case .bitwiseExclusiveOr:
+      return functionHelp(
+        "xor", signature: "xor(x, y)",
+        summary: text("help.function.xor.summary", "The bits set in one but not both."),
+        body: text(
+          "help.function.xor.body",
+          "xor(x, y) works on whole numbers, as & (and), | (or), << (shift left), and >> (shift right) do. Hexadecimal and binary literals such as 0xff and 0b1010 are ordinary whole numbers."
+        ),
+        examples: ["xor(12, 10)", "0xff & 0x0f"],
+        keywords: ["bitwise", "binary", "hex", "mask", "shift"]
+      )
     case .greatestCommonDivisor:
       return functionHelp(
         "gcd", signature: "gcd(x, y)",

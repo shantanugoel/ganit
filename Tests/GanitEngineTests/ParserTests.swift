@@ -369,6 +369,14 @@ struct ParserTests {
       return "/"
     case .power:
       return "^"
+    case .bitwiseAnd:
+      return "&"
+    case .bitwiseOr:
+      return "|"
+    case .shiftLeft:
+      return "<<"
+    case .shiftRight:
+      return ">>"
     }
   }
 }

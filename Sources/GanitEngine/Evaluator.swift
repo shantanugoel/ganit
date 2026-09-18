@@ -502,7 +502,7 @@ private struct EvaluationWorker {
         return .number(
           try operations.applying(binaryOperator, left: base, right: rate)
         )
-      case .power:
+      case .power, .bitwiseAnd, .bitwiseOr, .shiftLeft, .shiftRight:
         throw typeMismatch(expected: .number, actual: .percentage)
       }
 
@@ -526,7 +526,7 @@ private struct EvaluationWorker {
             )
           )
         )
-      case .add, .subtract, .power:
+      case .add, .subtract, .power, .bitwiseAnd, .bitwiseOr, .shiftLeft, .shiftRight:
         throw typeMismatch(expected: .percentage, actual: .number)
       }
 
@@ -550,7 +550,7 @@ private struct EvaluationWorker {
             right: try percentageRate(rhs)
           )
         )
-      case .power:
+      case .power, .bitwiseAnd, .bitwiseOr, .shiftLeft, .shiftRight:
         throw typeMismatch(expected: .number, actual: .percentage)
       }
 
@@ -573,7 +573,7 @@ private struct EvaluationWorker {
         return try simplified(unitAlgebra.multiplying(lhs, rhs))
       case .divide:
         return try simplified(unitAlgebra.dividing(lhs, rhs))
-      case .power:
+      case .power, .bitwiseAnd, .bitwiseOr, .shiftLeft, .shiftRight:
         throw typeMismatch(expected: .number, actual: .quantity)
       }
 
@@ -610,7 +610,7 @@ private struct EvaluationWorker {
             kind: .relative
           )
         )
-      case .add, .subtract:
+      case .add, .subtract, .bitwiseAnd, .bitwiseOr, .shiftLeft, .shiftRight:
         throw typeMismatch(expected: .quantity, actual: .number)
       }
 
@@ -646,7 +646,7 @@ private struct EvaluationWorker {
             kind: .relative
           )
         )
-      case .add, .subtract, .power:
+      case .add, .subtract, .power, .bitwiseAnd, .bitwiseOr, .shiftLeft, .shiftRight:
         throw typeMismatch(expected: .number, actual: .quantity)
       }
 
@@ -1171,6 +1171,8 @@ private struct EvaluationWorker {
         return try operations.hypot(values[0], values[1])
       case .remainder:
         return try operations.remainder(values[0], values[1])
+      case .bitwiseExclusiveOr:
+        return try operations.exclusiveOr(values[0], values[1])
       case .greatestCommonDivisor:
         return try operations.greatestCommonDivisor(values[0], values[1])
       case .leastCommonMultiple:

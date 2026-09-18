@@ -77,13 +77,14 @@ public enum BuiltInFunction: String, CaseIterable, Hashable, Sendable {
   case standardDeviation = "stdev"
   case populationStandardDeviation = "stdevp"
   case netPresentValue = "npv"
+  case bitwiseExclusiveOr = "xor"
 
   var argumentRange: ClosedRange<Int> {
     switch self {
     case .minimum, .maximum:
       return 2...Int.max
     case .root, .arcTangent2, .hypot, .remainder, .greatestCommonDivisor, .leastCommonMultiple,
-      .combinations, .permutations:
+      .combinations, .permutations, .bitwiseExclusiveOr:
       return 2...2
     case .standardDeviation, .populationStandardDeviation, .netPresentValue:
       return 2...Int.max

@@ -1598,7 +1598,7 @@ private final class TokenParser {
         return leftKind == .percentage && rightKind == .percentage
           ? .percentage
           : .number
-      case .multiply, .power:
+      case .multiply, .power, .bitwiseAnd, .bitwiseOr, .shiftLeft, .shiftRight:
         return .number
       case .divide:
         return leftKind == .percentage && rightKind == .number
@@ -1635,6 +1635,12 @@ private final class TokenParser {
     for kind: TokenKind
   ) -> (left: Int, right: Int)? {
     switch kind {
+    case .bitwiseOr:
+      return (4, 5)
+    case .bitwiseAnd:
+      return (6, 7)
+    case .shiftLeft, .shiftRight:
+      return (8, 9)
     case .plus, .minus:
       return (10, 11)
     case .multiply, .divide:
@@ -1693,6 +1699,14 @@ private final class TokenParser {
       return .divide
     case .power:
       return .power
+    case .bitwiseAnd:
+      return .bitwiseAnd
+    case .bitwiseOr:
+      return .bitwiseOr
+    case .shiftLeft:
+      return .shiftLeft
+    case .shiftRight:
+      return .shiftRight
     default:
       preconditionFailure("Token is not a binary operator")
     }

@@ -5,13 +5,14 @@ evaluator, and separately layered result/diagnostic formatting.
 
 ## Expressions
 
-- Binary operators: `+`, `-`, `*`/`×`, `/`/`÷`, and `^`/`**`
+- Binary operators: `+`, `-`, `*`/`×`, `/`/`÷`, `^`/`**`, and the whole-number
+  bit operators `&`, `|`, `<<`, and `>>`
 - Unary signs: `+` and `-`/`−`
 - Parentheses for explicit grouping
 - Function-call syntax such as `sqrt(9)` and `max(1, 2)`
 - Unicode UAX #31 identifiers such as `π`; `_` is also accepted
 
-Multiplication and division bind more tightly than addition and subtraction. Powers are right-associative and bind more tightly than unary signs, so `-2^2` parses as `-(2^2)`.
+Bit operators bind below addition, in C's order: `|` loosest, then `&`, then the shifts. `xor(x, y)` is the exclusive or. They take whole numbers only. Multiplication and division bind more tightly than addition and subtraction. Powers are right-associative and bind more tightly than unary signs, so `-2^2` parses as `-(2^2)`.
 
 Implicit multiplication is accepted only across an adjacent, unambiguous boundary such as `2π`, `2(3 + 4)`, or `(1 + 1)3`. Whitespace does not imply multiplication, and adjacent numeric literals such as `2 3` remain invalid.
 

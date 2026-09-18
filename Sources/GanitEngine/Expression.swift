@@ -9,6 +9,10 @@ public enum BinaryOperator: Equatable, Sendable {
   case multiply
   case divide
   case power
+  case bitwiseAnd
+  case bitwiseOr
+  case shiftLeft
+  case shiftRight
 }
 
 public enum PercentageOperator: Equatable, Sendable {

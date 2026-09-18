@@ -153,6 +153,16 @@ private struct Scanner {
         append(.divide, from: start)
       case "^":
         append(.power, from: start)
+      case "&":
+        append(.bitwiseAnd, from: start)
+      case "|":
+        append(.bitwiseOr, from: start)
+      case "<" where current == "<":
+        advance()
+        append(.shiftLeft, from: start)
+      case ">" where current == ">":
+        advance()
+        append(.shiftRight, from: start)
       case "²":
         append(.superscript(2), from: start)
       case "³":

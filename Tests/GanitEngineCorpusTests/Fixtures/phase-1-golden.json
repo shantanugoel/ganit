@@ -84,6 +84,26 @@
       }
     },
     {
+      "name": "bit operations bind below arithmetic",
+      "expression": "0xff & 0x0f + 1",
+      "expected": {
+        "status": "value",
+        "display": "16",
+        "fullPrecision": "16",
+        "approximate": false
+      }
+    },
+    {
+      "name": "shifts move whole numbers",
+      "expression": "1 << 10",
+      "expected": {
+        "status": "value",
+        "display": "1,024",
+        "fullPrecision": "1024",
+        "approximate": false
+      }
+    },
+    {
       "name": "programmer literals",
       "expression": "0xff + 0b1010",
       "expected": {
