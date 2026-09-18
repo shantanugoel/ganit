@@ -423,6 +423,21 @@ struct WorkspaceWindowControllerTests {
   }
 
   @Test
+  func anAnswersOwnFormatIsKeptWithTheSheet() async throws {
+    let (workspace, ids) = try makeWorkspace(["255\n16"])
+    defer { close(workspace) }
+    let controller = workspace.openWindow(showing: ids[0])
+    let editor = try #require(controller.editor)
+    editor.textView.setSelectedRange(NSRange(location: 0, length: 0))
+
+    editor.setAnswerFormat(.binary)
+    let stored = try workspace.library.store.load(id: ids[0]).metadata.preferences.display
+    #expect(stored.answerFormats == ["255": .binary])
+    #expect(stored.numbers == .automatic)
+    #expect(await editor.exportedLines().map(\.answer) == ["0b11111111", "16"])
+  }
+
+  @Test
   func aSearchThatFindsNothingSaysSo() throws {
     let (workspace, ids) = try makeWorkspace(["rent = 1"])
     defer { close(workspace) }

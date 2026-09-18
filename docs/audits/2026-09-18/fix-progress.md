@@ -188,7 +188,24 @@ G04 full GitHub CI passed (run 35339826684).
   package tests, formatting, pseudolocalized layout, debug app build, bundle
   verification, and whitespace checks pass.
 
+## G13 — Per-answer number format
+
+- Added an Answer Format submenu to the answer context menu: Sheet Default
+  plus the sheet's number formats, with the current choice checked. Only
+  calculated answers enable it.
+- Overrides live in `DisplayOptions.answerFormats`, keyed by the line's
+  trimmed text; no grammar or storage schema version changed. Editing the
+  line returns it to the sheet format; moving it keeps the choice.
+- The editor reports its own display-option changes, and the workspace saves
+  them with the sheet. Interpretation and export use the line's formatter.
+  The shared format list moved into `GanitEditorUI` to serve both menus.
+- Validation: editor and workspace regressions cover checked states, one line
+  changing while an equal-valued line does not, reset, and persistence. 499
+  package tests (after a clean rebuild for the layout change), formatting,
+  pseudolocalized layout, debug app build, bundle verification, and
+  whitespace checks pass.
+
 ## Remaining
 
-G13–G15, then release validation, version bump, and publication via the existing
+G14–G15, then release validation, version bump, and publication via the existing
 signed/notarized GitHub release workflow triggered by `v0.4.0`.

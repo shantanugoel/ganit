@@ -33,6 +33,10 @@ public struct DisplayOptions: Codable, Equatable, Sendable {
   /// Numbers each source line in a gutter, as `line N` counts them.
   public var showsLineNumbers: Bool
 
+  /// Number formats chosen for single answers, by their line's trimmed text,
+  /// in place of `numbers`. Editing the line leaves it the sheet's format.
+  public var answerFormats: [String: NumberDisplay]
+
   public init(
     groupsDigits: Bool = true,
     groupsInLakhs: Bool = false,
@@ -40,6 +44,7 @@ public struct DisplayOptions: Codable, Equatable, Sendable {
     writesAnswersInline: Bool = false,
     showsAnswerSeparator: Bool = true,
     showsLineNumbers: Bool = false,
+    answerFormats: [String: NumberDisplay] = [:],
     dollarCurrency: String = "USD"
   ) {
     self.groupsDigits = groupsDigits
@@ -48,6 +53,7 @@ public struct DisplayOptions: Codable, Equatable, Sendable {
     self.writesAnswersInline = writesAnswersInline
     self.showsAnswerSeparator = showsAnswerSeparator
     self.showsLineNumbers = showsLineNumbers
+    self.answerFormats = answerFormats
     self.dollarCurrency = dollarCurrency
   }
 
@@ -64,6 +70,8 @@ public struct DisplayOptions: Codable, Equatable, Sendable {
       try container.decodeIfPresent(Bool.self, forKey: .showsAnswerSeparator) ?? true
     showsLineNumbers =
       try container.decodeIfPresent(Bool.self, forKey: .showsLineNumbers) ?? false
+    answerFormats =
+      try container.decodeIfPresent([String: NumberDisplay].self, forKey: .answerFormats) ?? [:]
     dollarCurrency = try container.decodeIfPresent(String.self, forKey: .dollarCurrency) ?? "USD"
   }
 }

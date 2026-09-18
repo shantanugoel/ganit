@@ -28,10 +28,10 @@ release candidate.
 - Temperature differences have no syntax, so relative temperature arithmetic
   (`10 °C + 5 °C`) is unavailable.
 - `pm` after a plain number is picometres; write `3:00 pm` for a time.
-- No phrase rounds a single answer, such as `1/3 to 2 dp`; write `round(1/3, 2)`
-  or use the sheet-wide decimal setting. A single line cannot ask for its own
-  base or fraction either: Format ▸ Number Format sets hexadecimal, binary, or
-  fractions for the whole sheet.
+- No phrase rounds a single answer, such as `1/3 to 2 dp`; write `round(1/3, 2)`,
+  or choose the answer's own format from its right-click Answer Format menu.
+  That choice is kept with the sheet by the line's text, so editing the line
+  returns it to the sheet's Format ▸ Number Format.
 - There is no `irr`: a rate that solves a cash flow needs an iterative search
   whose starting guess and convergence rule the answer would depend on. `npv`
   discounts a flow at a rate you give.

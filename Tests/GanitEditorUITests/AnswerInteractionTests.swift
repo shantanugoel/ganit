@@ -81,6 +81,38 @@ struct AnswerInteractionTests {
     #expect(textView.answer(ids[2])?.text == "Enter an expression here.")
   }
 
+  /// One answer can be written in its own format, and Sheet Default returns
+  /// it to the sheet's.
+  @Test
+  func oneAnswerCanHaveItsOwnFormat() async throws {
+    let (editor, textView) = try await makeEditor("255\n255 + 0")
+    var saved: [DisplayOptions] = []
+    editor.displayOptionsDidChange = { saved.append($0) }
+    let ids = editor.sheet.lines.map(\.id)
+    textView.setSelectedRange(NSRange(location: 0, length: 0))
+    let menu = textView.answerFormatMenuItem()
+    let hex = try #require(
+      menu.submenu?.items.first { $0.tag == NumberFormatMenu.tag(of: .hexadecimal) })
+    let reset = try #require(menu.submenu?.items.first)
+
+    #expect(textView.validateUserInterfaceItem(hex))
+    #expect(textView.validateUserInterfaceItem(reset))
+    #expect(reset.state == .on)
+    #expect(hex.state == .off)
+    textView.setAnswerFormat(hex)
+    await editor.scheduler?.waitUntilIdle()
+    #expect(textView.answer(ids[0])?.text == "0xff")
+    #expect(textView.answer(ids[1])?.text == "255")
+    #expect(saved.last?.answerFormats == ["255": .hexadecimal])
+    #expect(textView.validateUserInterfaceItem(hex))
+    #expect(hex.state == .on)
+
+    textView.setAnswerFormat(reset)
+    await editor.scheduler?.waitUntilIdle()
+    #expect(textView.answer(ids[0])?.text == "255")
+    #expect(saved.last?.answerFormats == [:])
+  }
+
   /// A rounded display is marked, its card names the setting that rounds it,
   /// and export keeps the exact value beside it.
   @Test

@@ -211,6 +211,10 @@ public final class Workspace {
     editor.setDefinitions(definitions)
     editor.askAssistant = askAssistant
     editor.openHelp = openHelp
+    editor.displayOptionsDidChange = { [weak self] options in
+      // The answers already show the change; a failed save leaves it unsaved.
+      try? self?.write(options, on: id)
+    }
     editor.textView.isEditable = stored.metadata.state != .trashed
     let autosaver = SheetAutosaver(
       library: library,

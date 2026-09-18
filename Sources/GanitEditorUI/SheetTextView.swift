@@ -142,6 +142,13 @@ final class SheetTextView: NSTextView {
   var canChangeAssistantAnswer: () -> Bool = { false }
   /// Opens a field to replace the current assistant value.
   var onChangeAssistantAnswer: () -> Void = {}
+  /// The number format chosen for the current answer; `nil` is the sheet's.
+  var answerFormat: () -> NumberDisplay? = { nil }
+  /// Chooses the current answer's number format, or `nil` for the sheet's.
+  var onSetAnswerFormat: (NumberDisplay?) -> Void = { _ in }
+  /// The tag of Answer Format ▸ Sheet Default.
+  static let sheetDefaultFormatTag = Int.max
+
   /// Whether the current line is waiting for the assistant.
   var canCancelAssistantRequest: () -> Bool = { false }
   /// Stops waiting for the current line's assistant request.
@@ -566,6 +573,7 @@ final class SheetTextView: NSTextView {
     for (title, action) in answerCommands {
       menu.addItem(NSMenuItem(title: title, action: action, keyEquivalent: ""))
     }
+    menu.addItem(answerFormatMenuItem())
     menu.addItem(.separator())
     for (title, action) in [
       (String(localized: "menu.cut", defaultValue: "Cut", bundle: .main), #selector(cut(_:))),
@@ -579,6 +587,37 @@ final class SheetTextView: NSTextView {
       menu.addItem(NSMenuItem(title: title, action: action, keyEquivalent: ""))
     }
     return menu
+  }
+
+  /// Answer Format ▸ Sheet Default and each number format.
+  func answerFormatMenuItem() -> NSMenuItem {
+    let submenu = NSMenu()
+    let reset = NSMenuItem(
+      title: String(localized: "menu.sheetDefault", defaultValue: "Sheet Default", bundle: .main),
+      action: #selector(setAnswerFormat(_:)), keyEquivalent: "")
+    reset.tag = Self.sheetDefaultFormatTag
+    submenu.addItem(reset)
+    submenu.addItem(.separator())
+    for display in NumberFormatMenu.displays {
+      let item = NSMenuItem(
+        title: NumberFormatMenu.title(of: display), action: #selector(setAnswerFormat(_:)),
+        keyEquivalent: "")
+      item.tag = NumberFormatMenu.tag(of: display)
+      submenu.addItem(item)
+    }
+    let item = NSMenuItem(
+      title: String(localized: "menu.answerFormat", defaultValue: "Answer Format", bundle: .main),
+      action: nil, keyEquivalent: "")
+    item.submenu = submenu
+    return item
+  }
+
+  @objc func setAnswerFormat(_ sender: Any?) {
+    guard let tag = (sender as? NSMenuItem)?.tag else {
+      return
+    }
+    onSetAnswerFormat(
+      tag == Self.sheetDefaultFormatTag ? nil : NumberFormatMenu.display(forTag: tag))
   }
 
   @objc func openLanguageHelp(_ sender: Any?) {
@@ -1076,6 +1115,15 @@ final class SheetTextView: NSTextView {
       return canChangeAssistantAnswer()
     case #selector(cancelAssistantRequest(_:)):
       return canCancelAssistantRequest()
+    case #selector(setAnswerFormat(_:)):
+      let chosen = answerFormat()
+      if let menuItem = item as? NSMenuItem {
+        let isChosen =
+          menuItem.tag == Self.sheetDefaultFormatTag
+          ? chosen == nil : chosen == NumberFormatMenu.display(forTag: menuItem.tag)
+        menuItem.state = isChosen ? .on : .off
+      }
+      return targetAnswer.map { $0.cell.fullPrecision != nil } ?? false
     case #selector(copyLinesWithResults(_:)):
       return (string as NSString).length > 0
     case #selector(openLanguageHelp(_:)):

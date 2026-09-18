@@ -53,6 +53,10 @@ workspace window with an empty sheet.
 - **Number Format** (automatic, whole numbers, two or four decimals,
   scientific, hexadecimal, binary, fractions), **Group Digits**, and **Group
   Digits in Lakhs** (`12,34,567`) say how the open sheet writes its answers.
+- **Answer Format** on an answer's right-click menu writes that one answer in
+  any Number Format, or in the sheet's again with **Sheet Default**. The choice
+  is stored in the sheet's display options by the line's trimmed text, so it
+  survives reopening and moving the line, and editing the line drops it.
 - **Angles in Degrees** reads the sheet's bare angles as degrees, so `sin(90)`
   is `1`; an angle with its unit, `sin(30°)`, is read in that unit either way.
 - **Show Line Numbers** numbers each physical line in a gutter, counting as

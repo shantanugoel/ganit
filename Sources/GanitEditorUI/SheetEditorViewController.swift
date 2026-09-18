@@ -108,6 +108,9 @@ public final class SheetEditorViewController: NSViewController {
   private var shownDefinitions = SheetDefinitions.none
   /// How this sheet writes its answers.
   public private(set) var displayOptions: DisplayOptions
+  /// Called when the editor itself changes `displayOptions`, such as one
+  /// answer's format, so they can be saved with the sheet.
+  public var displayOptionsDidChange: ((DisplayOptions) -> Void)?
 
   public init(
     text: String = "",
@@ -177,6 +180,12 @@ public final class SheetEditorViewController: NSViewController {
     }
     sheetTextView.onChangeAssistantAnswer = { [weak self] in
       self?.changeAssistantAnswer()
+    }
+    sheetTextView.answerFormat = { [weak self] in
+      self?.answerFormat()
+    }
+    sheetTextView.onSetAnswerFormat = { [weak self] numbers in
+      self?.setAnswerFormat(numbers)
     }
     sheetTextView.canCancelAssistantRequest = { [weak self] in
       self?.canCancelAssistantRequest() ?? false
@@ -995,9 +1004,10 @@ public final class SheetEditorViewController: NSViewController {
   ) -> AnswerCell? {
     switch result {
     case .value(let value):
-      return (try? resultFormatter.format(value)).map {
+      let formatters = formatters(for: text)
+      return (try? formatters.full.format(value)).map {
         var cell = AnswerCell(text: $0.display, fullPrecision: $0.fullPrecision)
-        if let compact = try? compactFormatter.format(value).display, compact != $0.display {
+        if let compact = try? formatters.compact.format(value).display, compact != $0.display {
           cell.compactText = compact.hasPrefix("≈") ? compact : "≈ " + compact
         }
         return cell
@@ -1016,6 +1026,50 @@ public final class SheetEditorViewController: NSViewController {
         AnswerCell(text: $0.message, fullPrecision: nil)
       }
     }
+  }
+
+  /// The sheet's formatters, or ones writing numbers in the format chosen for
+  /// this line's answer.
+  private func formatters(for text: String) -> (full: ResultFormatter, compact: ResultFormatter) {
+    guard let numbers = displayOptions.answerFormats[Self.answerFormatKey(text)] else {
+      return (resultFormatter, compactFormatter)
+    }
+    var options = displayOptions
+    options.numbers = numbers
+    return (
+      ResultFormatter(context: context, display: options),
+      Self.compactFormatter(context: context, display: options)
+    )
+  }
+
+  private static func answerFormatKey(_ text: String) -> String {
+    text.trimmingCharacters(in: .whitespaces)
+  }
+
+  /// The line of the selected answer, or of the insertion point.
+  private var targetLineText: String? {
+    let id =
+      sheetTextView.selectedAnswer
+      ?? sheet.lines[lineIndex(atUTF16: textView.selectedRange().location)].id
+    return sheet.lines.first { $0.id == id }?.text
+  }
+
+  /// The format chosen for the target answer, or `nil` for the sheet's.
+  func answerFormat() -> NumberDisplay? {
+    targetLineText.flatMap { displayOptions.answerFormats[Self.answerFormatKey($0)] }
+  }
+
+  /// Writes the target answer in `numbers`, or in the sheet's format again
+  /// for `nil`, and reports the sheet's changed display options.
+  func setAnswerFormat(_ numbers: NumberDisplay?) {
+    guard let text = targetLineText else {
+      NSSound.beep()
+      return
+    }
+    var options = displayOptions
+    options.answerFormats[Self.answerFormatKey(text)] = numbers
+    writeAnswers(options)
+    displayOptionsDidChange?(options)
   }
 
   private static func compactFormatter(context: EvaluationContext, display: DisplayOptions)
@@ -1139,7 +1193,7 @@ public final class SheetEditorViewController: NSViewController {
     }
     switch result {
     case .value(let value):
-      guard let formatted = try? resultFormatter.format(value) else {
+      guard let formatted = try? formatters(for: shown.text).full.format(value) else {
         return details
       }
       details += [

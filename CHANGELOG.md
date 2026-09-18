@@ -5,6 +5,10 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- An answer's right-click Answer Format menu writes that answer in its own
+  number format, such as hexadecimal beside decimal answers, with Sheet
+  Default to return to the sheet's format.
+
 - View ▸ Show Line Numbers numbers a sheet's lines as `line N` counts them,
   and Edit ▸ Go to Line… (⌘L) jumps to one.
 
