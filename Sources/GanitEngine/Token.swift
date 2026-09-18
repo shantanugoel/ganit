@@ -103,6 +103,12 @@ public struct LexingConfiguration: Hashable, Sendable {
     decimalSeparator: ".",
     groupingSeparator: ","
   )
+
+  /// `1.234,56`, where `;` or `, ` separates arguments.
+  public static let decimalComma = LexingConfiguration(
+    decimalSeparator: ",",
+    groupingSeparator: "."
+  )
 }
 
 public struct LexingResult: Equatable, Sendable {

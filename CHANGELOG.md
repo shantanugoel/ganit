@@ -5,6 +5,11 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Format ▸ Decimal Comma reads and writes a sheet's numbers as `1.234,56`, and
+  is kept with the sheet. New sheets start with it when the Mac's region uses a
+  decimal comma. A line written with the other separators says so and suggests
+  the rewritten line instead of being sent to the assistant.
+
 - An assistant's answer has an AI badge beside it, and its hover text and
   VoiceOver label say it is an unverified AI answer, so its origin no longer
   depends on noticing purple.

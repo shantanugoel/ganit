@@ -153,7 +153,24 @@ G04 full GitHub CI passed (run 35339826684).
   formatting, pseudolocalized layout, debug app build, bundle verification,
   and whitespace checks pass.
 
+## G11 — Per-sheet decimal comma
+
+- Format ▸ Decimal Comma (1.234,56) toggles the sheet's stored locale between
+  `en-US` and `en-DE` (English words, German separators); the engine already
+  lexed comma decimals with `;` or `, ` argument separators. Two styles cover
+  the audit's cases without inventing space grouping.
+- New sheets are seeded from the Mac region's decimal separator; imports,
+  recovery, and Quick Ganit keep the standard `en-US` preferences.
+- A syntax failure whose expression parses only with the other style is
+  diagnosed as written in that style, suggests the expression with `.` and `,`
+  swapped when that parses, and is never sent to the assistant.
+- Validation: store, editor, and workspace regressions cover region seeding,
+  lexing from preferences, persisted toggling with recalculated answers, the
+  diagnostic and suggestions, and no assistant request. 496 package tests,
+  formatting, pseudolocalized layout, debug app build, bundle verification,
+  and whitespace checks pass.
+
 ## Remaining
 
-G11–G15, then release validation, version bump, and publication via the existing
+G12–G15, then release validation, version bump, and publication via the existing
 signed/notarized GitHub release workflow triggered by `v0.4.0`.

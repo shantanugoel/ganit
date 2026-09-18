@@ -241,6 +241,15 @@ public final class Workspace {
     sheets[id]?.editor.setAngleMode(angleMode)
   }
 
+  /// Reads and writes a sheet's numbers as `1.234,56` or `1,234.56`.
+  func write(usesDecimalComma: Bool, on id: UUID) throws {
+    let metadata = try library.update(id) { $0.preferences.usesDecimalComma = usesDecimalComma }
+    didChange(metadata)
+    sheets[id]?.editor.setNumberStyle(
+      localeIdentifier: metadata.preferences.localeIdentifier,
+      lexingConfiguration: metadata.preferences.lexingConfiguration)
+  }
+
   /// Changes a sheet's metadata as one undoable action. Undo returns the
   /// title, favorite flag, folder, and state to their previous values.
   func organize(

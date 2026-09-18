@@ -28,6 +28,19 @@ struct SheetStoreTests {
     #expect(try store.sheetIDs() == [metadata.id])
   }
 
+  /// A new sheet writes numbers as this Mac's region does; the choice is a
+  /// locale stored with the sheet, and decides how its numbers are read.
+  @Test
+  func newSheetsFollowTheRegionsDecimalSeparator() throws {
+    #expect(!SheetPreferences.newSheet(locale: Locale(identifier: "en_US")).usesDecimalComma)
+    let german = SheetPreferences.newSheet(locale: Locale(identifier: "de_DE"))
+    #expect(german.usesDecimalComma)
+    #expect(german.localeIdentifier == "en-DE")
+    #expect(try german.evaluationContext().lexingConfiguration == .decimalComma)
+    #expect(
+      try SheetPreferences.standard.evaluationContext().lexingConfiguration == .englishUnitedStates)
+  }
+
   @Test
   func writesReadableVersionedMetadata() throws {
     let store = SheetStore(root: root)

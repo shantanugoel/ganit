@@ -67,7 +67,7 @@ public final class SheetEditorViewController: NSViewController {
   private var resultFormatter: ResultFormatter
   /// Writes values to fewer digits for an answer column too narrow for them.
   private var compactFormatter: ResultFormatter
-  private let diagnosticFormatter: DiagnosticFormatter
+  private var diagnosticFormatter: DiagnosticFormatter
   /// Answer cells by line, reused while the line's result, editing state,
   /// assistant answer, and pending request are unchanged.
   private var cells:
@@ -164,7 +164,7 @@ public final class SheetEditorViewController: NSViewController {
       guard let self, let shown = shownLines[id], let result = shown.result.result else {
         return nil
       }
-      return flaggedDiagnostic(result, isEditing: id == editingLine)
+      return flaggedDiagnostic(result, text: shown.text, isEditing: id == editingLine)
     }
     sheetTextView.canAskAssistant = { [weak self] in
       self?.canAskAssistant() ?? false
@@ -359,6 +359,30 @@ public final class SheetEditorViewController: NSViewController {
     context = context.with(angleMode: mode)
     scheduler?.context = context
     scheduler?.schedule(sheet)
+  }
+
+  /// Reads and writes numbers as `localeIdentifier` does, with
+  /// `lexingConfiguration`'s separators, and evaluates the sheet again.
+  public func setNumberStyle(
+    localeIdentifier: String, lexingConfiguration: LexingConfiguration
+  ) {
+    guard
+      context.localeIdentifier != localeIdentifier
+        || context.lexingConfiguration != lexingConfiguration
+    else {
+      return
+    }
+    context = context.with(
+      localeIdentifier: localeIdentifier, lexingConfiguration: lexingConfiguration)
+    resultFormatter = ResultFormatter(context: context, display: displayOptions)
+    compactFormatter = Self.compactFormatter(context: context, display: displayOptions)
+    diagnosticFormatter = DiagnosticFormatter(context: context)
+    sheetTextView.lexingConfiguration = lexingConfiguration
+    cells.removeAll()
+    decorations.removeAll()
+    scheduler?.context = context
+    scheduler?.schedule(sheet)
+    sheetTextView.answersDidChange()
   }
 
   public func setCurrencyRates(_ rates: CurrencyRates) {
@@ -863,7 +887,8 @@ public final class SheetEditorViewController: NSViewController {
     for shown: (text: String, result: SheetLineResult), id: LineID
   ) -> String? {
     guard let result = shown.result.result,
-      flaggedDiagnostic(result, isEditing: id == editingLine) != nil
+      flaggedDiagnostic(result, text: shown.text, isEditing: id == editingLine) != nil,
+      separatorMismatch(in: shown.text) == nil
     else {
       return nil
     }
@@ -887,7 +912,7 @@ public final class SheetEditorViewController: NSViewController {
     return sheet.lines.map { line in
       let cell = shownLines[line.id]?.result.result.flatMap {
         makeCell(
-          for: $0, isEditing: false, assisted: assistantAnswer(to: line.text),
+          for: $0, text: line.text, isEditing: false, assisted: assistantAnswer(to: line.text),
           pending: isAssistantPending(text: line.text, result: $0))
       }
       return ExportedLine(
@@ -939,7 +964,8 @@ public final class SheetEditorViewController: NSViewController {
     {
       return cached.cell
     }
-    let cell = makeCell(for: result, isEditing: isEditing, assisted: assisted, pending: pending)
+    let cell = makeCell(
+      for: result, text: shown.text, isEditing: isEditing, assisted: assisted, pending: pending)
     cells[id] = (result, isEditing, assisted, pending, cell)
     return cell
   }
@@ -963,7 +989,8 @@ public final class SheetEditorViewController: NSViewController {
   }
 
   private func makeCell(
-    for result: CalculationResult, isEditing: Bool, assisted: String? = nil, pending: Bool = false
+    for result: CalculationResult, text: String, isEditing: Bool, assisted: String? = nil,
+    pending: Bool = false
   ) -> AnswerCell? {
     switch result {
     case .value(let value):
@@ -984,7 +1011,7 @@ public final class SheetEditorViewController: NSViewController {
       if let assisted {
         return AnswerCell(text: assisted, fullPrecision: nil, isAssisted: true)
       }
-      return flaggedDiagnostic(result, isEditing: isEditing).map {
+      return flaggedDiagnostic(result, text: text, isEditing: isEditing).map {
         AnswerCell(text: $0.message, fullPrecision: nil)
       }
     }
@@ -1000,13 +1027,15 @@ public final class SheetEditorViewController: NSViewController {
     return ResultFormatter(context: context.with(precision: precision), display: display)
   }
 
-  private func flaggedDiagnostic(_ result: CalculationResult, isEditing: Bool)
+  private func flaggedDiagnostic(_ result: CalculationResult, text: String, isEditing: Bool)
     -> FormattedDiagnostic?
   {
     let diagnostic: FormattedDiagnostic
     switch result {
     case .syntaxFailure(let diagnostics) where !diagnostics.isEmpty:
-      diagnostic = diagnosticFormatter.format(diagnostics[0])
+      diagnostic =
+        separatorMismatchDiagnostic(diagnostics[0], text: text)
+        ?? diagnosticFormatter.format(diagnostics[0])
     case .evaluationFailure(let error):
       diagnostic = assistedReferenceDiagnostic(error) ?? diagnosticFormatter.format(error)
     default:
@@ -1014,6 +1043,61 @@ public final class SheetEditorViewController: NSViewController {
     }
     return LineDecoration.style(for: diagnostic.severity, isEditing: isEditing) == nil
       ? nil : diagnostic
+  }
+
+  /// The expression of a line that reads only with the other number style,
+  /// and that expression rewritten with `.` and `,` swapped when this sheet
+  /// reads the rewrite.
+  private func separatorMismatch(in text: String) -> (
+    range: SourceRange, rewrite: String?
+  )? {
+    guard case .calculation(_, _, let range?, _) = LineSyntax(text),
+      let expression = range.text(in: text).map(String.init)
+    else {
+      return nil
+    }
+    let current = context.lexingConfiguration
+    let other: LexingConfiguration =
+      current.decimalSeparator == "," ? .englishUnitedStates : .decimalComma
+    let reads = { (source: String, lexing: LexingConfiguration) in
+      let parsed = CalculationEngine().parse(
+        source,
+        context: self.context.with(
+          localeIdentifier: self.context.localeIdentifier, lexingConfiguration: lexing))
+      return parsed.expression != nil && parsed.diagnostics.isEmpty
+    }
+    guard !reads(expression, current), reads(expression, other) else {
+      return nil
+    }
+    let swapped = String(expression.map { $0 == "." ? "," : $0 == "," ? "." : $0 })
+    return (range, reads(swapped, current) ? swapped : nil)
+  }
+
+  /// Says which number style a line was written in instead of calling its
+  /// separators unexpected, and offers the line rewritten for this sheet.
+  private func separatorMismatchDiagnostic(_ syntax: SyntaxDiagnostic, text: String)
+    -> FormattedDiagnostic?
+  {
+    guard let mismatch = separatorMismatch(in: text) else {
+      return nil
+    }
+    let formatted = diagnosticFormatter.format(syntax)
+    let message =
+      context.lexingConfiguration.decimalSeparator == ","
+      ? localized(
+        "diagnostic.pointDecimalNumbers",
+        "Numbers here are written 1,234.56, but this sheet uses 1.234,56. Turn off Format ▸ Decimal Comma, or rewrite them."
+      )
+      : localized(
+        "diagnostic.commaDecimalNumbers",
+        "Numbers here are written 1.234,56, but this sheet uses 1,234.56. Choose Format ▸ Decimal Comma, or rewrite them."
+      )
+    return FormattedDiagnostic(
+      code: formatted.code, severity: formatted.severity, ranges: formatted.ranges,
+      message: message,
+      fixIts: mismatch.rewrite.map {
+        [DiagnosticFixIt(range: mismatch.range, replacement: $0, messageKey: "fixIt.separators")]
+      } ?? [])
   }
 
   /// A reference to a line that shows only an AI display answer, which the
@@ -1104,7 +1188,7 @@ public final class SheetEditorViewController: NSViewController {
         .details(for: shown.result.rateUses)
         .map { AnswerCell.Detail(label: $0.label, value: $0.value) }
     case .syntaxFailure, .evaluationFailure:
-      guard let diagnostic = flaggedDiagnostic(result, isEditing: false) else {
+      guard let diagnostic = flaggedDiagnostic(result, text: shown.text, isEditing: false) else {
         return details
       }
       if let assisted = assistantAnswer(to: shown.text) {

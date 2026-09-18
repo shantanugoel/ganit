@@ -67,6 +67,32 @@ struct AssistantAnswerTests {
     #expect(textView.badgeWidth(for: AnswerCell(text: "4", fullPrecision: "4")) == 0)
   }
 
+  /// A line written with the other decimal separator is corrected, not sent
+  /// to the assistant.
+  @Test
+  func mismatchedSeparatorsAreExplainedInsteadOfAsked() async throws {
+    let asked = Asked()
+    let editor = try makeEditor("1,5 + 2,5\nx = 1.234,56 + 1 // total")
+    editor.askAssistant = { line in
+      await asked.record(line)
+      return "4"
+    }
+    let textView = try #require(editor.textView as? SheetTextView)
+    await editor.scheduler?.waitUntilIdle()
+    textView.setSelectedRange(NSRange(location: textView.string.utf16.count, length: 0))
+    try await Task.sleep(for: .milliseconds(100))
+
+    #expect(await asked.recorded.isEmpty)
+    let exported = await editor.exportedLines()
+    #expect(exported.allSatisfy { $0.answer?.contains("Decimal Comma") == true })
+    let suggestion = { (index: Int) in
+      textView.interpretation(editor.sheet.lines[index].id).first { $0.label == "Suggestion" }?
+        .value
+    }
+    #expect(suggestion(0) == "1.5 + 2.5")
+    #expect(suggestion(1) == "1,234.56 + 1")
+  }
+
   @Test
   func askAssistantReturnsAValueLaterLinesCanUse() async throws {
     let asked = Asked()

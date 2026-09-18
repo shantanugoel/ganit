@@ -13,9 +13,10 @@ release candidate.
 
 ## Language and numbers
 
-- Keywords and function names are English only. The engine supports locale
-  separators, but new sheets use `en-US` separators until a locale preference
-  exists.
+- Keywords and function names are English only. A sheet writes numbers either
+  `1,234.56` or, with Format ▸ Decimal Comma, `1.234,56`; other separators,
+  such as a space for grouping, are not offered. A line written in the other
+  style is diagnosed with a rewrite rather than sent to the assistant.
 - An exact answer is shown to the sheet's significant digits or decimals, and
   money to its currency's minor units. An answer marked `≈` was rounded to be
   shown, so `1/3` reads `≈ 0.333333333333333`; its interpretation card says

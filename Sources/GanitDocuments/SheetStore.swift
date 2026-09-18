@@ -51,6 +51,27 @@ public struct SheetPreferences: Codable, Equatable, Sendable {
 }
 
 extension SheetPreferences {
+  /// The locale of a sheet that writes `1.234,56`: English words, with
+  /// Germany's separators.
+  public static let decimalCommaLocale = "en-DE"
+
+  /// Whether the sheet reads and writes `1.234,56` rather than `1,234.56`.
+  public var usesDecimalComma: Bool {
+    get { localeIdentifier == Self.decimalCommaLocale }
+    set { localeIdentifier = newValue ? Self.decimalCommaLocale : Self.standard.localeIdentifier }
+  }
+
+  public var lexingConfiguration: LexingConfiguration {
+    usesDecimalComma ? .decimalComma : .englishUnitedStates
+  }
+
+  /// A new sheet's preferences, writing numbers as this Mac's region does.
+  public static func newSheet(locale: Locale = .current) -> SheetPreferences {
+    var preferences = standard
+    preferences.usesDecimalComma = locale.decimalSeparator == ","
+    return preferences
+  }
+
   /// The evaluation context these preferences describe, with the current time
   /// zone, `now`, and exchange rates.
   public func evaluationContext(now: Date = Date(), currencyRates: CurrencyRates = .none) throws
@@ -58,8 +79,7 @@ extension SheetPreferences {
   {
     try EvaluationContext(
       localeIdentifier: localeIdentifier,
-      // English grammar with `en-US` separators is the only lexing syntax so far.
-      lexingConfiguration: .englishUnitedStates,
+      lexingConfiguration: lexingConfiguration,
       angleMode: angleMode,
       precision: PrecisionContext(significantDecimalDigits: significantDecimalDigits),
       now: now,

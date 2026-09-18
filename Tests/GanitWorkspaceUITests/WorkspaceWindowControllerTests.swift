@@ -396,6 +396,32 @@ struct WorkspaceWindowControllerTests {
     #expect(stored == .degrees)
   }
 
+  /// A sheet written with decimal commas says so, and Decimal Comma reads it,
+  /// keeping the choice with the sheet.
+  @Test
+  func aSheetCanReadDecimalCommas() async throws {
+    let (workspace, ids) = try makeWorkspace(["1,5 + 2,5\n1.234,56 + 1"])
+    defer { close(workspace) }
+    let controller = workspace.openWindow(showing: ids[0])
+    let editor = try #require(controller.editor)
+    let item = NSMenuItem(
+      title: "", action: #selector(WorkspaceCommands.toggleDecimalComma(_:)), keyEquivalent: "")
+    await editor.scheduler?.waitUntilIdle()
+    let before = await editor.exportedLines()
+    #expect(before.allSatisfy { $0.answer?.hasPrefix("Numbers here are written 1.234,56") == true })
+    #expect(controller.validateMenuItem(item))
+    #expect(item.state == .off)
+
+    controller.toggleDecimalComma(nil)
+    await editor.scheduler?.waitUntilIdle()
+    #expect(await editor.exportedLines().map(\.answer) == ["4", "1.235,56"])
+    #expect(controller.validateMenuItem(item))
+    #expect(item.state == .on)
+    let stored = try workspace.library.store.load(id: ids[0]).metadata.preferences
+    #expect(stored.usesDecimalComma)
+    #expect(stored.localeIdentifier == "en-DE")
+  }
+
   @Test
   func aSearchThatFindsNothingSaysSo() throws {
     let (workspace, ids) = try makeWorkspace(["rent = 1"])

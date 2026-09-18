@@ -253,7 +253,7 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
   /// Creates a sheet in the selected folder and shows it.
   @objc public func newSheet(_ sender: Any?) {
     perform {
-      var metadata = try library.create(preferences: SheetPreferences.standard)
+      var metadata = try library.create(preferences: SheetPreferences.newSheet())
       if case .folder(let folder) = sidebar.collection {
         metadata = try library.update(metadata.id) { $0.folderID = folder }
       } else if ![.all, .recent].contains(sidebar.collection) {
@@ -529,6 +529,13 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     perform { try workspace.write(mode == .degrees ? .radians : .degrees, on: id) }
   }
 
+  @objc public func toggleDecimalComma(_ sender: Any?) {
+    guard let id = sheetID, let preferences = sheet?.autosaver.metadata.preferences else {
+      return
+    }
+    perform { try workspace.write(usesDecimalComma: !preferences.usesDecimalComma, on: id) }
+  }
+
   @objc public func toggleLakhGrouping(_ sender: Any?) {
     guard var options = displayOptions else {
       return
@@ -590,6 +597,10 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     case #selector(toggleDegrees(_:)):
       menuItem.state =
         sheet?.autosaver.metadata.preferences.angleMode == .degrees ? .on : .off
+      return sheetID != nil
+    case #selector(toggleDecimalComma(_:)):
+      menuItem.state =
+        sheet?.autosaver.metadata.preferences.usesDecimalComma == true ? .on : .off
       return sheetID != nil
     case #selector(toggleLakhGrouping(_:)):
       menuItem.state = displayOptions?.groupsInLakhs == true ? .on : .off

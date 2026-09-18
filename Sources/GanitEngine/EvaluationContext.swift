@@ -63,12 +63,12 @@ public struct PrecisionContext: Hashable, Sendable {
 }
 
 public struct EvaluationContext: Hashable, Sendable {
-  public let localeIdentifier: String
-  public let lexingConfiguration: LexingConfiguration
+  public private(set) var localeIdentifier: String
+  public private(set) var lexingConfiguration: LexingConfiguration
   public private(set) var angleMode: AngleMode
   public private(set) var precision: PrecisionContext
   public private(set) var now: Date
-  public let calendar: Calendar
+  public private(set) var calendar: Calendar
   public let timeZone: TimeZone
   public private(set) var currencyRates: CurrencyRates
   /// Values `ask_assistant` already received, keyed by the prompt. The engine
@@ -147,6 +147,18 @@ public struct EvaluationContext: Hashable, Sendable {
     precondition(now.timeIntervalSinceReferenceDate.isFinite)
     var context = self
     context.now = now
+    return context
+  }
+
+  /// The same context reading and writing numbers as `localeIdentifier` does,
+  /// with `lexingConfiguration`'s separators.
+  public func with(localeIdentifier: String, lexingConfiguration: LexingConfiguration)
+    -> EvaluationContext
+  {
+    var context = self
+    context.localeIdentifier = localeIdentifier
+    context.lexingConfiguration = lexingConfiguration
+    context.calendar.locale = Locale(identifier: localeIdentifier)
     return context
   }
 

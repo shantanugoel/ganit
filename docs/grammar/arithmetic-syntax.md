@@ -32,6 +32,12 @@ Identifier starts and continuations use Unicode XID properties. Swift's canonica
 
 The lexer receives decimal/grouping separators and grouping sizes explicitly. It preserves exact half-open UTF-8 and grapheme source ranges while normalizing digit values for the typed numeric layer. Source text itself is never rewritten.
 
+A sheet chooses its separators with Format ▸ Decimal Comma. A line that fails
+to parse with the sheet's separators but parses with the other style is
+diagnosed as written in that style, with the line's expression rewritten with
+`.` and `,` swapped as a suggestion when the rewrite parses, and it is not
+sent to the assistant.
+
 In comma-decimal locales, use a semicolon between function arguments (`max(1; 2)`) so `1,2` remains an unambiguous decimal literal. A comma is an argument separator only when followed by whitespace. `1,` is an incomplete decimal, and `max(1 ,2)` is invalid rather than silently changing meaning.
 
 ## Evaluation

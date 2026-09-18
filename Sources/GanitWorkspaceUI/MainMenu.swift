@@ -58,6 +58,7 @@ import GanitEditorUI
   func toggleDigitGrouping(_ sender: Any?)
   func toggleLakhGrouping(_ sender: Any?)
   func toggleDegrees(_ sender: Any?)
+  func toggleDecimalComma(_ sender: Any?)
   func toggleMarkdownMode(_ sender: Any?)
   func setDollarCurrency(_ sender: Any?)
   func toggleAnswerSeparator(_ sender: Any?)
@@ -376,6 +377,9 @@ public enum MainMenu {
           item(
             localized("menu.anglesInDegrees", "Angles in Degrees"),
             #selector(WorkspaceCommands.toggleDegrees(_:))),
+          item(
+            localized("menu.decimalComma", "Decimal Comma (1.234,56)"),
+            #selector(WorkspaceCommands.toggleDecimalComma(_:))),
           .separator(),
           item(
             localized("menu.markdownMode", "Markdown Mode"),
