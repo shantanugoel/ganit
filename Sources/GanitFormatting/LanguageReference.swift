@@ -132,7 +132,7 @@ extension LanguageReference {
       ),
       body: text(
         "help.grammar.units.body",
-        "Write a number and a unit, or a unit and a number: 12 km and km 12. Convert with in, to, as, or into: 12 km in miles. Compatible units add; incompatible ones say so. Compound units multiply and divide: 75 MB/s * 2 s. Temperature converts on its scale: 0 °C as °F. Electrical units take prefixes: 5 V / 220 Ω in mA, 12 V * 2 A in W."
+        "Write a number and a unit, or a unit and a number: 12 km and km 12. Convert with in, to, as, or into: 12 km in miles. Compatible units add; incompatible ones say so. Compound units multiply and divide: 75 MB/s * 2 s. Temperature converts on its scale: 0 °C as °F. Electrical units take prefixes: 5 V / 220 Ω in mA, 12 V * 2 A in W. Ganit counts no nouns of its own, so name the amount, pages = 412, or define a unit in the definitions sheet, 1 bag = 25 kg."
       ) + "\n\n"
         + String(
           format: text(

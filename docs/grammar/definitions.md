@@ -58,6 +58,10 @@ code, or a unit a data source already names: `1 km = 5 m` fails with
 `syntax.invalidVariableName`. A name also answers to its English plural when
 that plural is free, so `3 bags` and `2 boxes` read naturally.
 
+Ganit has no counted nouns such as `pages` or `eggs`: a count with no
+dimension would add to any other count. Name the amount instead, `pages = 412`,
+or define a unit against a dimension, `1 bag = 25 kg`.
+
 The value must be a relative quantity, which gives the unit its dimension and
 its ratio to that dimension's canonical unit. Anything else fails with
 `evaluation.invalidUnitDefinition` rather than defining nothing silently: a
