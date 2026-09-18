@@ -26,7 +26,7 @@
       "expression": "12 km in miles",
       "expected": {
         "status": "value",
-        "display": "7.45645430684801 mi",
+        "display": "≈ 7.45645430684801 mi",
         "fullPrecision": "31250/4191 mi",
         "approximate": false
       }

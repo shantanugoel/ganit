@@ -5,6 +5,11 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- An exact answer rounded to be shown is marked `≈`, as rounded money already
+  was: `1/3` reads `≈ 0.333333333333333`, and `2/3` at two decimals `≈ 0.67`.
+  Its interpretation card names Format ▸ Number Format as the rounding, and
+  CSV export adds a Full Precision column with the exact value.
+
 - An answer too wide for a narrow window is written to fewer digits and marked
   `≈`, keeping its unit, and a still-too-wide value is cut in the middle so its
   unit or time zone stays visible.

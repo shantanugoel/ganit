@@ -16,10 +16,11 @@ release candidate.
 - Keywords and function names are English only. The engine supports locale
   separators, but new sheets use `en-US` separators until a locale preference
   exists.
-- An exact answer is shown to the sheet's significant digits, and money to its
-  currency's minor units. Money marked `≈` was rounded to those units; a plain
-  number shows its rounded digits without a mark, as a fraction does. Copy Full
-  Precision copies the exact value either way.
+- An exact answer is shown to the sheet's significant digits or decimals, and
+  money to its currency's minor units. An answer marked `≈` was rounded to be
+  shown, so `1/3` reads `≈ 0.333333333333333`; its interpretation card says
+  the value is exact and rounded by Format ▸ Number Format. Copy Full
+  Precision, and the CSV Full Precision column, give the exact value.
 - Roots other than perfect powers, logarithms, trigonometry, and constants
   such as `π` are approximate, computed with binary floating point and marked
   `≈`.

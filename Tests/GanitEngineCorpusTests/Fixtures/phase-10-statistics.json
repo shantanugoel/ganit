@@ -170,7 +170,7 @@
       "expression": "npv(10%, -1000, 300, 400, 500)",
       "expected": {
         "status": "value",
-        "display": "-21.0368144252442",
+        "display": "≈ -21.0368144252442",
         "fullPrecision": "-28000/1331",
         "approximate": false
       }

@@ -891,7 +891,7 @@ public final class SheetEditorViewController: NSViewController {
           pending: isAssistantPending(text: line.text, result: $0))
       }
       return ExportedLine(
-        source: line.text, answer: cell?.text,
+        source: line.text, answer: cell?.text, fullPrecision: cell?.fullPrecision,
         status: cell.map {
           $0.isPending
             ? .pending
@@ -1069,7 +1069,11 @@ public final class SheetEditorViewController: NSViewController {
           label: localized("interpretation.exactness", "Exactness"),
           value: formatted.isApproximate
             ? localized("interpretation.approximate", "Approximate")
-            : localized("interpretation.exact", "Exact")
+            : formatted.isRounded
+              ? localized(
+                "interpretation.exactRounded",
+                "Exact; shown rounded by Format ▸ Number Format")
+              : localized("interpretation.exact", "Exact")
         ),
       ]
       if case .instant(let instant) = value,

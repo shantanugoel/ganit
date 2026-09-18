@@ -93,9 +93,12 @@ recent sheet only when no window was restored.
   is needed; import ignores them.
 - **Plain Text** — the source exactly as written.
 - **PDF** — source beside answers, paginated like printing.
-- **CSV** — `Line,Source,Answer,Status` rows quoted per RFC 4180. A cell that a
-  spreadsheet would run as a formula (starting with `=`, `+`, `-`, `@`, tab, or
-  return, and not a plain number) gets a leading apostrophe.
+- **CSV** — `Line,Source,Answer,Full Precision,Status` rows quoted per RFC
+  4180. Answer is what the sheet shows, perhaps rounded and marked `≈`; Full
+  Precision is the exact value behind a calculated answer, as Copy Full
+  Precision copies it. A cell that a spreadsheet would run as a formula
+  (starting with `=`, `+`, `-`, `@`, tab, or return, and not a plain number)
+  gets a leading apostrophe.
 - **HTML** — a standalone page with one escaped table row per line that loads
   nothing.
 

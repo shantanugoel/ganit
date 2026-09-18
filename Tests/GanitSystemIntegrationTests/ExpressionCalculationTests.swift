@@ -31,8 +31,8 @@ struct ExpressionCalculationTests {
     let lines = try calculation.answers(forSheet: "rent = 3\nrent * 12")
     #expect(lines.map(\.text) == ["3", "36"])
     #expect(!lines.contains { $0.isFailure })
-    #expect(try calculation.answer(for: "12 km in miles") == "7.45645430684801 mi")
-    #expect(try calculation.answer(for: "1/3") == "0.333333333333333")
+    #expect(try calculation.answer(for: "12 km in miles") == "≈ 7.45645430684801 mi")
+    #expect(try calculation.answer(for: "1/3") == "≈ 0.333333333333333")
   }
 
   @Test

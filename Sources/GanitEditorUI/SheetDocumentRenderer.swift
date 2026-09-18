@@ -5,6 +5,8 @@ public struct ExportedLine: Equatable, Sendable {
   public let source: String
   /// The displayed answer or failure message, or `nil` for lines without one.
   public let answer: String?
+  /// The exact value behind a calculated answer, which may be shown rounded.
+  public let fullPrecision: String?
   public enum Status: String, Sendable {
     case none, calculated
     case aiUnverified = "ai-unverified"
@@ -13,9 +15,10 @@ public struct ExportedLine: Equatable, Sendable {
   public let status: Status
   public var isFailure: Bool { status == .failure }
 
-  public init(source: String, answer: String?, status: Status) {
+  public init(source: String, answer: String?, fullPrecision: String? = nil, status: Status) {
     self.source = source
     self.answer = answer
+    self.fullPrecision = fullPrecision
     self.status = status
   }
 
@@ -34,15 +37,15 @@ public struct ExportedLine: Equatable, Sendable {
 /// editor displays.
 @MainActor
 public enum SheetDocumentRenderer {
-  /// `Line,Source,Answer,Status` rows quoted per RFC 4180. A cell that a spreadsheet
+  /// `Line,Source,Answer,Full Precision,Status` rows quoted per RFC 4180. A cell that a spreadsheet
   /// would run as a formula starts with an apostrophe instead.
   public static func csv(_ lines: [ExportedLine]) -> String {
     let rows =
-      [["Line", "Source", "Answer", "Status"]]
+      [["Line", "Source", "Answer", "Full Precision", "Status"]]
       + lines.enumerated().map {
         [
           String($0.offset + 1), $0.element.source, $0.element.answer ?? "",
-          $0.element.status.rawValue,
+          $0.element.fullPrecision ?? "", $0.element.status.rawValue,
         ]
       }
     return rows.map { $0.map(csvCell).joined(separator: ",") }.joined(separator: "\r\n") + "\r\n"

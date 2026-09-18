@@ -70,7 +70,7 @@ struct AnswerPlacementTests {
     let (_, textView) = try await makeEditor("1000 mA / 7\n2 + 2\n1 m + 1 s")
     let window = try #require(textView.window)
     let wide = textView.answerLayout(in: textView.bounds)
-    #expect(wide[0].cell.text == "142.857142857143 mA")
+    #expect(wide[0].cell.text == "≈ 142.857142857143 mA")
     #expect(textView.drawnText(for: wide[0].cell, within: wide[0].rect.width) == wide[0].cell.text)
 
     window.setContentSize(NSSize(width: 320, height: 400))
@@ -88,7 +88,7 @@ struct AnswerPlacementTests {
     #expect(style(narrow[2].cell)?.lineBreakMode == .byTruncatingTail)
     // The full answer stays available on hover.
     let hover = NSPoint(x: narrow[0].rect.midX, y: narrow[0].rect.midY)
-    #expect(textView.tooltip(at: hover) == "142.857142857143 mA")
+    #expect(textView.tooltip(at: hover) == "≈ 142.857142857143 mA")
   }
 
   private static var windows: [NSWindow] = []

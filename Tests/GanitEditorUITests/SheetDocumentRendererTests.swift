@@ -10,22 +10,26 @@ import Testing
 struct SheetDocumentRendererTests {
   private let lines = [
     ExportedLine(source: "# Trip, \"2026\"", answer: nil, status: .none),
-    ExportedLine(source: "hotel = 85 * 3", answer: "255", status: .calculated),
+    ExportedLine(
+      source: "hotel = 85 * 3", answer: "255", fullPrecision: "255", status: .calculated),
+    ExportedLine(
+      source: "1/3", answer: "≈ 0.33", fullPrecision: "1/3", status: .calculated),
     ExportedLine(
       source: "=HYPERLINK(\"x\")", answer: "This identifier is not defined.", status: .failure),
-    ExportedLine(source: "-5", answer: "-5", status: .calculated),
+    ExportedLine(source: "-5", answer: "-5", fullPrecision: "-5", status: .calculated),
     ExportedLine(source: "<b>&", answer: nil, status: .none),
   ]
 
   @Test
   func writesQuotedCSVThatSpreadsheetsCannotRunAsFormulas() {
     let rows = [
-      "Line,Source,Answer,Status",
-      ##"1,"# Trip, ""2026""",,none"##,
-      "2,hotel = 85 * 3,255,calculated",
-      #"3,"'=HYPERLINK(""x"")",This identifier is not defined.,failure"#,
-      "4,-5,-5,calculated",
-      "5,<b>&,,none",
+      "Line,Source,Answer,Full Precision,Status",
+      ##"1,"# Trip, ""2026""",,,none"##,
+      "2,hotel = 85 * 3,255,255,calculated",
+      "3,1/3,≈ 0.33,1/3,calculated",
+      #"4,"'=HYPERLINK(""x"")",This identifier is not defined.,,failure"#,
+      "5,-5,-5,-5,calculated",
+      "6,<b>&,,,none",
     ]
     #expect(SheetDocumentRenderer.csv(lines) == rows.joined(separator: "\r\n") + "\r\n")
   }
@@ -33,7 +37,7 @@ struct SheetDocumentRendererTests {
   @Test
   func retainsAIProvenanceInEveryRenderedFormat() throws {
     let lines = [ExportedLine(source: "1,5 + 2,5", answer: "4", status: .aiUnverified)]
-    #expect(SheetDocumentRenderer.csv(lines).contains("\"1,5 + 2,5\",4,ai-unverified"))
+    #expect(SheetDocumentRenderer.csv(lines).contains("\"1,5 + 2,5\",4,,ai-unverified"))
     #expect(SheetDocumentRenderer.html(lines, title: "AI").contains("4 [AI; unverified]"))
     #expect(
       SheetDocumentRenderer.printableView(

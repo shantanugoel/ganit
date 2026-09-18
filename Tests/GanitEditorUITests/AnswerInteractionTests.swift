@@ -1,6 +1,7 @@
 import AppKit
 import Foundation
 import GanitEngine
+import GanitFormatting
 import Testing
 
 @testable import GanitEditorUI
@@ -78,6 +79,27 @@ struct AnswerInteractionTests {
     #expect(textView.answer(ids[2]) == nil)
     textView.setSelectedRange(NSRange(location: 0, length: 0))
     #expect(textView.answer(ids[2])?.text == "Enter an expression here.")
+  }
+
+  /// A rounded display is marked, its card names the setting that rounds it,
+  /// and export keeps the exact value beside it.
+  @Test
+  func roundedAnswersAreMarkedAndExportedExactly() async throws {
+    let (editor, textView) = try await makeEditor("1/3\n1.5")
+    editor.writeAnswers(DisplayOptions(numbers: .fixedDecimals(2)))
+    await editor.scheduler?.waitUntilIdle()
+    let ids = editor.sheet.lines.map(\.id)
+
+    #expect(textView.answer(ids[0])?.text == "≈ 0.33")
+    #expect(textView.answer(ids[1])?.text == "1.50")
+    let exactness = { (id: LineID) in
+      textView.interpretation(id).first { $0.label == "Exactness" }?.value
+    }
+    #expect(exactness(ids[0]) == "Exact; shown rounded by Format ▸ Number Format")
+    #expect(exactness(ids[1]) == "Exact")
+    let exported = await editor.exportedLines()
+    #expect(exported.map(\.fullPrecision) == ["1/3", "1.5"])
+    #expect(SheetDocumentRenderer.csv(exported).contains("1/3,≈ 0.33,1/3,calculated"))
   }
 
   @Test

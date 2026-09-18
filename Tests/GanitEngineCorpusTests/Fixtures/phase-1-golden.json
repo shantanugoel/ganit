@@ -16,7 +16,7 @@
       "expression": "1 / 3",
       "expected": {
         "status": "value",
-        "display": "0.333333333333333",
+        "display": "≈ 0.333333333333333",
         "fullPrecision": "1/3",
         "approximate": false
       }
@@ -46,7 +46,7 @@
       "expression": "10000 * 1.05^10",
       "expected": {
         "status": "value",
-        "display": "16,288.9462677744",
+        "display": "≈ 16,288.9462677744",
         "fullPrecision": "16288.94626777441406250000",
         "approximate": false
       }

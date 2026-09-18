@@ -14,15 +14,16 @@ struct DisplayOptionsTests {
       (DisplayOptions(groupsInLakhs: true), "123456789.5", "12,34,56,789.5"),
       (DisplayOptions(groupsDigits: false, groupsInLakhs: true), "1234567", "1234567"),
       (DisplayOptions(numbers: .fixedDecimals(2)), "2", "2.00"),
-      (DisplayOptions(numbers: .fixedDecimals(2)), "1.005", "1.01"),
-      (DisplayOptions(numbers: .fixedDecimals(0)), "1234.6", "1,235"),
-      (DisplayOptions(numbers: .fixedDecimals(4)), "1/3", "0.3333"),
+      (DisplayOptions(numbers: .fixedDecimals(2)), "1.005", "≈ 1.01"),
+      (DisplayOptions(numbers: .fixedDecimals(2)), "1.5", "1.50"),
+      (DisplayOptions(numbers: .fixedDecimals(0)), "1234.6", "≈ 1,235"),
+      (DisplayOptions(numbers: .fixedDecimals(4)), "1/3", "≈ 0.3333"),
       (DisplayOptions(numbers: .scientific), "1200", "1.2e3"),
       (DisplayOptions(numbers: .scientific), "1234.5", "1.2345e3"),
       (DisplayOptions(numbers: .scientific), "0.00012", "1.2e-4"),
       (DisplayOptions(numbers: .scientific), "-7", "-7e0"),
       (DisplayOptions(numbers: .scientific), "0", "0"),
-      (DisplayOptions(numbers: .scientific), "1/3", "3.33333333333333e-1"),
+      (DisplayOptions(numbers: .scientific), "1/3", "≈ 3.33333333333333e-1"),
       (.standard, "10^21", "1e21"),
       (.standard, "10^21 - 1", "999,999,999,999,999,999,999"),
       (.standard, "0.000001", "0.000001"),
@@ -58,7 +59,7 @@ struct DisplayOptionsTests {
     }
 
     let formatted = try formatter.format(value)
-    #expect(formatted.display == "0.67")
+    #expect(formatted.display == "≈ 0.67")
     #expect(formatted.fullPrecision == "2/3")
   }
 
@@ -81,9 +82,9 @@ struct DisplayOptionsTests {
   @Test
   func clampsDecimalsToThePrecisionASheetHas() throws {
     let fifteen = try format("1/3", DisplayOptions(numbers: .fixedDecimals(15)))
-    #expect(fifteen == "0.333333333333333")
+    #expect(fifteen == "≈ 0.333333333333333")
     #expect(try format("1/3", DisplayOptions(numbers: .fixedDecimals(99))) == fifteen)
-    #expect(try format("1/3", DisplayOptions(numbers: .fixedDecimals(-1))) == "0")
+    #expect(try format("1/3", DisplayOptions(numbers: .fixedDecimals(-1))) == "≈ 0")
   }
 
   /// Scientific answers are re-enterable: the grammar reads `1.2e6` back as the

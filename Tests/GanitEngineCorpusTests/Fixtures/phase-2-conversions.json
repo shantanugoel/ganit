@@ -6,7 +6,7 @@
       "expression": "500 km / 40 L in mpg",
       "expected": {
         "status": "value",
-        "display": "29.4018229166667 mpg",
+        "display": "≈ 29.4018229166667 mpg",
         "fullPrecision": "112903/3840 mpg",
         "approximate": false
       }
@@ -46,7 +46,7 @@
       "expression": "5 V / 220 Ω in mA",
       "expected": {
         "status": "value",
-        "display": "22.7272727272727 mA",
+        "display": "≈ 22.7272727272727 mA",
         "fullPrecision": "250/11 mA",
         "approximate": false
       }
@@ -66,7 +66,7 @@
       "expression": "2000 mAh / 150 mA in h",
       "expected": {
         "status": "value",
-        "display": "13.3333333333333 h",
+        "display": "≈ 13.3333333333333 h",
         "fullPrecision": "40/3 h",
         "approximate": false
       }
@@ -76,7 +76,7 @@
       "expression": "12 km in miles",
       "expected": {
         "status": "value",
-        "display": "7.45645430684801 mi",
+        "display": "≈ 7.45645430684801 mi",
         "fullPrecision": "31250/4191 mi",
         "approximate": false
       }
@@ -182,7 +182,7 @@
       "expression": "(1 km/h) / (1 m/s)",
       "expected": {
         "status": "value",
-        "display": "0.277777777777778",
+        "display": "≈ 0.277777777777778",
         "fullPrecision": "5/18",
         "approximate": false
       }

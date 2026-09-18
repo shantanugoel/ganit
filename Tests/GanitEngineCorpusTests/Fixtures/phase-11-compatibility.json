@@ -26,7 +26,7 @@
       "expression": "10 / 3",
       "expected": {
         "status": "value",
-        "display": "3.33333333333333",
+        "display": "≈ 3.33333333333333",
         "fullPrecision": "10/3",
         "approximate": false
       }
@@ -46,7 +46,7 @@
       "expression": "2^100",
       "expected": {
         "status": "value",
-        "display": "1.26765060022823e30",
+        "display": "≈ 1.26765060022823e30",
         "fullPrecision": "1267650600228229401496703205376",
         "approximate": false
       }
@@ -188,7 +188,7 @@
       "expression": "12 km in miles",
       "expected": {
         "status": "value",
-        "display": "7.45645430684801 mi",
+        "display": "≈ 7.45645430684801 mi",
         "fullPrecision": "31250/4191 mi",
         "approximate": false
       }
@@ -208,7 +208,7 @@
       "expression": "1 kg in lbs",
       "expected": {
         "status": "value",
-        "display": "2.20462262184878 lb",
+        "display": "≈ 2.20462262184878 lb",
         "fullPrecision": "100000000/45359237 lb",
         "approximate": false
       }
@@ -372,7 +372,7 @@
       "expression": "100 km/h in mph",
       "expected": {
         "status": "value",
-        "display": "62.1371192237334 mph",
+        "display": "≈ 62.1371192237334 mph",
         "fullPrecision": "781250/12573 mph",
         "approximate": false
       }
@@ -382,7 +382,7 @@
       "expression": "2 GB / 5 min in Mbps",
       "expected": {
         "status": "value",
-        "display": "53.3333333333333 Mbps",
+        "display": "≈ 53.3333333333333 Mbps",
         "fullPrecision": "160/3 Mbps",
         "approximate": false
       }
@@ -392,7 +392,7 @@
       "expression": "100!",
       "expected": {
         "status": "value",
-        "display": "9.33262154439442e157",
+        "display": "≈ 9.33262154439442e157",
         "approximate": false,
         "fullPrecision": "93326215443944152681699238856266700490715968264381621468592963895217599993229915608941463976156518286253697920827223758251185210916864000000000000000000000000"
       }

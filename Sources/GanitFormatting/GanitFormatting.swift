@@ -56,15 +56,20 @@ public struct FormattedResult: Hashable, Sendable {
   public let display: String
   public let fullPrecision: String
   public let isApproximate: Bool
+  /// An exact value whose display, marked `≈`, dropped digits; full
+  /// precision still has them all.
+  public let isRounded: Bool
 
   public init(
     display: String,
     fullPrecision: String,
-    isApproximate: Bool
+    isApproximate: Bool,
+    isRounded: Bool = false
   ) {
     self.display = display
     self.fullPrecision = fullPrecision
     self.isApproximate = isApproximate
+    self.isRounded = isRounded
   }
 }
 
@@ -101,7 +106,7 @@ public struct NumericResultFormatter: Sendable {
             rule: context.precision.roundingRule))
         : canonical
       return try exactResult(
-        display: try written(value, asDecimal: shown),
+        try written(value, asDecimal: shown, isRounded: shown != canonical),
         fullPrecision: canonical
       )
 
@@ -122,7 +127,9 @@ public struct NumericResultFormatter: Sendable {
         throw FormattingError.internalFailure
       }
       return try exactResult(
-        display: try written(value, asDecimal: try canonicalDecimal(rounded)),
+        try written(
+          value, asDecimal: try canonicalDecimal(rounded),
+          isRounded: isRounded(value, as: rounded)),
         fullPrecision: canonical
       )
 
@@ -136,7 +143,9 @@ public struct NumericResultFormatter: Sendable {
         rule: context.precision.roundingRule
       )
       return try exactResult(
-        display: try written(value, asDecimal: try canonicalDecimal(rounded)),
+        try written(
+          value, asDecimal: try canonicalDecimal(rounded),
+          isRounded: isRounded(value, as: rounded)),
         fullPrecision: canonical
       )
 
@@ -156,16 +165,28 @@ public struct NumericResultFormatter: Sendable {
   }
 
   private func exactResult(
-    display: String,
+    _ shown: (display: String, isRounded: Bool),
     fullPrecision: String
   ) throws -> FormattedResult {
+    let display = shown.isRounded ? try joined("≈ ", shown.display) : shown.display
     try validateLength(display.count)
     try validateLength(fullPrecision.count)
     return FormattedResult(
       display: display,
       fullPrecision: fullPrecision,
-      isApproximate: false
+      isApproximate: false,
+      isRounded: shown.isRounded
     )
+  }
+
+  /// Whether `shown`, `value` rounded for display, dropped digits. A value
+  /// too large to compare is taken as rounded.
+  private func isRounded(_ value: NumericValue, as shown: DecimalValue) throws -> Bool {
+    let exact = try value.rounded(fractionDigits: max(shown.scale, 0))
+    guard !exact.isRounded, shown.scale < 0 else {
+      return exact.isRounded
+    }
+    return (try? canonicalDecimal(exact.value) != canonicalDecimal(shown)) ?? true
   }
 
   private func canonicalInteger(_ value: IntegerValue) throws -> String {
@@ -219,27 +240,31 @@ public struct NumericResultFormatter: Sendable {
   }
 
   /// An exact value as this sheet writes it, from the digits it would write
-  /// without being asked. Rounding to a fixed number of decimals runs on the
-  /// value rather than on these digits, so a fraction rounds from the fraction.
+  /// without being asked, which `isRounded` says dropped some. Rounding to a
+  /// fixed number of decimals runs on the value rather than on these digits,
+  /// so a fraction rounds from the fraction.
   private func written(
     _ value: NumericValue,
-    asDecimal canonical: String
-  ) throws -> String {
+    asDecimal canonical: String,
+    isRounded: Bool
+  ) throws -> (display: String, isRounded: Bool) {
     switch display.numbers {
     case .automatic:
-      return Self.isOutsideDigitRange(canonical)
-        ? try scientific(canonical) : try localizeDecimal(canonical)
+      return (
+        Self.isOutsideDigitRange(canonical)
+          ? try scientific(canonical) : try localizeDecimal(canonical), isRounded
+      )
     case .fixedDecimals(let places):
-      let (rounded, _) = try value.rounded(
+      let (rounded, isRounded) = try value.rounded(
         fractionDigits: min(max(places, 0), NumberDisplay.decimalLimit)
       )
-      return try localizeDecimal(try canonicalDecimal(rounded))
+      return (try localizeDecimal(try canonicalDecimal(rounded)), isRounded)
     case .scientific:
-      return try scientific(canonical)
+      return (try scientific(canonical), isRounded)
     case .hexadecimal, .binary:
       guard case .integer(let integer) = value else {
         // A value with no whole digits in that base keeps its usual form.
-        return try localizeDecimal(canonical)
+        return (try localizeDecimal(canonical), isRounded)
       }
       let radix: NumericRadix = display.numbers == .hexadecimal ? .hexadecimal : .binary
       let marker = radix == .hexadecimal ? "0x" : "0b"
@@ -247,16 +272,16 @@ public struct NumericResultFormatter: Sendable {
         (integer.isNegative ? localeMinusSign : "") + marker
         + integer.magnitudeDigits(radix: radix)
       try validateLength(result.count)
-      return result
+      return (result, false)
     case .fraction:
       guard case .rational(let rational) = value else {
-        return try localizeDecimal(canonical)
+        return (try localizeDecimal(canonical), isRounded)
       }
       let result = try joined(
         try canonicalInteger(rational.numerator), "/",
         try canonicalInteger(rational.denominator))
       try validateLength(result.count)
-      return result
+      return (result, false)
     }
   }
 
@@ -502,7 +527,7 @@ public struct ResultFormatter: Sendable {
       let display = percentConvention.format(
         points.display,
         isNegative: percentage.points.isNegative,
-        isApproximate: points.isApproximate
+        isApproximate: points.isApproximate || points.isRounded
       )
       let fullPrecision = points.fullPrecision + "%"
       guard
@@ -514,7 +539,8 @@ public struct ResultFormatter: Sendable {
       return FormattedResult(
         display: display,
         fullPrecision: fullPrecision,
-        isApproximate: points.isApproximate
+        isApproximate: points.isApproximate,
+        isRounded: points.isRounded
       )
     case .quantity(let quantity):
       return try appendUnit(
@@ -725,7 +751,8 @@ public struct ResultFormatter: Sendable {
     return FormattedResult(
       display: display,
       fullPrecision: fullPrecision,
-      isApproximate: result.isApproximate
+      isApproximate: result.isApproximate,
+      isRounded: result.isRounded
     )
   }
 

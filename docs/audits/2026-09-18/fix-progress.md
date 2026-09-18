@@ -119,7 +119,25 @@ G04 full GitHub CI passed (run 35339826684).
   modes, and the hover text. 491 package tests, formatting, pseudolocalized
   layout, debug app build, bundle verification, and whitespace checks pass.
 
+## G09 — Mark rounded displays and export exact values
+
+- `FormattedResult.isRounded` records when an exact value's display dropped
+  digits (significant-digit rounding, fixed decimals, or scientific), and the
+  display is marked `≈`, following money's existing marker. Hexadecimal,
+  binary, fraction, and terminating values stay unmarked; the value remains
+  exact and is not labelled approximate.
+- The interpretation card's Exactness says "Exact; shown rounded by Format ▸
+  Number Format", making the rounding setting discoverable where it matters.
+- CSV gains a Full Precision column beside the readable Answer.
+- Seventeen golden-corpus displays gained the marker; no value, full
+  precision, or status changed. The grammar is unchanged, so the ambiguity
+  registry is not bumped. The recorded Numi comparison is left as history.
+- Validation: formatter, display-option, corpus, CSV, and editor regressions
+  cover marked and unmarked cases, the card wording, and exported full
+  precision. 492 package tests, the ASan corpus, formatting, pseudolocalized
+  layout, debug app build, bundle verification, and whitespace checks pass.
+
 ## Remaining
 
-G09–G15, then release validation, version bump, and publication via the existing
+G10–G15, then release validation, version bump, and publication via the existing
 signed/notarized GitHub release workflow triggered by `v0.4.0`.
