@@ -53,6 +53,14 @@ source and can be used by later formulas. Undo restores the original line.
 Using a correction temporarily replaces the displayed value without a request;
 the dialog explains that temporary corrections are discarded when Ganit quits.
 
+**Cancel Request** on the same menus stops waiting for a line or prompt that
+shows Asking…, and **Calculate ▸ Stop** cancels every request of the sheet as
+well as its evaluation. Each request is a task the editor keeps, so a
+cancelled request's late reply is ignored, and a cancelled line or prompt is
+not asked about again until Ask Assistant. Cancelling cannot recall a line
+already sent, or make the provider stop working on it; it only means Ganit no
+longer waits for or uses the reply.
+
 `SheetEditorViewController` also asks about `ask_assistant(prompt)` and
 `prompt_assistant(prompt)` when those functions have no answer yet. The text
 inside the parentheses is the prompt. The reply is parsed as a Ganit value,

@@ -104,6 +104,10 @@ final class SheetTextView: NSTextView {
   var canChangeAssistantAnswer: () -> Bool = { false }
   /// Opens a field to replace the current assistant value.
   var onChangeAssistantAnswer: () -> Void = {}
+  /// Whether the current line is waiting for the assistant.
+  var canCancelAssistantRequest: () -> Bool = { false }
+  /// Stops waiting for the current line's assistant request.
+  var onCancelAssistantRequest: () -> Void = {}
   /// Overrides the Autocomplete preference, for tests.
   var completesWhileTyping: Bool?
   private var helpTracking: NSTrackingArea?
@@ -398,6 +402,10 @@ final class SheetTextView: NSTextView {
       (
         String(localized: "menu.changeAnswer", defaultValue: "Change Answer…", bundle: .main),
         #selector(changeAssistantAnswer(_:))
+      ),
+      (
+        String(localized: "menu.cancelRequest", defaultValue: "Cancel Request", bundle: .main),
+        #selector(cancelAssistantRequest(_:))
       ),
       (
         String(localized: "menu.insertReference", defaultValue: "Insert Reference", bundle: .main),
@@ -947,6 +955,10 @@ final class SheetTextView: NSTextView {
     onChangeAssistantAnswer()
   }
 
+  @objc func cancelAssistantRequest(_ sender: Any?) {
+    onCancelAssistantRequest()
+  }
+
   /// Copies each selected line, or the insertion point's line, with the
   /// answer that line shows.
   @objc func copyLinesWithResults(_ sender: Any?) {
@@ -963,6 +975,8 @@ final class SheetTextView: NSTextView {
       return canAskAssistant()
     case #selector(changeAssistantAnswer(_:)):
       return canChangeAssistantAnswer()
+    case #selector(cancelAssistantRequest(_:)):
+      return canCancelAssistantRequest()
     case #selector(copyLinesWithResults(_:)):
       return (string as NSString).length > 0
     case #selector(openLanguageHelp(_:)):

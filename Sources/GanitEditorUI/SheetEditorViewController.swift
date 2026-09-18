@@ -77,14 +77,16 @@ public final class SheetEditorViewController: NSViewController {
   /// answer outlives the evaluations and line identities of the text it
   /// belongs to.
   private var assistantAnswers: [String: String] = [:]
-  /// Lines already sent, including ones that came back empty, so a failed
-  /// request is not retried on every keystroke.
+  /// Lines already sent, including ones that came back empty, and lines or
+  /// prompts whose request was cancelled, so none is retried on every
+  /// keystroke. Ask Assistant asks again.
   private var assistantAsked: Set<String> = []
-  /// Line texts whose request has not come back yet, shown as Asking….
-  private var assistantLineInFlight: Set<String> = []
+  /// Requests that have not come back yet, by the line text asked, shown as
+  /// Asking… until they finish or are cancelled.
+  private var assistantLineInFlight: [String: Task<Void, Never>] = [:]
   /// Parsed values for `ask_assistant` prompts, reused across evaluations.
   private var assistantValues: [String: AssistantAnswer] = [:]
-  private var assistantPromptsInFlight: Set<String> = []
+  private var assistantPromptsInFlight: [String: Task<Void, Never>] = [:]
   /// Each line's UTF-16 start offset, in line order.
   private var cachedUTF16Starts: [Int]?
   /// The text and result of each line in the newest shown evaluation.
@@ -172,6 +174,12 @@ public final class SheetEditorViewController: NSViewController {
     }
     sheetTextView.onChangeAssistantAnswer = { [weak self] in
       self?.changeAssistantAnswer()
+    }
+    sheetTextView.canCancelAssistantRequest = { [weak self] in
+      self?.canCancelAssistantRequest() ?? false
+    }
+    sheetTextView.onCancelAssistantRequest = { [weak self] in
+      self?.cancelAssistantRequest()
     }
     sheetTextView.didDrawAnswers = { [weak self] in
       guard let self, let interval = pendingAnswerDraw else {
@@ -369,9 +377,12 @@ public final class SheetEditorViewController: NSViewController {
     scheduler?.schedule(sheet)
   }
 
-  /// Stops the running evaluation; answers stay at the last completed one.
+  /// Stops the running evaluation and every assistant request; answers stay
+  /// at the last completed evaluation.
   @objc public func stopCalculation(_ sender: Any?) {
     scheduler?.cancel()
+    cancelAssistantRequests(
+      lines: Array(assistantLineInFlight.keys), prompts: Array(assistantPromptsInFlight.keys))
   }
 
   fileprivate func selectionDidChange() {
@@ -515,7 +526,7 @@ public final class SheetEditorViewController: NSViewController {
     askAboutPrompts()
     for (id, shown) in shownLines {
       guard let asked = lineLevelAssistantPrompt(for: shown, id: id),
-        !assistantAsked.contains(asked), !assistantLineInFlight.contains(asked)
+        !assistantAsked.contains(asked), assistantLineInFlight[asked] == nil
       else {
         continue
       }
@@ -529,15 +540,12 @@ public final class SheetEditorViewController: NSViewController {
     guard let askAssistant else {
       return
     }
-    assistantLineInFlight.insert(asked)
-    sheetTextView.answersDidChange()
-    summarizeSelection()
-    Task { [weak self] in
+    assistantLineInFlight[asked] = Task { [weak self] in
       let answer = await askAssistant(asked)
-      guard let self else {
+      guard let self, !Task.isCancelled else {
         return
       }
-      assistantLineInFlight.remove(asked)
+      assistantLineInFlight[asked] = nil
       assistantAsked.insert(asked)
       if let answer {
         assistantAnswers[asked] = answer
@@ -545,6 +553,8 @@ public final class SheetEditorViewController: NSViewController {
       sheetTextView.answersDidChange()
       summarizeSelection()
     }
+    sheetTextView.answersDidChange()
+    summarizeSelection()
   }
 
   /// Asks about each `ask_assistant` prompt that still has no value, then
@@ -566,21 +576,23 @@ public final class SheetEditorViewController: NSViewController {
 
   private func requestAssistantPrompt(_ prompt: String) {
     guard let askAssistant, !prompt.isEmpty, assistantValues[prompt] == nil,
-      !assistantPromptsInFlight.contains(prompt)
+      assistantPromptsInFlight[prompt] == nil, !assistantAsked.contains(prompt)
     else {
       return
     }
-    assistantPromptsInFlight.insert(prompt)
-    sheetTextView.answersDidChange()
-    summarizeSelection()
-    Task { [weak self] in
+    assistantPromptsInFlight[prompt] = Task { [weak self] in
       let answer = await askAssistant(prompt)
+      guard !Task.isCancelled else {
+        return
+      }
       self?.finishAssistantPrompt(prompt, answer: answer)
     }
+    sheetTextView.answersDidChange()
+    summarizeSelection()
   }
 
   private func finishAssistantPrompt(_ prompt: String, answer: String?) {
-    assistantPromptsInFlight.remove(prompt)
+    assistantPromptsInFlight[prompt] = nil
     if let answer, case .value(let value) = CalculationEngine().evaluate(answer, context: context) {
       assistantValues[prompt] = .value(value)
     } else {
@@ -595,6 +607,46 @@ public final class SheetEditorViewController: NSViewController {
   /// insertion point's, including a line already asked about.
   func canAskAssistant() -> Bool {
     askAssistant != nil && assistantTarget() != nil
+  }
+
+  /// Whether the selected answer, or the insertion point's line, is waiting
+  /// for the assistant.
+  func canCancelAssistantRequest() -> Bool {
+    switch assistantTarget() {
+    case .line(_, let asked):
+      return assistantLineInFlight[asked] != nil
+    case .prompts(let prompts):
+      return prompts.contains { assistantPromptsInFlight[$0] != nil }
+    case nil:
+      return false
+    }
+  }
+
+  /// Cancels the selected answer's request, or the insertion point's line's.
+  func cancelAssistantRequest() {
+    switch assistantTarget() {
+    case .line(_, let asked):
+      cancelAssistantRequests(lines: [asked], prompts: [])
+    case .prompts(let prompts):
+      cancelAssistantRequests(lines: [], prompts: prompts)
+    case nil:
+      NSSound.beep()
+    }
+  }
+
+  /// Stops waiting for these requests and does not ask again until Ask
+  /// Assistant. A cancelled request may already have reached the provider.
+  private func cancelAssistantRequests(lines: [String], prompts: [String]) {
+    for asked in lines {
+      assistantLineInFlight.removeValue(forKey: asked)?.cancel()
+      assistantAsked.insert(asked)
+    }
+    for prompt in prompts {
+      assistantPromptsInFlight.removeValue(forKey: prompt)?.cancel()
+      assistantAsked.insert(prompt)
+    }
+    sheetTextView.answersDidChange()
+    summarizeSelection()
   }
 
   /// Whether the selected answer, or the insertion point's line, already has
@@ -619,8 +671,10 @@ public final class SheetEditorViewController: NSViewController {
     }
     switch target {
     case .prompts(let prompts):
+      cancelAssistantRequests(lines: [], prompts: prompts)
       for prompt in prompts {
         assistantValues.removeValue(forKey: prompt)
+        assistantAsked.remove(prompt)
       }
       context = context.with(assistantAnswers: assistantValues)
       scheduler?.context = context
@@ -629,9 +683,9 @@ public final class SheetEditorViewController: NSViewController {
         requestAssistantPrompt(prompt)
       }
     case .line(let id, let asked):
+      cancelAssistantRequests(lines: [asked], prompts: [])
       assistantAnswers.removeValue(forKey: asked)
       assistantAsked.remove(asked)
-      assistantLineInFlight.remove(asked)
       cells[id] = nil
       sheetTextView.answersDidChange()
       startLineAssistantRequest(asked)
@@ -716,8 +770,7 @@ public final class SheetEditorViewController: NSViewController {
     }
     switch target {
     case .line(let id, let asked):
-      assistantLineInFlight.remove(asked)
-      assistantAsked.insert(asked)
+      cancelAssistantRequests(lines: [asked], prompts: [])
       if trimmed.isEmpty {
         assistantAnswers.removeValue(forKey: asked)
       } else {
@@ -726,8 +779,8 @@ public final class SheetEditorViewController: NSViewController {
       cells[id] = nil
       sheetTextView.answersDidChange()
     case .prompts(let prompts):
+      cancelAssistantRequests(lines: [], prompts: prompts)
       for prompt in prompts {
-        assistantPromptsInFlight.remove(prompt)
         if trimmed.isEmpty {
           assistantValues.removeValue(forKey: prompt)
         } else if case .value(let value) = CalculationEngine().evaluate(trimmed, context: context) {
@@ -891,12 +944,12 @@ public final class SheetEditorViewController: NSViewController {
 
   private func isAssistantPending(text: String, result: CalculationResult) -> Bool {
     let asked = text.trimmingCharacters(in: .whitespacesAndNewlines)
-    if assistantLineInFlight.contains(asked) {
+    if assistantLineInFlight[asked] != nil {
       return true
     }
     if case .evaluationFailure(let error) = result,
       case .assistantPrompt(let prompt) = error.context,
-      assistantPromptsInFlight.contains(prompt)
+      assistantPromptsInFlight[prompt] != nil
     {
       return true
     }

@@ -10,7 +10,7 @@ when the focused editor or window can perform it.
 | Ganit | About, Settings… ⌘,, Check for Updates…, Check for Updates Automatically, Stay in the Menu Bar, Show Sheet Titles in Spotlight, Assistant…, Hide ⌘H, Hide Others ⌥⌘H, Show All, Quit ⌘Q |
 | File | New Sheet ⌘N, Close ⌘W, Print… ⌘P |
 | Edit | Undo ⌘Z, Redo ⇧⌘Z, Cut ⌘X, Copy ⌘C, Paste ⌘V, Delete, Select All ⌘A, Find ▸ (Find… ⌘F, Find and Replace… ⌥⌘F, Find Next ⌘G, Find Previous ⇧⌘G, Use Selection for Find ⌘E), Autocomplete |
-| Calculate | Copy Result ⇧⌘C, Copy with Results, Copy Full Precision ⌥⇧⌘C, Show Interpretation, Ask Assistant, Change Answer…, Insert Reference ⌘\, Insert Subtotal ⌘T, Recalculate ⌘R, Stop ⌘. |
+| Calculate | Copy Result ⇧⌘C, Copy with Results, Copy Full Precision ⌥⇧⌘C, Show Interpretation, Ask Assistant, Change Answer…, Cancel Request, Insert Reference ⌘\, Insert Subtotal ⌘T, Recalculate ⌘R, Stop ⌘. |
 | Format | Heading, Comment ⌘/, Divider, Step Number Up ⌃↑, Step Number Down ⌃↓, Number Format, Group Digits, Group Digits in Lakhs, Angles in Degrees, Markdown Mode, Dollar Means |
 | View | Bigger ⌘+, Smaller ⌘-, Actual Size ⌘0, Show Answer Separator, Enter Full Screen ⌃⌘F |
 | Window | Minimize ⌘M, Zoom, Scratch ⇧⌘S, Definitions ⌘⇧D, Quick Ganit items, Bring All to Front, and the window list |
@@ -36,6 +36,10 @@ workspace window with an empty sheet.
   (with the original line retained as a comment), or using it temporarily until
   Ganit quits. Neither option sends another request.
 
+- **Cancel Request** stops waiting for the insertion point's line, or the
+  selected answer's, while it shows Asking…. The line shows its diagnostic
+  again and is not asked about again until Ask Assistant.
+
 - **Copy with Results** copies each selected line, or the insertion point's
   line, with the answer that line shows. Assisted display answers include an
   “AI; unverified” annotation; pending requests are omitted.
@@ -59,7 +63,8 @@ workspace window with an empty sheet.
 - **Heading** and **Comment** add `# ` or `// ` to every non-blank selected line
   after its indentation, or remove the marker when all of those lines already
   have it, as one undoable edit.
-- **Stop** cancels the running generation and keeps the last shown answers.
+- **Stop** cancels the running generation, keeping the last shown answers, and
+  cancels every assistant request of the sheet as Cancel Request does.
 
 ## Return
 

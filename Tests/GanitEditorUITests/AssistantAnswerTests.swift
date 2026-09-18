@@ -153,6 +153,100 @@ struct AssistantAnswerTests {
     #expect(done.first?.text == "10,000 ml")
   }
 
+  /// Stop cancels assistant requests as well as evaluation, and a cancelled
+  /// line is not asked about again until Ask Assistant.
+  @Test
+  func stopCancelsAssistantRequests() async throws {
+    let asked = Asked()
+    let editor = try makeEditor("10 kg of water in ml\nask_assistant(5 kg of water in ml)")
+    editor.askAssistant = { line in
+      await asked.record(line)
+      try? await Task.sleep(for: .seconds(30))
+      if Task.isCancelled {
+        await asked.record("cancelled")
+      }
+      return "10000 ml"
+    }
+    let textView = try #require(editor.textView as? SheetTextView)
+    await editor.scheduler?.waitUntilIdle()
+    _ = try await answers(of: textView) { $0.count == 2 && $0.allSatisfy(\.isPending) }
+
+    editor.stopCalculation(nil)
+    let stopped = try await answers(of: textView) {
+      $0.count == 2 && !$0.contains(where: \.isPending)
+    }
+    #expect(stopped.allSatisfy { $0.isFailure && !$0.isAssisted })
+    for _ in 0..<50 where await asked.recorded.count < 4 {
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    #expect(await asked.recorded.filter { $0 == "cancelled" }.count == 2)
+
+    // Moving about and recalculating do not send them again.
+    textView.setSelectedRange(NSRange(location: 0, length: 0))
+    editor.recalculate(nil)
+    await editor.scheduler?.waitUntilIdle()
+    textView.setSelectedRange(NSRange(location: textView.string.utf16.count, length: 0))
+    try await Task.sleep(for: .milliseconds(100))
+    #expect(await asked.recorded.count == 4)
+    #expect(textView.answerLayout(in: textView.bounds).allSatisfy { !$0.cell.isPending })
+
+    // Ask Assistant asks again.
+    textView.setSelectedRange(NSRange(location: 0, length: 0))
+    textView.askAssistant(nil)
+    _ = try await answers(of: textView) { $0.first?.isPending == true }
+    for _ in 0..<50 where await asked.recorded.count < 5 {
+      try await Task.sleep(for: .milliseconds(10))
+    }
+    #expect(await asked.recorded.count == 5)
+    editor.stopCalculation(nil)
+  }
+
+  /// Cancel Request stops waiting for one line, and a late reply is ignored.
+  @Test
+  func cancelRequestCancelsOnlyTheSelectedLine() async throws {
+    let gate = Gate()
+    let editor = try makeEditor("10 kg of water in ml\n5 kg of water in ml")
+    editor.askAssistant = { line in
+      await gate.wait()
+      return line.hasPrefix("10") ? "10,000 ml" : "5,000 ml"
+    }
+    let textView = try #require(editor.textView as? SheetTextView)
+    await editor.scheduler?.waitUntilIdle()
+    _ = try await answers(of: textView) { $0.count == 2 && $0.allSatisfy(\.isPending) }
+
+    textView.setSelectedRange(NSRange(location: 0, length: 0))
+    let item = NSMenuItem(
+      title: "", action: #selector(SheetCommands.cancelAssistantRequest(_:)), keyEquivalent: "")
+    #expect(textView.validateUserInterfaceItem(item))
+    textView.cancelAssistantRequest(nil)
+    #expect(!textView.validateUserInterfaceItem(item))
+    await gate.open()
+    let cells = try await answers(of: textView) { $0.count == 2 && $0[1].isAssisted }
+    #expect(cells[0].isFailure)
+    #expect(!cells[0].isAssisted)
+    #expect(cells[1].text == "5,000 ml")
+  }
+
+  /// A temporary correction made while a request is pending is not replaced
+  /// by that request's late reply.
+  @Test
+  func aCorrectionIsNotReplacedByALateReply() async throws {
+    let gate = Gate()
+    let editor = try makeEditor("10 kg of water in ml")
+    editor.askAssistant = { _ in
+      await gate.wait()
+      return "10,000 ml"
+    }
+    let textView = try #require(editor.textView as? SheetTextView)
+    await editor.scheduler?.waitUntilIdle()
+    _ = try await answers(of: textView) { $0.first?.isPending == true }
+    editor.applyAssistantAnswer("9,000 ml")
+    await gate.open()
+    try await Task.sleep(for: .milliseconds(100))
+    let cells = try await answers(of: textView) { $0.first?.text == "9,000 ml" }
+    #expect(cells.first?.isAssisted == true)
+  }
+
   @Test
   func aChangedAssistantAnswerReplacesThePurpleValue() async throws {
     let editor = try makeEditor("10 kg of water in ml")

@@ -106,6 +106,7 @@ assistant shows Asking… until a value arrives.
 | Right-click a function or keyword | Help for that name |
 | Right-click Ask Assistant | Asks again about a line Ganit could not work out, or an `ask_assistant` prompt |
 | Right-click Change Answer… | Replaces an assistant value on that line |
+| Right-click Cancel Request | Stops waiting for that line's assistant answer |
 | Right-click Copy with Results | Copies each selected line with the answer it shows |
 | Escape or typing | Clears the answer selection |
 

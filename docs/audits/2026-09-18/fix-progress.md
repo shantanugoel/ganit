@@ -75,7 +75,23 @@ G04 full GitHub CI passed (run 35339826684).
 - Validation: 486 package tests, formatting, pseudolocalized layout, debug app
   build, bundle verification, and whitespace checks pass.
 
+## G06 — Cancel assistant requests
+
+- Stop now cancels evaluation and every assistant request of the sheet; a new
+  Cancel Request command (answer menu and Calculate menu) cancels only the
+  selected line or prompt. Each request keeps its task handle.
+- Cancelled lines and prompts show their diagnostic, ignore a late reply, and
+  are not asked about again until Ask Assistant. Docs state that cancelling
+  cannot recall a line already sent.
+- Review found that a temporary correction made while a request was pending
+  could be overwritten by the late reply; cancelling the request fixes it.
+- Validation: assistant regression tests cover Stop for line and prompt
+  requests, no automatic re-asking, Ask Assistant retry, per-line Cancel
+  Request, and late-reply suppression. 492 package tests, formatting,
+  pseudolocalized layout, debug app build, bundle verification, and
+  whitespace checks pass.
+
 ## Remaining
 
-G06–G15, then release validation, version bump, and publication via the existing
+G07–G15, then release validation, version bump, and publication via the existing
 signed/notarized GitHub release workflow triggered by `v0.4.0`.

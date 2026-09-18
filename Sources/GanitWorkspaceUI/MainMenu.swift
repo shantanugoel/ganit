@@ -316,6 +316,10 @@ public enum MainMenu {
             #selector(SheetCommands.changeAssistantAnswer(_:))
           ),
           item(
+            localized("menu.cancelRequest", "Cancel Request"),
+            #selector(SheetCommands.cancelAssistantRequest(_:))
+          ),
+          item(
             localized("menu.nextProblem", "Next Problem"),
             #selector(SheetCommands.nextProblem(_:)), "'"),
           item(

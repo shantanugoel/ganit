@@ -5,6 +5,10 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Calculate ▸ Stop cancels assistant requests as well as evaluation, and
+  Cancel Request stops waiting for one line's answer. A cancelled line shows
+  its diagnostic and is not asked about again until Ask Assistant.
+
 - Interpretation cards stay within the display, wrap explanations, scroll long
   exact values, and offer Copy Full Precision without expanding the popover.
 
