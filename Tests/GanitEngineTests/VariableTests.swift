@@ -113,10 +113,15 @@ struct VariableTests {
   func rejectsReservedAndNonWordNames() throws {
     for source in [
       "in = 1", "pi = 3", "e = 2", "min = 1", "km = 5", "kW = 3", "total km = 3",
-      "2x = 1", "a-b = 1", "percentage = 5", "today = 1", "now = 2", "days ago = 3",
+      "percentage = 5", "today = 1", "now = 2", "days ago = 3",
     ] {
       let results = try sheetOutcomes(source)
       #expect(results[0] == "syntax.invalidVariableName", "\(source)")
+    }
+    // A name that is not words at all says that instead.
+    for source in ["2x = 1", "a-b = 1", "Groceries (Costco) = 2"] {
+      let results = try sheetOutcomes(source)
+      #expect(results[0] == "syntax.nonWordName", "\(source)")
     }
   }
 

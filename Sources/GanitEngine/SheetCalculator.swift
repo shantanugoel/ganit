@@ -270,7 +270,9 @@ private final class LineSource: Sendable {
       )
     }
     let diagnostic: SyntaxDiagnostic
-    switch problem {
+    // `1 km = 5 m` defines a unit, so its leading `1` is the shape rather than
+    // a name that is not words; the word it names is what is taken.
+    switch oneOf == nil ? problem : .takenWord(nameRange) {
     case .takenWord(let range):
       diagnostic = SyntaxDiagnostic(code: .invalidVariableName, range: shifted(range))
     case .notWords(let range):
