@@ -234,7 +234,13 @@ G04 full GitHub CI passed (run 35339826684).
   corpus, formatting, pseudolocalized layout, debug app build, bundle
   verification, and whitespace checks pass.
 
-## Remaining
+## Release 0.4.0
 
-Release validation, version bump, and publication via the existing
-signed/notarized GitHub release workflow triggered by `v0.4.0`.
+- All fifteen fixes are on `main`; CI passed on the G15 commit (run
+  35350223599), which contains every fix. The last three nightly fuzz runs
+  passed.
+- Moved the Unreleased changelog entries under 0.4.0 and set
+  `CFBundleShortVersionString` and `CFBundleVersion` to 0.4.0.
+- Local release validation: release-configuration app build, bundle
+  verification, launch smoke test, and command-line checks pass.
+- Tag `v0.4.0` triggers the signed and notarized GitHub release workflow.
