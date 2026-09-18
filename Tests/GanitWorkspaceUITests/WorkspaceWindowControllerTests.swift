@@ -354,6 +354,17 @@ struct WorkspaceWindowControllerTests {
   }
 
   @Test
+  func theSidebarRewritesHowLongAgoASheetWasWritten() throws {
+    let then = Date(timeIntervalSince1970: 1_700_000_000)
+    #expect(
+      SidebarViewController.relativeTime(of: then, to: then.addingTimeInterval(120))
+        .localizedCaseInsensitiveContains("2 minutes"))
+    #expect(
+      SidebarViewController.relativeTime(of: then, to: then.addingTimeInterval(7_200))
+        .localizedCaseInsensitiveContains("2 hours"))
+  }
+
+  @Test
   func groupsASheetsAnswersInLakhsOnlyWhileItGroupsDigits() async throws {
     let (workspace, ids) = try makeWorkspace(["1234567"])
     defer { close(workspace) }

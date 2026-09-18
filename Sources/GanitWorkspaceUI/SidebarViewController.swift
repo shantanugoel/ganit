@@ -23,6 +23,8 @@ final class SidebarViewController: NSViewController {
   private var items: [SidebarItem] = []
   private var collectionsHeight: NSLayoutConstraint!
   private var isSelectingProgrammatically = false
+  /// Keeps "5 minutes ago" true while a window stays open.
+  private var relativeTimes: Timer?
 
   init(library: SheetLibrary, now: @escaping () -> Date = Date.init) {
     self.library = library
@@ -112,6 +114,45 @@ final class SidebarViewController: NSViewController {
     scroll.hasVerticalScroller = true
     scroll.drawsBackground = false
     return scroll
+  }
+
+  /// How long ago a sheet was last written, as the list shows it.
+  static func relativeTime(of date: Date, to now: Date) -> String {
+    let formatter = RelativeDateTimeFormatter()
+    formatter.dateTimeStyle = .named
+    return formatter.localizedString(for: date, relativeTo: now)
+  }
+
+  /// Rewrites the times in the list, which go stale as the minutes pass.
+  func refreshRelativeTimes() {
+    guard sheetsView.numberOfRows > 0 else {
+      return
+    }
+    let selection = sheetsView.selectedRowIndexes
+    sheetsView.reloadData(
+      forRowIndexes: IndexSet(integersIn: 0..<sheetsView.numberOfRows),
+      columnIndexes: IndexSet(integer: 0))
+    sheetsView.selectRowIndexes(selection, byExtendingSelection: false)
+  }
+
+  override func viewDidAppear() {
+    super.viewDidAppear()
+    guard relativeTimes == nil else {
+      return
+    }
+    // A minute is the finest step the list shows.
+    let timer = Timer(timeInterval: 60, repeats: true) { [weak self] _ in
+      MainActor.assumeIsolated { self?.refreshRelativeTimes() }
+    }
+    timer.tolerance = 15
+    RunLoop.main.add(timer, forMode: .common)
+    relativeTimes = timer
+  }
+
+  override func viewDidDisappear() {
+    super.viewDidDisappear()
+    relativeTimes?.invalidate()
+    relativeTimes = nil
   }
 
   /// Reloads folders and sheets from the library, keeping selections.
@@ -385,8 +426,7 @@ extension SidebarViewController: NSTableViewDataSource, NSTableViewDelegate {
     titleRow.alignment = .centerY
     titleRow.distribution = .fill
     titleRow.spacing = VisualStyle.Spacing.related
-    let modified = NSTextField(
-      labelWithString: sheet.modifiedAt.formatted(.relative(presentation: .named)))
+    let modified = NSTextField(labelWithString: Self.relativeTime(of: sheet.modifiedAt, to: now()))
     modified.textColor = VisualStyle.Color.secondary
     modified.font = VisualStyle.Typography.caption
     modified.lineBreakMode = .byTruncatingTail

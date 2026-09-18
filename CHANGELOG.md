@@ -5,6 +5,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- The sidebar rewrites how long ago each sheet was written while the window
+  stays open, instead of leaving "1 second ago" there for an hour.
 - A name that is not words, such as `Groceries (Costco) = 230`, says so and
   points at the bracket instead of blaming a word.
 - Variable names match whatever their letter case: `Monthly Rent` and
