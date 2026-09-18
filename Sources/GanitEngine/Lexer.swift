@@ -153,6 +153,10 @@ private struct Scanner {
         append(.divide, from: start)
       case "^":
         append(.power, from: start)
+      case "√":
+        append(.squareRoot, from: start)
+      case "!":
+        append(.factorial, from: start)
       case "&":
         append(.bitwiseAnd, from: start)
       case "|":

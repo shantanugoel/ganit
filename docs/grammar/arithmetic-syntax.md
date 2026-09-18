@@ -7,7 +7,8 @@ evaluator, and separately layered result/diagnostic formatting.
 
 - Binary operators: `+`, `-`, `*`/`×`, `/`/`÷`, `^`/`**`, and the whole-number
   bit operators `&`, `|`, `<<`, and `>>`
-- Unary signs: `+` and `-`/`−`
+- Unary signs: `+` and `-`/`−`, and `√` before a value (`√2` is `sqrt(2)`)
+- A postfix `!` is the factorial: `5!` is `120`
 - Parentheses for explicit grouping
 - Function-call syntax such as `sqrt(9)` and `max(1, 2)`
 - Unicode UAX #31 identifiers such as `π`; `_` is also accepted
@@ -34,7 +35,9 @@ In comma-decimal locales, use a semicolon between function arguments (`max(1; 2)
 
 ## Evaluation
 
-- `π`, `pi`, and `e` are explicitly approximate constants.
+- `π`, `pi`, and `e` are explicitly approximate constants. `c` is the speed of
+  light, `299,792,458 m/s`, exact by definition; a variable named `c` declared
+  above takes precedence.
 - `abs(x)`, `floor(x)`, `ceil(x)`, and `trunc(x)` take one argument. `round(x)`
   rounds to a whole number; `round(x, n)` keeps `n` digits after the decimal.
   Both `round` forms use the injected rounding rule. `n` is a non-negative whole

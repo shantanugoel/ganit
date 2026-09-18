@@ -185,6 +185,13 @@ private struct EvaluationWorker {
       estimate = .pi
     case "e":
       estimate = Foundation.exp(1)
+    case "c":
+      // The speed of light, exact by definition, in metres per second.
+      return .quantity(
+        QuantityValue(
+          magnitude: .integer(IntegerValue(299_792_458)),
+          unit: try unitAlgebra.divided(
+            try unitAlgebra.unit(builtInUnit("m")), by: try unitAlgebra.unit(builtInUnit("s")))))
     default:
       throw EngineError(code: .unknownIdentifier, ranges: [range])
     }
@@ -428,6 +435,12 @@ private struct EvaluationWorker {
     _ unaryOperator: UnaryOperator,
     to value: EngineValue
   ) throws -> EngineValue {
+    if unaryOperator == .squareRoot {
+      guard case .number(let number) = value else {
+        throw typeMismatch(expected: .number, actual: value.kind)
+      }
+      return .number(try operations.root(number, degree: .integer(IntegerValue(2))))
+    }
     switch value {
     case .number(let number):
       return .number(try operations.applying(unaryOperator, to: number))
@@ -950,6 +963,14 @@ private struct EvaluationWorker {
       )
     }
     return number
+  }
+
+  /// A built-in unit by its alias, for a constant that carries one.
+  private func builtInUnit(_ alias: String) throws -> UnitDefinition {
+    guard let resolved = builtInMinimalUnitCatalog.resolveUnit(matching: alias) else {
+      throw EngineError(code: .internalFailure)
+    }
+    return resolved.entry.definition
   }
 
   private func requirePercentage(

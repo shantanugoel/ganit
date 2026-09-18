@@ -18,6 +18,7 @@ struct MarkdownModeTests {
       2 + 2 =>
       savings / salary as a share
       Rent - the big one - is due
+      Wow!
       """
     )
     let results = try calculator.evaluate(
@@ -57,6 +58,8 @@ struct MarkdownModeTests {
       Issue.record("Expected the mistyped calculation to report its problem")
     }
     #expect(results[7].result == nil)
+    // A word with an exclamation mark is prose, not a factorial.
+    #expect(results[8].result == nil)
   }
 
   @Test

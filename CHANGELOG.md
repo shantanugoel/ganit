@@ -5,6 +5,9 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- `√2` is the square root, `5!` is the factorial, and `c` is the speed of
+  light with its unit. A declared `c` still wins, and `Wow!` stays prose in
+  Markdown Mode.
 - Bit operators on whole numbers: `0xff & 0x0f`, `0xf0 | 0x0f`, `1 << 10`,
   `1024 >> 3`, and `xor(12, 10)`.
 - New functions: `gcd`, `lcm`, `ncr`, `npr`, `stdev`, `stdevp`, and `npv`.

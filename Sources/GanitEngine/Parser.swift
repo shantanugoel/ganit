@@ -185,6 +185,16 @@ private final class TokenParser {
         diagnose(.resourceLimitExceeded, at: current.range)
         return nil
       }
+      // `5!` is the factorial, binding as tightly as a percent sign does.
+      if current.kind == .factorial, 40 >= minimumBindingPower {
+        let bang = advance()
+        left = .call(
+          name: BuiltInFunction.factorial.rawValue, nameRange: bang.range, arguments: [left],
+          range: left.range.union(bang.range))
+        depth += 1
+        continue
+      }
+
       if current.kind == .percent {
         guard 40 >= minimumBindingPower else {
           break
@@ -503,7 +513,7 @@ private final class TokenParser {
       }
       return variableName(startingWith: name, range: token.range)
 
-    case .plus, .minus:
+    case .plus, .minus, .squareRoot:
       guard
         let operand = parseExpression(
           minimumBindingPower: Self.prefixBindingPower,
@@ -512,7 +522,12 @@ private final class TokenParser {
       else {
         return nil
       }
-      let unaryOperator: UnaryOperator = token.kind == .plus ? .plus : .minus
+      let unaryOperator: UnaryOperator =
+        switch token.kind {
+        case .plus: .plus
+        case .squareRoot: .squareRoot
+        default: .minus
+        }
       return .prefix(
         unaryOperator,
         operand: operand,

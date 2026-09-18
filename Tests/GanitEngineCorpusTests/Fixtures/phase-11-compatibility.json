@@ -388,15 +388,13 @@
       }
     },
     {
-      "name": "factorial is not in the grammar",
+      "name": "a postfix mark is the factorial",
       "expression": "100!",
       "expected": {
-        "status": "syntaxFailure",
-        "code": "unexpectedCharacter",
-        "messageKey": "syntax.unexpectedCharacter",
-        "message": "This character is not valid in an expression.",
-        "lowerBound": 3,
-        "upperBound": 4
+        "status": "value",
+        "display": "9.33262154439442e157",
+        "approximate": false,
+        "fullPrecision": "93326215443944152681699238856266700490715968264381621468592963895217599993229915608941463976156518286253697920827223758251185210916864000000000000000000000000"
       }
     },
     {

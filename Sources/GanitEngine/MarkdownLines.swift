@@ -78,6 +78,12 @@ enum MarkdownLines {
   }
 
   private static func isBareProse(_ expression: Expression) -> Bool {
+    // `Wow!` is a word with a mark, not the factorial of a word.
+    if case .call(let name, _, let arguments, _) = expression,
+      name == BuiltInFunction.factorial.rawValue, arguments.count == 1
+    {
+      return isBareProse(arguments[0])
+    }
     guard case .identifier(let name, _) = expression else {
       return false
     }

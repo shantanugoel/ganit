@@ -70,7 +70,7 @@ Ganit 5c787c4, numi-cli v0.18.0.
 | `3 pm + 2 hours` | 5 h | These quantities have incompatible dimensions. |
 | `100 km/h in mph` | 100 km | 62.1371192237334 mph |
 | `2 GB / 5 min in Mbps` | 0.40 min | 53.3333333333333 Mbps |
-| `100!` | 100 | This character is not valid in an expression. |
+| `100!` | 100 | 9.33262154439442e157 |
 | `2 + 2 = 4` | 4 | This character is not valid in an expression. |
 | `75 mph in km/h` | 75 km | 120.7008 km/h |
 | `170 lb in kg` | 77.11 kg | 77.1107029 kg |
@@ -99,8 +99,8 @@ precision and keeps the exact value for Copy Full Precision.
 - `3 pm + 2 hours` reads `pm` as picometres after a bare number, as the
   [ambiguity registry](../grammar/ambiguity-registry.md) records; `3:00 pm`
   is the time.
-- `100!` and `2 + 2 = 4` are not in the grammar. Numi answers `100` and `4`
-  respectively, dropping the part it does not understand.
+- `2 + 2 = 4` is not in the grammar. Numi answers `4`, dropping the part it
+  does not understand.
 - `50% + 0.5` has no single meaning: Soulver documents `100%`, Numi answers
   `50.5 %`, and Ganit asks instead of picking one.
 - No phrase rounds an answer, so `1/3 to 2 dp` does not parse. Numi answers

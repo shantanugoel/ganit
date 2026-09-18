@@ -55,6 +55,8 @@ public enum TokenKind: Equatable, Sendable {
   case power
   case superscript(Int)
   case percent
+  case squareRoot
+  case factorial
   case bitwiseAnd
   case bitwiseOr
   case shiftLeft

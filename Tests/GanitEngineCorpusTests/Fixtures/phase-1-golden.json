@@ -104,6 +104,26 @@
       }
     },
     {
+      "name": "root sign and factorial mark",
+      "expression": "√16 + 5!",
+      "expected": {
+        "status": "value",
+        "display": "124",
+        "fullPrecision": "124",
+        "approximate": false
+      }
+    },
+    {
+      "name": "the speed of light carries its unit",
+      "expression": "c * 1 s in km",
+      "expected": {
+        "status": "value",
+        "display": "299,792.458 km",
+        "fullPrecision": "149896229/500 km",
+        "approximate": false
+      }
+    },
+    {
       "name": "programmer literals",
       "expression": "0xff + 0b1010",
       "expected": {

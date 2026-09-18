@@ -1,6 +1,8 @@
 public enum UnaryOperator: Equatable, Sendable {
   case plus
   case minus
+  /// `√2`, the same as `sqrt(2)`.
+  case squareRoot
 }
 
 public enum BinaryOperator: Equatable, Sendable {
