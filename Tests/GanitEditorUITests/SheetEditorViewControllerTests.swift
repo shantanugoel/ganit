@@ -46,6 +46,64 @@ struct SheetEditorViewControllerTests {
   }
 
   @Test
+  func returnAndReferenceRewritesUndoTogetherAfterTyping() async throws {
+    let source = "# Heading\n10\n20\nline 2 + line 3\nprevious * 2"
+    let editor = SheetEditorViewController(text: source, context: try testContext())
+    let window = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 600, height: 400),
+      styleMask: [.titled], backing: .buffered, defer: true)
+    window.contentViewController = editor
+    window.makeFirstResponder(editor.textView)
+    let textView = editor.textView
+    let manager = editor.documentUndoManager
+    textView.setSelectedRange(NSRange(location: 10, length: 0))
+    textView.insertText("5", replacementRange: textView.selectedRange())
+    try await Task.sleep(for: .milliseconds(30))
+    textView.setSelectedRange(NSRange(location: 11, length: 0))
+    let beforeReturn = textView.string
+    textView.insertNewline(nil)
+    try await Task.sleep(for: .milliseconds(30))
+    let afterReturn = textView.string
+    #expect(afterReturn == "# Heading\n5\n10\n20\nline 2 + line 4\nprevious * 2")
+    manager.undo()
+    #expect(textView.string == beforeReturn)
+    #expect(editor.sheet.text == beforeReturn)
+    manager.redo()
+    #expect(textView.string == afterReturn)
+    #expect(editor.sheet.text == afterReturn)
+  }
+
+  @Test(arguments: ["5\n", "5\n6\n"])
+  func pastedLinesAndMultipleReferencesUndoAndRedoTogether(_ insertion: String) async throws {
+    let source = "10\n20\nline 1 + line 2\nline 1 * line 2"
+    let editor = SheetEditorViewController(text: source, context: try testContext())
+    let textView = editor.textView
+    textView.setSelectedRange(NSRange(location: 0, length: 0))
+    textView.insertText(insertion, replacementRange: textView.selectedRange())
+    try await Task.sleep(for: .milliseconds(30))
+    let inserted = insertion.filter { $0 == "\n" }.count
+    let updated =
+      insertion + "10\n20\nline \(1 + inserted) + line \(2 + inserted)\n"
+      + "line \(1 + inserted) * line \(2 + inserted)"
+    #expect(textView.string == updated)
+    editor.documentUndoManager.undo()
+    #expect(textView.string == source)
+    #expect(editor.sheet.text == source)
+    editor.documentUndoManager.redo()
+    #expect(textView.string == updated)
+    #expect(editor.sheet.text == updated)
+    textView.setSelectedRange(NSRange(location: 0, length: insertion.utf16.count))
+    textView.insertText("", replacementRange: textView.selectedRange())
+    try await Task.sleep(for: .milliseconds(30))
+    #expect(textView.string == source)
+    editor.documentUndoManager.undo()
+    #expect(textView.string == updated)
+    editor.documentUndoManager.redo()
+    #expect(textView.string == source)
+    #expect(editor.sheet.text == source)
+  }
+
+  @Test
   func mirrorsMarkedTextCompositionAndCommit() throws {
     let editor = SheetEditorViewController(text: "1 + ", context: try testContext())
     let textView = editor.textView

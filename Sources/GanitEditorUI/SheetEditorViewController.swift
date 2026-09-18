@@ -299,6 +299,10 @@ public final class SheetEditorViewController: NSViewController {
     else {
       return
     }
+    // End typing coalescence before opening the transaction: AppKit otherwise
+    // separates a reference rewrite from the newline that triggered it.
+    textView.breakUndoCoalescing()
+    documentUndoManager.beginUndoGrouping()
     let first = lineIndex(atUTF16: range.location)
     let inserted = replacement.utf16.reduce(0) { $0 + ($1 == 10 ? 1 : 0) }
     pendingLineShift = (shift.firstMovedLine, shift.delta, first...(first + inserted))
@@ -310,6 +314,10 @@ public final class SheetEditorViewController: NSViewController {
       return
     }
     pendingLineShift = nil
+    defer {
+      textView.breakUndoCoalescing()
+      documentUndoManager.endUndoGrouping()
+    }
     let edits = LineReferenceRenumbering.edits(
       in: textView.string, firstMovedLine: shift.firstMovedLine, delta: shift.delta,
       editedLines: shift.editedLines, configuration: context.lexingConfiguration)

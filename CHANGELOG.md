@@ -5,6 +5,9 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Inserting or deleting lines and updating their references now undo and redo
+  together, so Undo cannot silently leave formulas referring to different values.
+
 ## 0.3.0
 
 - The `ganit` command answers each argument as a line of a sheet, so
