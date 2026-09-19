@@ -60,6 +60,14 @@ public final class Workspace {
       }
     }
   }
+  /// Forgets a kept reply before Ask Assistant asks again.
+  public var forgetAssistantAnswer: ((String) -> Void)? {
+    didSet {
+      for sheet in sheets.values {
+        sheet.editor.forgetAssistantAnswer = forgetAssistantAnswer
+      }
+    }
+  }
   /// Opens Help on a topic a sheet asked to show.
   public var openHelp: ((String) -> Void)? {
     didSet {
@@ -210,6 +218,7 @@ public final class Workspace {
     )
     editor.setDefinitions(definitions)
     editor.askAssistant = askAssistant
+    editor.forgetAssistantAnswer = forgetAssistantAnswer
     editor.openHelp = openHelp
     editor.displayOptionsDidChange = { [weak self] options in
       // The answers already show the change; a failed save leaves it unsaved.

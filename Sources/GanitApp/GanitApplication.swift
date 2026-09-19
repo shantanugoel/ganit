@@ -39,6 +39,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   private var quickPanel: QuickPanelController?
   private var quickBufferStore: TextDocumentStore?
   private var rateRefresher: RateRefresher?
+  private var assistantAnswerStore: AssistantAnswerStore?
   private var serviceProvider: ExpressionServiceProvider?
   private let spotlight = SpotlightTitleIndex()
   private static let spotlightDefaultsKey = "SpotlightIndexesSheetTitles"
@@ -94,8 +95,12 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       workspace.definitionsDidChange = { [weak self] definitions in
         self?.quickPanel?.editor.setDefinitions(definitions)
       }
+      assistantAnswerStore = try AssistantAnswerStore.applicationSupport()
       workspace.askAssistant = { [weak self] line in
         await self?.assistantAnswer(to: line) ?? nil
+      }
+      workspace.forgetAssistantAnswer = { [weak self] line in
+        self?.assistantAnswerStore?.forget(line)
       }
       workspace.openHelp = { [weak self] id in
         self?.showHelp(topicID: id)
@@ -490,7 +495,17 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     guard settings.isReady else {
       return nil
     }
-    return try? await Assistant(settings: settings).answer(to: line)
+    if let recorded = assistantAnswerStore?.answer(to: line) {
+      return recorded
+    }
+    do {
+      let answer = try await Assistant(settings: settings).answer(to: line)
+      assistantAnswerStore?.record(answer, for: line)
+      return answer
+    } catch {
+      // A failed or cancelled request is asked again next time.
+      return nil
+    }
   }
 
   /// Completes function and keyword names while typing, or not.
@@ -693,6 +708,9 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       }
       quickPanel?.editor.askAssistant = { [weak self] line in
         await self?.assistantAnswer(to: line) ?? nil
+      }
+      quickPanel?.editor.forgetAssistantAnswer = { [weak self] line in
+        self?.assistantAnswerStore?.forget(line)
       }
       quickPanel?.editor.openHelp = { [weak self] id in
         self?.showHelp(topicID: id)

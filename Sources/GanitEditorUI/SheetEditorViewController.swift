@@ -51,6 +51,9 @@ public final class SheetEditorViewController: NSViewController {
       askAboutUnansweredLines()
     }
   }
+  /// Forgets a kept reply to the text asked, so that Ask Assistant asks the
+  /// model again rather than repeating it.
+  public var forgetAssistantAnswer: ((String) -> Void)?
   /// Opens Help on a topic the pointer is over, such as a function name.
   public var openHelp: ((String) -> Void)? {
     didSet {
@@ -171,6 +174,9 @@ public final class SheetEditorViewController: NSViewController {
         return nil
       }
       return flaggedDiagnostic(result, text: shown.text, isEditing: id == editingLine)
+    }
+    sheetTextView.variableNames = { [weak self] in
+      self?.variableNames() ?? []
     }
     sheetTextView.canAskAssistant = { [weak self] in
       self?.canAskAssistant() ?? false
@@ -612,8 +618,7 @@ public final class SheetEditorViewController: NSViewController {
     else {
       return
     }
-    // Values are written as the sheet shows them.
-    let text = prompt.text { (try? resultFormatter.format($0))?.display ?? "" }
+    let text = text(of: prompt)
     assistantPromptsInFlight[prompt] = Task { [weak self] in
       let answer = await askAssistant(text)
       guard !Task.isCancelled else {
@@ -623,6 +628,11 @@ public final class SheetEditorViewController: NSViewController {
     }
     sheetTextView.answersDidChange()
     summarizeSelection()
+  }
+
+  /// The text sent for `prompt`, its values written as the sheet shows them.
+  private func text(of prompt: AssistantPrompt) -> String {
+    prompt.text { (try? resultFormatter.format($0))?.display ?? "" }
   }
 
   private func finishAssistantPrompt(_ prompt: AssistantPrompt, answer: String?) {
@@ -635,6 +645,13 @@ public final class SheetEditorViewController: NSViewController {
     context = context.with(assistantAnswers: assistantValues)
     scheduler?.context = context
     scheduler?.schedule(sheet)
+  }
+
+  /// The names a `{…}` placeholder can complete to: this sheet's variables
+  /// and the definitions sheet's.
+  private func variableNames() -> [String] {
+    let definitions = [latestEvaluation?.definitions, scheduler?.definitions].compactMap { $0 }
+    return Set(definitions.flatMap(\.variables.keys)).sorted()
   }
 
   /// Whether Ask Assistant can send the selected answer's line, or the
@@ -709,6 +726,7 @@ public final class SheetEditorViewController: NSViewController {
       for prompt in prompts {
         assistantValues.removeValue(forKey: prompt)
         assistantPromptsCancelled.remove(prompt)
+        forgetAssistantAnswer?(text(of: prompt))
       }
       context = context.with(assistantAnswers: assistantValues)
       scheduler?.context = context
@@ -720,6 +738,7 @@ public final class SheetEditorViewController: NSViewController {
       cancelAssistantRequests(lines: [asked], prompts: [])
       assistantAnswers.removeValue(forKey: asked)
       assistantAsked.remove(asked)
+      forgetAssistantAnswer?(asked)
       cells.removeAll()
       sheetTextView.answersDidChange()
       startLineAssistantRequest(asked)

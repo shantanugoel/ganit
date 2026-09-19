@@ -41,10 +41,14 @@ this user can read.
 - Typing has stopped for `assistantPause`, which is 1.2 seconds.
 - That exact text has not been asked about already. Answers are kept by the
   text that was asked, so the same line in two places costs one request, and
-  editing a line and changing it back costs none.
+  editing a line and changing it back costs none. `AssistantAnswerStore`
+  keeps each reply, including "no answer", in `AssistantAnswers.json` under
+  Application Support, so reopening a sheet or relaunching Ganit does not ask
+  again. A failed or cancelled request is not kept.
 
 **Ask Assistant** on the line's right-click menu, or under Calculate, asks
-again about that line or prompt even when an answer is already on screen.
+again about that line or prompt even when an answer is already on screen or
+kept, and keeps the new reply instead.
 **Change Answer…** offers **Save Value into Sheet** and **Use Temporarily**.
 Saving validates a single-line value Ganit can calculate without assistance,
 replaces the selected line with it, and retains the original source as a
@@ -64,7 +68,8 @@ longer waits for or uses the reply.
 `SheetEditorViewController` also asks about `ask_assistant(prompt)` when it
 has no answer yet. The text inside the parentheses is the prompt, except that
 a `{…}` placeholder holds an expression, such as `{weight}` or `{previous}`,
-whose value is written into the prompt as the sheet shows it. The reply is
+whose value is written into the prompt as the sheet shows it. Typing `{`
+offers the sheet's variables, and choosing one closes the placeholder. The reply is
 parsed as a Ganit value, so a later line can write `previous * 2`. Answers are
 kept by the prompt with its placeholders' values, so changing `weight` asks
 again and changing it back costs nothing. A placeholder Ganit cannot work out

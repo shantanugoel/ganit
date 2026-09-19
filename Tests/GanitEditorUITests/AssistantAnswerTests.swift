@@ -198,11 +198,15 @@ struct AssistantAnswerTests {
     await editor.scheduler?.waitUntilIdle()
     _ = try await answers(of: textView) { $0.first?.isFailure == false }
 
+    var forgotten: [String] = []
+    editor.forgetAssistantAnswer = { forgotten.append($0) }
     textView.setSelectedRange(NSRange(location: 0, length: 0))
     textView.askAssistant(nil)
     let cells = try await answers(of: textView) { $0.first?.text.contains("5") == true }
     #expect(cells.first?.isFailure == false)
     #expect(await asked.recorded == ["10 kg of water in ml", "10 kg of water in ml"])
+    // A kept reply is forgotten, so the model is asked rather than repeated.
+    #expect(forgotten == ["10 kg of water in ml"])
   }
 
   @Test

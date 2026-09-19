@@ -282,6 +282,8 @@ final class SheetTextView: NSTextView {
   var onCancelAssistantRequest: () -> Void = {}
   /// Overrides the Autocomplete preference, for tests.
   var completesWhileTyping: Bool?
+  /// The variable names a `{…}` placeholder can complete to.
+  var variableNames: () -> [String] = { [] }
   private var helpTracking: NSTrackingArea?
   private var helpTooltip = ""
   private let completionList = CompletionList()
@@ -1088,18 +1090,28 @@ final class SheetTextView: NSTextView {
 
   private func updateCompletions() {
     configureCompletions()
+    let placeholder = placeholderPrefix()
     guard completesWhileTyping ?? GanitPreferences.completesWhileTyping,
-      let prefix = completionPrefix()
+      let prefix = placeholder ?? completionPrefix()
     else {
       completionList.hide()
       return
     }
-    let matches = LanguageCompletions.matching(prefix.text).filter { $0 != prefix.text }
+    let matches =
+      placeholder != nil
+      ? variableNames().filter {
+        $0.lowercased().hasPrefix(prefix.text.lowercased()) && $0.count > prefix.text.count
+      }
+      : LanguageCompletions.matching(prefix.text).filter { $0 != prefix.text }
     guard !matches.isEmpty, let window else {
       completionList.hide()
       return
     }
-    var rect = firstRect(forCharacterRange: prefix.range, actualRange: nil)
+    // Right after `{` nothing is typed yet, so the list hangs under the brace.
+    let anchor =
+      prefix.range.length > 0
+      ? prefix.range : NSRange(location: prefix.range.location - 1, length: 1)
+    var rect = firstRect(forCharacterRange: anchor, actualRange: nil)
     rect = convert(window.convertFromScreen(rect), from: nil)
     if rect.width <= 0 {
       rect = NSRect(x: 0, y: 0, width: 12, height: 16)
@@ -1132,11 +1144,36 @@ final class SheetTextView: NSTextView {
     return (range, text.substring(with: range))
   }
 
+  /// Inside an `ask_assistant` prompt's `{…}` placeholder, the text typed
+  /// since its `{`, which completes to a variable's name.
+  private func placeholderPrefix() -> (range: NSRange, text: String)? {
+    let cursor = selectedRange()
+    guard cursor.length == 0 else {
+      return nil
+    }
+    let text = string as NSString
+    let lineStart = text.lineRange(for: cursor).location
+    let before = text.substring(
+      with: NSRange(location: lineStart, length: cursor.location - lineStart))
+    guard let brace = before.range(of: "{", options: .backwards),
+      !before[brace.upperBound...].contains("}"),
+      before[..<brace.lowerBound].contains(assistantFunctionName)
+    else {
+      return nil
+    }
+    let start = lineStart + NSRange(brace, in: before).upperBound
+    let range = NSRange(location: start, length: cursor.location - start)
+    return (range, text.substring(with: range))
+  }
+
   private var completionArguments: [NSRange] = []
   private var completionArgument = 0
 
   @discardableResult
   private func insertSelectedCompletion() -> Bool {
+    if let item = completionList.selectedItem, let placeholder = placeholderPrefix() {
+      return insertVariable(item, in: placeholder.range)
+    }
     guard let item = completionList.selectedItem, let prefix = completionPrefix() else {
       return false
     }
@@ -1152,6 +1189,22 @@ final class SheetTextView: NSTextView {
     } else {
       setSelectedRange(NSRange(location: prefix.range.location + item.utf16.count, length: 0))
     }
+    return true
+  }
+
+  /// Writes a variable's name into a placeholder, closes it, and moves past
+  /// the `}`.
+  private func insertVariable(_ name: String, in range: NSRange) -> Bool {
+    completionList.hide()
+    let text = string as NSString
+    let isClosed = range.upperBound < text.length && text.character(at: range.upperBound) == 0x7D
+    let written = isClosed ? name : name + "}"
+    guard write(written, in: range) else {
+      return false
+    }
+    completionArguments = []
+    setSelectedRange(NSRange(location: range.location + name.utf16.count + 1, length: 0))
+    completionList.hide()
     return true
   }
 
