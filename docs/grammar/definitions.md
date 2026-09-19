@@ -1,7 +1,8 @@
 # Definitions
 
-The definitions sheet holds the variables and units every sheet shares, so a
-rate or a unit is written once and used everywhere. Window ▸ Definitions
+The definitions sheet holds the variables, units, and
+[functions](variables.md#functions) every sheet shares, so a rate, a unit, or
+a formula is written once and used everywhere. Window ▸ Definitions
 (⌘⇧D) opens it.
 
 ```text

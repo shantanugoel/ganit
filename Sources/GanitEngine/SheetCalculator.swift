@@ -18,7 +18,7 @@ public struct SheetLineResult: Hashable, Sendable {
   /// The expression's result, or `nil` when the line has no expression.
   /// Ranges are relative to the start of the line's text.
   public var result: CalculationResult? {
-    evaluation?.result
+    evaluation?.result ?? nil
   }
 
   /// The kinds of exchange rate the result used, for provenance.
@@ -96,7 +96,7 @@ public struct SheetCalculator: Sendable {
     }
     self.context = context
 
-    let inherited = VariableScope(definitions.variables)
+    let inherited = VariableScope(definitions.variables, functions: definitions.functions)
     var scope = inherited
     // The units the lines below may measure with, which grow as lines define
     // them, and the engine that resolves them.
@@ -120,7 +120,9 @@ public struct SheetCalculator: Sendable {
       if case .calculation(_, _, let expressionRange?, _) = source.syntax {
         let names = scope.values(named: source.words)
         let rates = scope.rates(naming: source.words)
-        if evaluation?.isValid(names: names, rates: rates, outcomes: outcomes, now: context.now)
+        let functions = scope.functions(named: source.words)
+        if evaluation?.isValid(
+          names: names, rates: rates, functions: functions, outcomes: outcomes, now: context.now)
           != true
         {
           let reusable = evaluation?.parsing(for: names)
@@ -129,6 +131,7 @@ public struct SheetCalculator: Sendable {
             expressionRange: expressionRange,
             names: names,
             rates: rates,
+            functions: functions,
             parsing: reusable,
             outcomes: outcomes,
             engine: engine,
@@ -144,7 +147,11 @@ public struct SheetCalculator: Sendable {
         cache[line.id] = (source, evaluation)
       }
 
-      let result = evaluation?.result
+      let result = evaluation?.result ?? nil
+      if let function = evaluation?.function {
+        scope.functions[function.name] = function
+        declared.functions[function.name] = function
+      }
       if let name = source.declaredName, let result {
         scope.declare(name, result: result)
         if case .value(let value) = result {
@@ -210,6 +217,8 @@ private final class LineSource: Sendable {
   let unitName: String?
   /// The currency of a manual rate declaration such as `1 USD = 83.25 INR`.
   let rateCurrency: String?
+  /// The name and parameters of a function definition such as `area(w, h) = w * h`.
+  let function: (name: String, parameters: [String])?
   /// A diagnostic for an invalid declared name.
   let nameFailure: CalculationResult?
 
@@ -245,10 +254,19 @@ private final class LineSource: Sendable {
       declaredName = nil
       unitName = nil
       rateCurrency = nil
+      function = nil
       nameFailure = nil
       return
     }
     let name = slice(of: nameRange, in: text)
+    function = engine.functionSignature(in: name, context: context)
+    guard function == nil else {
+      declaredName = nil
+      unitName = nil
+      rateCurrency = nil
+      nameFailure = nil
+      return
+    }
     let nameWords = name.split(whereSeparator: \.isWhitespace)
     // `1 x = …` declares a rate when `x` is a currency and defines a unit
     // otherwise, so a name that a variable could take stays a variable.
@@ -318,9 +336,13 @@ private final class LineEvaluation: Sendable {
   let parsing: ParsingResult?
   let references: Set<LineReference>
   let inputs: [LineReference: [LineOutcomes.Outcome]?]
-  let result: CalculationResult
+  let functions: [String: CustomFunction]
+  /// `nil` for a function definition, which has no answer of its own.
+  let result: CalculationResult?
   /// The unit a definition line defines, when its value can define one.
   let unit: CustomUnit?
+  /// The function a definition line defines, when its body parses.
+  let function: CustomFunction?
   /// For a result that read the clock, the moments it stays correct for.
   let clockInterval: DateInterval?
   /// The kinds of exchange rate the result used.
@@ -333,6 +355,7 @@ private final class LineEvaluation: Sendable {
     expressionRange: SourceRange,
     names: [String: EngineValue?],
     rates: [CurrencyPair: NumericValue],
+    functions: [String: CustomFunction],
     parsing reusable: ParsingResult?,
     outcomes: LineOutcomes,
     engine: CalculationEngine,
@@ -340,8 +363,10 @@ private final class LineEvaluation: Sendable {
   ) {
     self.names = names
     self.rates = rates
+    self.functions = functions
     kinds = names.mapValues { $0?.kind ?? .number }
     if let nameFailure = source.nameFailure {
+      function = nil
       parsing = nil
       references = []
       inputs = [:]
@@ -350,6 +375,38 @@ private final class LineEvaluation: Sendable {
       clockInterval = nil
       rateUses = []
       financeUses = []
+      return
+    }
+    if let signature = source.function {
+      // A body reads its parameters as numbers until a call gives them values.
+      let parameters = Dictionary(
+        uniqueKeysWithValues: signature.parameters.map { ($0, EngineValueKind.number) })
+      let parsing = engine.parse(
+        slice(of: expressionRange, in: source.text),
+        context: context,
+        origin: SourceLocation(
+          utf8Offset: expressionRange.lowerBound,
+          graphemeOffset: expressionRange.graphemeLowerBound
+        ),
+        variables: kinds.merging(parameters) { $1 }
+      )
+      self.parsing = nil
+      references = []
+      inputs = [:]
+      unit = nil
+      clockInterval = nil
+      rateUses = []
+      financeUses = []
+      guard let body = parsing.expression else {
+        result = .syntaxFailure(parsing.diagnostics)
+        function = nil
+        return
+      }
+      result = nil
+      function = CustomFunction(
+        name: signature.name, parameters: signature.parameters, body: body,
+        variables: names.filter { !signature.parameters.contains($0.key) },
+        functions: functions)
       return
     }
     let parsing =
@@ -364,6 +421,7 @@ private final class LineEvaluation: Sendable {
         variables: kinds
       )
     self.parsing = parsing
+    function = nil
     guard let expression = parsing.expression else {
       references = []
       inputs = [:]
@@ -379,7 +437,8 @@ private final class LineEvaluation: Sendable {
       uniqueKeysWithValues: references.map { ($0, outcomes.inputs(for: $0)) }
     )
     let (evaluated, trace) = engine.evaluate(
-      expression, context: context, variables: names, lines: outcomes, manualRates: rates)
+      expression, context: context, variables: names, lines: outcomes, manualRates: rates,
+      functions: functions)
     let defined = source.unitName.map {
       Self.definedUnit(evaluated, named: $0, context: context, range: expressionRange)
     }
@@ -440,10 +499,11 @@ private final class LineEvaluation: Sendable {
   func isValid(
     names: [String: EngineValue?],
     rates: [CurrencyPair: NumericValue],
+    functions: [String: CustomFunction],
     outcomes: LineOutcomes,
     now: Date
   ) -> Bool {
-    self.names == names && self.rates == rates
+    self.names == names && self.rates == rates && self.functions == functions
       && clockInterval.map { $0.start <= now && now < $0.end } != false
       && inputs.allSatisfy { outcomes.inputs(for: $0.key) == $0.value }
   }
@@ -460,11 +520,23 @@ private struct VariableScope: Sendable {
   private var prefixes: Set<String> = []
   /// Manual exchange rates declared above.
   var rates: [CurrencyPair: NumericValue] = [:]
+  /// Functions defined above, by lowercased name.
+  var functions: [String: CustomFunction]
 
-  init(_ inherited: [String: EngineValue] = [:]) {
+  init(_ inherited: [String: EngineValue] = [:], functions: [String: CustomFunction] = [:]) {
+    self.functions = functions
     for (name, value) in inherited {
       declare(name, result: .value(value))
     }
+  }
+
+  /// The functions a word in `runs` names.
+  func functions(named runs: [[String]]) -> [String: CustomFunction] {
+    guard !functions.isEmpty else {
+      return [:]
+    }
+    let words = Set(runs.joined().map { $0.lowercased() })
+    return functions.filter { words.contains($0.key) }
   }
 
   /// The manual rates for currencies named in `runs`. A conversion names its

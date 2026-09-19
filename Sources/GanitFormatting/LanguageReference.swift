@@ -162,6 +162,21 @@ extension LanguageReference {
       keywords: ["name", "assignment", "equals"]
     ),
     topic(
+      id: "grammar.functions",
+      category: .grammar,
+      title: text("help.grammar.functions.title", "Your own functions"),
+      summary: text(
+        "help.grammar.functions.summary",
+        "A name with parameters in parentheses equals a formula later lines can call."
+      ),
+      body: text(
+        "help.grammar.functions.body",
+        "area(w, h) = w * h defines area, and area(3 m, 4 m) calls it. Write ( right after the name, and separate parameters with commas. The formula can use variables and functions defined above it. A definition has no answer of its own. Functions in Window ▸ Definitions work in every sheet."
+      ),
+      examples: ["area(w, h) = w * h", "area(3 m, 4 m)", "tip(bill) = bill * 15%"],
+      keywords: ["function", "custom function", "define", "formula", "parameter"]
+    ),
+    topic(
       id: "grammar.references",
       category: .grammar,
       title: text("help.grammar.references.title", "References and totals"),
@@ -186,7 +201,7 @@ extension LanguageReference {
       ),
       body: text(
         "help.grammar.definitions.body",
-        "Window ▸ Definitions is one sheet of names and units that every calculation reads: hourly rate = 90, or 1 bag = 25 kg. A sheet's own names still win when they collide."
+        "Window ▸ Definitions is one sheet of names, units, and functions that every calculation reads: hourly rate = 90, 1 bag = 25 kg, or tax(x) = x * 18%. A sheet's own names still win when they collide."
       ),
       examples: ["hourly rate = 90", "1 bag = 25 kg"],
       keywords: ["custom unit", "shared"]

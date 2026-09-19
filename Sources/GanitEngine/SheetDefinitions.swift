@@ -61,8 +61,20 @@ public struct CustomUnit: Hashable, Sendable {
   }
 }
 
-/// What a sheet evaluates with beyond its own lines: variables and units
-/// defined in the definitions sheet, which every sheet shares.
+/// A function someone defined, such as `area(w, h) = w * h`.
+///
+/// Its body reads the variables and functions above its definition, as they
+/// were there, and its parameters; so a function cannot call itself.
+public struct CustomFunction: Hashable, Sendable {
+  public let name: String
+  public let parameters: [String]
+  let body: Expression
+  let variables: [String: EngineValue?]
+  let functions: [String: CustomFunction]
+}
+
+/// What a sheet evaluates with beyond its own lines: variables, units, and
+/// functions defined in the definitions sheet, which every sheet shares.
 ///
 /// Definitions stand above a sheet's first line, so a sheet's own
 /// declaration of the same name replaces one for the lines below it, and a
@@ -72,10 +84,15 @@ public struct SheetDefinitions: Hashable, Sendable {
 
   public var variables: [String: EngineValue] = [:]
   public var units: [CustomUnit] = []
+  public var functions: [String: CustomFunction] = [:]
 
-  public init(variables: [String: EngineValue] = [:], units: [CustomUnit] = []) {
+  public init(
+    variables: [String: EngineValue] = [:], units: [CustomUnit] = [],
+    functions: [String: CustomFunction] = [:]
+  ) {
     self.variables = variables
     self.units = units
+    self.functions = functions
   }
 
   /// What a definitions sheet's source defines, for a caller that answers
@@ -86,6 +103,6 @@ public struct SheetDefinitions: Hashable, Sendable {
   }
 
   public var isEmpty: Bool {
-    variables.isEmpty && units.isEmpty
+    variables.isEmpty && units.isEmpty && functions.isEmpty
   }
 }

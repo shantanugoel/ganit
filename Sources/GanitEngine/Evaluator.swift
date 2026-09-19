@@ -6,6 +6,7 @@ public struct Evaluator: Sendable {
   private let variables: [String: EngineValue?]
   private let lines: LineOutcomes
   private let manualRates: [CurrencyPair: NumericValue]
+  private let functions: [String: CustomFunction]
 
   public init(
     context: EvaluationContext,
@@ -20,20 +21,23 @@ public struct Evaluator: Sendable {
   }
 
   /// `variables` maps declared names to their values, or to `nil` when the
-  /// declaration failed. `lines` holds the results of lines above, and
-  /// `manualRates` the exchange rates declared above.
+  /// declaration failed. `lines` holds the results of lines above,
+  /// `manualRates` the exchange rates declared above, and `functions` the
+  /// functions defined above.
   init(
     context: EvaluationContext,
     limits: EvaluationLimits,
     variables: [String: EngineValue?],
     lines: LineOutcomes,
-    manualRates: [CurrencyPair: NumericValue] = [:]
+    manualRates: [CurrencyPair: NumericValue] = [:],
+    functions: [String: CustomFunction] = [:]
   ) {
     self.context = context
     self.limits = limits
     self.variables = variables
     self.lines = lines
     self.manualRates = manualRates
+    self.functions = functions
   }
 
   public func evaluate(_ expression: Expression) throws -> EngineValue {
@@ -49,7 +53,8 @@ public struct Evaluator: Sendable {
       limits: limits,
       variables: variables,
       lines: lines,
-      manualRates: manualRates
+      manualRates: manualRates,
+      functions: functions
     ).evaluate(aggregate, of: values)
   }
 
@@ -62,7 +67,8 @@ public struct Evaluator: Sendable {
       limits: limits,
       variables: variables,
       lines: lines,
-      manualRates: manualRates
+      manualRates: manualRates,
+      functions: functions
     )
     let result = Result { try worker.evaluate(expression) }
     return (result, worker.trace)
@@ -93,6 +99,8 @@ private struct EvaluationWorker {
   let money: MoneyArithmetic
   let variables: [String: EngineValue?]
   let lines: LineOutcomes
+  let manualRates: [CurrencyPair: NumericValue]
+  let functions: [String: CustomFunction]
   var visitedOperations = 0
   private(set) var trace = EvaluationTrace()
 
@@ -101,12 +109,15 @@ private struct EvaluationWorker {
     limits: EvaluationLimits,
     variables: [String: EngineValue?],
     lines: LineOutcomes,
-    manualRates: [CurrencyPair: NumericValue]
+    manualRates: [CurrencyPair: NumericValue],
+    functions: [String: CustomFunction]
   ) {
     self.context = context
     self.limits = limits
     self.variables = variables
     self.lines = lines
+    self.manualRates = manualRates
+    self.functions = functions
     operations = NumericOperations(context: context, limits: limits)
     money = MoneyArithmetic(
       operations: operations, rates: context.currencyRates, manualRates: manualRates)
@@ -1076,11 +1087,52 @@ private struct EvaluationWorker {
       )
     }
     guard let function = BuiltInFunction(rawValue: name) else {
-      throw EngineError(code: .unknownFunction, ranges: [nameRange])
+      guard let custom = functions[name.lowercased()] else {
+        throw EngineError(code: .unknownFunction, ranges: [nameRange])
+      }
+      return try evaluate(custom, arguments, nameRange: nameRange)
     }
     try requireArguments(
       function.argumentRange, of: name, given: arguments.count, at: nameRange)
     return .number(try evaluateNumeric(function, arguments, nameRange: nameRange))
+  }
+
+  /// A defined function's body, with its parameters standing for the
+  /// arguments. A problem inside the body is reported at the call, since the
+  /// body's own line may be in another sheet.
+  @inline(never)
+  private mutating func evaluate(
+    _ function: CustomFunction,
+    _ arguments: [Expression],
+    nameRange: SourceRange
+  ) throws -> EngineValue {
+    let count = function.parameters.count
+    try requireArguments(count...count, of: function.name, given: arguments.count, at: nameRange)
+    var variables = function.variables
+    for (parameter, argument) in zip(function.parameters, arguments) {
+      variables[parameter] = try evaluate(argument)
+    }
+    var body = EvaluationWorker(
+      context: context,
+      limits: limits,
+      variables: variables,
+      lines: LineOutcomes(),
+      manualRates: manualRates,
+      functions: function.functions
+    )
+    defer {
+      if let clock = body.trace.clock {
+        readClock(clock)
+      }
+      trace.rateUses.formUnion(body.trace.rateUses)
+      trace.financeUses.formUnion(body.trace.financeUses)
+    }
+    do {
+      return try body.evaluate(function.body)
+    } catch let error as EngineError {
+      throw EngineError(
+        code: error.code, severity: error.severity, ranges: [nameRange], context: error.context)
+    }
   }
 
   private func requireArguments(

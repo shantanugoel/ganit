@@ -48,3 +48,29 @@ Using a variable whose declaration failed reports
 The parser receives each visible variable's value kind, so a percentage
 variable participates in percentage phrases (`tax of 50`) and a quantity
 variable in conversions (`trip distance in miles`).
+
+## Functions
+
+A name followed straight away by parameters in parentheses defines a function:
+
+```text
+area(w, h) = w * h
+area(3 m, 4 m)
+tip(bill) = bill * 15%
+tip(80)
+```
+
+The name follows the rules for a variable name and is one word; `(` must touch
+it, so `Groceries (Costco) = 230` is still a name that is not words.
+Parameters are single words separated by commas, other than grammatical words
+and function names; a unit's word such as `h` may be a parameter, and in the
+body it means the parameter. A definition line has no answer. A body that
+does not parse reports its problem on the definition line.
+
+A call evaluates its arguments, then the body with each parameter standing for
+its argument. The body reads the variables and functions declared above the
+definition, as they are there, so a function cannot call itself. A call with
+the wrong number of arguments fails with `evaluation.argumentCountMismatch`,
+and a problem inside the body, such as an unknown word, is reported at the
+call's name. Built-in functions keep their names. The
+[definitions sheet](definitions.md)'s functions are visible to every sheet.

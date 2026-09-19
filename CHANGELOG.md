@@ -5,6 +5,10 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- A line such as `area(w, h) = w * h` defines a function, and `area(3, 4)`
+  calls it. Functions in Window ▸ Definitions work in every sheet. See
+  Help ▸ Your own functions.
+
 - Markdown Mode works as in Calca: only a line ending its calculation with `=>`
   shows an answer, drawn right after the arrow, with any words after the arrow
   moved along to follow it. A leading list or quote marker such as `- ` or

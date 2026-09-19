@@ -67,14 +67,16 @@ public struct CalculationEngine: Sendable {
     context: EvaluationContext,
     variables: [String: EngineValue?],
     lines: LineOutcomes,
-    manualRates: [CurrencyPair: NumericValue] = [:]
+    manualRates: [CurrencyPair: NumericValue] = [:],
+    functions: [String: CustomFunction] = [:]
   ) -> (result: CalculationResult, trace: EvaluationTrace) {
     let (result, trace) = Evaluator(
       context: context,
       limits: evaluationLimits,
       variables: variables,
       lines: lines,
-      manualRates: manualRates
+      manualRates: manualRates,
+      functions: functions
     ).evaluateTracing(expression)
     switch result {
     case .success(let value):
@@ -97,6 +99,52 @@ public struct CalculationEngine: Sendable {
     context: EvaluationContext
   ) -> String? {
     name(in: source, context: context, redefinable: []).name
+  }
+
+  /// A function definition's name and parameters, from `area(w, h)`: a word
+  /// that could name a variable, `(` right after it, and single words that
+  /// are not keywords or functions. A parameter may be a unit's word, such as
+  /// `h`, since inside the body it means the parameter. `Groceries (Costco)`,
+  /// with a space, is not one.
+  func functionSignature(
+    in source: String,
+    context: EvaluationContext
+  ) -> (name: String, parameters: [String])? {
+    let lexing = Lexer(
+      source: source,
+      configuration: context.lexingConfiguration,
+      limits: syntaxLimits
+    ).lex()
+    let tokens = Array(lexing.tokens.dropLast())
+    guard lexing.diagnostics.isEmpty, tokens.count >= 3,
+      case .identifier(let name) = tokens[0].kind,
+      tokens[1].kind == .leftParenthesis,
+      tokens[1].range.lowerBound == tokens[0].range.upperBound,
+      tokens[tokens.count - 1].kind == .rightParenthesis,
+      variableName(in: name, context: context) != nil
+    else {
+      return nil
+    }
+    var parameters: [String] = []
+    for (index, token) in tokens.dropFirst(2).dropLast().enumerated() {
+      if index.isMultiple(of: 2) {
+        guard case .identifier(let word) = token.kind,
+          !reservedIdentifiers.contains(word), BuiltInFunction(rawValue: word) == nil,
+          FinanceFunction(rawValue: word) == nil,
+          !parameters.contains(word.lowercased())
+        else {
+          return nil
+        }
+        parameters.append(word.lowercased())
+      } else if token.kind != .argumentSeparator {
+        return nil
+      }
+    }
+    // `f(x,)` leaves a separator with no word after it.
+    guard tokens.count == 3 || tokens[tokens.count - 2].kind != .argumentSeparator else {
+      return nil
+    }
+    return (name.lowercased(), parameters)
   }
 
   /// Why a declaration's name cannot be one, with the range it is at.

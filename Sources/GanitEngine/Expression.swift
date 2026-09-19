@@ -1,11 +1,11 @@
-public enum UnaryOperator: Equatable, Sendable {
+public enum UnaryOperator: Hashable, Sendable {
   case plus
   case minus
   /// `√2`, the same as `sqrt(2)`.
   case squareRoot
 }
 
-public enum BinaryOperator: Equatable, Sendable {
+public enum BinaryOperator: Hashable, Sendable {
   case add
   case subtract
   case multiply
@@ -17,7 +17,7 @@ public enum BinaryOperator: Equatable, Sendable {
   case shiftRight
 }
 
-public enum PercentageOperator: Equatable, Sendable {
+public enum PercentageOperator: Hashable, Sendable {
   case of
   case off
   case on
@@ -27,7 +27,7 @@ public enum PercentageOperator: Equatable, Sendable {
   case reverseOn
 }
 
-public indirect enum UnitSyntax: Equatable, Sendable {
+public indirect enum UnitSyntax: Hashable, Sendable {
   case named(
     UnitCatalogEntry,
     prefix: UnitPrefixEntry?,
@@ -67,7 +67,7 @@ public enum Aggregate: String, Hashable, Sendable {
   case count
 }
 
-public indirect enum Expression: Equatable, Sendable {
+public indirect enum Expression: Hashable, Sendable {
   case literal(NumericLiteral, range: SourceRange)
   case temporal(TemporalLiteral, range: SourceRange)
   /// A period or duration before or after now: `3 days ago`, `2 h from now`.

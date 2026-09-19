@@ -1,18 +1,18 @@
-public enum NumericRadix: Int, Equatable, Sendable {
+public enum NumericRadix: Int, Hashable, Sendable {
   case binary = 2
   case octal = 8
   case decimal = 10
   case hexadecimal = 16
 }
 
-public enum NumericLiteral: Equatable, Sendable {
+public enum NumericLiteral: Hashable, Sendable {
   case integer(digits: String, radix: NumericRadix)
   case decimal(digits: String, fractionalDigitCount: Int, exponent: Int)
 }
 
 /// A wall-clock date and time with an optional UTC offset and zone, as in
 /// `2024-11-03T01:30-04:00 America/New_York`.
-public struct DateTimeLiteral: Equatable, Sendable {
+public struct DateTimeLiteral: Hashable, Sendable {
   public var year: Int
   public var month: Int
   public var day: Int
@@ -27,7 +27,7 @@ public struct DateTimeLiteral: Equatable, Sendable {
 
 /// A date or time written in ISO 8601 form, or in an English phrase. Fields
 /// are validated when evaluated.
-public enum TemporalLiteral: Equatable, Sendable {
+public enum TemporalLiteral: Hashable, Sendable {
   /// A calendar date; a `nil` year is the current year.
   case date(year: Int?, month: Int, day: Int)
   case time(hour: Int, minute: Int, second: Int)

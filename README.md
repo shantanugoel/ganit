@@ -78,6 +78,9 @@ it ends its calculation with `=>` (⌘↩ adds one), right after the arrow, and 
 words after the arrow follow the answer. Markdown sheets show a small document
 mark in the sidebar.
 
+**Your own functions**: `area(w, h) = w * h` defines one, and `area(3 m, 4 m)`
+calls it. Put it in **Window ▸ Definitions** to use it in every sheet.
+
 **Scratch** (⇧⌘S) is the sheet that is always there, for a number you want to
 work out now and name later.
 
