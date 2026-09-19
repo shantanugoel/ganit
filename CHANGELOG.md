@@ -5,6 +5,19 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+## 0.5.1
+
+- `ask_assistant` fills in `{…}` placeholders before asking: in
+  `ask_assistant({weight} of water in ml)` the prompt carries the value of
+  `weight`, written as the sheet shows it, and is asked again when that value
+  changes. A placeholder holds any expression, such as `{qty * 2}` or
+  `{previous}`, and one Ganit cannot work out fails the line without asking.
+
+- A prompt may contain any character, such as `?` or `'`, instead of failing
+  the line.
+
+- `prompt_assistant` is removed; write `ask_assistant`.
+
 ## 0.5.0
 
 - A line such as `area(w, h) = w * h` defines a function, and `area(3, 4)`
