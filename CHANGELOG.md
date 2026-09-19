@@ -5,6 +5,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+## 0.5.0
+
 - A line such as `area(w, h) = w * h` defines a function, and `area(3, 4)`
   calls it. Functions in Window ▸ Definitions work in every sheet. See
   Help ▸ Your own functions.
