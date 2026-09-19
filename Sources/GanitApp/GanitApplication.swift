@@ -42,6 +42,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   private let spotlight = SpotlightTitleIndex()
   private static let spotlightDefaultsKey = "SpotlightIndexesSheetTitles"
   private static let menuBarDefaultsKey = "GanitStaysInMenuBar"
+  private static let appearanceDefaultsKey = "Appearance"
   private var statusItem: NSStatusItem?
   private var shortcutWindow: NSWindow?
   private var assistantWindow: NSWindow?
@@ -70,6 +71,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
 
   /// Opens the library before AppKit restores windows that need it.
   func applicationWillFinishLaunching(_ notification: Notification) {
+    NSApplication.shared.appearance = appearanceChoice.appearance
     do {
       let root = try SheetLibrary.applicationSupportRoot()
       let workspace = try Workspace(
@@ -340,8 +342,15 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       quickGanitStartsEmpty: UserDefaults.standard.bool(forKey: Self.startsEmptyDefaultsKey),
       automaticExchangeRates: rateRefresher?.isAutomatic == true,
       automaticUpdates: checksForUpdatesAutomatically,
-      completesWhileTyping: GanitPreferences.completesWhileTyping
+      completesWhileTyping: GanitPreferences.completesWhileTyping,
+      appearance: appearanceChoice
     )
+  }
+
+  /// Light, dark, or following the Mac, which a fresh copy does.
+  private var appearanceChoice: AppearanceChoice {
+    UserDefaults.standard.string(forKey: Self.appearanceDefaultsKey)
+      .flatMap(AppearanceChoice.init(rawValue:)) ?? .system
   }
 
   private func apply(_ settings: SettingsState) {
@@ -363,6 +372,8 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       toggleAutomaticUpdateChecks(nil)
     }
     GanitPreferences.completesWhileTyping = settings.completesWhileTyping
+    UserDefaults.standard.set(settings.appearance.rawValue, forKey: Self.appearanceDefaultsKey)
+    NSApplication.shared.appearance = settings.appearance.appearance
   }
 
   /// The first-run walkthrough, or the same steps from Settings or Help.

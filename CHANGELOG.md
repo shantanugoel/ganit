@@ -5,6 +5,9 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Settings ▸ Appearance keeps Ganit Light or Dark instead of following the
+  Mac, which it still does by default.
+
 ## 0.4.0
 
 - `2 + 3 =` says answers appear on their own and to remove the `=`, instead of

@@ -15,7 +15,8 @@ struct SettingsControllerTests {
       quickGanitStartsEmpty: false,
       automaticExchangeRates: true,
       automaticUpdates: false,
-      completesWhileTyping: true
+      completesWhileTyping: true,
+      appearance: .system
     )
     let settings = SettingsController(state: start) { seen.append($0) }
     settings.loadView()
@@ -25,11 +26,22 @@ struct SettingsControllerTests {
     autocomplete.performClick(nil)
     #expect(seen.last?.completesWhileTyping == false)
     let tour = try #require(settings.view.buttons.first { $0.title == "Show Tour" })
+    let appearance = try #require(settings.view.popUpButtons.first)
+    #expect(appearance.titleOfSelectedItem == "System")
+    appearance.selectItem(withTitle: "Dark")
+    _ = appearance.target?.perform(appearance.action, with: appearance)
+    #expect(seen.last?.appearance == .dark)
+    #expect(AppearanceChoice.dark.appearance?.name == .darkAqua)
+    #expect(AppearanceChoice.system.appearance == nil)
     #expect(tour.action == #selector(ApplicationCommands.showTour(_:)))
   }
 }
 
 extension NSView {
+  fileprivate var popUpButtons: [NSPopUpButton] {
+    buttons.compactMap { $0 as? NSPopUpButton }
+  }
+
   fileprivate var buttons: [NSButton] {
     subviews.flatMap { view in
       [view as? NSButton].compactMap { $0 } + view.buttons

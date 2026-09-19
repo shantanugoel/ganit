@@ -1,6 +1,28 @@
 import AppKit
 import GanitEditorUI
 
+/// Whether windows follow the Mac's light or dark appearance or keep one.
+public enum AppearanceChoice: String, CaseIterable, Sendable {
+  case system, light, dark
+
+  /// The appearance to give `NSApplication`, where `nil` follows the Mac.
+  public var appearance: NSAppearance? {
+    switch self {
+    case .system: nil
+    case .light: NSAppearance(named: .aqua)
+    case .dark: NSAppearance(named: .darkAqua)
+    }
+  }
+
+  var title: String {
+    switch self {
+    case .system: localized("settings.appearance.system", "System")
+    case .light: localized("settings.appearance.light", "Light")
+    case .dark: localized("settings.appearance.dark", "Dark")
+    }
+  }
+}
+
 /// The app-level switches Settings shows, so a person can find them in one
 /// place rather than scattered across menus.
 public struct SettingsState: Equatable, Sendable {
@@ -10,6 +32,7 @@ public struct SettingsState: Equatable, Sendable {
   public var automaticExchangeRates: Bool
   public var automaticUpdates: Bool
   public var completesWhileTyping: Bool
+  public var appearance: AppearanceChoice
 
   public init(
     staysInMenuBar: Bool,
@@ -17,7 +40,8 @@ public struct SettingsState: Equatable, Sendable {
     quickGanitStartsEmpty: Bool,
     automaticExchangeRates: Bool,
     automaticUpdates: Bool,
-    completesWhileTyping: Bool
+    completesWhileTyping: Bool,
+    appearance: AppearanceChoice
   ) {
     self.staysInMenuBar = staysInMenuBar
     self.spotlightTitles = spotlightTitles
@@ -25,6 +49,7 @@ public struct SettingsState: Equatable, Sendable {
     self.automaticExchangeRates = automaticExchangeRates
     self.automaticUpdates = automaticUpdates
     self.completesWhileTyping = completesWhileTyping
+    self.appearance = appearance
   }
 }
 
@@ -52,6 +77,7 @@ public final class SettingsController: NSViewController {
   private let updates = NSButton(
     checkboxWithTitle: localized("settings.updates", "Check for updates automatically"),
     target: nil, action: nil)
+  private let appearance = NSPopUpButton()
 
   public init(state: SettingsState, didChange: @escaping (SettingsState) -> Void) {
     self.state = state
@@ -70,6 +96,9 @@ public final class SettingsController: NSViewController {
       box.target = self
       box.action = #selector(changed(_:))
     }
+    appearance.addItems(withTitles: AppearanceChoice.allCases.map(\.title))
+    appearance.target = self
+    appearance.action = #selector(changed(_:))
     sync()
 
     let explanation = NSTextField(
@@ -87,7 +116,11 @@ public final class SettingsController: NSViewController {
     )
     tour.keyEquivalent = ""
 
-    let stack = NSStackView(views: [explanation] + boxes + [tour])
+    let appearanceRow = NSStackView(views: [
+      NSTextField(labelWithString: localized("settings.appearance", "Appearance:")), appearance,
+    ])
+
+    let stack = NSStackView(views: [explanation, appearanceRow] + boxes + [tour])
     stack.orientation = .vertical
     stack.alignment = .leading
     stack.spacing = VisualStyle.Spacing.related
@@ -120,15 +153,17 @@ public final class SettingsController: NSViewController {
     quickEmpty.state = state.quickGanitStartsEmpty ? .on : .off
     rates.state = state.automaticExchangeRates ? .on : .off
     updates.state = state.automaticUpdates ? .on : .off
+    appearance.selectItem(at: AppearanceChoice.allCases.firstIndex(of: state.appearance) ?? 0)
   }
 
-  @objc func changed(_ sender: NSButton) {
+  @objc func changed(_ sender: NSControl) {
     state.completesWhileTyping = autocomplete.state == .on
     state.staysInMenuBar = menuBar.state == .on
     state.spotlightTitles = spotlight.state == .on
     state.quickGanitStartsEmpty = quickEmpty.state == .on
     state.automaticExchangeRates = rates.state == .on
     state.automaticUpdates = updates.state == .on
+    state.appearance = AppearanceChoice.allCases[max(appearance.indexOfSelectedItem, 0)]
     didChange(state)
   }
 }
