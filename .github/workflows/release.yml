@@ -122,6 +122,32 @@ jobs:
             --title "Ganit ${GITHUB_REF_NAME#v}" \
             --generate-notes
 
+      - name: Update the Homebrew cask
+        env:
+          TAP_DEPLOY_KEY: ${{ secrets.GANIT_TAP_DEPLOY_KEY }}
+        run: |
+          # The tap is its own repository, shantanugoel/homebrew-ganit, and a
+          # deploy key is the only thing that can write to it. The cask points
+          # at the disk image just published, so it changes only after that.
+          version=${GITHUB_REF_NAME#v}
+          sha256=$(shasum -a 256 "$GANIT_DISK_IMAGE" | awk '{ print $1 }')
+          key=$(mktemp)
+          printf '%s\n' "$TAP_DEPLOY_KEY" >"$key"
+          export GIT_SSH_COMMAND="ssh -i $key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+          tap=$(mktemp -d)
+          git clone --depth 1 git@github.com:shantanugoel/homebrew-ganit.git "$tap"
+          sed -i '' \
+            -e "s/^  version \".*\"/  version \"$version\"/" \
+            -e "s/^  sha256 \".*\"/  sha256 \"$sha256\"/" \
+            "$tap/Casks/ganit.rb"
+          grep -q "^  version \"$version\"$" "$tap/Casks/ganit.rb"
+          grep -q "^  sha256 \"$sha256\"$" "$tap/Casks/ganit.rb"
+          git -C "$tap" -c user.name="github-actions[bot]" \
+            -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -am "Update Ganit to $version"
+          git -C "$tap" push origin HEAD
+          rm -f "$key"
+
       - name: Forget the signing identity
         if: always()
         run: security delete-keychain release.keychain || true

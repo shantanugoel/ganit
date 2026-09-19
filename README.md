@@ -4,7 +4,7 @@ A notepad calculator for Mac. Type a line, get the answer, keep the working.
 
 The live notepad of [Soulver](https://soulver.app/) and [Numi](https://numi.app/), the Markdown sheets of [Calca](https://calca.io/) — plus an optional **AI assistant**, **exact** arithmetic, and answers that **never quietly guess**.
 
-[Download for Mac](https://github.com/shantanugoel/ganit/releases/latest) · Apple silicon · macOS 14+
+`brew install --cask shantanugoel/ganit/ganit` · [Download for Mac](https://github.com/shantanugoel/ganit/releases/latest) · Apple silicon · macOS 14+
 
 <p align="center">
   <img src="docs/images/library-dark.png" alt="Ganit window with a party budget and live answers beside each line" width="860">
@@ -33,6 +33,19 @@ The live notepad of [Soulver](https://soulver.app/) and [Numi](https://numi.app/
 ## Install
 
 Ganit needs macOS 14 or later on Apple silicon.
+
+With [Homebrew](https://brew.sh):
+
+```bash
+brew install --cask shantanugoel/ganit/ganit
+```
+
+This installs **Ganit** in **Applications** and puts the `ganit` command on
+your path. The cask lives in Ganit's own tap,
+[shantanugoel/homebrew-ganit](https://github.com/shantanugoel/homebrew-ganit),
+and each release updates it. Ganit updates itself, and `brew upgrade` works too.
+
+Or download it:
 
 1. Download the disk image from [the latest release](https://github.com/shantanugoel/ganit/releases/latest).
 2. Open it and drag **Ganit** to **Applications**.
@@ -95,7 +108,8 @@ is off until you set it up. See [the assistant](docs/editor/assistant.md).
 
 ### From the command line
 
-The app carries the same engine as a small command:
+The app carries the same engine as a small command. Homebrew puts it on your
+path as `ganit`; otherwise it is inside the app:
 
 ```bash
 /Applications/Ganit.app/Contents/Helpers/ganit '20% off 85'   # 68
