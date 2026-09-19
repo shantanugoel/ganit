@@ -937,6 +937,11 @@ public struct DiagnosticFormatter: Sendable {
         "syntax.expectedClosingParenthesis",
         defaultValue: "Add a closing parenthesis."
       )
+    case .expectedClosingBrace:
+      return localized(
+        "syntax.expectedClosingBrace",
+        defaultValue: "Add a closing brace."
+      )
     case .expectedArgumentSeparator:
       return localized(
         "syntax.expectedArgumentSeparator",

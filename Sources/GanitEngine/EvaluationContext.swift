@@ -28,6 +28,32 @@ public enum RoundingRule: String, Hashable, Sendable {
   }
 }
 
+/// An `ask_assistant` prompt with its placeholders' values filled in. The
+/// values stay values, so the editor writes them as the sheet does and a
+/// change of number format does not ask again.
+public struct AssistantPrompt: Hashable, Sendable {
+  public enum Part: Hashable, Sendable {
+    case text(String)
+    case value(EngineValue)
+  }
+
+  public let parts: [Part]
+
+  public init(_ parts: [Part]) {
+    self.parts = parts
+  }
+
+  /// The prompt sent, with each value written by `write`.
+  public func text(writingValues write: (EngineValue) -> String) -> String {
+    parts.map {
+      switch $0 {
+      case .text(let text): text
+      case .value(let value): write(value)
+      }
+    }.joined().trimmingCharacters(in: .whitespacesAndNewlines)
+  }
+}
+
 /// What `ask_assistant` received for a prompt. `unusable` means the model
 /// answered, but the text was not a value Ganit can calculate with.
 public enum AssistantAnswer: Hashable, Sendable {
@@ -73,7 +99,7 @@ public struct EvaluationContext: Hashable, Sendable {
   public private(set) var currencyRates: CurrencyRates
   /// Values `ask_assistant` already received, keyed by the prompt. The engine
   /// never talks to a model; the editor fills this in after it has asked.
-  public private(set) var assistantAnswers: [String: AssistantAnswer]
+  public private(set) var assistantAnswers: [AssistantPrompt: AssistantAnswer]
   /// ISO 4217 code `$` means. Right-click on `$` can change it for a sheet.
   public private(set) var dollarCurrency: String
   /// A markdown sheet: answers sit in the lines, and words that are not
@@ -97,7 +123,7 @@ public struct EvaluationContext: Hashable, Sendable {
     calendar: Calendar,
     timeZone: TimeZone,
     currencyRates: CurrencyRates = .none,
-    assistantAnswers: [String: AssistantAnswer] = [:],
+    assistantAnswers: [AssistantPrompt: AssistantAnswer] = [:],
     dollarCurrency: String = "USD",
     isMarkdownMode: Bool = false
   ) throws {
@@ -177,7 +203,7 @@ public struct EvaluationContext: Hashable, Sendable {
   }
 
   /// The same context with answers already received for `ask_assistant`.
-  public func with(assistantAnswers: [String: AssistantAnswer]) -> EvaluationContext {
+  public func with(assistantAnswers: [AssistantPrompt: AssistantAnswer]) -> EvaluationContext {
     var context = self
     context.assistantAnswers = assistantAnswers
     return context

@@ -61,12 +61,16 @@ not asked about again until Ask Assistant. Cancelling cannot recall a line
 already sent, or make the provider stop working on it; it only means Ganit no
 longer waits for or uses the reply.
 
-`SheetEditorViewController` also asks about `ask_assistant(prompt)` and
-`prompt_assistant(prompt)` when those functions have no answer yet. The text
-inside the parentheses is the prompt. The reply is parsed as a Ganit value,
-so a later line can write `previous * 2`. The same pause, cache, and privacy
-rules apply: one prompt is one request, and nothing else from the sheet is
-sent.
+`SheetEditorViewController` also asks about `ask_assistant(prompt)` when it
+has no answer yet. The text inside the parentheses is the prompt, except that
+a `{…}` placeholder holds an expression, such as `{weight}` or `{previous}`,
+whose value is written into the prompt as the sheet shows it. The reply is
+parsed as a Ganit value, so a later line can write `previous * 2`. Answers are
+kept by the prompt with its placeholders' values, so changing `weight` asks
+again and changing it back costs nothing. A placeholder Ganit cannot work out
+fails the line and nothing is sent. The same pause and privacy rules apply:
+one prompt is one request, and nothing else from the sheet is sent than the
+values its placeholders name.
 
 `Assistant` sends one `POST` carrying the line, the model name, and the
 instruction to reply with `{"value":"…"}`. It sends nothing else from the

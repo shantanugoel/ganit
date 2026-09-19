@@ -54,8 +54,10 @@ In comma-decimal locales, use a semicolon between function arguments (`max(1; 2)
   `hypot(x, y)` is `sqrt(x² + y²)`. `clamp(x, low, high)` limits `x` to that
   range. `atan2(y, x)` is the two-argument arctangent in the injected angle
   mode. `log2(x)` is the base-2 logarithm.
-- `ask_assistant(prompt)` and `prompt_assistant(prompt)` send the text inside
-  the parentheses to a configured assistant and use the reply as a value.
+- `ask_assistant(prompt)` sends the text inside the parentheses to a
+  configured assistant and uses the reply as a value. A `{…}` placeholder in
+  the prompt holds an expression, such as `{weight}`, whose value is written
+  into the prompt.
 - `min(x, y, ...)` and `max(x, y, ...)` require at least two arguments.
 - `gcd(x, y)` and `lcm(x, y)` take whole numbers. `ncr(n, k)` and `npr(n, k)`
   count choices and arrangements.

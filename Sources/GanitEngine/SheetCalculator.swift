@@ -30,6 +30,11 @@ public struct SheetLineResult: Hashable, Sendable {
   public var financeUses: Set<FinanceFunction> {
     evaluation?.financeUses ?? []
   }
+  /// The `ask_assistant` prompts the line needs answered, with their
+  /// placeholders filled in.
+  public var assistantPrompts: [AssistantPrompt] {
+    evaluation?.assistantPrompts ?? []
+  }
 
   public static func == (lhs: Self, rhs: Self) -> Bool {
     lhs.id == rhs.id && lhs.syntax == rhs.syntax && lhs.result == rhs.result
@@ -349,6 +354,8 @@ private final class LineEvaluation: Sendable {
   let rateUses: Set<CurrencyRateUse>
   /// The finance functions the result used.
   let financeUses: Set<FinanceFunction>
+  /// The `ask_assistant` prompts the result needed.
+  let assistantPrompts: [AssistantPrompt]
 
   init(
     source: LineSource,
@@ -375,6 +382,7 @@ private final class LineEvaluation: Sendable {
       clockInterval = nil
       rateUses = []
       financeUses = []
+      assistantPrompts = []
       return
     }
     if let signature = source.function {
@@ -397,6 +405,7 @@ private final class LineEvaluation: Sendable {
       clockInterval = nil
       rateUses = []
       financeUses = []
+      assistantPrompts = []
       guard let body = parsing.expression else {
         result = .syntaxFailure(parsing.diagnostics)
         function = nil
@@ -430,6 +439,7 @@ private final class LineEvaluation: Sendable {
       clockInterval = nil
       rateUses = []
       financeUses = []
+      assistantPrompts = []
       return
     }
     references = expression.references
@@ -450,6 +460,7 @@ private final class LineEvaluation: Sendable {
       } ?? evaluated
     rateUses = trace.rateUses
     financeUses = trace.financeUses
+    assistantPrompts = trace.assistantPrompts
     clockInterval = trace.clock.map { resolution in
       switch resolution {
       case .day:

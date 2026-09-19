@@ -112,6 +112,23 @@ struct AssistantAnswerTests {
     #expect(!answers[1].isFailure)
   }
 
+  /// A placeholder's value is written into the prompt as the sheet shows it.
+  @Test
+  func askAssistantSendsPlaceholderValues() async throws {
+    let asked = Asked()
+    let editor = try makeEditor("weight = 1200 kg\nask_assistant({weight} of water in ml)")
+    editor.askAssistant = { line in
+      await asked.record(line)
+      return "1200000 ml"
+    }
+    let textView = try #require(editor.textView as? SheetTextView)
+    await editor.scheduler?.waitUntilIdle()
+    let answers = try await answers(of: textView) { $0.count == 2 && !$0[1].isFailure }
+
+    #expect(await asked.recorded == ["1,200 kg of water in ml"])
+    #expect(answers[1].text.contains("mL"))
+  }
+
   /// Without an assistant a line Ganit cannot work out keeps saying so, and
   /// nothing is asked of anyone.
   @Test

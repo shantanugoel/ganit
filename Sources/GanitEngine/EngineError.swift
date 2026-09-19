@@ -82,7 +82,6 @@ public enum EngineErrorContext: Hashable, Sendable {
     expected: ClosedRange<Int>,
     actual: Int
   )
-  case assistantPrompt(String)
   case typeMismatch(expected: EngineValueKind, actual: EngineValueKind)
   case dimensionMismatch(expected: Dimension, actual: Dimension)
   case resourceLimit(EvaluationResource)

@@ -260,7 +260,7 @@ extension LanguageReference {
 
   fileprivate static var functions: [LanguageTopic] {
     BuiltInFunction.allCases.map(functionTopic) + FinanceFunction.allCases.map(financeTopic)
-      + AssistantFunction.allCases.map(assistantTopic)
+      + [assistantTopic]
   }
 
   fileprivate static let keywords: [LanguageTopic] = [
@@ -656,19 +656,19 @@ extension LanguageReference {
     }
   }
 
-  fileprivate static func assistantTopic(_ function: AssistantFunction) -> LanguageTopic {
+  fileprivate static var assistantTopic: LanguageTopic {
     functionHelp(
-      function.rawValue, signature: "\(function.rawValue)(prompt)",
+      assistantFunctionName, signature: "\(assistantFunctionName)(prompt)",
       summary: text(
         "help.function.ask_assistant.summary",
         "Asks the configured assistant and uses its answer as a value."
       ),
       body: text(
         "help.function.ask_assistant.body",
-        "The text inside the parentheses is the prompt, not an expression. The assistant must be turned on under Ganit ▸ Assistant…. Its answer is parsed as a Ganit value, so later lines can calculate with it. prompt_assistant is the same function."
+        "The text inside the parentheses is the prompt, not an expression, except inside braces: {weight} or {qty * 2} writes that value into the prompt, so the prompt sends it and asks again when it changes. The assistant must be turned on under Ganit ▸ Assistant…. Its answer is parsed as a Ganit value, so later lines can calculate with it."
       ),
-      examples: ["ask_assistant(10 kg of water in ml)"],
-      keywords: AssistantFunction.allCases.map(\.rawValue)
+      examples: ["ask_assistant(10 kg of water in ml)", "ask_assistant({weight} of water in ml)"],
+      keywords: [assistantFunctionName]
     )
   }
 

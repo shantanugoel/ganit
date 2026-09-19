@@ -31,11 +31,7 @@ struct LanguageReferenceTests {
         LanguageReference.topic(named: function.rawValue) != nil,
         "\(function.rawValue)")
     }
-    for function in AssistantFunction.allCases {
-      #expect(
-        LanguageReference.topic(named: function.rawValue) != nil,
-        "\(function.rawValue)")
-    }
+    #expect(LanguageReference.topic(named: assistantFunctionName) != nil)
   }
 
   @Test

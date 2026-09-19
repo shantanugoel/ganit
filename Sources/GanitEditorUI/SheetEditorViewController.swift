@@ -79,16 +79,19 @@ public final class SheetEditorViewController: NSViewController {
   /// answer outlives the evaluations and line identities of the text it
   /// belongs to.
   private var assistantAnswers: [String: String] = [:]
-  /// Lines already sent, including ones that came back empty, and lines or
-  /// prompts whose request was cancelled, so none is retried on every
-  /// keystroke. Ask Assistant asks again.
+  /// Lines already sent, including ones that came back empty or whose
+  /// request was cancelled, so none is retried on every keystroke. Ask
+  /// Assistant asks again.
   private var assistantAsked: Set<String> = []
   /// Requests that have not come back yet, by the line text asked, shown as
   /// Asking… until they finish or are cancelled.
   private var assistantLineInFlight: [String: Task<Void, Never>] = [:]
   /// Parsed values for `ask_assistant` prompts, reused across evaluations.
-  private var assistantValues: [String: AssistantAnswer] = [:]
-  private var assistantPromptsInFlight: [String: Task<Void, Never>] = [:]
+  private var assistantValues: [AssistantPrompt: AssistantAnswer] = [:]
+  private var assistantPromptsInFlight: [AssistantPrompt: Task<Void, Never>] = [:]
+  /// Prompts whose request was cancelled, which are not asked again until
+  /// Ask Assistant.
+  private var assistantPromptsCancelled: Set<AssistantPrompt> = []
   /// Each line's UTF-16 start offset, in line order.
   private var cachedUTF16Starts: [Int]?
   /// The text and result of each line in the newest shown evaluation.
@@ -466,7 +469,7 @@ public final class SheetEditorViewController: NSViewController {
       switch result {
       case .value(let value): values.append(value)
       case .syntaxFailure, .evaluationFailure:
-        if isAssistantPending(text: line.text, result: result) {
+        if let shown, isAssistantPending(text: line.text, line: shown.result) {
           pendingCount += 1
         } else {
           failedCount += 1
@@ -598,28 +601,21 @@ public final class SheetEditorViewController: NSViewController {
   /// Asks about each `ask_assistant` prompt that still has no value, then
   /// evaluates again so later lines can use the answer.
   private func askAboutPrompts() {
-    guard let evaluation = latestEvaluation else {
-      return
-    }
-    for line in evaluation.lines {
-      guard case .evaluationFailure(let error) = line.result,
-        error.code == .unresolvedAssistantPrompt,
-        case .assistantPrompt(let prompt) = error.context
-      else {
-        continue
-      }
-      requestAssistantPrompt(prompt)
+    for line in latestEvaluation?.lines ?? [] {
+      line.assistantPrompts.forEach(requestAssistantPrompt)
     }
   }
 
-  private func requestAssistantPrompt(_ prompt: String) {
-    guard let askAssistant, !prompt.isEmpty, assistantValues[prompt] == nil,
-      assistantPromptsInFlight[prompt] == nil, !assistantAsked.contains(prompt)
+  private func requestAssistantPrompt(_ prompt: AssistantPrompt) {
+    guard let askAssistant, assistantValues[prompt] == nil,
+      assistantPromptsInFlight[prompt] == nil, !assistantPromptsCancelled.contains(prompt)
     else {
       return
     }
+    // Values are written as the sheet shows them.
+    let text = prompt.text { (try? resultFormatter.format($0))?.display ?? "" }
     assistantPromptsInFlight[prompt] = Task { [weak self] in
-      let answer = await askAssistant(prompt)
+      let answer = await askAssistant(text)
       guard !Task.isCancelled else {
         return
       }
@@ -629,7 +625,7 @@ public final class SheetEditorViewController: NSViewController {
     summarizeSelection()
   }
 
-  private func finishAssistantPrompt(_ prompt: String, answer: String?) {
+  private func finishAssistantPrompt(_ prompt: AssistantPrompt, answer: String?) {
     assistantPromptsInFlight[prompt] = nil
     if let answer, case .value(let value) = CalculationEngine().evaluate(answer, context: context) {
       assistantValues[prompt] = .value(value)
@@ -674,14 +670,14 @@ public final class SheetEditorViewController: NSViewController {
 
   /// Stops waiting for these requests and does not ask again until Ask
   /// Assistant. A cancelled request may already have reached the provider.
-  private func cancelAssistantRequests(lines: [String], prompts: [String]) {
+  private func cancelAssistantRequests(lines: [String], prompts: [AssistantPrompt]) {
     for asked in lines {
       assistantLineInFlight.removeValue(forKey: asked)?.cancel()
       assistantAsked.insert(asked)
     }
     for prompt in prompts {
       assistantPromptsInFlight.removeValue(forKey: prompt)?.cancel()
-      assistantAsked.insert(prompt)
+      assistantPromptsCancelled.insert(prompt)
     }
     sheetTextView.answersDidChange()
     summarizeSelection()
@@ -712,7 +708,7 @@ public final class SheetEditorViewController: NSViewController {
       cancelAssistantRequests(lines: [], prompts: prompts)
       for prompt in prompts {
         assistantValues.removeValue(forKey: prompt)
-        assistantAsked.remove(prompt)
+        assistantPromptsCancelled.remove(prompt)
       }
       context = context.with(assistantAnswers: assistantValues)
       scheduler?.context = context
@@ -774,9 +770,8 @@ public final class SheetEditorViewController: NSViewController {
   func saveAssistantAnswerAsValue(_ text: String) -> Bool {
     let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !value.contains(where: { $0.isNewline }),
-      let expression = CalculationEngine().parse(value, context: context).expression,
-      expression.assistantPrompts.isEmpty,
-      case .value = CalculationEngine().evaluate(value, context: context)
+      case .value = CalculationEngine().evaluate(
+        value, context: context.with(assistantAnswers: [:]))
     else { return false }
     let id =
       sheetTextView.selectedAnswer
@@ -848,7 +843,7 @@ public final class SheetEditorViewController: NSViewController {
   }
 
   private enum AssistantTarget {
-    case prompts([String])
+    case prompts([AssistantPrompt])
     case line(LineID, String)
   }
 
@@ -861,7 +856,7 @@ public final class SheetEditorViewController: NSViewController {
     guard let shown = shownLines[id] else {
       return nil
     }
-    let prompts = assistantPrompts(in: shown)
+    let prompts = shown.result.assistantPrompts
     if !prompts.isEmpty {
       return .prompts(prompts)
     }
@@ -869,25 +864,6 @@ public final class SheetEditorViewController: NSViewController {
       return .line(id, asked)
     }
     return nil
-  }
-
-  private func assistantPrompts(in shown: (text: String, result: SheetLineResult)) -> [String] {
-    var prompts: [String] = []
-    if case .evaluationFailure(let error) = shown.result.result,
-      case .assistantPrompt(let prompt) = error.context, !prompt.isEmpty
-    {
-      prompts.append(prompt)
-    }
-    if case .calculation(_, _, let range?, _) = shown.result.syntax,
-      let text = range.text(in: shown.text),
-      let found = CalculationEngine().parse(String(text), context: context).expression?
-        .assistantPrompts
-    {
-      for prompt in found where !prompts.contains(prompt) {
-        prompts.append(prompt)
-      }
-    }
-    return prompts
   }
 
   /// The line text the assistant is asked about when Ganit could not work the
@@ -923,10 +899,12 @@ public final class SheetEditorViewController: NSViewController {
   public func exportedLines() async -> [ExportedLine] {
     await scheduler?.waitUntilIdle()
     return sheet.lines.map { line in
-      let cell = shownLines[line.id]?.result.result.flatMap {
-        makeCell(
-          for: $0, text: line.text, isEditing: false, assisted: assistantAnswer(to: line.text),
-          pending: isAssistantPending(text: line.text, result: $0))
+      let cell = shownLines[line.id].flatMap { shown in
+        shown.result.result.flatMap {
+          makeCell(
+            for: $0, text: line.text, isEditing: false, assisted: assistantAnswer(to: line.text),
+            pending: isAssistantPending(text: line.text, line: shown.result))
+        }
       }
       return ExportedLine(
         source: line.text, answer: cell?.text, fullPrecision: cell?.fullPrecision,
@@ -977,7 +955,7 @@ public final class SheetEditorViewController: NSViewController {
     }
     let isEditing = id == editingLine
     let assisted = assistantAnswer(to: shown.text)
-    let pending = isAssistantPending(text: shown.text, result: result)
+    let pending = isAssistantPending(text: shown.text, line: shown.result)
     if let cached = cells[id], cached.isEditing == isEditing, cached.result == result,
       cached.assisted == assisted, cached.pending == pending
     {
@@ -993,18 +971,9 @@ public final class SheetEditorViewController: NSViewController {
     assistantAnswers[text.trimmingCharacters(in: .whitespacesAndNewlines)]
   }
 
-  private func isAssistantPending(text: String, result: CalculationResult) -> Bool {
-    let asked = text.trimmingCharacters(in: .whitespacesAndNewlines)
-    if assistantLineInFlight[asked] != nil {
-      return true
-    }
-    if case .evaluationFailure(let error) = result,
-      case .assistantPrompt(let prompt) = error.context,
-      assistantPromptsInFlight[prompt] != nil
-    {
-      return true
-    }
-    return false
+  private func isAssistantPending(text: String, line: SheetLineResult) -> Bool {
+    assistantLineInFlight[text.trimmingCharacters(in: .whitespacesAndNewlines)] != nil
+      || line.assistantPrompts.contains { assistantPromptsInFlight[$0] != nil }
   }
 
   private func makeCell(

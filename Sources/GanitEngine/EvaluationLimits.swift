@@ -98,9 +98,7 @@ public enum BuiltInFunction: String, CaseIterable, Hashable, Sendable {
   }
 }
 
-/// A call whose argument is the prompt sent to a configured assistant,
-/// not an expression. `prompt_assistant` is the same function.
-public enum AssistantFunction: String, CaseIterable, Hashable, Sendable {
-  case ask = "ask_assistant"
-  case prompt = "prompt_assistant"
-}
+/// The call whose argument is the prompt sent to a configured assistant,
+/// not an expression. `{…}` inside it holds an expression whose value is
+/// written into the prompt.
+public let assistantFunctionName = "ask_assistant"

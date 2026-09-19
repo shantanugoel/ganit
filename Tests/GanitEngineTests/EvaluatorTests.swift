@@ -177,19 +177,17 @@ struct EvaluatorTests {
     let expression = try #require(parsing.expression)
     let unanswered = try error(evaluating: "ask_assistant(10 kg of water in ml)")
     #expect(unanswered.code == .unresolvedAssistantPrompt)
-    #expect(
-      unanswered.context == .assistantPrompt("10 kg of water in ml")
-    )
 
     let context = try fixedContext().with(
       assistantAnswers: [
-        "10 kg of water in ml": .value(.number(.integer(IntegerValue(10_000))))
+        AssistantPrompt([.text("10 kg of water in ml")]):
+          .value(.number(.integer(IntegerValue(10_000))))
       ]
     )
     let value = try Evaluator(context: context).evaluate(expression)
     #expect(value == .number(.integer(IntegerValue(20_000))))
     #expect(
-      try error(evaluating: "prompt_assistant()").code == .invalidDomain
+      try error(evaluating: "ask_assistant( )").code == .invalidDomain
     )
   }
 

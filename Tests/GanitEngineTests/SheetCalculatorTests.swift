@@ -228,6 +228,46 @@ struct SheetCalculatorTests {
     }
   }
 
+  @Test
+  func assistantPromptsFillPlaceholdersAndAskAgainWhenTheyChange() throws {
+    var calculator = SheetCalculator()
+    var sheet = SheetSource("weight = 10\n20\nask_assistant({weight} kg and {previous} g)")
+    let context = try sheetContext()
+    func prompts() throws -> [AssistantPrompt] {
+      try calculator.evaluate(sheet, context: context).lines.last?.assistantPrompts ?? []
+    }
+    func asked(_ weight: Int) -> AssistantPrompt {
+      AssistantPrompt([
+        .value(.number(.integer(IntegerValue(weight)))), .text(" kg and "),
+        .value(.number(.integer(IntegerValue(20)))), .text(" g"),
+      ])
+    }
+    #expect(try prompts() == [asked(10)])
+    sheet.replace(utf8Range: 9..<11, with: "12")
+    #expect(try prompts() == [asked(12)])
+
+    let answered = try calculator.evaluate(
+      sheet,
+      context: context.with(assistantAnswers: [
+        asked(12): .value(.number(.integer(IntegerValue(3))))
+      ]))
+    #expect(try summary(answered).last == "3")
+  }
+
+  @Test
+  func anAssistantPromptWhosePlaceholderFailsAsksNothing() throws {
+    var calculator = SheetCalculator()
+    let evaluation = try calculator.evaluate(
+      SheetSource("ask_assistant({missing} kg)"), context: try sheetContext())
+    let line = try #require(evaluation.lines.last)
+    #expect(line.assistantPrompts.isEmpty)
+    guard case .evaluationFailure(let error) = line.result else {
+      Issue.record("expected a failure")
+      return
+    }
+    #expect(error.code == .unknownIdentifier)
+  }
+
   private func summary(_ evaluation: SheetEvaluation) throws -> [String?] {
     evaluation.lines.map {
       guard case .value(.number(.integer(let integer))) = $0.result else {

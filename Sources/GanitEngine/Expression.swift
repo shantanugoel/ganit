@@ -129,10 +129,10 @@ public indirect enum Expression: Hashable, Sendable {
   )
   case grouped(Expression, range: SourceRange)
   case reference(LineReference, range: SourceRange)
-  /// The text inside the parentheses is the prompt, not an expression.
+  /// The text inside the parentheses is the prompt, not an expression,
+  /// except for the expression in each `{…}` placeholder.
   case assistantPrompt(
-    name: String,
-    prompt: String,
+    parts: [PromptPart],
     nameRange: SourceRange,
     range: SourceRange
   )
@@ -156,7 +156,7 @@ public indirect enum Expression: Hashable, Sendable {
       .conversion(_, _, _, let range),
       .grouped(_, let range),
       .reference(_, let range),
-      .assistantPrompt(_, _, _, let range):
+      .assistantPrompt(_, _, let range):
       return range
     }
   }
@@ -166,8 +166,14 @@ public indirect enum Expression: Hashable, Sendable {
     switch self {
     case .reference(let reference, _):
       return [reference]
-    case .literal, .temporal, .identifier, .assistantPrompt:
+    case .literal, .temporal, .identifier:
       return []
+    case .assistantPrompt(let parts, _, _):
+      return parts.reduce(into: []) {
+        if case .placeholder(let expression) = $1 {
+          $0.formUnion(expression.references)
+        }
+      }
     case .prefix(_, let operand, _, _),
       .percentage(let operand, _, _),
       .quantity(let operand, _, _),
@@ -186,32 +192,6 @@ public indirect enum Expression: Hashable, Sendable {
       return arguments.reduce(into: []) { $0.formUnion($1.references) }
     }
   }
-
-  /// Prompts `ask_assistant` and `prompt_assistant` would send.
-  package var assistantPrompts: [String] {
-    switch self {
-    case .assistantPrompt(_, let prompt, _, _):
-      return prompt.isEmpty ? [] : [prompt]
-    case .literal, .temporal, .identifier, .reference:
-      return []
-    case .prefix(_, let operand, _, _),
-      .percentage(let operand, _, _),
-      .quantity(let operand, _, _),
-      .period(let operand, _, _),
-      .relative(let operand, _, _),
-      .zoneConversion(let operand, _, _),
-      .money(let operand, _, _),
-      .currencyConversion(let operand, _, _),
-      .conversion(let operand, _, _, _),
-      .grouped(let operand, _):
-      return operand.assistantPrompts
-    case .infix(let left, _, let right, _, _),
-      .percentageOperation(_, let left, let right, _, _):
-      return left.assistantPrompts + right.assistantPrompts
-    case .call(_, _, let arguments, _):
-      return arguments.flatMap(\.assistantPrompts)
-    }
-  }
 }
 
 public struct ParsingResult: Equatable, Sendable {
@@ -222,4 +202,11 @@ public struct ParsingResult: Equatable, Sendable {
     self.expression = expression
     self.diagnostics = diagnostics
   }
+}
+
+/// A piece of an `ask_assistant` prompt: words sent as written, or the
+/// expression in a `{…}` placeholder, whose value is sent.
+public enum PromptPart: Hashable, Sendable {
+  case text(String)
+  case placeholder(Expression)
 }

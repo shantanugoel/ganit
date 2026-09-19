@@ -486,8 +486,8 @@ private final class TokenParser {
         return phrase
       }
       if current.kind == .leftParenthesis {
-        if AssistantFunction(rawValue: name) != nil {
-          return parseAssistantCall(name: name, identifierRange: token.range)
+        if name == assistantFunctionName {
+          return parseAssistantCall(identifierRange: token.range, depth: depth)
         }
         return parseCall(
           name: name,
@@ -649,45 +649,37 @@ private final class TokenParser {
   }
 
   /// The text between the parentheses is the prompt, including spaces and
-  /// words that are not expressions.
-  private func parseAssistantCall(
-    name: String,
-    identifierRange: SourceRange
-  ) -> Expression {
-    advance()
-    let promptStart = current.range.lowerBound
-    var depth = 1
-    while current.kind != .endOfFile, current.kind != .newline {
-      if current.kind == .leftParenthesis {
-        depth += 1
-      } else if current.kind == .rightParenthesis {
-        depth -= 1
-        if depth == 0 {
-          let prompt = slice(from: promptStart, to: current.range.lowerBound)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-          let closing = advance()
-          return .assistantPrompt(
-            name: name,
-            prompt: prompt,
-            nameRange: identifierRange,
-            range: identifierRange.union(closing.range)
-          )
-        }
-      }
-      advance()
+  /// words that are not expressions. The lexer leaves the words out, so the
+  /// tokens inside are only each placeholder's `{`, expression, and `}`.
+  private func parseAssistantCall(identifierRange: SourceRange, depth: Int) -> Expression {
+    var textStart = advance().range.upperBound
+    var parts: [PromptPart] = []
+    func prompt(endingAt end: SourceRange) -> Expression {
+      parts.append(.text(slice(from: textStart, to: end.lowerBound)))
+      return .assistantPrompt(
+        parts: parts.filter { $0 != .text("") },
+        nameRange: identifierRange,
+        range: identifierRange.union(end)
+      )
     }
-    diagnose(
-      .expectedClosingParenthesis,
-      at: current.range,
-      severity: .incomplete
-    )
-    return .assistantPrompt(
-      name: name,
-      prompt: slice(from: promptStart, to: current.range.lowerBound)
-        .trimmingCharacters(in: .whitespacesAndNewlines),
-      nameRange: identifierRange,
-      range: identifierRange.union(current.range)
-    )
+    while current.kind == .leftBrace {
+      parts.append(.text(slice(from: textStart, to: current.range.lowerBound)))
+      advance()
+      guard let expression = parseExpression(minimumBindingPower: 0, depth: depth + 1) else {
+        return prompt(endingAt: current.range)
+      }
+      guard current.kind == .rightBrace else {
+        diagnose(.expectedClosingBrace, at: current.range)
+        return prompt(endingAt: current.range)
+      }
+      parts.append(.placeholder(expression))
+      textStart = advance().range.upperBound
+    }
+    guard current.kind == .rightParenthesis else {
+      diagnose(.expectedClosingParenthesis, at: current.range, severity: .incomplete)
+      return prompt(endingAt: current.range)
+    }
+    return prompt(endingAt: advance().range)
   }
 
   private func slice(from lowerBound: Int, to upperBound: Int) -> String {
