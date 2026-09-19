@@ -8,6 +8,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 - Settings ▸ Appearance keeps Ganit Light or Dark instead of following the
   Mac, which it still does by default.
 
+- Settings ▸ Open Ganit at login adds Ganit to the Mac's login items.
+
 ## 0.4.0
 
 - `2 + 3 =` says answers appear on their own and to remove the `=`, instead of

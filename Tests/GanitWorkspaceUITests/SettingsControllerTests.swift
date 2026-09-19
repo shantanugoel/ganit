@@ -16,7 +16,8 @@ struct SettingsControllerTests {
       automaticExchangeRates: true,
       automaticUpdates: false,
       completesWhileTyping: true,
-      appearance: .system
+      appearance: .system,
+      opensAtLogin: false
     )
     let settings = SettingsController(state: start) { seen.append($0) }
     settings.loadView()
@@ -26,6 +27,9 @@ struct SettingsControllerTests {
     autocomplete.performClick(nil)
     #expect(seen.last?.completesWhileTyping == false)
     let tour = try #require(settings.view.buttons.first { $0.title == "Show Tour" })
+    let login = try #require(settings.view.buttons.first { $0.title.contains("login") })
+    login.performClick(nil)
+    #expect(seen.last?.opensAtLogin == true)
     let appearance = try #require(settings.view.popUpButtons.first)
     #expect(appearance.titleOfSelectedItem == "System")
     appearance.selectItem(withTitle: "Dark")

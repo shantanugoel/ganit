@@ -33,6 +33,7 @@ public struct SettingsState: Equatable, Sendable {
   public var automaticUpdates: Bool
   public var completesWhileTyping: Bool
   public var appearance: AppearanceChoice
+  public var opensAtLogin: Bool
 
   public init(
     staysInMenuBar: Bool,
@@ -41,7 +42,8 @@ public struct SettingsState: Equatable, Sendable {
     automaticExchangeRates: Bool,
     automaticUpdates: Bool,
     completesWhileTyping: Bool,
-    appearance: AppearanceChoice
+    appearance: AppearanceChoice,
+    opensAtLogin: Bool
   ) {
     self.staysInMenuBar = staysInMenuBar
     self.spotlightTitles = spotlightTitles
@@ -50,6 +52,7 @@ public struct SettingsState: Equatable, Sendable {
     self.automaticUpdates = automaticUpdates
     self.completesWhileTyping = completesWhileTyping
     self.appearance = appearance
+    self.opensAtLogin = opensAtLogin
   }
 }
 
@@ -77,6 +80,9 @@ public final class SettingsController: NSViewController {
   private let updates = NSButton(
     checkboxWithTitle: localized("settings.updates", "Check for updates automatically"),
     target: nil, action: nil)
+  private let login = NSButton(
+    checkboxWithTitle: localized("settings.login", "Open Ganit at login"),
+    target: nil, action: nil)
   private let appearance = NSPopUpButton()
 
   public init(state: SettingsState, didChange: @escaping (SettingsState) -> Void) {
@@ -91,7 +97,7 @@ public final class SettingsController: NSViewController {
   }
 
   public override func loadView() {
-    let boxes = [autocomplete, menuBar, spotlight, quickEmpty, rates, updates]
+    let boxes = [autocomplete, login, menuBar, spotlight, quickEmpty, rates, updates]
     for box in boxes {
       box.target = self
       box.action = #selector(changed(_:))
@@ -148,6 +154,7 @@ public final class SettingsController: NSViewController {
 
   private func sync() {
     autocomplete.state = state.completesWhileTyping ? .on : .off
+    login.state = state.opensAtLogin ? .on : .off
     menuBar.state = state.staysInMenuBar ? .on : .off
     spotlight.state = state.spotlightTitles ? .on : .off
     quickEmpty.state = state.quickGanitStartsEmpty ? .on : .off
@@ -158,6 +165,7 @@ public final class SettingsController: NSViewController {
 
   @objc func changed(_ sender: NSControl) {
     state.completesWhileTyping = autocomplete.state == .on
+    state.opensAtLogin = login.state == .on
     state.staysInMenuBar = menuBar.state == .on
     state.spotlightTitles = spotlight.state == .on
     state.quickGanitStartsEmpty = quickEmpty.state == .on

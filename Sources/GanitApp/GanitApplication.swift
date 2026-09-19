@@ -7,6 +7,7 @@ import GanitEditorUI
 import GanitQuickUI
 import GanitSystemIntegration
 import GanitWorkspaceUI
+import ServiceManagement
 import Sparkle
 
 #if !arch(arm64)
@@ -343,7 +344,8 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       automaticExchangeRates: rateRefresher?.isAutomatic == true,
       automaticUpdates: checksForUpdatesAutomatically,
       completesWhileTyping: GanitPreferences.completesWhileTyping,
-      appearance: appearanceChoice
+      appearance: appearanceChoice,
+      opensAtLogin: SMAppService.mainApp.status == .enabled
     )
   }
 
@@ -374,6 +376,22 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     GanitPreferences.completesWhileTyping = settings.completesWhileTyping
     UserDefaults.standard.set(settings.appearance.rawValue, forKey: Self.appearanceDefaultsKey)
     NSApplication.shared.appearance = settings.appearance.appearance
+    if (SMAppService.mainApp.status == .enabled) != settings.opensAtLogin {
+      do {
+        if settings.opensAtLogin {
+          try SMAppService.mainApp.register()
+          // The Mac can ask for the login item to be allowed in System Settings.
+          if SMAppService.mainApp.status == .requiresApproval {
+            SMAppService.openSystemSettingsLoginItems()
+          }
+        } else {
+          try SMAppService.mainApp.unregister()
+        }
+      } catch {
+        NSApplication.shared.presentError(error)
+      }
+      (settingsWindow?.contentViewController as? SettingsController)?.show(currentSettings())
+    }
   }
 
   /// The first-run walkthrough, or the same steps from Settings or Help.

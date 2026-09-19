@@ -20,7 +20,8 @@ The first time Ganit opens a sheet it shows a short tour. Skip or Done
 dismisses it; Settings and Help ▸ Show Tour open it again.
 
 Settings also holds choices no menu has: Appearance keeps windows Light or Dark
-instead of following the Mac (System, the default).
+instead of following the Mac (System, the default), and Open Ganit at Login
+adds Ganit to the Mac's login items.
 
 The sheet's right-click menu is the same sheet commands plus Cut, Copy, Paste,
 and Select All. It does not include AppKit Font, Spelling, Speech, or Services
