@@ -17,7 +17,8 @@ struct SettingsControllerTests {
       automaticUpdates: false,
       completesWhileTyping: true,
       appearance: .system,
-      opensAtLogin: false
+      opensAtLogin: false,
+      startsInMenuBar: false
     )
     let settings = SettingsController(state: start) { seen.append($0) }
     settings.loadView()
@@ -30,6 +31,13 @@ struct SettingsControllerTests {
     let login = try #require(settings.view.buttons.first { $0.title.contains("login") })
     login.performClick(nil)
     #expect(seen.last?.opensAtLogin == true)
+    let startsHidden = try #require(settings.view.buttons.first { $0.title.contains("without") })
+    #expect(!startsHidden.isEnabled)
+    let menuBar = try #require(settings.view.buttons.first { $0.title.contains("Stay in") })
+    menuBar.performClick(nil)
+    #expect(startsHidden.isEnabled)
+    startsHidden.performClick(nil)
+    #expect(seen.last?.startsInMenuBar == true)
     let appearance = try #require(settings.view.popUpButtons.first)
     #expect(appearance.titleOfSelectedItem == "System")
     appearance.selectItem(withTitle: "Dark")

@@ -34,6 +34,7 @@ public struct SettingsState: Equatable, Sendable {
   public var completesWhileTyping: Bool
   public var appearance: AppearanceChoice
   public var opensAtLogin: Bool
+  public var startsInMenuBar: Bool
 
   public init(
     staysInMenuBar: Bool,
@@ -43,7 +44,8 @@ public struct SettingsState: Equatable, Sendable {
     automaticUpdates: Bool,
     completesWhileTyping: Bool,
     appearance: AppearanceChoice,
-    opensAtLogin: Bool
+    opensAtLogin: Bool,
+    startsInMenuBar: Bool
   ) {
     self.staysInMenuBar = staysInMenuBar
     self.spotlightTitles = spotlightTitles
@@ -53,6 +55,7 @@ public struct SettingsState: Equatable, Sendable {
     self.completesWhileTyping = completesWhileTyping
     self.appearance = appearance
     self.opensAtLogin = opensAtLogin
+    self.startsInMenuBar = startsInMenuBar
   }
 }
 
@@ -67,6 +70,9 @@ public final class SettingsController: NSViewController {
     target: nil, action: nil)
   private let menuBar = NSButton(
     checkboxWithTitle: localized("settings.menuBar", "Stay in the menu bar"),
+    target: nil, action: nil)
+  private let startsHidden = NSButton(
+    checkboxWithTitle: localized("settings.startsHidden", "Start in the menu bar without a window"),
     target: nil, action: nil)
   private let spotlight = NSButton(
     checkboxWithTitle: localized("settings.spotlight", "Show sheet titles in Spotlight"),
@@ -97,7 +103,7 @@ public final class SettingsController: NSViewController {
   }
 
   public override func loadView() {
-    let boxes = [autocomplete, login, menuBar, spotlight, quickEmpty, rates, updates]
+    let boxes = [autocomplete, login, menuBar, startsHidden, spotlight, quickEmpty, rates, updates]
     for box in boxes {
       box.target = self
       box.action = #selector(changed(_:))
@@ -156,6 +162,9 @@ public final class SettingsController: NSViewController {
     autocomplete.state = state.completesWhileTyping ? .on : .off
     login.state = state.opensAtLogin ? .on : .off
     menuBar.state = state.staysInMenuBar ? .on : .off
+    // Without the menu bar item, a hidden start would leave only the Dock.
+    startsHidden.isEnabled = state.staysInMenuBar
+    startsHidden.state = state.startsInMenuBar ? .on : .off
     spotlight.state = state.spotlightTitles ? .on : .off
     quickEmpty.state = state.quickGanitStartsEmpty ? .on : .off
     rates.state = state.automaticExchangeRates ? .on : .off
@@ -167,11 +176,13 @@ public final class SettingsController: NSViewController {
     state.completesWhileTyping = autocomplete.state == .on
     state.opensAtLogin = login.state == .on
     state.staysInMenuBar = menuBar.state == .on
+    state.startsInMenuBar = startsHidden.state == .on
     state.spotlightTitles = spotlight.state == .on
     state.quickGanitStartsEmpty = quickEmpty.state == .on
     state.automaticExchangeRates = rates.state == .on
     state.automaticUpdates = updates.state == .on
     state.appearance = AppearanceChoice.allCases[max(appearance.indexOfSelectedItem, 0)]
+    startsHidden.isEnabled = state.staysInMenuBar
     didChange(state)
   }
 }

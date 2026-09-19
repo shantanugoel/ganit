@@ -10,6 +10,9 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 - Settings ▸ Open Ganit at login adds Ganit to the Mac's login items.
 
+- Settings ▸ Start in the menu bar without a window launches Ganit into its
+  menu bar item only, when Stay in the menu bar is on.
+
 ## 0.4.0
 
 - `2 + 3 =` says answers appear on their own and to remove the `=`, instead of

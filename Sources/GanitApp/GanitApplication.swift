@@ -44,6 +44,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   private static let spotlightDefaultsKey = "SpotlightIndexesSheetTitles"
   private static let menuBarDefaultsKey = "GanitStaysInMenuBar"
   private static let appearanceDefaultsKey = "Appearance"
+  private static let startsInMenuBarDefaultsKey = "StartsInMenuBar"
   private var statusItem: NSStatusItem?
   private var shortcutWindow: NSWindow?
   private var assistantWindow: NSWindow?
@@ -131,6 +132,16 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     // from a script with `open -a Ganit --args --quick-ganit`.
     if CommandLine.arguments.contains("--quick-ganit") {
       showQuickGanit(nil)
+      return
+    }
+    // Starting in the menu bar leaves even restored windows closed until
+    // Show Window, a sheet, or the Dock icon asks for one.
+    if UserDefaults.standard.bool(forKey: Self.menuBarDefaultsKey),
+      UserDefaults.standard.bool(forKey: Self.startsInMenuBarDefaultsKey)
+    {
+      for controller in workspace?.windows ?? [] {
+        controller.close()
+      }
       return
     }
     if workspace?.windows.isEmpty == true {
@@ -345,7 +356,8 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       automaticUpdates: checksForUpdatesAutomatically,
       completesWhileTyping: GanitPreferences.completesWhileTyping,
       appearance: appearanceChoice,
-      opensAtLogin: SMAppService.mainApp.status == .enabled
+      opensAtLogin: SMAppService.mainApp.status == .enabled,
+      startsInMenuBar: UserDefaults.standard.bool(forKey: Self.startsInMenuBarDefaultsKey)
     )
   }
 
@@ -374,6 +386,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       toggleAutomaticUpdateChecks(nil)
     }
     GanitPreferences.completesWhileTyping = settings.completesWhileTyping
+    UserDefaults.standard.set(settings.startsInMenuBar, forKey: Self.startsInMenuBarDefaultsKey)
     UserDefaults.standard.set(settings.appearance.rawValue, forKey: Self.appearanceDefaultsKey)
     NSApplication.shared.appearance = settings.appearance.appearance
     if (SMAppService.mainApp.status == .enabled) != settings.opensAtLogin {

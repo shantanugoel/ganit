@@ -21,7 +21,9 @@ dismisses it; Settings and Help ▸ Show Tour open it again.
 
 Settings also holds choices no menu has: Appearance keeps windows Light or Dark
 instead of following the Mac (System, the default), and Open Ganit at Login
-adds Ganit to the Mac's login items.
+adds Ganit to the Mac's login items. With Stay in the Menu Bar on, Start in the
+Menu Bar Without a Window opens no sheet at launch, closing any restored
+windows; Show Window, the Dock icon, or any sheet command opens one.
 
 The sheet's right-click menu is the same sheet commands plus Cut, Copy, Paste,
 and Select All. It does not include AppKit Font, Spelling, Speech, or Services
