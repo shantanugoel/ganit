@@ -5,6 +5,15 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+## 0.5.2
+
+- Typing `{` in an `ask_assistant` prompt offers the sheet's variables, and
+  choosing one writes its name and closes the placeholder.
+
+- The assistant's replies are kept across launches, so reopening a sheet
+  shows its answers without asking again. Ask Assistant still asks anew and
+  keeps the new reply.
+
 ## 0.5.1
 
 - `ask_assistant` fills in `{…}` placeholders before asking: in
