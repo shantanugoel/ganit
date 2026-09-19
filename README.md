@@ -21,7 +21,7 @@ The live notepad of [Soulver](https://soulver.app/) and [Numi](https://numi.app/
   <img src="docs/images/assistant-dark.png" alt="Ganit window with a purple assistant answer beside a line Ganit could not calculate" width="860">
 </p>
 
-- **Markdown Mode.** Answers move into the line so a sheet reads as an article. `Flour for all three is 500 g * 3 =>` puts the answer after `=>`, as in Calca.
+- **Markdown Mode.** Answers move into the line so a sheet reads as an article. `Flour for all three is 500 g * 3 =>` puts the answer right after `=>`, as in Calca.
 
 <p align="center">
   <img src="docs/images/markdown-dark.png" alt="Ganit window in Markdown Mode, with answers written after => in the lines" width="860">
@@ -72,9 +72,11 @@ anything.
 </p>
 
 **Markdown mode** (**Format ▸ Markdown Mode**, or the sheet's right-click menu)
-moves the answers into the lines. Headings, paragraphs, and `**bold**` sit
-beside ordinary Ganit arithmetic; `=>` ends a calculation. Markdown sheets show
-a small document mark in the sidebar.
+moves the answers into the lines, as in Calca. Headings, paragraphs, lists, and
+`**bold**` sit beside ordinary Ganit arithmetic. A line shows its answer when
+it ends its calculation with `=>` (⌘↩ adds one), right after the arrow, and any
+words after the arrow follow the answer. Markdown sheets show a small document
+mark in the sidebar.
 
 **Scratch** (⇧⌘S) is the sheet that is always there, for a number you want to
 work out now and name later.

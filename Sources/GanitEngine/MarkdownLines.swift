@@ -13,10 +13,13 @@ enum MarkdownLines {
     else {
       return syntax
     }
-    let slice = Self.slice(of: expression, in: text)
+    var slice = Self.slice(of: expression, in: text)
+    // A list item or quote is its words: `- 2 + 3` is 2 + 3, not -2 + 3.
+    let marker = listMarker(in: slice)
+    slice.removeFirst(marker.count)
     let origin = SourceLocation(
-      utf8Offset: expression.lowerBound,
-      graphemeOffset: expression.graphemeLowerBound
+      utf8Offset: expression.lowerBound + marker.utf8.count,
+      graphemeOffset: expression.graphemeLowerBound + marker.count
     )
     if let kept = calculationRange(
       in: slice,
@@ -32,6 +35,22 @@ enum MarkdownLines {
       return syntax
     }
     return .markdown
+  }
+
+  /// A leading `- `, `* `, `+ `, `> `, or `1. ` and the spaces after it, or
+  /// an empty string.
+  private static func listMarker(in text: String) -> Substring {
+    let digits = text.prefix(while: \.isASCII).prefix(while: \.isNumber)
+    let marker =
+      !digits.isEmpty && text.dropFirst(digits.count).first == "."
+      ? text.prefix(digits.count + 1) : text.prefix(1)
+    guard ["-", "*", "+", ">"].contains(marker) || marker.hasSuffix("."),
+      let space = text.dropFirst(marker.count).first, space == " " || space == "\t"
+    else {
+      return ""
+    }
+    let spaces = text.dropFirst(marker.count).prefix { $0 == " " || $0 == "\t" }
+    return text.prefix(marker.count + spaces.count)
   }
 
   /// ` + `, ` * `, ` / `, ` ^ `, or ` = `. A spaced `-` is a dash in prose.

@@ -65,6 +65,18 @@ struct LineSyntaxTests {
   }
 
   @Test
+  func findsTheArrowEndingACalculation() {
+    #expect(
+      LineSyntax.arrow(in: "Each pays 555 / 3 => then a hotel")?.text(
+        in: "Each pays 555 / 3 => then a hotel") == "=>")
+    #expect(LineSyntax.arrow(in: "x = 2 => ")?.lowerBound == 6)
+    #expect(LineSyntax.arrow(in: "2 + 2") == nil)
+    #expect(LineSyntax.arrow(in: "# Heading =>") == nil)
+    #expect(LineSyntax.arrow(in: "// note =>") == nil)
+    #expect(LineSyntax.arrow(in: "2 // then =>") == nil)
+  }
+
+  @Test
   func evaluatesSheetLinesWithLineRelativeRanges() throws {
     let sheet = SheetSource(
       "# Trip\r\nDistance: 12 km in miles // one way\n\n---\nBad: 1 m + 1 s\nTotal: 2 +\n"

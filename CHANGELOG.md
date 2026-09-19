@@ -5,6 +5,12 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Markdown Mode works as in Calca: only a line ending its calculation with `=>`
+  shows an answer, drawn right after the arrow, with any words after the arrow
+  moved along to follow it. A leading list or quote marker such as `- ` or
+  `1. ` is skipped, and Calculate ▸ Insert Answer Arrow (⌘↩) ends the line
+  with `=>`.
+
 - Settings ▸ Appearance keeps Ganit Light or Dark instead of following the
   Mac, which it still does by default.
 

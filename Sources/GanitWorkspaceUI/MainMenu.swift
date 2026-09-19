@@ -336,6 +336,9 @@ public enum MainMenu {
           item(
             localized("menu.insertSubtotal", "Insert Subtotal"),
             #selector(SheetCommands.insertSubtotal(_:)), "t"),
+          item(
+            localized("menu.insertAnswerArrow", "Insert Answer Arrow"),
+            #selector(SheetCommands.insertAnswerArrow(_:)), "\r"),
           .separator(),
           item(
             localized("menu.recalculate", "Recalculate"), #selector(SheetCommands.recalculate(_:)),

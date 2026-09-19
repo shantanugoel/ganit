@@ -6,7 +6,11 @@ structural role. On an ordinary sheet, prose is recognized only through the
 explicit markers below; any other text is an expression and unknown words are
 reported, not skipped. **Markdown Mode** writes answers in the lines and treats
 sentences that are not calculations as paragraphs, so a sheet can be an article
-with arithmetic in it, as in Calca.
+with arithmetic in it, as in Calca. As in Calca, only a line ending its
+calculation with `=>` shows an answer, drawn right after the arrow; words after
+the arrow are moved along to follow it, and the text itself never changes.
+Lines without `=>` still calculate, so their names and `line N` references
+work.
 
 | Role | Form | Example |
 |---|---|---|
@@ -37,7 +41,9 @@ Rules, applied in this order:
    to the assistant, while `Groceries (Costco) =` and `2 + 3 = 5` keep the
    name diagnostics. In Markdown Mode, leading words before a number, currency, or
    function are skipped, so `The cost is 100 + 50` is `100 + 50`, and a line
-   with no calculation is a paragraph rather than an error. A line with a
+   with no calculation is a paragraph rather than an error. A leading list
+   or quote marker (`- `, `* `, `+ `, `> `, `1. `) is skipped too, so
+   `- 2 + 3` is `2 + 3`. A line with a
    spaced `+`, `*`, `/`, `^`, or `=` that does not calculate stays a calculation
    and shows its problem; a spaced `-` is a dash.
 

@@ -85,7 +85,7 @@ extension LanguageReference {
       ),
       body: text(
         "help.grammar.lines.body",
-        "Write one calculation to a line. The answer appears beside it, or in the line in Markdown Mode. A label is a name followed by a colon. # starts a heading, // a comment, and --- a divider. Comments, headings, and markdown paragraphs have no answer. In Markdown Mode, sentences are paragraphs, and a calculation can follow them: The cost is 100 + 50. => ends a calculation, Calca-style."
+        "Write one calculation to a line. The answer appears beside it. A label is a name followed by a colon. # starts a heading, // a comment, and --- a divider. Comments, headings, and markdown paragraphs have no answer. => ends a calculation, Calca-style, and ⌘↩ adds one. In Markdown Mode, sentences and list items are paragraphs, a calculation can follow them, as in The cost is 100 + 50 =>, and only lines ending in => show an answer, written right after the arrow."
       ),
       examples: ["Rent: 2,100 // shared", "# Trip", "---"],
       keywords: ["heading", "comment", "divider", "label"]

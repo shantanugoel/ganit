@@ -33,6 +33,7 @@ final class SheetTextView: NSTextView {
     didSet {
       font = VisualStyle.Typography.source(scale: textScale)
       setFrameSize(frame.size)
+      openAnswerGaps()
     }
   }
 
@@ -44,6 +45,7 @@ final class SheetTextView: NSTextView {
         return
       }
       setFrameSize(frame.size)
+      openAnswerGaps()
     }
   }
 
@@ -122,7 +124,132 @@ final class SheetTextView: NSTextView {
     if let selectedAnswer, answer(selectedAnswer) == nil {
       self.selectedAnswer = nil
     }
+    openAnswerGaps()
     answerOverlay().needsDisplay = true
+  }
+
+  // MARK: Answers after `=>`
+
+  /// The UTF-16 offset just past a line's `=>`, where Markdown Mode writes
+  /// its answer, as Calca does.
+  static func arrowEnd(in text: String) -> Int? {
+    LineSyntax.arrow(in: text).map {
+      text.utf16.distance(
+        from: text.utf16.startIndex,
+        to: text.utf8.index(text.utf8.startIndex, offsetBy: $0.upperBound))
+    }
+  }
+
+  /// In Markdown Mode, moves the words after a line's `=>` along by its
+  /// answer's width, so the answer reads in the sentence. Kerning the `>`
+  /// changes the layout but never the text.
+  func openAnswerGaps() {
+    guard let storage = textStorage else {
+      return
+    }
+    let string = storage.string as NSString
+    var wanted: [Int: CGFloat] = [:]
+    if writesAnswersInline {
+      for line in lineStarts() {
+        let range = NSRange(location: line.start, length: line.length)
+        guard string.range(of: "=>", range: range).location != NSNotFound else {
+          continue
+        }
+        let text = string.substring(with: range)
+        guard let end = Self.arrowEnd(in: text),
+          !(text as NSString).substring(from: end).allSatisfy(\.isWhitespace),
+          let cell = answer(line.id)
+        else {
+          continue
+        }
+        let width = badgeWidth(for: cell) + answerTextWidth(cell.text, for: cell)
+        wanted[line.start + end - 1] = width + Self.columnGap * 1.5
+      }
+    }
+    var present: [Int: CGFloat] = [:]
+    storage.enumerateAttribute(.kern, in: NSRange(location: 0, length: storage.length)) {
+      value, range, _ in
+      guard let kern = value as? CGFloat else {
+        return
+      }
+      for location in range.location..<NSMaxRange(range) {
+        present[location] = kern
+      }
+    }
+    guard present != wanted else {
+      return
+    }
+    storage.beginEditing()
+    for location in present.keys where wanted[location] == nil {
+      storage.removeAttribute(.kern, range: NSRange(location: location, length: 1))
+    }
+    for (location, kern) in wanted where present[location] != kern {
+      storage.addAttribute(.kern, value: kern, range: NSRange(location: location, length: 1))
+    }
+    storage.endEditing()
+  }
+
+  private func answerTextWidth(_ text: String, for cell: AnswerCell) -> CGFloat {
+    ceil((text as NSString).size(withAttributes: attributes(for: cell, selected: false)).width)
+  }
+
+  /// Where the answer goes in the gap opened after a line's `=>`, if it has
+  /// one: the row, the answer's left edge, and the width it has.
+  private func answerGap(in line: VisibleLine) -> (
+    row: NSTextLineFragment, x: CGFloat, width: CGFloat
+  )? {
+    guard let paragraph = line.fragment.textElement as? NSTextParagraph else {
+      return nil
+    }
+    let text = paragraph.attributedString
+    guard let end = Self.arrowEnd(in: text.string), end > 0, end < text.length,
+      let kern = text.attribute(.kern, at: end - 1, effectiveRange: nil) as? CGFloat,
+      let row = line.fragment.textLineFragments.first(where: {
+        NSLocationInRange(end - 1, $0.characterRange)
+      })
+    else {
+      return nil
+    }
+    // TextKit puts a caret in the middle of kerning, so measure from where
+    // the `>` starts rather than from the character after it.
+    let font = text.attribute(.font, at: end - 1, effectiveRange: nil) as? NSFont ?? self.font
+    let arrowEnd =
+      row.locationForCharacter(at: end - 1).x
+      + (">" as NSString).size(withAttributes: [.font: font as Any]).width
+    return (
+      row,
+      line.frame.minX + row.typographicBounds.minX + arrowEnd + Self.columnGap,
+      kern - Self.columnGap * 1.5
+    )
+  }
+
+  /// Typing just after a widened `=>` must not widen what is typed.
+  override var typingAttributes: [NSAttributedString.Key: Any] {
+    get { super.typingAttributes }
+    set {
+      var attributes = newValue
+      attributes[.kern] = nil
+      super.typingAttributes = attributes
+    }
+  }
+
+  /// Ends the insertion point's line with `=>`, as ⌘↩ does in Calca, unless it
+  /// already has one.
+  @objc func insertAnswerArrow(_ sender: Any?) {
+    let string = self.string as NSString
+    var contentsEnd = 0
+    string.getLineStart(
+      nil, end: nil, contentsEnd: &contentsEnd,
+      for: NSRange(location: selectedRange().location, length: 0))
+    let lineStart = string.lineRange(for: NSRange(location: selectedRange().location, length: 0))
+      .location
+    let text = string.substring(with: NSRange(location: lineStart, length: contentsEnd - lineStart))
+    guard Self.arrowEnd(in: text) == nil else {
+      setSelectedRange(NSRange(location: contentsEnd, length: 0))
+      return
+    }
+    let inserted = text.last.map { $0.isWhitespace ? "=>" : " =>" } ?? "=>"
+    insertText(inserted, replacementRange: NSRange(location: contentsEnd, length: 0))
   }
 
   /// Called after the overlay draws answers.
@@ -313,9 +440,10 @@ final class SheetTextView: NSTextView {
       guard let cell = answer(line.id) else {
         return nil
       }
-      let row = writesAnswersInline ? line.lastRow : line.firstRow
-      let inlineX = line.frame.minX + row.typographicBounds.maxX + Self.columnGap
-      let limit = writesAnswersInline ? max(rightEdge - inlineX, 0) : columnWidth
+      let gap = writesAnswersInline ? answerGap(in: line) : nil
+      let row = gap?.row ?? (writesAnswersInline ? line.lastRow : line.firstRow)
+      let inlineX = gap?.x ?? line.frame.minX + row.typographicBounds.maxX + Self.columnGap
+      let limit = gap?.width ?? (writesAnswersInline ? max(rightEdge - inlineX, 0) : columnWidth)
       let badge = badgeWidth(for: cell)
       let wanted =
         badge
@@ -1140,7 +1268,8 @@ final class SheetTextView: NSTextView {
       return textScale < Self.textScales[Self.textScales.count - 1]
     case #selector(resetTextSize(_:)):
       return textScale != 1
-    case #selector(insertSubtotal(_:)), #selector(toggleHeading(_:)),
+    case #selector(insertSubtotal(_:)), #selector(insertAnswerArrow(_:)),
+      #selector(toggleHeading(_:)),
       #selector(toggleComment(_:)), #selector(insertDivider(_:)):
       return isEditable
     case #selector(stepNumberUp(_:)), #selector(stepNumberDown(_:)):
@@ -1369,6 +1498,7 @@ final class SheetTextView: NSTextView {
   private struct VisibleLine {
     let id: LineID
     let location: NSTextLocation
+    let fragment: NSTextLayoutFragment
     let frame: NSRect
     let firstRow: NSTextLineFragment
     let lastRow: NSTextLineFragment
@@ -1468,7 +1598,9 @@ final class SheetTextView: NSTextView {
         let last = fragment.textLineFragments.last
       {
         lines.append(
-          VisibleLine(id: id, location: location, frame: frame, firstRow: first, lastRow: last))
+          VisibleLine(
+            id: id, location: location, fragment: fragment, frame: frame, firstRow: first,
+            lastRow: last))
       }
       return true
     }

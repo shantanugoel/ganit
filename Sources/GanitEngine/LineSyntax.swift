@@ -24,23 +24,27 @@ public enum LineSyntax: Hashable, Sendable {
   case markdown
 
   public init(_ text: String) {
+    self = Self.parse(text).syntax
+  }
+
+  /// The `=>` ending a calculation line's expression, if it has one. In
+  /// Markdown Mode only these lines show an answer, right after the arrow.
+  public static func arrow(in text: String) -> SourceRange? {
+    parse(text).arrow
+  }
+
+  private static func parse(_ text: String) -> (syntax: LineSyntax, arrow: SourceRange?) {
     let characters = LineCharacters(text)
     let content = characters.trimmed(0..<characters.count)
     guard !content.isEmpty else {
-      self = .blank
-      return
+      return (.blank, nil)
     }
     if content.count >= 3, content.allSatisfy({ characters[$0] == "-" }) {
-      self = .divider
-      return
+      return (.divider, nil)
     }
     if characters[content.lowerBound] == "#" {
-      self = .heading(
-        title: characters.range(
-          characters.trimmed((content.lowerBound + 1)..<content.upperBound)
-        )
-      )
-      return
+      let title = characters.trimmed((content.lowerBound + 1)..<content.upperBound)
+      return (.heading(title: characters.range(title)), nil)
     }
 
     let commentStart = content.first {
@@ -48,8 +52,7 @@ public enum LineSyntax: Hashable, Sendable {
         && characters[$0 + 1] == "/"
     }
     if commentStart == content.lowerBound {
-      self = .comment(characters.range(content))
-      return
+      return (.comment(characters.range(content)), nil)
     }
     let body = content.lowerBound..<(commentStart ?? content.upperBound)
     let comment = commentStart.map {
@@ -82,18 +85,21 @@ public enum LineSyntax: Hashable, Sendable {
         expression = characters.trimmed((equals + 1)..<body.upperBound)
       }
     }
+    var arrowRange: SourceRange?
     if let arrow = expression.first(where: { characters[$0] == "=" }),
       arrow + 1 < expression.upperBound, characters[arrow + 1] == ">"
     {
+      arrowRange = characters.range(arrow..<(arrow + 2))
       expression = characters.trimmed(expression.lowerBound..<arrow)
     }
-    self = .calculation(
+    let syntax = LineSyntax.calculation(
       label: label,
       name: name,
       expression: expression.isEmpty && name == nil
         ? nil : characters.range(expression),
       comment: comment
     )
+    return (syntax, arrowRange)
   }
 }
 

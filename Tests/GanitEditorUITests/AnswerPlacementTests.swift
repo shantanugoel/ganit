@@ -11,7 +11,7 @@ import Testing
 struct AnswerPlacementTests {
   @Test
   func theColumnRightAlignsAnswersBehindARuleAndProseWritesThemAfterEachLine() async throws {
-    let (editor, textView) = try await makeEditor("2 + 2\n10 * 10")
+    let (editor, textView) = try await makeEditor("2 + 2 =>\n10 * 10 =>")
 
     let column = textView.answerLayout(in: textView.bounds)
     #expect(column.map(\.cell.text) == ["4", "100"])
@@ -33,6 +33,57 @@ struct AnswerPlacementTests {
     // Prose has the whole width to be written in, and no column to mark.
     #expect(try #require(textView.textContainer?.size.width) > narrowedSource)
     #expect(textView.answerSeparatorX == nil)
+  }
+
+  /// Markdown Mode answers only lines ending in `=>`, as Calca does, and
+  /// writes the answer right after the arrow, moving any words after it.
+  @Test
+  func markdownWritesAnswersRightAfterTheirArrow() async throws {
+    let text = "Each pays 555 / 3 => and then a hotel\n500 * 3\nFlour 2 + 2 =>"
+    let (editor, textView) = try await makeEditor(text)
+    editor.writeAnswers(DisplayOptions(writesAnswersInline: true))
+    await editor.scheduler?.waitUntilIdle()
+    textView.answersDidChange()
+
+    let answers = textView.answerLayout(in: textView.bounds)
+    #expect(answers.map(\.cell.text) == ["185", "4"])
+    let arrow = (text as NSString).range(of: "=>")
+    let kern = try #require(
+      textView.textStorage?.attribute(.kern, at: NSMaxRange(arrow) - 1, effectiveRange: nil)
+        as? CGFloat)
+    #expect(kern >= answers[0].rect.width)
+    // The answer sits in the gap, well before where the line's words end.
+    let words = textView.firstRect(
+      forCharacterRange: (text as NSString).range(of: "hotel"), actualRange: nil)
+    let hotel = try #require(textView.window).convertFromScreen(words)
+    let answer = textView.convert(answers[0].rect, to: nil)
+    #expect(answer.maxX < hotel.minX)
+    // The last line has nothing after its arrow, so nothing is widened.
+    #expect(
+      textView.textStorage?.attribute(.kern, at: text.utf16.count - 1, effectiveRange: nil)
+        == nil)
+
+    // Typing after a widened arrow does not widen the new text.
+    textView.setSelectedRange(NSRange(location: NSMaxRange(arrow), length: 0))
+    #expect(textView.typingAttributes[.kern] == nil)
+
+    // Leaving Markdown Mode puts the words back.
+    editor.writeAnswers(DisplayOptions())
+    #expect(
+      textView.textStorage?.attribute(.kern, at: NSMaxRange(arrow) - 1, effectiveRange: nil)
+        == nil)
+  }
+
+  @Test
+  func insertAnswerArrowEndsTheLineWithOne() async throws {
+    let (_, textView) = try await makeEditor("2 + 2\n3 =>")
+    textView.setSelectedRange(NSRange(location: 1, length: 0))
+    textView.insertAnswerArrow(nil)
+    #expect(textView.string == "2 + 2 =>\n3 =>")
+    textView.setSelectedRange(NSRange(location: 10, length: 0))
+    textView.insertAnswerArrow(nil)
+    #expect(textView.string == "2 + 2 =>\n3 =>")
+    #expect(textView.selectedRange().location == 13)
   }
 
   @Test

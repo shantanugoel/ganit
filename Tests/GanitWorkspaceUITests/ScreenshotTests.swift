@@ -72,7 +72,8 @@ struct ScreenshotTests {
       Half-litre bottles to buy: 4500 ml / 500 ml =>
 
       Flour and milk together cost 240 + 315 =>
-      Each of us pays 555 / 3 =>
+      Each of us pays 555 / 3 => before the train home.
+      - The tip is 10% of 555 =>
       """
     ])
     let controller = workspace.openWindow(showing: ids[0])

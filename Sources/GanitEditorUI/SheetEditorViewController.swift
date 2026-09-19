@@ -970,6 +970,11 @@ public final class SheetEditorViewController: NSViewController {
     guard let shown = shownLines[id], let result = shown.result.result else {
       return nil
     }
+    // In Markdown Mode, as in Calca, a line shows its answer only when it
+    // asks for one with `=>`.
+    if displayOptions.writesAnswersInline, LineSyntax.arrow(in: shown.text) == nil {
+      return nil
+    }
     let isEditing = id == editingLine
     let assisted = assistantAnswer(to: shown.text)
     let pending = isAssistantPending(text: shown.text, result: result)
