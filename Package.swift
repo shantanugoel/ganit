@@ -2,14 +2,6 @@
 
 import PackageDescription
 
-// Swift 6.4 compiles the catalog's Turkish strings itself. Earlier toolchains
-// still need the .strings file in the resource bundle.
-#if compiler(>=6.4)
-  let formattingExcludes = ["Resources/tr.lproj/Localizable.strings"]
-#else
-  let formattingExcludes: [String] = []
-#endif
-
 let package = Package(
   name: "Ganit",
   defaultLocalization: "en",
@@ -102,7 +94,6 @@ let package = Package(
         "GanitData",
         "GanitEngine",
       ],
-      exclude: formattingExcludes,
       resources: [.process("Resources")]
     ),
     .target(

@@ -7,6 +7,7 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## 0.5.3
 
+- Build, test, and release with Xcode 27.
 - Attached `m`/`mn` mean million, `l` means lakh, and `cr` means crore,
   including uppercase forms and money amounts such as `$1.1m`. Currency codes
   work in any letter case and may touch their amount, as in `INR7.23`. A

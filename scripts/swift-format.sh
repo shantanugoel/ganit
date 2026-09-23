@@ -5,17 +5,10 @@ set -euo pipefail
 repository_root=$(cd "$(dirname "$0")/.." && pwd)
 mode=${1:-lint}
 expected_xcode=$(<"$repository_root/.xcode-version")
-expected_swift_format="6.3.0"
 actual_xcode=$(xcodebuild -version | awk 'NR == 1 { print $2 }')
-actual_swift_format=$(swift format --version)
 
 if [[ "$actual_xcode" != "$expected_xcode" ]]; then
   echo "Expected Xcode $expected_xcode, found $actual_xcode." >&2
-  exit 1
-fi
-
-if [[ "$actual_swift_format" != "$expected_swift_format" ]]; then
-  echo "Expected swift-format $expected_swift_format, found $actual_swift_format." >&2
   exit 1
 fi
 

@@ -749,7 +749,7 @@ public final class SheetEditorViewController: NSViewController {
       for prompt in prompts {
         requestAssistantPrompt(prompt)
       }
-    case .line(let id, let asked):
+    case .line(_, let asked):
       cancelAssistantRequests(lines: [asked], prompts: [])
       assistantAnswers.removeValue(forKey: asked)
       assistantAsked.remove(asked)
