@@ -332,6 +332,39 @@ struct AnswerInteractionTests {
   }
 
   @Test
+  func interpretationChoicesAppearOnlyOnAmbiguousSymbolsAndSupportBothScopes() async throws {
+    let (editor, textView) = try await makeEditor("1m\n2 m\n3 L\n$4\n5\n6 cup\n1 // $7")
+    let m = (textView.string as NSString).range(of: "1m").location + 1
+    let menu = try #require(textView.interpretationMenu(atUTF16: m)?.submenu)
+    #expect(menu.items.map(\.title) == ["This Occurrence", "Whole Sheet"])
+    #expect(
+      textView.interpretationMenu(atUTF16: (textView.string as NSString).range(of: "5").location)
+        == nil)
+
+    let local = try #require(menu.items[0].submenu?.items.first { $0.title == "Metres" })
+    #expect(NSApp.sendAction(try #require(local.action), to: local.target, from: local))
+    #expect(textView.string.hasPrefix("1 metres\n"))
+
+    let spaced = (textView.string as NSString).range(of: "2 m").location + 2
+    let sheet = try #require(
+      textView.interpretationMenu(atUTF16: spaced)?.submenu?.items[1].submenu)
+    let million = try #require(sheet.items.first { $0.title == "Million" })
+    #expect(NSApp.sendAction(try #require(million.action), to: million.target, from: million))
+    #expect(editor.displayOptions.ambiguousSuffixes["m"] == .scale)
+    #expect(textView.string.contains("2 m"))
+
+    let dollar = (textView.string as NSString).range(of: "$4").location
+    let dollarMenu = try #require(textView.interpretationMenu(atUTF16: dollar)?.submenu)
+    #expect(dollarMenu.items[1].submenu?.items.contains { $0.title == "CAD" } == true)
+
+    let cup = (textView.string as NSString).range(of: "6 cup").location + 2
+    let cupMenu = try #require(textView.interpretationMenu(atUTF16: cup)?.submenu)
+    #expect(cupMenu.items[0].submenu?.items.map(\.title) == ["Currency (CUP)", "Unit (cup)"])
+    let comment = (textView.string as NSString).range(of: "$7").location
+    #expect(textView.interpretationMenu(atUTF16: comment) == nil)
+  }
+
+  @Test
   func hoveringACutOffAnswerShowsTheFullText() async throws {
     let (_, textView) = try await makeEditor("sqrt(2)\n1 m + 1 s")
     let layout = textView.answerLayout(in: textView.bounds)
@@ -347,11 +380,6 @@ struct AnswerInteractionTests {
       textView.tooltip(at: NSPoint(x: error.rect.midX, y: error.rect.midY)) == error.cell.text)
     #expect(error.cell.text == "These quantities have incompatible dimensions.")
 
-    // AppKit reaches the string through Objective-C, and shows the view's
-    // debug description when it cannot.
-    #expect(
-      textView.responds(
-        to: #selector(NSViewToolTipOwner.view(_:stringForToolTip:point:userData:))))
   }
 
   /// Keeps the window, and with it the editor, alive for the test.

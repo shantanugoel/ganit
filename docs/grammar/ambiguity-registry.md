@@ -1,6 +1,6 @@
 # Ambiguity registry
 
-**Registry version:** 7
+**Registry version:** 8
 
 This registry records how the English grammar resolves inputs that could
 reasonably mean more than one thing. Every entry is pinned by named cases in
@@ -48,7 +48,8 @@ unit meaning.
 ## `symbols` — unit symbols, constants, and currency signs
 
 - Unit aliases and prefixes are case-sensitive and never case-corrected:
-  `m` is metre, `M` alone is not a unit, `Mm` is megametre, `mm` is millimetre,
+  `1 m` is one metre, `1m` is one million, `M` alone is not a unit,
+  `Mm` is megametre, `mm` is millimetre,
   `KM` fails.
 - `b` is bit and `B` is byte, so `Mb` is megabit and `MB` is megabyte.
 - An exact catalog alias wins over a prefix split: `min` is minute, `h` is
@@ -56,17 +57,23 @@ unit meaning.
   unit: `ms` is millisecond.
 - An identifier followed by `(` is a function call: `min(1, 2)`.
 - Constants are not units: `2pi` is implicit multiplication and `2 e` fails.
-- Currency codes are uppercase ISO 4217 codes and case-sensitive: `5 EUR` is
-  money, `5 eur` is not. Added in registry version 4.
+- Currency codes are ISO 4217 codes and are case-insensitive: `5 EUR`, `5 eur`,
+  and `EUR5` are money. Uppercase-only recognition was added in version 4;
+  version 8 accepts lowercase codes too. A lowercase code that is also a unit
+  keeps the unit meaning: `5 cup` is volume, while `5 CUP` is Cuban pesos.
+  Either meaning can be chosen for one occurrence or the whole sheet.
 - A symbol that names one currency is money: `€5`, `£5`, `₹5`, `US$5`.
 - `$` is the sheet's dollar currency, USD unless Format ▸ Dollar Means
   or the sheet's right-click menu says otherwise. Locale never picks one.
 - `¥` is yen (`JPY`).
 - Prefix codes and English names are money: `USD 1.5`, `5 dollars`.
-- Scale words multiply a number: `11.5 million`, `11.5mn`, `3k`. A declared
-  variable or a catalog unit keeps its meaning: `k = 5` then `10k` is 50,
-  and `3 K` is 3 kelvin. Codes, names, symbols, and units may come before or
-  after the amount: `USD 1.5`, `1.5 USD`, `kg 5`, `5 kg`.
+- Scale words multiply a number: `11.5 million`, `11.5mn`, `7.23L`, `2cr`,
+  `3k`. `m` and `l` touching a number mean million and lakh; with a space they
+  mean metre and litre. A sheet may choose either meaning for all occurrences,
+  and the source menu can rewrite one occurrence with a full word. A declared
+  variable keeps its meaning: `k = 5` then `10k` is 50, and `3 K` is 3 kelvin.
+  Codes, names, symbols, and units may come before or after the amount:
+  `USD 1.5`, `1.5 USD`, `kg 5`, `5 kg`.
 
 ## `implicit multiplication` — products versus adjacent quantities
 

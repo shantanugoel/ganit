@@ -113,6 +113,18 @@ struct DisplayOptionsTests {
     #expect(try formatter.format(value).display == "1,2345e3")
   }
 
+  @Test
+  func preservesSheetInterpretationChoicesAndReadsOlderOptions() throws {
+    let selected = DisplayOptions(ambiguousSuffixes: ["m": .unit, "l": .scale])
+    let encoded = try JSONEncoder().encode(selected)
+    #expect(try JSONDecoder().decode(DisplayOptions.self, from: encoded) == selected)
+    var older = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+    older.removeValue(forKey: "ambiguousSuffixes")
+    // Existing sheets without a choice keep the spacing rule.
+    let data = try JSONSerialization.data(withJSONObject: older)
+    #expect(try JSONDecoder().decode(DisplayOptions.self, from: data).ambiguousSuffixes.isEmpty)
+  }
+
   private func format(_ source: String, _ options: DisplayOptions) throws -> String {
     let evaluationContext = try context()
     guard

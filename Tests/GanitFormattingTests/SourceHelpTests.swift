@@ -27,6 +27,9 @@ struct SourceHelpTests {
     let help = SourceHelpLookup.at(utf16Offset: 2, in: "1/0", diagnostic: diagnostic)
     #expect(help?.topicID == nil)
     #expect(help?.tooltip == "Cannot divide by zero.")
+    #expect(
+      SourceHelpLookup.at(utf16Offset: 3, in: "1/0", diagnostic: diagnostic)?.tooltip
+        == "Cannot divide by zero.")
   }
 
   @Test

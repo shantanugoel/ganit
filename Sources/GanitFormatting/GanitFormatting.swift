@@ -1092,6 +1092,25 @@ public struct DiagnosticFormatter: Sendable {
         defaultValue: "The function received the wrong number of arguments."
       )
     case .typeMismatch:
+      if case .aggregateTypeMismatch(let firstLine, let firstKind, let otherLine, let otherKind) =
+        error.context
+      {
+        return String(
+          format: localized(
+            "error.evaluation.aggregateTypeMismatch",
+            defaultValue:
+              "Unit mismatch: line %lld is %@, but line %lld is %@. Add values with matching types."
+          ), firstLine, firstKind.rawValue, otherLine, otherKind.rawValue)
+      }
+      if case .typeMismatch(let expected, let actual) = error.context,
+        Set([expected, actual]) == Set([.money, .number])
+      {
+        return localized(
+          "error.evaluation.moneyNumberMismatch",
+          defaultValue:
+            "Unit mismatch: money and a plain number cannot be combined. Give the number a currency, or remove the currency from the money."
+        )
+      }
       return localized(
         "error.evaluation.typeMismatch",
         defaultValue: "This operation cannot combine these value types."

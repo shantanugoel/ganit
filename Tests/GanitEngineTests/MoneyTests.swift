@@ -68,6 +68,13 @@ struct MoneyTests {
     #expect(try same(evaluate("100 EUR + 115.51 USD", rates: rates), money("200", "EUR")))
     #expect(try same(evaluate("$115.51 - €100 in EUR", rates: rates), money("0", "EUR")))
     #expect(try same(evaluate("$10 in EUR", rates: rates), evaluate("10 USD in EUR", rates: rates)))
+    let inrRates = try reference(["USD": "1.2", "INR": "100"])
+    #expect(
+      try same(
+        evaluate("$1.1m to INR", rates: inrRates), evaluate("1100000 USD to INR", rates: inrRates)))
+    #expect(
+      try same(
+        evaluate("usd 1.1mn to inr", rates: inrRates), evaluate("$1.1m to INR", rates: inrRates)))
     #expect(throws: EngineError(code: .invalidCurrencyRate)) {
       try reference(["USD": "1.2.3"])
     }

@@ -17,6 +17,7 @@ import GanitFormatting
 /// no answer is selected.
 @MainActor
 final class SheetTextView: NSTextView {
+  private static let interpretationUnits = try? UnitCatalog.minimal()
   /// The answer column shares the width with source up to these bounds.
   static let answerColumnFraction: CGFloat = 0.35
   static let answerColumnWidthRange: ClosedRange<CGFloat> = 140...360
@@ -261,6 +262,10 @@ final class SheetTextView: NSTextView {
   var openHelp: ((String) -> Void)?
   /// The diagnostic the newest evaluation flagged for a line, if any.
   var lineDiagnostic: (LineID) -> FormattedDiagnostic? = { _ in nil }
+  var dollarCurrency = "USD"
+  var ambiguousSuffixes: [String: AmbiguousSuffixMeaning] = [:]
+  var onSetSheetDollarCurrency: (String) -> Void = { _ in }
+  var onSetSheetSuffixMeaning: (String, AmbiguousSuffixMeaning?) -> Void = { _, _ in }
   /// Whether Ask Assistant can send the current line.
   var canAskAssistant: () -> Bool = { false }
   /// Asks the assistant again about the current line.
@@ -285,7 +290,8 @@ final class SheetTextView: NSTextView {
   /// The variable names a `{…}` placeholder can complete to.
   var variableNames: () -> [String] = { [] }
   private var helpTracking: NSTrackingArea?
-  private var helpTooltip = ""
+  private var helpPopover: NSPopover?
+  private var shownHelpText: String?
   private let completionList = CompletionList()
 
   private func configureCompletions() {
@@ -679,12 +685,19 @@ final class SheetTextView: NSTextView {
 
   override func mouseMoved(with event: NSEvent) {
     super.mouseMoved(with: event)
-    updateHelpTooltip(at: convert(event.locationInWindow, from: nil))
+    updateHelpPopover(at: convert(event.locationInWindow, from: nil))
+  }
+
+  override func mouseExited(with event: NSEvent) {
+    super.mouseExited(with: event)
+    helpPopover?.close()
+    shownHelpText = nil
   }
 
   override func menu(for event: NSEvent) -> NSMenu? {
     let point = convert(event.locationInWindow, from: nil)
-    if let hit = answerHit(at: point) {
+    let answerAtPoint = answerHit(at: point)
+    if let hit = answerAtPoint {
       selectedAnswer = hit.line
     }
     let offset = characterIndexForInsertion(at: point)
@@ -692,6 +705,10 @@ final class SheetTextView: NSTextView {
       setSelectedRange(NSRange(location: offset, length: 0))
     }
     let menu = NSMenu()
+    if answerAtPoint == nil, let interpretation = interpretationMenu(atUTF16: offset) {
+      menu.addItem(interpretation)
+      menu.addItem(.separator())
+    }
     // A problem's interpretation is already among the answer commands.
     if let help = lookupHelp(at: point), help.topicID != nil {
       let item = NSMenuItem(
@@ -784,7 +801,210 @@ final class SheetTextView: NSTextView {
           localized: "help.menu.problem", defaultValue: "Show Interpretation", bundle: .main)
       )
     }
-    return lookupHelp(atUTF16: characterIndexForInsertion(at: point))
+    let offset = characterIndexForInsertion(at: point)
+    let help = lookupHelp(atUTF16: offset)
+    guard sourceInterpretation(atUTF16: offset) != nil else {
+      return help
+    }
+    let hint = String(
+      localized: "help.menu.interpretHint",
+      defaultValue: "Right-click to choose this symbol's meaning here or for the sheet.",
+      bundle: .main)
+    return SourceHelp(
+      tooltip: [help?.tooltip, hint].compactMap { $0 }.joined(separator: "\n"),
+      topicID: help?.topicID,
+      menuTitle: help?.menuTitle ?? hint)
+  }
+
+  private struct SourceInterpretation {
+    let range: NSRange
+    let key: String
+    let isDollar: Bool
+    let isCurrencyUnit: Bool
+    let unitWord: String?
+    let attached: Bool
+    let isPrefix: Bool
+  }
+
+  /// Only tokens beside an amount can have these competing meanings.
+  private func sourceInterpretation(atUTF16 offset: Int) -> SourceInterpretation? {
+    guard let info = line(offset),
+      let start = lineStarts().first(where: { $0.id == info.id })
+    else { return nil }
+    let lineText = (string as NSString).substring(
+      with: NSRange(location: start.start, length: start.length))
+    guard case .calculation(_, _, let expression?, _) = LineSyntax(lineText) else {
+      return nil
+    }
+    let tokens = Lexer(source: lineText, configuration: lexingConfiguration).lex().tokens
+    let utf8 = lineText.utf8
+    func range(_ token: Token) -> NSRange {
+      let lower = utf8.index(utf8.startIndex, offsetBy: token.range.lowerBound)
+      let upper = utf8.index(utf8.startIndex, offsetBy: token.range.upperBound)
+      return NSRange(
+        location: start.start + lineText.utf16.distance(from: lineText.utf16.startIndex, to: lower),
+        length: lineText.utf16.distance(from: lower, to: upper))
+    }
+    for index in tokens.indices {
+      let token = tokens[index]
+      guard token.range.lowerBound >= expression.lowerBound,
+        token.range.upperBound <= expression.upperBound
+      else { continue }
+      let tokenRange = range(token)
+      guard
+        NSLocationInRange(offset, tokenRange)
+          || offset == NSMaxRange(tokenRange) && tokenRange.length > 0
+      else { continue }
+      let before = index > 0 ? tokens[index - 1] : nil
+      let after = index + 1 < tokens.count ? tokens[index + 1] : nil
+      let beforeIsNumber: Bool = if let before, case .number = before.kind { true } else { false }
+      let afterIsNumber: Bool = if let after, case .number = after.kind { true } else { false }
+      switch token.kind {
+      case .identifier(let word)
+      where ["m", "l"].contains(word.lowercased())
+        && (beforeIsNumber || afterIsNumber):
+        return SourceInterpretation(
+          range: tokenRange, key: word.lowercased(), isDollar: false,
+          isCurrencyUnit: false, unitWord: nil,
+          attached: before?.range.upperBound == token.range.lowerBound,
+          isPrefix: afterIsNumber && !beforeIsNumber)
+      case .identifier(let word)
+      where (beforeIsNumber || afterIsNumber)
+        && CurrencyCatalog.minorUnits[word.uppercased()] != nil
+        && Self.interpretationUnits?.unit(matching: word) != nil:
+        let alternate = Self.interpretationUnits?.unit(matching: word)?.aliases.first {
+          $0.lowercased() != word.lowercased()
+        }
+        return SourceInterpretation(
+          range: tokenRange, key: word.lowercased(), isDollar: false,
+          isCurrencyUnit: true, unitWord: alternate,
+          attached: before?.range.upperBound == token.range.lowerBound,
+          isPrefix: afterIsNumber && !beforeIsNumber)
+      case .currencySymbol("$") where beforeIsNumber || afterIsNumber:
+        return SourceInterpretation(
+          range: tokenRange, key: "$", isDollar: true,
+          isCurrencyUnit: false, unitWord: nil,
+          attached: true, isPrefix: afterIsNumber && !beforeIsNumber)
+      default: break
+      }
+    }
+    return nil
+  }
+
+  func interpretationMenu(atUTF16 offset: Int) -> NSMenuItem? {
+    guard let hit = sourceInterpretation(atUTF16: offset) else { return nil }
+    let root = NSMenuItem(
+      title: String(localized: "menu.interpretAs", defaultValue: "Interpret As", bundle: .main),
+      action: nil, keyEquivalent: "")
+    let menu = NSMenu()
+    let here = NSMenuItem(
+      title: String(
+        localized: "menu.interpretHere", defaultValue: "This Occurrence", bundle: .main),
+      action: nil, keyEquivalent: "")
+    let hereMenu = NSMenu()
+    let sheet = NSMenuItem(
+      title: String(localized: "menu.interpretSheet", defaultValue: "Whole Sheet", bundle: .main),
+      action: nil, keyEquivalent: "")
+    let sheetMenu = NSMenu()
+    if hit.isDollar {
+      for code in CurrencyCatalog.dollarCurrencies {
+        let local = NSMenuItem(
+          title: code, action: #selector(reinterpretHere(_:)), keyEquivalent: "")
+        local.target = self
+        local.representedObject = InterpretationAction(
+          range: hit.range, replacement: hit.isPrefix ? "\(code) " : " \(code)")
+        hereMenu.addItem(local)
+        let global = NSMenuItem(
+          title: code, action: #selector(reinterpretSheet(_:)), keyEquivalent: "")
+        global.target = self
+        global.representedObject = InterpretationAction(currency: code)
+        global.state = dollarCurrency == code ? .on : .off
+        sheetMenu.addItem(global)
+      }
+    } else if hit.isCurrencyUnit {
+      let code = hit.key.uppercased()
+      let choices: [(String, String, AmbiguousSuffixMeaning)] = [
+        ("Currency (\(code))", code, .currency),
+        ("Unit (\(hit.key))", hit.unitWord ?? hit.key, .unit),
+      ]
+      for (title, replacement, meaning) in choices {
+        let local = NSMenuItem(
+          title: title, action: #selector(reinterpretHere(_:)), keyEquivalent: "")
+        local.target = self
+        local.representedObject = InterpretationAction(
+          range: hit.range,
+          replacement: hit.attached && !hit.isPrefix ? " \(replacement)" : replacement)
+        hereMenu.addItem(local)
+        let global = NSMenuItem(
+          title: title, action: #selector(reinterpretSheet(_:)), keyEquivalent: "")
+        global.target = self
+        global.representedObject = InterpretationAction(suffix: hit.key, meaning: meaning)
+        global.state = ambiguousSuffixes[hit.key] == meaning ? .on : .off
+        sheetMenu.addItem(global)
+      }
+      let automatic = NSMenuItem(
+        title: String(
+          localized: "menu.interpretAutomaticUnit", defaultValue: "Automatic (Unit)",
+          bundle: .main),
+        action: #selector(reinterpretSheet(_:)), keyEquivalent: "")
+      automatic.target = self
+      automatic.representedObject = InterpretationAction(suffix: hit.key, meaning: nil)
+      automatic.state = ambiguousSuffixes[hit.key] == nil ? .on : .off
+      sheetMenu.addItem(automatic)
+    } else {
+      let scale = hit.key == "m" ? "million" : "lakh"
+      let unit = hit.key == "m" ? "metres" : "litres"
+      for (title, replacement, meaning) in [
+        (scale.capitalized, scale, AmbiguousSuffixMeaning.scale),
+        (unit.capitalized, unit, AmbiguousSuffixMeaning.unit),
+      ] {
+        let local = NSMenuItem(
+          title: title, action: #selector(reinterpretHere(_:)), keyEquivalent: "")
+        local.target = self
+        local.representedObject = InterpretationAction(
+          range: hit.range,
+          replacement: hit.attached && !hit.isPrefix ? " \(replacement)" : replacement)
+        hereMenu.addItem(local)
+        let global = NSMenuItem(
+          title: title, action: #selector(reinterpretSheet(_:)), keyEquivalent: "")
+        global.target = self
+        global.representedObject = InterpretationAction(suffix: hit.key, meaning: meaning)
+        global.state = ambiguousSuffixes[hit.key] == meaning ? .on : .off
+        sheetMenu.addItem(global)
+      }
+      let automatic = NSMenuItem(
+        title: String(
+          localized: "menu.interpretAutomatic", defaultValue: "Automatic by Spacing", bundle: .main),
+        action: #selector(reinterpretSheet(_:)), keyEquivalent: "")
+      automatic.target = self
+      automatic.representedObject = InterpretationAction(suffix: hit.key, meaning: nil)
+      automatic.state = ambiguousSuffixes[hit.key] == nil ? .on : .off
+      sheetMenu.addItem(automatic)
+    }
+    here.submenu = hereMenu
+    sheet.submenu = sheetMenu
+    menu.addItem(here)
+    menu.addItem(sheet)
+    root.submenu = menu
+    return root
+  }
+
+  @objc private func reinterpretHere(_ sender: NSMenuItem) {
+    guard let action = sender.representedObject as? InterpretationAction,
+      let range = action.range, let replacement = action.replacement
+    else { return }
+    if write(replacement, in: range) {
+      setSelectedRange(NSRange(location: range.location + replacement.utf16.count, length: 0))
+    }
+  }
+
+  @objc private func reinterpretSheet(_ sender: NSMenuItem) {
+    guard let action = sender.representedObject as? InterpretationAction else { return }
+    if let currency = action.currency {
+      onSetSheetDollarCurrency(currency)
+    } else if let suffix = action.suffix {
+      onSetSheetSuffixMeaning(suffix, action.meaning)
+    }
   }
 
   /// The full answer or error beside the pointer, even when the column cuts it
@@ -803,14 +1023,37 @@ final class SheetTextView: NSTextView {
     return lookupHelp(at: point)?.tooltip
   }
 
-  private func updateHelpTooltip(at point: NSPoint) {
-    removeAllToolTips()
-    guard let text = tooltip(at: point) else {
-      helpTooltip = ""
+  private func updateHelpPopover(at point: NSPoint) {
+    guard let text = tooltip(at: point), !text.isEmpty else {
+      helpPopover?.close()
+      shownHelpText = nil
       return
     }
-    helpTooltip = text
-    addToolTip(tooltipRect(at: point), owner: self, userData: nil)
+    guard window != nil, shownHelpText != text || helpPopover?.isShown != true else {
+      return
+    }
+    helpPopover?.close()
+    let width: CGFloat = 400
+    let font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+    let measured = (text as NSString).boundingRect(
+      with: NSSize(width: width, height: 1_000),
+      options: [.usesLineFragmentOrigin, .usesFontLeading],
+      attributes: [.font: font])
+    let height = ceil(measured.height) + 16
+    let label = NSTextField(wrappingLabelWithString: text)
+    label.font = font
+    label.frame = NSRect(x: 8, y: 8, width: width, height: height - 16)
+    let controller = NSViewController()
+    controller.view = NSView(frame: NSRect(x: 0, y: 0, width: width + 16, height: height))
+    controller.view.addSubview(label)
+    let popover = NSPopover()
+    popover.behavior = .transient
+    popover.animates = false
+    popover.contentViewController = controller
+    popover.contentSize = controller.view.frame.size
+    popover.show(relativeTo: tooltipRect(at: point), of: self, preferredEdge: .maxY)
+    helpPopover = popover
+    shownHelpText = text
   }
 
   /// The answer's own frame when the pointer is on one, so a cut-off result
@@ -1661,6 +1904,38 @@ final class SheetTextView: NSTextView {
   }
 }
 
+private final class InterpretationAction: NSObject {
+  let range: NSRange?
+  let replacement: String?
+  let currency: String?
+  let suffix: String?
+  let meaning: AmbiguousSuffixMeaning?
+
+  init(range: NSRange, replacement: String) {
+    self.range = range
+    self.replacement = replacement
+    currency = nil
+    suffix = nil
+    meaning = nil
+  }
+
+  init(currency: String) {
+    range = nil
+    replacement = nil
+    self.currency = currency
+    suffix = nil
+    meaning = nil
+  }
+
+  init(suffix: String, meaning: AmbiguousSuffixMeaning?) {
+    range = nil
+    replacement = nil
+    currency = nil
+    self.suffix = suffix
+    self.meaning = meaning
+  }
+}
+
 /// Draws answers and underlines above the text view's content without
 /// taking events.
 @MainActor
@@ -1791,16 +2066,5 @@ private final class LineRotor: NSObject,
     result.targetRange = NSRange(location: line.start, length: line.length)
     result.customLabel = textView.spokenAnswer(line.id)
     return result
-  }
-}
-
-// AppKit asks the owner for the text only when it conforms; otherwise it shows
-// the view's debug description.
-extension SheetTextView: NSViewToolTipOwner {
-  func view(
-    _ view: NSView, stringForToolTip tag: NSView.ToolTipTag, point: NSPoint,
-    userData data: UnsafeMutableRawPointer?
-  ) -> String {
-    helpTooltip
   }
 }

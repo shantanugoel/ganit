@@ -27,7 +27,11 @@ public enum SourceHelpLookup {
     }
     let utf8Offset = (line as NSString).substring(to: utf16Offset).utf8.count
     let problem = diagnostic.flatMap { diagnostic -> String? in
-      diagnostic.ranges.contains { visibleRange($0, in: line).contains(utf16Offset) }
+      diagnostic.ranges.contains {
+        let visible = visibleRange($0, in: line)
+        return visible.contains(utf16Offset)
+          || utf16Offset > 0 && visible.contains(utf16Offset - 1)
+      }
         ? diagnostic.message : nil
     }
     let topic = topic(at: utf8Offset, in: line, configuration: configuration)

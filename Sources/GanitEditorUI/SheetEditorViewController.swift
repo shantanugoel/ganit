@@ -124,7 +124,8 @@ public final class SheetEditorViewController: NSViewController {
     display: DisplayOptions = .standard
   ) {
     self.context = context.with(
-      dollarCurrency: display.dollarCurrency, isMarkdownMode: display.writesAnswersInline)
+      dollarCurrency: display.dollarCurrency, isMarkdownMode: display.writesAnswersInline,
+      ambiguousSuffixes: display.ambiguousSuffixes)
     displayOptions = display
     resultFormatter = ResultFormatter(context: context, display: display)
     compactFormatter = Self.compactFormatter(context: context, display: display)
@@ -174,6 +175,20 @@ public final class SheetEditorViewController: NSViewController {
         return nil
       }
       return flaggedDiagnostic(result, text: shown.text, isEditing: id == editingLine)
+    }
+    sheetTextView.onSetSheetDollarCurrency = { [weak self] code in
+      guard let self else { return }
+      var options = displayOptions
+      options.dollarCurrency = code
+      writeAnswers(options)
+      displayOptionsDidChange?(options)
+    }
+    sheetTextView.onSetSheetSuffixMeaning = { [weak self] suffix, meaning in
+      guard let self else { return }
+      var options = displayOptions
+      options.ambiguousSuffixes[suffix] = meaning
+      writeAnswers(options)
+      displayOptionsDidChange?(options)
     }
     sheetTextView.variableNames = { [weak self] in
       self?.variableNames() ?? []
@@ -904,6 +919,10 @@ public final class SheetEditorViewController: NSViewController {
       error.code == .unresolvedAssistantPrompt
         || error.code == .unusableAssistantAnswer
         || error.code == .unavailableReference
+        || error.code == .typeMismatch
+        || error.code == .incompatibleDimensions
+        || error.code == .missingCurrencyRate
+        || error.code == .currencyRatesUnavailable
     {
       return nil
     }
@@ -945,7 +964,8 @@ public final class SheetEditorViewController: NSViewController {
     }
     displayOptions = options
     context = context.with(
-      dollarCurrency: options.dollarCurrency, isMarkdownMode: options.writesAnswersInline)
+      dollarCurrency: options.dollarCurrency, isMarkdownMode: options.writesAnswersInline,
+      ambiguousSuffixes: options.ambiguousSuffixes)
     scheduler?.context = context
     resultFormatter = ResultFormatter(context: context, display: options)
     compactFormatter = Self.compactFormatter(context: context, display: options)
@@ -961,6 +981,8 @@ public final class SheetEditorViewController: NSViewController {
     sheetTextView.writesAnswersInline = options.writesAnswersInline
     sheetTextView.showsAnswerSeparator = options.showsAnswerSeparator
     sheetTextView.showsLineNumbers = options.showsLineNumbers
+    sheetTextView.dollarCurrency = options.dollarCurrency
+    sheetTextView.ambiguousSuffixes = options.ambiguousSuffixes
   }
 
   private func answerCell(for id: LineID) -> AnswerCell? {
@@ -1016,13 +1038,27 @@ public final class SheetEditorViewController: NSViewController {
       }
       // What the assistant said answers the line; what Ganit says only
       // explains why it could not.
-      if let assisted {
+      if let assisted, canUseLineAssistantAnswer(result) {
         return AnswerCell(text: assisted, fullPrecision: nil, isAssisted: true)
       }
       return flaggedDiagnostic(result, text: text, isEditing: isEditing).map {
         AnswerCell(text: $0.message, fullPrecision: nil)
       }
     }
+  }
+
+  private func canUseLineAssistantAnswer(_ result: CalculationResult) -> Bool {
+    if case .evaluationFailure(let error) = result {
+      return ![
+        .unresolvedAssistantPrompt, .unusableAssistantAnswer, .unavailableReference,
+        .typeMismatch, .incompatibleDimensions, .missingCurrencyRate,
+        .currencyRatesUnavailable,
+      ].contains(error.code)
+    }
+    if case .syntaxFailure(let diagnostics) = result {
+      return diagnostics.first?.code != .trailingEquals
+    }
+    return false
   }
 
   /// The sheet's formatters, or ones writing numbers in the format chosen for
@@ -1340,7 +1376,8 @@ public final class SheetEditorViewController: NSViewController {
       text: line.text,
       syntax: shown.result.syntax,
       result: shown.result.result,
-      isEditing: line.id == editingLine
+      isEditing: line.id == editingLine,
+      lexingConfiguration: context.lexingConfiguration
     )
     guard decoration != decorations[line.id] || editedLines.contains(line.id) else {
       return

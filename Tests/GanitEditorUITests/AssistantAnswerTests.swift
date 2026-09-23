@@ -94,6 +94,24 @@ struct AssistantAnswerTests {
   }
 
   @Test
+  func knownUnitAndRateErrorsAreNotSentToTheAssistant() async throws {
+    let asked = Asked()
+    let editor = try makeEditor("INR7.23 + 1.15\n$1.1m to INR")
+    editor.askAssistant = { line in
+      await asked.record(line)
+      return "999999"
+    }
+    let textView = try #require(editor.textView as? SheetTextView)
+    await editor.scheduler?.waitUntilIdle()
+    textView.setSelectedRange(NSRange(location: textView.string.utf16.count, length: 0))
+    try await Task.sleep(for: .milliseconds(100))
+    #expect(await asked.recorded.isEmpty)
+    let exported = await editor.exportedLines()
+    #expect(exported[0].answer?.contains("Unit mismatch") == true)
+    #expect(exported[1].answer?.contains("Exchange rates") == true)
+  }
+
+  @Test
   func askAssistantReturnsAValueLaterLinesCanUse() async throws {
     let asked = Asked()
     let editor = try makeEditor("ask_assistant(10 kg of water in ml)\nprevious * 2")

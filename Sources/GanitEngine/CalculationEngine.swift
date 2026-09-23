@@ -58,7 +58,8 @@ public struct CalculationEngine: Sendable {
       catalog: unitCatalog,
       origin: origin,
       variables: variables,
-      dollarCurrency: context.dollarCurrency
+      dollarCurrency: context.dollarCurrency,
+      ambiguousSuffixes: context.ambiguousSuffixes
     ).parse()
   }
 
@@ -198,7 +199,7 @@ public struct CalculationEngine: Sendable {
         BuiltInFunction(rawValue: word) == nil,
         FinanceFunction(rawValue: word) == nil,
         unitCatalog.resolveUnit(matching: word) == nil || redefinable.contains(word),
-        CurrencyCatalog.minorUnits[word] == nil
+        CurrencyCatalog.minorUnits[word.uppercased()] == nil
       else {
         return (nil, .takenWord(token.range))
       }

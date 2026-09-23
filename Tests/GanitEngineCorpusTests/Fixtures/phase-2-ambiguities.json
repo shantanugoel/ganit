@@ -632,6 +632,56 @@
         "fullPrecision": "5 EUR",
         "approximate": false
       }
+    },
+    {
+      "name": "symbols: lowercase ISO codes are currencies",
+      "expression": "5 eur",
+      "expected": {
+        "status": "value",
+        "display": "€5.00",
+        "fullPrecision": "5 EUR",
+        "approximate": false
+      }
+    },
+    {
+      "name": "symbols: lowercase cup keeps the volume unit",
+      "expression": "5 cup",
+      "expected": {
+        "status": "value",
+        "display": "5 cup",
+        "fullPrecision": "5 cup",
+        "approximate": false
+      }
+    },
+    {
+      "name": "symbols: uppercase CUP names the currency",
+      "expression": "5 CUP",
+      "expected": {
+        "status": "value",
+        "display": "CUP 5.00",
+        "fullPrecision": "5 CUP",
+        "approximate": false
+      }
+    },
+    {
+      "name": "symbols: attached m is million",
+      "expression": "1m",
+      "expected": {
+        "status": "value",
+        "display": "1,000,000",
+        "fullPrecision": "1000000",
+        "approximate": false
+      }
+    },
+    {
+      "name": "symbols: attached L is lakh",
+      "expression": "7.23L",
+      "expected": {
+        "status": "value",
+        "display": "723,000",
+        "fullPrecision": "723000.00",
+        "approximate": false
+      }
     }
   ]
 }

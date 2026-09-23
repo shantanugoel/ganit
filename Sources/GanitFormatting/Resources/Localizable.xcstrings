@@ -214,6 +214,16 @@
         "en" : { "stringUnit" : { "state" : "translated", "value" : "This operation cannot combine these value types." } }
       }
     },
+    "error.evaluation.aggregateTypeMismatch" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Unit mismatch: line %lld is %@, but line %lld is %@. Add values with matching types." } }
+      }
+    },
+    "error.evaluation.moneyNumberMismatch" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Unit mismatch: money and a plain number cannot be combined. Give the number a currency, or remove the currency from the money." } }
+      }
+    },
     "error.evaluation.incompatibleDimensions" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "These quantities have incompatible dimensions." } }

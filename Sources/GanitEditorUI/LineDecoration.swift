@@ -4,6 +4,7 @@ import GanitEngine
 /// Visual emphasis for a range of one line, applied as TextKit rendering
 /// attributes so the text storage and its offsets never change.
 struct LineDecoration: Equatable {
+  private static let interpretationUnits = try? UnitCatalog.minimal()
   enum Style: Equatable {
     /// Comments and labels.
     case secondary
@@ -15,6 +16,7 @@ struct LineDecoration: Equatable {
     case bold
     /// Markdown `*italic*`.
     case italic
+    case interpretation
     case error
     case warning
   }
@@ -29,7 +31,10 @@ struct LineDecoration: Equatable {
 
   /// Decorates a line from its role and result. Incomplete input is only
   /// flagged once the insertion point has left the line.
-  init(text: String, syntax: LineSyntax, result: CalculationResult?, isEditing: Bool) {
+  init(
+    text: String, syntax: LineSyntax, result: CalculationResult?, isEditing: Bool,
+    lexingConfiguration: LexingConfiguration = .englishUnitedStates
+  ) {
     var runs: [Run] = []
     func add(_ range: SourceRange, _ style: Style) {
       runs.append(Run(range: utf16Range(of: range, in: text), style: style))
@@ -66,6 +71,33 @@ struct LineDecoration: Equatable {
     case .calculation(let label, _, _, let comment):
       label.map { add($0, .secondary) }
       comment.map { add($0, .secondary) }
+    }
+
+    // An accent marks a choice, not an error. Diagnostics still draw after it.
+    if case .calculation(_, _, let expression?, _) = syntax {
+      let tokens = Lexer(source: text, configuration: lexingConfiguration).lex().tokens
+      for index in tokens.indices {
+        let token = tokens[index]
+        guard token.range.lowerBound >= expression.lowerBound,
+          token.range.upperBound <= expression.upperBound
+        else { continue }
+        let beforeIsNumber: Bool =
+          if index > 0, case .number = tokens[index - 1].kind { true } else { false }
+        let afterIsNumber: Bool =
+          if index + 1 < tokens.count, case .number = tokens[index + 1].kind { true } else { false }
+        guard beforeIsNumber || afterIsNumber else { continue }
+        switch token.kind {
+        case .identifier(let word) where ["m", "l"].contains(word.lowercased()):
+          add(token.range, .interpretation)
+        case .identifier(let word)
+        where CurrencyCatalog.minorUnits[word.uppercased()] != nil
+          && Self.interpretationUnits?.unit(matching: word) != nil:
+          add(token.range, .interpretation)
+        case .currencySymbol("$"):
+          add(token.range, .interpretation)
+        default: break
+        }
+      }
     }
 
     switch result {
@@ -111,6 +143,8 @@ extension LineDecoration.Style {
       return [.foregroundColor: VisualStyle.Color.secondary]
     case .tertiary:
       return [.foregroundColor: VisualStyle.Color.tertiary]
+    case .interpretation:
+      return [.foregroundColor: VisualStyle.Color.interpretation]
     case .heading:
       return [
         .font: NSFont.systemFont(ofSize: VisualStyle.Typography.editorSize, weight: .semibold)
@@ -135,7 +169,7 @@ extension LineDecoration.Style {
   /// color alone.
   var underlineColor: NSColor? {
     switch self {
-    case .secondary, .tertiary, .heading, .bold, .italic:
+    case .secondary, .tertiary, .heading, .bold, .italic, .interpretation:
       return nil
     case .error:
       return VisualStyle.Color.failure

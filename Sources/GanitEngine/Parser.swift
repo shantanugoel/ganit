@@ -6,6 +6,7 @@ public struct Parser: Sendable {
   private let origin: SourceLocation
   private let variables: [String: EngineValueKind]
   private let dollarCurrency: String
+  private let ambiguousSuffixes: [String: AmbiguousSuffixMeaning]
 
   /// `variables` maps declared names, whose words are joined by single
   /// spaces, to the kind of value they hold.
@@ -16,7 +17,8 @@ public struct Parser: Sendable {
     catalog: UnitCatalog? = nil,
     origin: SourceLocation = .start,
     variables: [String: EngineValueKind] = [:],
-    dollarCurrency: String = "USD"
+    dollarCurrency: String = "USD",
+    ambiguousSuffixes: [String: AmbiguousSuffixMeaning] = [:]
   ) {
     self.source = source
     self.configuration = configuration
@@ -25,6 +27,7 @@ public struct Parser: Sendable {
     self.origin = origin
     self.variables = variables
     self.dollarCurrency = dollarCurrency
+    self.ambiguousSuffixes = ambiguousSuffixes
   }
 
   public func parse() -> ParsingResult {
@@ -50,7 +53,8 @@ public struct Parser: Sendable {
       maximumParseDepth: limits.maximumParseDepth,
       catalog: catalog,
       variables: variables,
-      dollarCurrency: dollarCurrency
+      dollarCurrency: dollarCurrency,
+      ambiguousSuffixes: ambiguousSuffixes
     )
     let parsedExpression = tokenParser.parse()
     let diagnostics = lexingResult.diagnostics + tokenParser.diagnostics
@@ -118,6 +122,7 @@ private final class TokenParser {
   private let catalog: UnitCatalog
   private let variables: [String: EngineValueKind]
   private let dollarCurrency: String
+  private let ambiguousSuffixes: [String: AmbiguousSuffixMeaning]
   private let maximumNameWords: Int
   private var cursor = 0
   private(set) var diagnostics: [SyntaxDiagnostic] = []
@@ -129,7 +134,8 @@ private final class TokenParser {
     maximumParseDepth: Int,
     catalog: UnitCatalog,
     variables: [String: EngineValueKind],
-    dollarCurrency: String
+    dollarCurrency: String,
+    ambiguousSuffixes: [String: AmbiguousSuffixMeaning]
   ) {
     self.source = source
     self.origin = origin
@@ -138,6 +144,7 @@ private final class TokenParser {
     self.catalog = catalog
     self.variables = variables
     self.dollarCurrency = dollarCurrency
+    self.ambiguousSuffixes = ambiguousSuffixes
     maximumNameWords =
       variables.keys.map { $0.split(separator: " ").count }.max() ?? 1
   }
@@ -304,8 +311,8 @@ private final class TokenParser {
         canAttachUnit(to: left),
         let word = identifier(at: 0),
         variable(word) == nil,
-        catalog.resolveUnit(matching: word) == nil,
-        let digits = ScaleWord.digits[word]
+        let digits = ScaleWord.digits[word.lowercased()],
+        readsAsScale(word, after: left)
       {
         let token = advance()
         left = .grouped(
@@ -496,8 +503,8 @@ private final class TokenParser {
         )
       }
       if variable(name) == nil, startsMoneyAmount {
-        if CurrencyCatalog.minorUnits[name] != nil {
-          return parsePrefixedCurrency(name, range: token.range, depth: depth)
+        if recognizesCurrencyCode(name) {
+          return parsePrefixedCurrency(name.uppercased(), range: token.range, depth: depth)
         }
         if let code = CurrencyCatalog.names[name.lowercased()] {
           return parsePrefixedCurrency(code, range: token.range, depth: depth)
@@ -505,7 +512,10 @@ private final class TokenParser {
         if let period = CalendarPeriodUnit(word: name) {
           return parsePrefixedPeriod(period, range: token.range, depth: depth)
         }
-        if ScaleWord.digits[name] != nil {
+        if ScaleWord.digits[name.lowercased()] != nil,
+          ambiguousSuffixes[name.lowercased()] == .scale
+            || name != "M" && catalog.resolveUnit(matching: name) == nil
+        {
           return parsePrefixedScale(name, range: token.range, depth: depth)
         }
       }
@@ -1122,7 +1132,7 @@ private final class TokenParser {
     guard let keyword = identifier(at: offset), let code = identifier(at: offset + 1) else {
       return false
     }
-    return ["in", "to", "as", "into"].contains(keyword) && CurrencyCatalog.minorUnits[code] != nil
+    return ["in", "to", "as", "into"].contains(keyword) && recognizesCurrencyCode(code)
   }
 
   /// `as %`, where `as` would otherwise be attoseconds and `in` inches.
@@ -1254,8 +1264,9 @@ private final class TokenParser {
     if 29 >= minimumBindingPower, canAttachUnit(to: left),
       let word = identifier(at: 0), variable(word) == nil
     {
-      if CurrencyCatalog.minorUnits[word] != nil {
-        return .money(amount: left, currency: word, range: left.range.union(advance().range))
+      if recognizesCurrencyCode(word) {
+        return .money(
+          amount: left, currency: word.uppercased(), range: left.range.union(advance().range))
       }
       if let code = CurrencyCatalog.names[word.lowercased()] {
         return .money(amount: left, currency: code, range: left.range.union(advance().range))
@@ -1263,13 +1274,14 @@ private final class TokenParser {
     }
     guard 1 >= minimumBindingPower, let keyword = identifier(at: 0),
       ["in", "to", "as", "into"].contains(keyword),
-      let code = identifier(at: 1), CurrencyCatalog.minorUnits[code] != nil
+      let code = identifier(at: 1), CurrencyCatalog.minorUnits[code.uppercased()] != nil,
+      recognizesCurrencyCode(code) || inferredKind(of: left) == .money
     else {
       return nil
     }
     advance()
     return .currencyConversion(
-      value: left, currency: code, range: left.range.union(advance().range))
+      value: left, currency: code.uppercased(), range: left.range.union(advance().range))
   }
 
   /// An amount after a currency symbol, `$1.50` or `€12.50`. `$` means the
@@ -1400,7 +1412,8 @@ private final class TokenParser {
   private func parsePrefixedScale(_ word: String, range: SourceRange, depth: Int)
     -> Expression?
   {
-    guard let digits = ScaleWord.digits[word], let amount = parsePrefixedAmount(depth: depth)
+    guard let digits = ScaleWord.digits[word.lowercased()],
+      let amount = parsePrefixedAmount(depth: depth)
     else {
       return nil
     }
@@ -1568,6 +1581,26 @@ private final class TokenParser {
     default:
       return false
     }
+  }
+
+  private func readsAsScale(_ word: String, after left: Expression) -> Bool {
+    switch ambiguousSuffixes[word.lowercased()] {
+    case .scale: return true
+    case .unit, .currency: return false
+    case nil:
+      if word == "M" {
+        return current.range.lowerBound == left.range.upperBound
+      }
+      return catalog.resolveUnit(matching: word) == nil
+        || current.range.lowerBound == left.range.upperBound
+    }
+  }
+
+  private func recognizesCurrencyCode(_ word: String) -> Bool {
+    guard CurrencyCatalog.minorUnits[word.uppercased()] != nil else { return false }
+    return ambiguousSuffixes[word.lowercased()] == .currency
+      || word == word.uppercased()
+      || catalog.resolveUnit(matching: word) == nil
   }
 
   private func isPercentage(_ expression: Expression) -> Bool {

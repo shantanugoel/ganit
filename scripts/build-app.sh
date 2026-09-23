@@ -60,11 +60,17 @@ rm -rf "$staging/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Do
 ditto \
     "$binary_directory/Ganit_GanitFormatting.bundle" \
     "$staging/Contents/Resources/Ganit_GanitFormatting.bundle"
+formatting_bundle="$staging/Contents/Resources/Ganit_GanitFormatting.bundle"
+formatting_resources="$formatting_bundle"
+if [[ -f "$formatting_bundle/Contents/Info.plist" ]]; then
+    formatting_resources="$formatting_bundle/Contents/Resources"
+    mkdir -p "$formatting_resources"
+fi
 xcrun xcstringstool compile \
     Sources/GanitFormatting/Resources/Localizable.xcstrings \
     --output-directory \
-    "$staging/Contents/Resources/Ganit_GanitFormatting.bundle"
-rm "$staging/Contents/Resources/Ganit_GanitFormatting.bundle/Localizable.xcstrings"
+    "$formatting_resources"
+rm -f "$formatting_bundle/Localizable.xcstrings" "$formatting_resources/Localizable.xcstrings"
 install -m 0644 App/Info.plist "$staging/Contents/Info.plist"
 xcrun swift "$repository_root/scripts/generate-app-icon.swift" \
     "$staging/Contents/Resources/AppIcon.icns"

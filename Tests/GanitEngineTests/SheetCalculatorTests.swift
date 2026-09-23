@@ -37,6 +37,27 @@ struct SheetCalculatorTests {
   }
 
   @Test
+  func subtotalMismatchNamesTheConflictingLinesAndKinds() throws {
+    var calculator = SheetCalculator()
+    let sheet = SheetSource("7.23 + 1.15\n$1.1mn to INR\nsubtotal")
+    let rates = try CurrencyRates(
+      unitsPerEuro: ["USD": "1.2", "INR": "100"],
+      observationDate: "1970-01-01", retrievedAt: Date(timeIntervalSince1970: 0))
+    guard
+      case .evaluationFailure(let error) = try calculator.evaluate(
+        sheet, context: try sheetContext().with(rates)
+      ).lines.last?.result
+    else {
+      Issue.record("Expected a subtotal mismatch")
+      return
+    }
+    #expect(
+      error.context
+        == .aggregateTypeMismatch(
+          firstLine: 1, firstKind: .number, otherLine: 2, otherKind: .money))
+  }
+
+  @Test
   func recalculatesClockReadingLinesOnlyAtTheirBoundaries() throws {
     var calculator = SheetCalculator()
     let sheet = SheetSource("a = 1\nstart = today\nnow\nstart + 1 day\na + 1")

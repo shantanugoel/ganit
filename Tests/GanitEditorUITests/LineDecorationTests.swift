@@ -34,7 +34,8 @@ struct LineDecorationTests {
     let mismatch = "é = 1 m + 1 s"
     #expect(
       try decoration(mismatch).runs == [
-        .init(range: (mismatch as NSString).range(of: "+"), style: .error)
+        .init(range: (mismatch as NSString).range(of: "m"), style: .interpretation),
+        .init(range: (mismatch as NSString).range(of: "+"), style: .error),
       ]
     )
 
@@ -44,6 +45,17 @@ struct LineDecorationTests {
         .init(range: NSRange(location: 2, length: 1), style: .error)
       ]
     )
+  }
+
+  @Test
+  func ambiguousSymbolsUseAnAccentWithoutAnErrorUnderline() throws {
+    for text in ["1m", "2 L", "$3", "4 cup"] {
+      let runs = try decoration(text).runs
+      #expect(runs.count == 1)
+      #expect(runs.first?.style == .interpretation)
+      #expect(runs.first?.style.underlineColor == nil)
+    }
+    #expect(try decoration("12 km").runs.isEmpty)
   }
 
   @Test

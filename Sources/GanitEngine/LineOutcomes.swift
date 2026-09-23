@@ -70,8 +70,11 @@ struct LineOutcomes: Sendable {
     return try Self.required(inputs[0])
   }
 
-  func values(for aggregate: Aggregate) throws -> [EngineValue] {
-    try (inputs(for: .aggregate(aggregate)) ?? []).map(Self.required)
+  func valuesAndLines(for aggregate: Aggregate) throws -> [(line: Int, value: EngineValue)] {
+    let start = aggregate == .subtotal ? subtotalStart : blockStart
+    return try (start..<outcomes.count)
+      .filter { !aggregates[$0] && outcomes[$0] != .none }
+      .map { (line: $0 + 1, value: try Self.required(outcomes[$0])) }
   }
 
   private static func required(_ outcome: Outcome) throws -> EngineValue {

@@ -500,6 +500,21 @@ struct ResultFormatterTests {
     #expect(
       formatter.format(EngineError(code: .unavailableReference, context: .failedVariable("rent")))
         .message == "rent has an error, so this cannot use it.")
+    #expect(
+      formatter.format(
+        EngineError(
+          code: .typeMismatch,
+          context: .aggregateTypeMismatch(
+            firstLine: 1, firstKind: .number, otherLine: 2, otherKind: .money)
+        )
+      ).message
+        == "Unit mismatch: line 1 is number, but line 2 is money. Add values with matching types.")
+    #expect(
+      formatter.format(
+        EngineError(
+          code: .typeMismatch, context: .typeMismatch(expected: .money, actual: .number)
+        )
+      ).message.contains("Unit mismatch"))
 
     guard
       case .syntaxFailure(let syntaxErrors) = engine.evaluate(

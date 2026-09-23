@@ -1,10 +1,13 @@
+import GanitEngine
+
 /// How a sheet writes its answers.
 ///
 /// The defaults are how Ganit writes them without being asked: digits grouped
 /// the way the sheet's locale groups them, and as many decimals as the value
 /// needs. A value is kept whole whatever this says, so these choices change
-/// what an answer looks like and never what it is. Copying still yields full
-/// precision, and money keeps its currency's decimals.
+/// what an answer looks like and never what it is. The dollar and ambiguous
+/// suffix choices below also guide how the sheet reads expressions. Copying
+/// still yields full precision, and money keeps its currency's decimals.
 public struct DisplayOptions: Codable, Equatable, Sendable {
   public static let standard = DisplayOptions()
 
@@ -25,6 +28,9 @@ public struct DisplayOptions: Codable, Equatable, Sendable {
 
   /// ISO 4217 code `$` means on this sheet.
   public var dollarCurrency: String
+  /// Sheet-wide meanings for suffixes that also name units (`m`, `l`).
+  /// Missing entries follow the usual spacing rule.
+  public var ambiguousSuffixes: [String: AmbiguousSuffixMeaning]
 
   /// Draws a dim rule where the source ends and the answer column begins.
   /// Answers written inline have no column, and so no rule.
@@ -45,7 +51,8 @@ public struct DisplayOptions: Codable, Equatable, Sendable {
     showsAnswerSeparator: Bool = true,
     showsLineNumbers: Bool = false,
     answerFormats: [String: NumberDisplay] = [:],
-    dollarCurrency: String = "USD"
+    dollarCurrency: String = "USD",
+    ambiguousSuffixes: [String: AmbiguousSuffixMeaning] = [:]
   ) {
     self.groupsDigits = groupsDigits
     self.groupsInLakhs = groupsInLakhs
@@ -55,6 +62,7 @@ public struct DisplayOptions: Codable, Equatable, Sendable {
     self.showsLineNumbers = showsLineNumbers
     self.answerFormats = answerFormats
     self.dollarCurrency = dollarCurrency
+    self.ambiguousSuffixes = ambiguousSuffixes
   }
 
   /// A sheet written before answers could sit inline names neither choice,
@@ -73,6 +81,9 @@ public struct DisplayOptions: Codable, Equatable, Sendable {
     answerFormats =
       try container.decodeIfPresent([String: NumberDisplay].self, forKey: .answerFormats) ?? [:]
     dollarCurrency = try container.decodeIfPresent(String.self, forKey: .dollarCurrency) ?? "USD"
+    ambiguousSuffixes =
+      try container.decodeIfPresent(
+        [String: AmbiguousSuffixMeaning].self, forKey: .ambiguousSuffixes) ?? [:]
   }
 }
 

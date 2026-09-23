@@ -276,7 +276,9 @@ private final class LineSource: Sendable {
     // `1 x = …` declares a rate when `x` is a currency and defines a unit
     // otherwise, so a name that a variable could take stays a variable.
     let oneOf = nameWords.count == 2 && nameWords[0] == "1" ? String(nameWords[1]) : nil
-    rateCurrency = oneOf.flatMap { CurrencyCatalog.minorUnits[$0] != nil ? $0 : nil }
+    rateCurrency = oneOf.flatMap {
+      CurrencyCatalog.minorUnits[$0.uppercased()] != nil ? $0.uppercased() : nil
+    }
     unitName =
       rateCurrency == nil
       ? oneOf.flatMap { engine.unitName(in: $0, context: context) } : nil

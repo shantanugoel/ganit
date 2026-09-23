@@ -441,7 +441,17 @@ private struct EvaluationWorker {
     guard case .aggregate(let aggregate) = reference else {
       return try lines.value(of: reference)
     }
-    return try evaluate(aggregate, of: lines.values(for: aggregate))
+    let inputs = try lines.valuesAndLines(for: aggregate)
+    if aggregate != .count, let first = inputs.first,
+      let other = inputs.dropFirst().first(where: { $0.value.kind != first.value.kind })
+    {
+      throw EngineError(
+        code: .typeMismatch,
+        context: .aggregateTypeMismatch(
+          firstLine: first.line, firstKind: first.value.kind,
+          otherLine: other.line, otherKind: other.value.kind))
+    }
+    return try evaluate(aggregate, of: inputs.map(\.value))
   }
 
   private func apply(

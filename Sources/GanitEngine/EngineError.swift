@@ -83,6 +83,8 @@ public enum EngineErrorContext: Hashable, Sendable {
     actual: Int
   )
   case typeMismatch(expected: EngineValueKind, actual: EngineValueKind)
+  case aggregateTypeMismatch(
+    firstLine: Int, firstKind: EngineValueKind, otherLine: Int, otherKind: EngineValueKind)
   case dimensionMismatch(expected: Dimension, actual: Dimension)
   case resourceLimit(EvaluationResource)
 }

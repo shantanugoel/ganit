@@ -132,9 +132,9 @@ enum MarkdownLines {
       || BuiltInFunction(rawValue: name) != nil
       || FinanceFunction(rawValue: name) != nil
       || name == assistantFunctionName
-      || CurrencyCatalog.minorUnits[name] != nil
+      || CurrencyCatalog.minorUnits[name.uppercased()] != nil
       || CurrencyCatalog.names[name.lowercased()] != nil
-      || ScaleWord.digits[name] != nil
+      || ScaleWord.digits[name.lowercased()] != nil
       || CalendarPeriodUnit(word: name) != nil
       || builtInMinimalUnitCatalog.resolveUnit(matching: name) != nil
       || ["pi", "π", "e", "now", "today", "tomorrow", "yesterday"].contains(name)

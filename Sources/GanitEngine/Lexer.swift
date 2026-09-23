@@ -267,6 +267,22 @@ private struct Scanner {
     }
 
     let identifier = String(characters[start..<cursor])
+    // A currency code may touch its amount: INR7.23 and usd10. Keep other
+    // identifiers containing digits whole (for example a sheet variable).
+    if identifier.count > 3 {
+      let prefix = String(identifier.prefix(3)).uppercased()
+      let remainder = identifier.dropFirst(3)
+      if CurrencyCatalog.minorUnits[prefix] != nil,
+        prefix.allSatisfy(\.isLetter),
+        String(identifier.prefix(3)) == prefix
+          || builtInMinimalUnitCatalog.resolveUnit(matching: String(identifier.prefix(3))) == nil,
+        remainder.allSatisfy({ $0.isASCII && $0.isNumber })
+      {
+        cursor = start + 3
+        append(.identifier(String(characters[start..<cursor])), from: start)
+        return
+      }
+    }
     if current == "$", CurrencyCatalog.symbols[identifier + "$"] != nil {
       advance()
       append(.currencySymbol(identifier + "$"), from: start)

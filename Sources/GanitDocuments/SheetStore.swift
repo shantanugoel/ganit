@@ -87,6 +87,7 @@ extension SheetPreferences {
       timeZone: TimeZone(identifier: TimeZone.current.identifier) ?? .gmt,
       currencyRates: currencyRates,
       dollarCurrency: display.dollarCurrency,
+      ambiguousSuffixes: display.ambiguousSuffixes,
       isMarkdownMode: display.writesAnswersInline
     )
   }

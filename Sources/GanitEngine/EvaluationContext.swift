@@ -5,6 +5,13 @@ public enum AngleMode: String, Codable, Hashable, Sendable {
   case degrees
 }
 
+/// A sheet-wide choice for a suffix that also names a unit, such as `m`.
+public enum AmbiguousSuffixMeaning: String, Codable, Hashable, Sendable {
+  case scale
+  case unit
+  case currency
+}
+
 public enum RoundingRule: String, Hashable, Sendable {
   case toNearestOrEven
   case awayFromZero
@@ -102,6 +109,7 @@ public struct EvaluationContext: Hashable, Sendable {
   public private(set) var assistantAnswers: [AssistantPrompt: AssistantAnswer]
   /// ISO 4217 code `$` means. Right-click on `$` can change it for a sheet.
   public private(set) var dollarCurrency: String
+  public private(set) var ambiguousSuffixes: [String: AmbiguousSuffixMeaning]
   /// A markdown sheet: answers sit in the lines, and words that are not
   /// calculations are paragraphs rather than errors.
   public private(set) var isMarkdownMode: Bool
@@ -125,6 +133,7 @@ public struct EvaluationContext: Hashable, Sendable {
     currencyRates: CurrencyRates = .none,
     assistantAnswers: [AssistantPrompt: AssistantAnswer] = [:],
     dollarCurrency: String = "USD",
+    ambiguousSuffixes: [String: AmbiguousSuffixMeaning] = [:],
     isMarkdownMode: Bool = false
   ) throws {
     guard Self.isStructurallyValidBCP47(localeIdentifier) else {
@@ -158,6 +167,7 @@ public struct EvaluationContext: Hashable, Sendable {
     self.currencyRates = currencyRates
     self.assistantAnswers = assistantAnswers
     self.dollarCurrency = CurrencyCatalog.minorUnits[dollarCurrency] != nil ? dollarCurrency : "USD"
+    self.ambiguousSuffixes = ambiguousSuffixes
     self.isMarkdownMode = isMarkdownMode
   }
 
@@ -210,10 +220,16 @@ public struct EvaluationContext: Hashable, Sendable {
   }
 
   /// The same context with a sheet's markdown and dollar choices.
-  public func with(dollarCurrency: String, isMarkdownMode: Bool) -> EvaluationContext {
+  public func with(
+    dollarCurrency: String, isMarkdownMode: Bool,
+    ambiguousSuffixes: [String: AmbiguousSuffixMeaning]? = nil
+  ) -> EvaluationContext {
     var context = self
     context.dollarCurrency =
       CurrencyCatalog.minorUnits[dollarCurrency] != nil ? dollarCurrency : "USD"
+    if let ambiguousSuffixes {
+      context.ambiguousSuffixes = ambiguousSuffixes
+    }
     context.isMarkdownMode = isMarkdownMode
     return context
   }

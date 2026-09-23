@@ -14,7 +14,11 @@ test "$(lipo -archs "$application/Contents/MacOS/Ganit")" = "arm64"
 test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundlePackageType' "$application/Contents/Info.plist")" = "APPL"
 test "$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$application/Contents/Info.plist")" = "14.0"
 formatting_resources="$application/Contents/Resources/Ganit_GanitFormatting.bundle"
-test -f "$formatting_resources/Info.plist"
+if [[ -f "$formatting_resources/Contents/Info.plist" ]]; then
+    formatting_resources="$formatting_resources/Contents/Resources"
+else
+    test -f "$formatting_resources/Info.plist"
+fi
 test -f "$formatting_resources/en.lproj/Localizable.strings"
 test -f "$formatting_resources/tr.lproj/Localizable.strings"
 test ! -e "$formatting_resources/Localizable.xcstrings"

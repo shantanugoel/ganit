@@ -5,6 +5,23 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+## 0.5.3
+
+- Attached `m`/`mn` mean million, `l` means lakh, and `cr` means crore,
+  including uppercase forms and money amounts such as `$1.1m`. Currency codes
+  work in any letter case and may touch their amount, as in `INR7.23`. A
+  lowercase code that is also a unit keeps the unit meaning (`cup`);
+  uppercase `CUP` means the currency.
+- Right-click an ambiguous `m`, `l`, `$`, or unit/currency word beside an amount
+  to choose its meaning for that occurrence or the whole sheet. That choice writes
+  a full word or currency code; sheet choices persist. Hover help points to
+  the action without adding an error underline.
+- A subtotal that mixes types identifies the conflicting line numbers and
+  types. Combining money with a plain number explains the mismatch. Source
+  errors and answers show help immediately on hover.
+- Known type and exchange-rate errors stay with Ganit instead of being sent
+  to the assistant, so an AI reply cannot replace their diagnostics.
+
 ## 0.5.2
 
 - Typing `{` in an `ask_assistant` prompt offers the sheet's variables, and

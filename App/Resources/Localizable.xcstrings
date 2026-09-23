@@ -1,6 +1,36 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "help.menu.interpretHint" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Right-click to choose this symbol's meaning here or for the sheet." } }
+      }
+    },
+    "menu.interpretAs" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Interpret As" } }
+      }
+    },
+    "menu.interpretHere" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This Occurrence" } }
+      }
+    },
+    "menu.interpretSheet" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Whole Sheet" } }
+      }
+    },
+    "menu.interpretAutomatic" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Automatic by Spacing" } }
+      }
+    },
+    "menu.interpretAutomaticUnit" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Automatic (Unit)" } }
+      }
+    },
     "accessibility.lineAnswer" : {
       "localizations" : {
         "en" : {
