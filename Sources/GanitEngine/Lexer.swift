@@ -157,6 +157,8 @@ private struct Scanner {
 
       advance()
       switch character {
+      case "@":
+        append(.at, from: start)
       case "+":
         append(.plus, from: start)
       case "-", "−":

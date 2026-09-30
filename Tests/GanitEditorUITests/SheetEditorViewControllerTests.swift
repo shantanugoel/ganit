@@ -46,6 +46,18 @@ struct SheetEditorViewControllerTests {
   }
 
   @Test
+  func compactLineReferencesFollowTheirLineAndUndoTogether() throws {
+    let source = "rent = 5\nfood = 2\nsubtotal\nsavings = 10 - @3 + line 1"
+    let editor = SheetEditorViewController(text: source, context: try testContext())
+    editor.textView.insertText("phone = 1\n", replacementRange: NSRange(location: 0, length: 0))
+    #expect(
+      editor.textView.string
+        == "phone = 1\nrent = 5\nfood = 2\nsubtotal\nsavings = 10 - @4 + line 2")
+    editor.documentUndoManager.undo()
+    #expect(editor.textView.string == source)
+  }
+
+  @Test
   func returnAndReferenceRewritesUndoTogetherAfterTyping() async throws {
     let source = "# Heading\n10\n20\nline 2 + line 3\nprevious * 2"
     let editor = SheetEditorViewController(text: source, context: try testContext())

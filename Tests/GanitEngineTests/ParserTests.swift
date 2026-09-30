@@ -240,7 +240,7 @@ struct ParserTests {
 
   @Test
   func doesNotReturnASTWhenLexingFails() {
-    let result = Parser(source: "1 + @").parse()
+    let result = Parser(source: "1 + ?").parse()
 
     #expect(result.expression == nil)
     #expect(result.diagnostics.map(\.code) == [.unexpectedCharacter, .expectedExpression])

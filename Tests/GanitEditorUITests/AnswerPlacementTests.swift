@@ -97,7 +97,9 @@ struct AnswerPlacementTests {
     // The sheet stops growing, so the answer does not run off to the far edge.
     #expect(textView.contentWidth <= SheetTextView.maximumContentWidth)
     let answer = try #require(textView.answerLayout(in: textView.bounds).first)
-    #expect(answer.rect.maxX < SheetTextView.maximumContentWidth + 40)
+    #expect(
+      answer.rect.maxX <= SheetTextView.maximumContentWidth
+        + textView.textContainerInset.width + textView.gutterWidth)
     #expect(try #require(textView.answerSeparatorX) < SheetTextView.maximumContentWidth)
   }
 
@@ -148,6 +150,8 @@ struct AnswerPlacementTests {
   func lineNumbersCountPhysicalLinesAndGoToLineReachesThem() async throws {
     let wrapped = "rent = 2100 // " + String(repeating: "a comment that wraps ", count: 8)
     let (editor, textView) = try await makeEditor("# Budget\n\(wrapped)\n\nline 2 + 1")
+    #expect(textView.showsLineNumbers)
+    editor.writeAnswers(DisplayOptions(showsLineNumbers: false))
     let plainOrigin = textView.textContainerOrigin.x
     let plainColumn = try #require(textView.answerLayout(in: textView.bounds).first?.rect.maxX)
     #expect(textView.lineNumberLayout(in: textView.bounds).isEmpty)

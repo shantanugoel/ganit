@@ -118,7 +118,7 @@ enum MarkdownLines {
 
   private static func isCalculationStart(_ token: Token) -> Bool {
     switch token.kind {
-    case .number, .currencySymbol, .leftParenthesis, .temporal:
+    case .number, .currencySymbol, .leftParenthesis, .temporal, .at:
       return true
     case .identifier(let name):
       return isCalculationWord(name)

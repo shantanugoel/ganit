@@ -186,10 +186,10 @@ extension LanguageReference {
       ),
       body: text(
         "help.grammar.references.body",
-        "line 2 is the answer of line 2, and previous is the answer of the line above. sum and total add every result above. subtotal adds from the last divider or heading. average, median, and count do what they say to those results."
+        "line 2 and @2 both use the answer of line 2. Type @ to choose a variable or an earlier line, with a preview of its value. Tab or Return chooses it; variable names are inserted without @. previous uses the nearest answer above in the block. sum and total add the block’s results; subtotal adds from the previous subtotal. average, median, and count summarize those results."
       ),
-      examples: ["line 2 * 3", "previous", "subtotal"],
-      keywords: ["line", "previous", "sum", "total", "average"]
+      examples: ["@2 * 3", "line 2 * 3", "previous", "subtotal"],
+      keywords: ["@", "autocomplete", "variables", "line", "previous", "sum", "total", "average"]
     ),
     topic(
       id: "grammar.definitions",
@@ -329,9 +329,9 @@ extension LanguageReference {
       summary: text("help.keyword.line.summary", "The answer of a numbered line above."),
       body: text(
         "help.keyword.line.body",
-        "line 2 is the answer of the second line. The line must be above this one. Calculate ▸ Insert Reference writes it for the selected answer."
+        "line 2 and @2 both use the answer of the second physical line, counting headings, comments, and blank lines. The target must be above this line. Type @ to choose a line, or use Calculate ▸ Insert Reference for the selected answer. References follow their target when lines are inserted or removed."
       ),
-      examples: ["line 2 * 3"]
+      examples: ["@2 * 3", "line 2 * 3"]
     ),
   ]
 

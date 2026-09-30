@@ -116,12 +116,22 @@ assistant shows Asking… until a value arrives.
 | Right-click Copy with Results | Copies each selected line with the answer it shows |
 | Escape or typing | Clears the answer selection |
 
-Function and keyword names complete while typing. The list shows each
+Variable, function, and keyword names complete while typing. Multiword
+variables complete as a whole name. The list shows each
 function with its parameters. Tab or a click inserts the selected completion
 and selects the first parameter; Tab then moves to the next one. Return
 inserts it only after an arrow key picks a row, so a line ending in a word such
 as `min` or `m` still ends with Return.
-Escape dismisses the list. **Edit ▸ Autocomplete** turns the list off.
+Escape dismisses the list. **Edit ▸ Autocomplete** turns automatic suggestions off.
+
+Typing `@` explicitly opens a picker of variables in scope and earlier lines
+with calculated answers. Each entry previews its value; a line also shows its
+source text. Letters filter variables and digits filter line numbers. Tab,
+Return, or a click inserts the selected variable's plain name or the compact
+line reference `@N`, replacing the query. This picker works even when automatic
+suggestions are off. It omits failed values, future declarations, and variables
+cleared by a divider; shared definitions remain available. Line numbers are
+visible by default unless the sheet has a saved choice to hide them.
 
 `copyResult:`, `copyFullPrecision:`, `copyLinesWithResults:`,
 `showInterpretation:`, `askAssistant:`, and `changeAssistantAnswer:` are

@@ -479,6 +479,9 @@ private final class TokenParser {
   private func parsePrefix(depth: Int) -> Expression? {
     let token = advance()
     switch token.kind {
+    case .at:
+      return parseCompactReference(token)
+
     case .number(let literal):
       return .literal(literal, range: token.range)
 
@@ -1125,6 +1128,20 @@ private final class TokenParser {
 
   private func token(at offset: Int) -> Token {
     tokens[min(cursor + offset, tokens.count - 1)]
+  }
+
+  /// Kept out of the recursive prefix frame so deep parses retain their
+  /// stack budget, including under Address Sanitizer.
+  @inline(never)
+  private func parseCompactReference(_ token: Token) -> Expression? {
+    guard case .number(.integer(let digits, .decimal)) = current.kind,
+      current.range.lowerBound == token.range.upperBound,
+      let number = Int(digits)
+    else {
+      diagnose(.unexpectedToken, at: current.kind == .endOfFile ? token.range : current.range)
+      return nil
+    }
+    return .reference(.line(number), range: token.range.union(advance().range))
   }
 
   /// `in EUR`, where `in` would otherwise be inches: `$10 in EUR`.

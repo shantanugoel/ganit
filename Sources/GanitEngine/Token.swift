@@ -48,6 +48,8 @@ public enum TokenKind: Equatable, Sendable {
   /// A currency symbol such as `€`, `US$`, or the ambiguous `$`.
   case currencySymbol(String)
   case identifier(String)
+  /// A compact line reference's prefix: `@3`.
+  case at
   case plus
   case minus
   case multiply

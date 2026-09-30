@@ -97,6 +97,8 @@ public final class SheetEditorViewController: NSViewController {
   private var assistantPromptsCancelled: Set<AssistantPrompt> = []
   /// Each line's UTF-16 start offset, in line order.
   private var cachedUTF16Starts: [Int]?
+  /// Gutter drawing must not scan the whole sheet for every visible number.
+  private var cachedLineNumbers: [LineID: Int]?
   /// The text and result of each line in the newest shown evaluation.
   private var shownLines: [LineID: (text: String, result: SheetLineResult)] = [:]
   private var decorations: [LineID: LineDecoration] = [:]
@@ -161,7 +163,13 @@ public final class SheetEditorViewController: NSViewController {
       return (index + 1, sheet.lines[index].id)
     }
     sheetTextView.lineNumber = { [weak self] id in
-      self?.sheet.lines.firstIndex { $0.id == id }.map { $0 + 1 }
+      guard let self else { return nil }
+      if cachedLineNumbers == nil {
+        cachedLineNumbers = Dictionary(
+          uniqueKeysWithValues:
+            sheet.lines.enumerated().map { ($0.element.id, $0.offset + 1) })
+      }
+      return cachedLineNumbers?[id]
     }
     editingLine = sheet.lines.first?.id
     sheetTextView.answer = { [weak self] id in
@@ -192,6 +200,12 @@ public final class SheetEditorViewController: NSViewController {
     }
     sheetTextView.variableNames = { [weak self] in
       self?.variableNames() ?? []
+    }
+    sheetTextView.referenceCompletions = { [weak self] offset in
+      self?.referenceCompletions(at: offset) ?? []
+    }
+    sheetTextView.variableCompletions = { [weak self] offset in
+      self?.referenceCompletions(at: offset, includesLines: false) ?? []
     }
     sheetTextView.canAskAssistant = { [weak self] in
       self?.canAskAssistant() ?? false
@@ -321,6 +335,7 @@ public final class SheetEditorViewController: NSViewController {
     )
     mirroredText = current
     cachedUTF16Starts = nil
+    cachedLineNumbers = nil
     for index in lineIndex(atUTF16: newRange.location)...lineIndex(atUTF16: newRange.upperBound) {
       let id = sheet.lines[index].id
       editedLines.insert(id)
@@ -554,6 +569,7 @@ public final class SheetEditorViewController: NSViewController {
       decorate(index)
     }
     sheetTextView.answersDidChange()
+    sheetTextView.refreshReferenceCompletions()
     summarizeSelection()
     askAboutUnansweredLines()
   }
@@ -665,8 +681,47 @@ public final class SheetEditorViewController: NSViewController {
   /// The names a `{…}` placeholder can complete to: this sheet's variables
   /// and the definitions sheet's.
   private func variableNames() -> [String] {
-    let definitions = [latestEvaluation?.definitions, scheduler?.definitions].compactMap { $0 }
-    return Set(definitions.flatMap(\.variables.keys)).sorted()
+    referenceCompletions(at: textView.selectedRange().location, includesLines: false)
+      .filter { !$0.insertion.hasPrefix("@") }.map(\.insertion)
+  }
+
+  /// Values the caret can read: inherited definitions, variables in scope,
+  /// and successfully calculated lines above it. Previews use existing results.
+  private func referenceCompletions(at offset: Int, includesLines: Bool = true) -> [CompletionItem]
+  {
+    let inherited = scheduler?.definitions.variables ?? [:]
+    func item(_ name: String, _ value: EngineValue) -> CompletionItem {
+      CompletionItem(name, detail: (try? resultFormatter.format(value))?.display ?? "")
+    }
+    var variables = inherited.reduce(into: [String: CompletionItem]()) {
+      $0[$1.key.lowercased()] = item($1.key, $1.value)
+    }
+    let defaults = variables
+    var lines: [CompletionItem] = []
+    for (index, line) in sheet.lines.prefix(lineIndex(atUTF16: offset)).enumerated() {
+      if case .divider = LineSyntax(line.text) {
+        variables = defaults
+      }
+      guard let shown = shownLines[line.id], shown.text == line.text else { continue }
+      let result = shown.result
+      if let name = result.declaredVariableName {
+        variables[name] = nil
+        if case .value(let value) = result.result,
+          case .calculation(_, let range?, _, _) = result.syntax,
+          let written = range.text(in: line.text)
+        {
+          let spelling = written.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+          variables[name] = item(spelling, value)
+        }
+      }
+      if includesLines, case .value(let value) = result.result {
+        let preview = (try? resultFormatter.format(value))?.display ?? ""
+        lines.append(CompletionItem("@\(index + 1)", detail: line.text + " → " + preview))
+      }
+    }
+    return variables.values.sorted {
+      $0.insertion.localizedCaseInsensitiveCompare($1.insertion) == .orderedAscending
+    } + lines
   }
 
   /// Whether Ask Assistant can send the selected answer's line, or the

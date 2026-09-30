@@ -6,6 +6,20 @@ import Testing
 @Suite
 struct LineReferenceRenumberingTests {
   @Test
+  func renumbersBothSpellingsAndLeavesCommentsAndPromptsAlone() {
+    let source = "10\n20\n@1 + @2 + line 2 // @2\nask_assistant(email @2 and {@2})\n# @2"
+    let text = NSMutableString(string: source)
+    for edit in LineReferenceRenumbering.edits(
+      in: source, firstMovedLine: 2, delta: 1, editedLines: 1...1,
+      configuration: .englishUnitedStates
+    ).reversed() {
+      text.replaceCharacters(in: edit.range, with: edit.number)
+    }
+    #expect(
+      text as String == "10\n20\n@1 + @3 + line 3 // @2\nask_assistant(email @2 and {@3})\n# @2")
+  }
+
+  @Test
   func findsTheFirstLineAnEditMoves() throws {
     let old = "a\nbb\nc"
     // Return at the end of line 1 moves line 2 down.

@@ -6,6 +6,7 @@ downward, so a sheet cannot contain a reference cycle.
 | Form | Meaning |
 |---|---|
 | `line 3` | the result of sheet line 3 (one-based) |
+| `@3` | compact spelling of `line 3` |
 | `previous`, `prev` | the nearest result above in the current block |
 | `sum`, `total` | the sum of results in the current block |
 | `subtotal` | the sum of results since the previous subtotal in the block |
@@ -16,11 +17,18 @@ downward, so a sheet cannot contain a reference cycle.
 Each of these also takes an explicit list of values, such as `median(3, 9, 4)`;
 see [listing the values](#listing-the-values-instead).
 
-`line N` counts physical sheet lines, including blank lines, comments, and
+`line N` and `@N` count physical sheet lines, including blank lines, comments, and
 headings. The editor keeps it naming the same line: adding or removing lines
 above that line rewrites `N` in the same undoable edit, as a spreadsheet
 adjusts a cell reference. Lines being typed, comments, and references past the
 last line are left as written.
+
+Write the number immediately after `@`, without a space; it must be a decimal
+integer. `@0`, current or later lines, and lines without an expression are
+invalid references, just as with `line N`. `@name` is an editor completion
+query, not a second spelling of a variable: choosing a variable inserts its
+plain name. Type `@` to see variables in scope and successfully calculated
+earlier lines with previews, then Tab, Return, or click to choose one.
 
 ## Blocks
 

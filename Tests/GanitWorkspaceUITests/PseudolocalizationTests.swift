@@ -35,8 +35,14 @@ struct PseudolocalizationTests {
     let assistant: NSWindow? = NSWindow(
       contentViewController: AssistantSettingsController(settings: AssistantSettings()) { _ in })
     let quick = try QuickPanelController(context: SheetPreferences.standard.evaluationContext())
+    let announcement = ReferenceFeatureAnnouncement.alert()
+    announcement.layout()
+    let announcementWindow = announcement.window
 
-    for window in [controller.window, settingsWindow, assistant, quick.window].compactMap({ $0 }) {
+    let windows: [NSWindow?] = [
+      controller.window, settingsWindow, assistant, quick.window, announcementWindow,
+    ]
+    for window in windows.compactMap({ $0 }) {
       window.layoutIfNeeded()
       #expect(clipped(in: window.contentView!) == [], "\(type(of: window))")
     }

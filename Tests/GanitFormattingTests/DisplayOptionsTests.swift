@@ -7,6 +7,18 @@ import Testing
 @Suite
 struct DisplayOptionsTests {
   @Test
+  func lineNumbersDefaultOnAndPreserveAnExplicitChoice() throws {
+    #expect(DisplayOptions.standard.showsLineNumbers)
+    let hidden = DisplayOptions(showsLineNumbers: false)
+    let data = try JSONEncoder().encode(hidden)
+    #expect(try !JSONDecoder().decode(DisplayOptions.self, from: data).showsLineNumbers)
+    var older = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    older.removeValue(forKey: "showsLineNumbers")
+    let oldData = try JSONSerialization.data(withJSONObject: older)
+    #expect(try JSONDecoder().decode(DisplayOptions.self, from: oldData).showsLineNumbers)
+  }
+
+  @Test
   func writesTheDigitsASheetAsksFor() throws {
     let cases: [(DisplayOptions, String, String)] = [
       (.standard, "1234567.5", "1,234,567.5"),

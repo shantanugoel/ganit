@@ -1,6 +1,6 @@
 import Foundation
 
-/// Keeps each `line N` naming the same line when lines above it are added or
+/// Keeps each `line N` or `@N` naming the same line when lines above it are added or
 /// removed, the way a spreadsheet keeps its cell references.
 public enum LineReferenceRenumbering {
   /// The line shift an edit makes: `delta` lines added (or removed, when
@@ -47,16 +47,24 @@ public enum LineReferenceRenumbering {
       }
       let tokens = Lexer(source: String(expressionText), configuration: configuration).lex().tokens
       for (word, number) in zip(tokens, tokens.dropFirst()) {
-        guard case .identifier("line") = word.kind,
-          case .number(.integer(let digits, .decimal)) = number.kind,
+        let isReference =
+          word.kind == .identifier("line")
+          || word.kind == .at && word.range.upperBound == number.range.lowerBound
+        guard isReference, case .number(.integer(let digits, .decimal)) = number.kind,
           let old = Int(digits), old >= firstMovedLine, old <= oldLineCount, old + delta >= 1
         else {
           continue
         }
         let prefix = String(line).utf8.prefix(expression.lowerBound + number.range.lowerBound)
         let location = lineStart + String(decoding: prefix, as: UTF8.self).utf16.count
+        let written = String(expressionText).utf8.dropFirst(number.range.lowerBound)
+          .prefix(number.range.utf8Length)
         edits.append(
-          (NSRange(location: location, length: digits.utf16.count), String(old + delta)))
+          (
+            NSRange(
+              location: location, length: String(decoding: written, as: UTF8.self).utf16.count),
+            String(old + delta)
+          ))
       }
     }
     return edits

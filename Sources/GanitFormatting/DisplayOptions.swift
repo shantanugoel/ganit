@@ -49,7 +49,7 @@ public struct DisplayOptions: Codable, Equatable, Sendable {
     numbers: NumberDisplay = .automatic,
     writesAnswersInline: Bool = false,
     showsAnswerSeparator: Bool = true,
-    showsLineNumbers: Bool = false,
+    showsLineNumbers: Bool = true,
     answerFormats: [String: NumberDisplay] = [:],
     dollarCurrency: String = "USD",
     ambiguousSuffixes: [String: AmbiguousSuffixMeaning] = [:]
@@ -77,7 +77,7 @@ public struct DisplayOptions: Codable, Equatable, Sendable {
     showsAnswerSeparator =
       try container.decodeIfPresent(Bool.self, forKey: .showsAnswerSeparator) ?? true
     showsLineNumbers =
-      try container.decodeIfPresent(Bool.self, forKey: .showsLineNumbers) ?? false
+      try container.decodeIfPresent(Bool.self, forKey: .showsLineNumbers) ?? true
     answerFormats =
       try container.decodeIfPresent([String: NumberDisplay].self, forKey: .answerFormats) ?? [:]
     dollarCurrency = try container.decodeIfPresent(String.self, forKey: .dollarCurrency) ?? "USD"

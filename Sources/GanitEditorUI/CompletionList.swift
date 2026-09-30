@@ -10,7 +10,7 @@ final class CompletionList {
     defer: false
   )
   private let table = NSTableView()
-  private var items: [String] = []
+  private var items: [CompletionItem] = []
   private(set) var selected = 0
   /// Set once an arrow key picks a row, so Return can still end a line that
   /// happens to start a completion, such as `5 min`.
@@ -23,12 +23,12 @@ final class CompletionList {
     panel.isVisible
   }
 
-  var selectedItem: String? {
+  var selectedItem: CompletionItem? {
     items.indices.contains(selected) ? items[selected] : nil
   }
 
   var titles: [String] {
-    items
+    items.map(\.insertion)
   }
 
   init() {
@@ -56,17 +56,18 @@ final class CompletionList {
     source.owner = self
   }
 
-  func show(_ items: [String], at rect: NSRect, in view: NSView) {
+  func show(_ items: [CompletionItem], at rect: NSRect, in view: NSView) {
     isUpdating = true
-    self.items = Array(items.prefix(8))
+    self.items = Array(items.prefix(200))
     selected = 0
     isPicked = false
     source.items = self.items
+    table.rowHeight = items.contains { !$0.detail.isEmpty } ? 40 : 20
     table.reloadData()
     if !self.items.isEmpty {
       table.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
     }
-    let height = min(CGFloat(self.items.count) * table.rowHeight + 4, 140)
+    let height = min(CGFloat(self.items.count) * table.rowHeight + 4, 240)
     let width = Self.width(for: self.items)
     var frame = rect
     frame.size = NSSize(width: width, height: height)
@@ -108,10 +109,13 @@ final class CompletionList {
   }
 
   /// Wide enough for the longest signature, without covering the sheet.
-  private static func width(for items: [String]) -> CGFloat {
+  private static func width(for items: [CompletionItem]) -> CGFloat {
     let font = NSFont.monospacedSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
     let longest =
-      items.map { ($0 as NSString).size(withAttributes: [.font: font]).width }.max() ?? 0
+      items.map {
+        (max($0.insertion.count, $0.detail.count) == $0.insertion.count
+          ? $0.insertion : $0.detail) as NSString
+      }.map { $0.size(withAttributes: [.font: font]).width }.max() ?? 0
     return min(max(ceil(longest) + 24, 220), 420)
   }
 
@@ -121,7 +125,7 @@ final class CompletionList {
 @MainActor
 private final class CompletionListSource: NSObject, NSTableViewDataSource, NSTableViewDelegate {
   weak var owner: CompletionList?
-  var items: [String] = []
+  var items: [CompletionItem] = []
 
   func numberOfRows(in tableView: NSTableView) -> Int {
     items.count
@@ -132,11 +136,23 @@ private final class CompletionListSource: NSObject, NSTableViewDataSource, NSTab
     guard items.indices.contains(row) else {
       return nil
     }
-    let label = NSTextField(labelWithString: items[row])
+    let item = items[row]
+    let label = NSTextField(labelWithString: item.insertion)
     label.font = NSFont.monospacedSystemFont(ofSize: NSFont.smallSystemFontSize, weight: .regular)
     label.textColor = VisualStyle.Color.primary
     label.lineBreakMode = .byTruncatingTail
-    return label
+    guard !item.detail.isEmpty else { return label }
+    let detail = NSTextField(labelWithString: item.detail)
+    detail.font = VisualStyle.Typography.caption
+    detail.textColor = VisualStyle.Color.secondary
+    detail.lineBreakMode = .byTruncatingTail
+    let stack = NSStackView(views: [label, detail])
+    stack.orientation = .vertical
+    stack.alignment = .leading
+    stack.spacing = 2
+    stack.toolTip = item.insertion + " — " + item.detail
+    stack.setAccessibilityLabel(stack.toolTip)
+    return stack
   }
 
   @objc func choose(_ sender: Any?) {

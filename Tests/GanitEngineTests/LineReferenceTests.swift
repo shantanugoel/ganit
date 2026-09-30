@@ -5,6 +5,27 @@ import Testing
 @Suite
 struct LineReferenceTests {
   @Test
+  func compactReferencesHaveTheSameValuesErrorsAndRanges() throws {
+    let results = try sheetOutcomes(
+      "10\n20\n// note\n@1 + line 2\n10% of @2\n@0\n@7\n@3\n1/0\n@9")
+    #expect(results[3] == "30")
+    #expect(results[4] == "2")
+    for index in [5, 6, 7] {
+      #expect(results[index] == "error.evaluation.invalidReference")
+    }
+    #expect(results[9] == "error.evaluation.unavailableReference")
+    let parsing = Parser(source: "@12 + line 3").parse()
+    let expression = try #require(parsing.expression)
+    #expect(parsing.diagnostics.isEmpty)
+    #expect(expression.references == [.line(12), .line(3)])
+    #expect(expression.range.lowerBound == 0)
+    #expect(expression.range.upperBound == 12)
+    for invalid in ["@", "@rent", "@ 1", "@1.5", "@-1", "@0xff"] {
+      #expect(!Parser(source: invalid).parse().diagnostics.isEmpty, "\(invalid)")
+    }
+  }
+
+  @Test
   func resolvesUpwardLineNumbers() throws {
     let results = try sheetOutcomes(
       "10\r\n20\n// note\nline 1 + line 2\nline 5\nline 3\nline 7\n1 m + 1 s\nline 8"

@@ -5,6 +5,20 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+## 0.5.4
+
+- Type `@` to choose a variable or an earlier line's answer, with value
+  previews. Letters filter variable names and digits filter line numbers;
+  Tab, Return, or a click chooses the reference. The explicit picker works
+  even with automatic suggestions off. Variables also complete while typing,
+  including multiword names, and are inserted as plain names.
+- `@6` is a compact alternative to `line 6`. Both keep naming the same line
+  when lines above it are inserted or removed, in the same undoable edit.
+- Line numbers appear by default in new sheets and older sheets without a
+  saved line-number setting. View ▸ Show Line Numbers still controls them.
+- A small announcement introduces quick references once, after the welcome
+  tour or when an editor is first opened.
+
 ## 0.5.3
 
 - Build, test, and release with Xcode 27.

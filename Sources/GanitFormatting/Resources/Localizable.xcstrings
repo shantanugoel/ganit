@@ -1,6 +1,16 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "help.grammar.references.body" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "line 2 and @2 both use the answer of line 2. Type @ to choose a variable or an earlier line, with a preview of its value. Tab or Return chooses it; variable names are inserted without @. previous uses the nearest answer above in the block. sum and total add the block’s results; subtotal adds from the previous subtotal. average, median, and count summarize those results." } }
+      }
+    },
+    "help.keyword.line.body" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "line 2 and @2 both use the answer of the second physical line, counting headings, comments, and blank lines. The target must be above this line. Type @ to choose a line, or use Calculate ▸ Insert Reference for the selected answer. References follow their target when lines are inserted or removed." } }
+      }
+    },
     "error.evaluation.currencyRatesUnavailable" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Exchange rates have not been downloaded yet. Declare a rate such as 1 USD = 83 INR." } }

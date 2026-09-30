@@ -57,7 +57,7 @@ final class SheetTextView: NSTextView {
 
   /// Numbers each line in a gutter before the source. Wrapped rows share
   /// their line's number.
-  var showsLineNumbers = false {
+  var showsLineNumbers = true {
     didSet {
       guard showsLineNumbers != oldValue else {
         return
@@ -79,12 +79,20 @@ final class SheetTextView: NSTextView {
   }
 
   /// Room for four-digit line numbers and a gap before the source.
+  private var measuredGutter: (scale: CGFloat, width: CGFloat)?
+
   var gutterWidth: CGFloat {
     guard showsLineNumbers else {
       return 0
     }
-    return ceil(("0000" as NSString).size(withAttributes: lineNumberAttributes).width)
+    if let measuredGutter, measuredGutter.scale == textScale {
+      return measuredGutter.width
+    }
+    let width =
+      ceil(("0000" as NSString).size(withAttributes: lineNumberAttributes).width)
       + VisualStyle.Spacing.standard
+    measuredGutter = (textScale, width)
+    return width
   }
 
   override var textContainerOrigin: NSPoint {
@@ -289,10 +297,18 @@ final class SheetTextView: NSTextView {
   var completesWhileTyping: Bool?
   /// The variable names a `{…}` placeholder can complete to.
   var variableNames: () -> [String] = { [] }
+  /// Variables in scope and earlier line results, with value previews.
+  var referenceCompletions: (Int) -> [CompletionItem] = { _ in [] }
+  /// Ordinary typing only needs variables, avoiding previews for every line.
+  var variableCompletions: (Int) -> [CompletionItem] = { _ in [] }
   private var helpTracking: NSTrackingArea?
   private var helpPopover: NSPopover?
   private var shownHelpText: String?
   private let completionList = CompletionList()
+  private var completionRange: NSRange?
+  private var completesPlaceholder = false
+  private var completesReference = false
+  private var completionDismissed = false
 
   private func configureCompletions() {
     guard completionList.onChoose == nil else {
@@ -417,6 +433,20 @@ final class SheetTextView: NSTextView {
     super.didChangeText()
     // Edits move lines, so answers must be redrawn in their new positions.
     answerOverlay().needsDisplay = true
+    completionDismissed = false
+    updateCompletions()
+  }
+
+  override func resignFirstResponder() -> Bool {
+    completionList.hide()
+    return super.resignFirstResponder()
+  }
+
+  /// A newly evaluated declaration can arrive after `@` was typed.
+  func refreshReferenceCompletions() {
+    guard !completionDismissed, window?.firstResponder === self, referencePrefix() != nil else {
+      return
+    }
     updateCompletions()
   }
 
@@ -1080,6 +1110,7 @@ final class SheetTextView: NSTextView {
   }
 
   override func mouseDown(with event: NSEvent) {
+    completionList.hide()
     let point = convert(event.locationInWindow, from: nil)
     guard let hit = answerHit(at: point) else {
       selectedAnswer = nil
@@ -1289,13 +1320,14 @@ final class SheetTextView: NSTextView {
   override func complete(_ sender: Any?) {
     if completionList.isVisible {
       completionList.hide()
+      completionDismissed = true
       return
     }
     nextResponder?.tryToPerform(#selector(cancelOperation(_:)), with: sender)
   }
 
   override func insertNewline(_ sender: Any?) {
-    if completionList.isPicked, insertSelectedCompletion() {
+    if completionList.isPicked || completesReference, insertSelectedCompletion() {
       return
     }
     completionList.hide()
@@ -1333,19 +1365,55 @@ final class SheetTextView: NSTextView {
 
   private func updateCompletions() {
     configureCompletions()
+    completionRange = nil
+    completesReference = false
+    guard !hasMarkedText() else {
+      completionList.hide()
+      return
+    }
     let placeholder = placeholderPrefix()
-    guard completesWhileTyping ?? GanitPreferences.completesWhileTyping,
-      let prefix = placeholder ?? completionPrefix()
+    let reference = referencePrefix()
+    let ordinary = completionPrefix()
+    guard isCompletionPosition(),
+      reference != nil || (completesWhileTyping ?? GanitPreferences.completesWhileTyping),
+      reference != nil || placeholder != nil || ordinary?.text.first?.isLetter == true
+        || ordinary?.text.first == "_"
     else {
       completionList.hide()
       return
     }
-    let matches =
-      placeholder != nil
-      ? variableNames().filter {
-        $0.lowercased().hasPrefix(prefix.text.lowercased()) && $0.count > prefix.text.count
+    let values =
+      reference != nil
+      ? referenceCompletions(selectedRange().location)
+      : variableCompletions(selectedRange().location)
+    guard let prefix = reference ?? placeholder ?? variablePrefix(in: values) ?? ordinary
+    else {
+      completionList.hide()
+      return
+    }
+    let matches: [CompletionItem]
+    if reference != nil {
+      matches = values.filter {
+        let name = $0.insertion.hasPrefix("@") ? String($0.insertion.dropFirst()) : $0.insertion
+        return name.lowercased().hasPrefix(prefix.text.lowercased())
       }
-      : LanguageCompletions.matching(prefix.text).filter { $0 != prefix.text }
+    } else if placeholder != nil {
+      matches = variableNames().filter {
+        $0.lowercased().hasPrefix(prefix.text.lowercased()) && $0.count > prefix.text.count
+      }.map { CompletionItem($0) }
+    } else {
+      let variables = values.filter {
+        !$0.insertion.hasPrefix("@")
+          && $0.insertion.lowercased().hasPrefix(prefix.text.lowercased())
+          && $0.insertion.lowercased() != prefix.text.lowercased()
+      }
+      let names = Set(variables.map { $0.insertion.lowercased() })
+      matches =
+        variables
+        + LanguageCompletions.matching(prefix.text)
+        .filter { $0 != prefix.text && !names.contains($0.lowercased()) }
+        .map { CompletionItem($0) }
+    }
     guard !matches.isEmpty, let window else {
       completionList.hide()
       return
@@ -1360,6 +1428,82 @@ final class SheetTextView: NSTextView {
       rect = NSRect(x: 0, y: 0, width: 12, height: 16)
     }
     completionList.show(matches, at: rect, in: self)
+    completionRange = prefix.range
+    completesPlaceholder = placeholder != nil
+    completesReference = reference != nil
+  }
+
+  /// Suggestions belong to expressions, not headings, names, comments, or
+  /// assistant prompt prose. A placeholder remains an expression.
+  private func isCompletionPosition() -> Bool {
+    let cursor = selectedRange()
+    guard cursor.length == 0 else { return false }
+    let text = string as NSString
+    let lineRange = text.lineRange(for: cursor)
+    let contents = text.substring(with: lineRange)
+    guard case .calculation(_, _, let expression?, _) = LineSyntax(contents) else { return false }
+    let before = text.substring(
+      with: NSRange(
+        location: lineRange.location,
+        length: cursor.location - lineRange.location))
+    let localOffset = before.utf8.count
+    guard localOffset >= expression.lowerBound, localOffset <= expression.upperBound else {
+      return false
+    }
+    return !before.contains(assistantFunctionName + "(") || placeholderPrefix() != nil
+  }
+
+  /// Includes the `@` in the replacement range, so choosing a variable
+  /// removes the trigger while choosing a line keeps its compact spelling.
+  private func referencePrefix() -> (range: NSRange, text: String)? {
+    let cursor = selectedRange()
+    guard cursor.length == 0 else { return nil }
+    let text = string as NSString
+    let start = text.lineRange(for: cursor).location
+    let before = text.substring(with: NSRange(location: start, length: cursor.location - start))
+    guard let at = before.lastIndex(of: "@") else { return nil }
+    if at != before.startIndex {
+      let previous = before[before.index(before: at)]
+      guard previous.isWhitespace || "(+-*/×÷^=,;{&|".contains(previous) else { return nil }
+    }
+    let query = String(before[before.index(after: at)...])
+    guard query.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "_" || $0 == " " }) else {
+      return nil
+    }
+    let location = start + before[..<at].utf16.count
+    return (NSRange(location: location, length: cursor.location - location), query)
+  }
+
+  /// Completes multiword names from the longest matching prefix.
+  private func variablePrefix(in values: [CompletionItem]) -> (range: NSRange, text: String)? {
+    let cursor = selectedRange()
+    guard cursor.length == 0 else { return nil }
+    let text = string as NSString
+    let start = text.lineRange(for: cursor).location
+    let before = text.substring(with: NSRange(location: start, length: cursor.location - start))
+    var best: (range: NSRange, text: String)?
+    for value in values where !value.insertion.hasPrefix("@") {
+      for length in 1..<value.insertion.count {
+        let prefix = String(value.insertion.prefix(length))
+        guard before.lowercased().hasSuffix(prefix.lowercased()) else { continue }
+        let location = cursor.location - prefix.utf16.count
+        guard location >= start else { continue }
+        if location > start {
+          let previous = text.substring(
+            with: text.rangeOfComposedCharacterSequence(at: location - 1))
+          guard !previous.contains(where: { $0.isLetter || $0.isNumber || $0 == "_" }) else {
+            continue
+          }
+        }
+        if prefix.utf16.count > (best?.range.length ?? 0) {
+          best = (
+            NSRange(location: location, length: prefix.utf16.count),
+            text.substring(with: NSRange(location: location, length: prefix.utf16.count))
+          )
+        }
+      }
+    }
+    return best
   }
 
   private func completionPrefix() -> (range: NSRange, text: String)? {
@@ -1377,7 +1521,7 @@ final class SheetTextView: NSTextView {
       guard unit.unicodeScalars.allSatisfy({ characters.contains($0) }) else {
         break
       }
-      start = previous
+      start = text.rangeOfComposedCharacterSequence(at: previous).location
     }
     let length = cursor.location - start
     guard length > 0 else {
@@ -1414,15 +1558,18 @@ final class SheetTextView: NSTextView {
 
   @discardableResult
   private func insertSelectedCompletion() -> Bool {
-    if let item = completionList.selectedItem, let placeholder = placeholderPrefix() {
-      return insertVariable(item, in: placeholder.range)
-    }
-    guard let item = completionList.selectedItem, let prefix = completionPrefix() else {
+    guard completionList.isVisible, let item = completionList.selectedItem,
+      let range = completionRange, range.upperBound == selectedRange().location,
+      selectedRange().length == 0
+    else {
       return false
     }
+    if completesPlaceholder {
+      return insertVariable(item.insertion, in: range)
+    }
     completionList.hide()
-    let arguments = LanguageCompletions.argumentRanges(in: item, at: prefix.range.location)
-    guard write(item, in: prefix.range) else {
+    let arguments = LanguageCompletions.argumentRanges(in: item.insertion, at: range.location)
+    guard write(item.insertion, in: range) else {
       return false
     }
     completionArguments = arguments
@@ -1430,8 +1577,11 @@ final class SheetTextView: NSTextView {
     if let first = arguments.first {
       setSelectedRange(first)
     } else {
-      setSelectedRange(NSRange(location: prefix.range.location + item.utf16.count, length: 0))
+      setSelectedRange(NSRange(location: range.location + item.insertion.utf16.count, length: 0))
     }
+    completionList.hide()
+    completesReference = false
+    completionDismissed = true
     return true
   }
 
@@ -1810,6 +1960,7 @@ final class SheetTextView: NSTextView {
     let numberFont = lineNumberAttributes[.font] as? NSFont
     let drop =
       VisualStyle.Typography.source(scale: textScale).ascender - (numberFont?.ascender ?? 0)
+    let width = gutterWidth - VisualStyle.Spacing.standard / 2
     return visibleLines(in: rect).compactMap { line in
       lineNumber(line.id).map {
         (
@@ -1817,7 +1968,7 @@ final class SheetTextView: NSTextView {
           NSRect(
             x: textContainerInset.width,
             y: line.frame.minY + line.firstRow.typographicBounds.minY + drop,
-            width: gutterWidth - VisualStyle.Spacing.standard / 2,
+            width: width,
             height: line.firstRow.typographicBounds.height)
         )
       }
@@ -1966,9 +2117,10 @@ private final class AnswerOverlayView: NSView {
       layoutInterval.end()
       textView.didDrawAnswers()
     }
+    let numberAttributes = textView.lineNumberAttributes
     for (number, rect) in textView.lineNumberLayout(in: dirtyRect) {
       (String(number) as NSString).draw(
-        with: rect, options: [.usesLineFragmentOrigin], attributes: textView.lineNumberAttributes)
+        with: rect, options: [.usesLineFragmentOrigin], attributes: numberAttributes)
     }
     if let x = textView.answerSeparatorX {
       VisualStyle.Color.separator.setFill()

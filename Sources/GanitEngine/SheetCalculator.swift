@@ -15,6 +15,12 @@ public struct SheetLineResult: Hashable, Sendable {
     source.syntax
   }
 
+  /// The normalized variable this line declares, including a failed value.
+  /// Unit, rate, and function definitions do not declare a variable.
+  public var declaredVariableName: String? {
+    source.declaredName
+  }
+
   /// The expression's result, or `nil` when the line has no expression.
   /// Ranges are relative to the start of the line's text.
   public var result: CalculationResult? {

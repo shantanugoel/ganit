@@ -53,6 +53,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   private var releaseNotes: ReleaseNotesWindowController?
   private var settingsWindow: NSWindow?
   private var tourSheet: NSWindow?
+  private let referenceAnnouncement = ReferenceFeatureAnnouncement()
   /// The assistant's settings, read once so that asking about a line does not
   /// go to the keychain every time.
   private var assistantSettings = AssistantSettings.load()
@@ -155,6 +156,8 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     NSApplication.shared.activate()
     if !GanitPreferences.hasCompletedTour {
       showTour(nil)
+    } else {
+      showReferenceAnnouncement()
     }
   }
 
@@ -170,6 +173,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     if workspace?.windows.isEmpty == true {
       openMostRecentSheet()
     }
+    showReferenceAnnouncement()
     return true
   }
 
@@ -186,6 +190,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   @objc func newSheet(_ sender: Any?) {
     do {
       try workspace?.openNewSheet(source: "")
+      showReferenceAnnouncement()
     } catch {
       NSApplication.shared.presentError(error)
     }
@@ -210,6 +215,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
         application.presentError(error)
       }
     }
+    showReferenceAnnouncement()
   }
 
   /// Opens the definitions sheet, whose variables and units every sheet
@@ -227,6 +233,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     do {
       try workspace?.openScratch()
       NSApplication.shared.activate()
+      showReferenceAnnouncement()
     } catch {
       NSApplication.shared.presentError(error)
     }
@@ -238,6 +245,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     do {
       try workspace?.showCurrentWindow()
       NSApplication.shared.activate()
+      showReferenceAnnouncement()
     } catch {
       NSApplication.shared.presentError(error)
     }
@@ -298,6 +306,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
 
   @objc func showQuickGanit(_ sender: Any?) {
     quickGanit()?.show()
+    showReferenceAnnouncement()
   }
 
   @objc func showQuickGanitShortcut(_ sender: Any?) {
@@ -432,8 +441,22 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     sheet.styleMask = [.titled]
     sheet.title = String(
       localized: "tour.title", defaultValue: "Welcome to Ganit", bundle: .main)
-    parent.beginSheet(sheet)
+    parent.beginSheet(sheet) { [weak self] _ in
+      self?.showReferenceAnnouncement()
+    }
     tourSheet = sheet
+  }
+
+  private func showReferenceAnnouncement() {
+    guard tourSheet == nil else { return }
+    let window = NSApplication.shared.orderedWindows.first { candidate in
+      candidate.isVisible
+        && (workspace?.windows.contains { $0.window === candidate } == true
+          || quickPanel?.window === candidate)
+    }
+    if let window {
+      referenceAnnouncement.show(in: window)
+    }
   }
 
   // MARK: Help
