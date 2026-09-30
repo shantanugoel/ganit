@@ -1,9 +1,42 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "error.evaluation.brokenReference.deleted" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The referenced line was deleted. Replace @deleted with a reference to the correct line."
+          }
+        }
+      }
+    },
+    "error.evaluation.brokenReference.split" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The referenced line was split or joined. Replace @split with a reference to the correct line."
+          }
+        }
+      }
+    },
+    "error.evaluation.unavailableReference.lines" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Errors begin on lines %@. Fix those lines first."
+          }
+        }
+      }
+    },
     "help.grammar.references.body" : {
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "line 2 and @2 both use the answer of line 2. Type @ to choose a variable or an earlier line, with a preview of its value. Tab or Return chooses it; variable names are inserted without @. previous uses the nearest answer above in the block. sum and total add the block’s results; subtotal adds from the previous subtotal. average, median, and count summarize those results." } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "line 2 and @2 both use the answer of line 2. Type @ to choose a variable or an earlier line, with a preview of its value. Tab or Return chooses it; variable names are inserted without @. Intact referenced lines follow edits. @deleted and @split need a new reference after their target is deleted, split, or joined. Downstream errors point to the original failing lines; their interpretation cards can jump there. previous uses the nearest answer above in the block. sum and total add the block’s results; subtotal adds from the previous subtotal. average, median, and count summarize those results." } }
       }
     },
     "help.keyword.line.body" : {

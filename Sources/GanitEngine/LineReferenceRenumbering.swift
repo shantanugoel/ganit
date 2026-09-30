@@ -1,76 +1,146 @@
 import Foundation
 
-/// Keeps each `line N` or `@N` naming the same line when lines above it are added or
-/// removed, the way a spreadsheet keeps its cell references.
+/// Rewrites references to surviving lines and marks removed or ambiguous targets.
+/// The returned ranges are in the text after the user's edit. Only references
+/// surviving from the old source are rewritten; pasted references stay as written.
 public enum LineReferenceRenumbering {
-  /// The line shift an edit makes: `delta` lines added (or removed, when
-  /// negative), moving the old one-based line `firstMovedLine` and every line
-  /// below it. `nil` when the edit adds and removes the same number of lines.
-  public static func shift(
-    replacing range: NSRange, in old: String, with replacement: String
-  ) -> (firstMovedLine: Int, delta: Int)? {
-    let text = old as NSString
-    let removed = newlines(in: text.substring(with: range))
-    let delta = newlines(in: replacement) - removed
-    guard delta != 0 else {
-      return nil
-    }
-    let before = text.substring(to: range.upperBound)
-    let endLine = newlines(in: before)
-    // A line starting where the edit ends moves with the lines after it.
-    let endsAtLineStart = before.isEmpty || before.hasSuffix("\n")
-    return (endLine + (endsAtLineStart ? 1 : 2), delta)
+  private enum Target {
+    case line(Int)
+    case broken(BrokenLineReferenceReason)
   }
 
-  /// UTF-16 ranges of `source`, the text after the edit, and the numbers to
-  /// write there. Lines in `editedLines` (zero-based, after the edit) are what
-  /// the person just wrote and are left as written.
   public static func edits(
-    in source: String,
-    firstMovedLine: Int,
-    delta: Int,
-    editedLines: ClosedRange<Int>,
+    replacing range: NSRange, in old: String, with replacement: String,
     configuration: LexingConfiguration
   ) -> [(range: NSRange, number: String)] {
-    var edits: [(range: NSRange, number: String)] = []
-    var lineStart = 0
-    let lines = source.split(separator: "\n", omittingEmptySubsequences: false)
-    // A reference past the old last line named nothing, so it still names nothing.
-    let oldLineCount = lines.count - delta
-    for (index, line) in lines.enumerated() {
-      defer { lineStart += line.utf16.count + 1 }
-      guard !editedLines.contains(index),
-        case .calculation(_, _, let expression?, _) = LineSyntax(String(line)),
-        let expressionText = expression.text(in: String(line))
-      else {
+    let oldText = old as NSString
+    let removed = oldText.substring(with: range)
+    if !hasNewline(removed), !hasNewline(replacement) {
+      if !replacement.trimmingCharacters(in: .whitespaces).isEmpty { return [] }
+      let span = oldText.lineRange(for: range)
+      let local = NSRange(location: range.location - span.location, length: range.length)
+      let changed = (oldText.substring(with: span) as NSString)
+        .replacingCharacters(in: local, with: replacement)
+      if !changed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return [] }
+    }
+    let newText = oldText.replacingCharacters(in: range, with: replacement)
+    let oldLines = SheetSource(old).lines
+    let newLines = SheetSource(newText).lines
+    let delta = replacement.utf16.count - range.length
+    func starts(_ lines: [SheetLine]) -> [Int] {
+      var offset = 0
+      return lines.map { line in
+        defer { offset += line.text.utf16.count + (line.terminator?.rawValue.utf16.count ?? 0) }
+        return offset
+      }
+    }
+    let oldStarts = starts(oldLines)
+    let newStarts = starts(newLines)
+    func lineNumber(at offset: Int) -> Int {
+      var low = 0
+      var high = newStarts.count - 1
+      while low < high {
+        let middle = (low + high + 1) / 2
+        if newStarts[middle] <= offset { low = middle } else { high = middle - 1 }
+      }
+      return low + 1
+    }
+    func moved(_ offset: Int) -> Int {
+      offset >= range.upperBound ? offset + delta : offset
+    }
+    var targets: [Target] = []
+    var occupants: [Int: [Int]] = [:]
+    for (index, line) in oldLines.enumerated() {
+      let start = oldStarts[index]
+      let text = line.text as NSString
+      let significant = text.rangeOfCharacter(from: .whitespaces.inverted)
+      guard significant.location != NSNotFound else {
+        targets.append(.line(lineNumber(at: max(0, moved(start)))))
         continue
       }
-      let tokens = Lexer(source: String(expressionText), configuration: configuration).lex().tokens
-      for (word, number) in zip(tokens, tokens.dropFirst()) {
-        let isReference =
-          word.kind == .identifier("line")
-          || word.kind == .at && word.range.upperBound == number.range.lowerBound
-        guard isReference, case .number(.integer(let digits, .decimal)) = number.kind,
-          let old = Int(digits), old >= firstMovedLine, old <= oldLineCount, old + delta >= 1
-        else {
+      let last = text.rangeOfCharacter(from: .whitespaces.inverted, options: .backwards)
+      let firstOffset = start + significant.location
+      let endOffset = start + last.upperBound
+      var anchors: [Int] = []
+      if firstOffset < range.location {
+        anchors.append(firstOffset)
+        anchors.append(min(endOffset, range.location) - 1)
+      }
+      if endOffset > range.upperBound {
+        anchors.append(max(firstOffset, range.upperBound) + delta)
+        anchors.append(endOffset - 1 + delta)
+      }
+      if anchors.isEmpty {
+        // Replacing a line's expression normally keeps its references. Removing
+        // it, or replacing it as part of a multiline selection, does not.
+        let removed = oldText.substring(with: range)
+        if replacement.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+          || hasNewline(removed)
+        {
+          targets.append(.broken(.deleted))
           continue
         }
-        let prefix = String(line).utf8.prefix(expression.lowerBound + number.range.lowerBound)
-        let location = lineStart + String(decoding: prefix, as: UTF8.self).utf16.count
-        let written = String(expressionText).utf8.dropFirst(number.range.lowerBound)
-          .prefix(number.range.utf8Length)
-        edits.append(
-          (
-            NSRange(
-              location: location, length: String(decoding: written, as: UTF8.self).utf16.count),
-            String(old + delta)
-          ))
+        let written = replacement as NSString
+        let first = written.rangeOfCharacter(from: .whitespacesAndNewlines.inverted)
+        let last = written.rangeOfCharacter(
+          from: .whitespacesAndNewlines.inverted, options: .backwards)
+        anchors = [range.location + first.location, range.location + last.upperBound - 1]
+      }
+      let numbers = Set(anchors.map { lineNumber(at: $0) })
+      guard numbers.count == 1, let number = numbers.first else {
+        targets.append(.broken(.split))
+        continue
+      }
+      targets.append(.line(number))
+      occupants[number, default: []].append(index)
+    }
+    // Joining two nonempty lines is as ambiguous as splitting one.
+    for indices in occupants.values where indices.count > 1 {
+      for index in indices { targets[index] = .broken(.split) }
+    }
+
+    var edits: [(range: NSRange, number: String)] = []
+    for (index, line) in oldLines.enumerated() {
+      guard case .calculation(_, _, let expression?, _) = LineSyntax(line.text),
+        let expressionText = expression.text(in: line.text)
+      else { continue }
+      let tokens = Lexer(source: String(expressionText), configuration: configuration).lex().tokens
+      for (word, number) in zip(tokens, tokens.dropFirst()) {
+        let compact = word.kind == .at && word.range.upperBound == number.range.lowerBound
+        guard word.kind == .identifier("line") || compact,
+          case .number(.integer(let digits, .decimal)) = number.kind,
+          let target = Int(digits), target >= 1, target <= targets.count
+        else { continue }
+        let base = expression.lowerBound
+        let referenceStart =
+          oldStarts[index] + utf16Offset(base + word.range.lowerBound, in: line.text)
+        let referenceEnd =
+          oldStarts[index] + utf16Offset(base + number.range.upperBound, in: line.text)
+        // An edit inside a reference is the user's explicit choice.
+        guard referenceEnd <= range.location || referenceStart >= range.upperBound else { continue }
+        switch targets[target - 1] {
+        case .line(let updated) where updated != target:
+          let start = oldStarts[index] + utf16Offset(base + number.range.lowerBound, in: line.text)
+          edits.append(
+            (NSRange(location: moved(start), length: referenceEnd - start), String(updated)))
+        case .broken(let reason):
+          edits.append(
+            (
+              NSRange(location: moved(referenceStart), length: referenceEnd - referenceStart),
+              "@" + reason.rawValue
+            ))
+        default: break
+        }
       }
     }
     return edits
   }
 
-  private static func newlines(in text: String) -> Int {
-    text.utf16.reduce(0) { $0 + ($1 == 10 ? 1 : 0) }
+  private static func hasNewline(_ text: String) -> Bool {
+    text.unicodeScalars.contains { $0 == "\n" || $0 == "\r" }
+  }
+
+  private static func utf16Offset(_ offset: Int, in source: String) -> Int {
+    String(decoding: source.utf8.prefix(offset), as: UTF8.self).utf16.count
   }
 }

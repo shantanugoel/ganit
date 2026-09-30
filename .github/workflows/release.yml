@@ -118,9 +118,18 @@ jobs:
         run: |
           # The feed lives at releases/latest/download/appcast.xml, which is
           # the URL every copy of Ganit asks, so it ships with every release.
+          python3 - "$GITHUB_REF_NAME" <<'PYNOTES'
+          import pathlib, sys
+          version = sys.argv[1].removeprefix("v")
+          changelog = pathlib.Path("CHANGELOG.md").read_text()
+          notes = changelog.split("## " + version + "\n", 1)[1].split("\n## ", 1)[0].strip()
+          if not notes:
+              raise SystemExit("Release notes are empty")
+          pathlib.Path("release-notes.md").write_text(notes + "\n")
+          PYNOTES
           gh release create "$GITHUB_REF_NAME" "$GANIT_DISK_IMAGE" "$GANIT_APPCAST" \
             --title "Ganit ${GITHUB_REF_NAME#v}" \
-            --generate-notes
+            --notes-file release-notes.md
 
       - name: Update the Homebrew cask
         env:
@@ -136,10 +145,11 @@ jobs:
           export GIT_SSH_COMMAND="ssh -i $key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
           tap=$(mktemp -d)
           git clone --depth 1 git@github.com:shantanugoel/homebrew-ganit.git "$tap"
-          sed -i '' \
-            -e "s/^  version \".*\"/  version \"$version\"/" \
-            -e "s/^  sha256 \".*\"/  sha256 \"$sha256\"/" \
-            "$tap/Casks/ganit.rb"
+          sed \
+            -e "s/@VERSION@/$version/g" \
+            -e "s/@SHA256@/$sha256/g" \
+            packaging/ganit.rb.in >"$tap/Casks/ganit.rb"
+          ruby -c "$tap/Casks/ganit.rb"
           grep -q "^  version \"$version\"$" "$tap/Casks/ganit.rb"
           grep -q "^  sha256 \"$sha256\"$" "$tap/Casks/ganit.rb"
           git -C "$tap" -c user.name="github-actions[bot]" \

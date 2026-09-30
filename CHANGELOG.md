@@ -5,6 +5,22 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+## 0.5.5
+
+- Deleting a referenced line now writes `@deleted`; splitting or joining a
+  referenced expression writes `@split`. These references stay broken after
+  saving and reopening until you choose the correct line. Intact targets
+  still follow inserted or removed lines, and Undo/Redo restores the edit
+  and reference updates together.
+- Downstream reference errors identify the lines where the failures began,
+  including multiple independent causes. Click an originating line in the
+  error's interpretation card to jump there and repair it.
+- Release Notes opens once on the first editor open for each installed
+  version, after the welcome tour if needed. This replaces the one-time
+  quick-reference announcement.
+- Homebrew upgrades request a normal quit of Ganit and print a reminder to
+  reopen it so the newly installed version runs.
+
 ## 0.5.4
 
 - Type `@` to choose a variable or an earlier line's answer, with value

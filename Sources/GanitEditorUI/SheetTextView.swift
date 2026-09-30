@@ -1653,10 +1653,22 @@ final class SheetTextView: NSTextView {
     popover.contentViewController = InterpretationViewController(
       details: interpretation(target.line), fullPrecision: target.cell.fullPrecision,
       availableSize: window?.screen?.visibleFrame.size ?? NSScreen.main?.visibleFrame.size
-        ?? NSSize(width: 800, height: 600), pasteboard: pasteboard
+        ?? NSSize(width: 800, height: 600), pasteboard: pasteboard,
+      onSelectLine: { [weak self] number in self?.selectErrorOrigin(line: number) }
     )
     popover.show(relativeTo: rect, of: self, preferredEdge: .maxY)
     interpretationPopover = popover
+  }
+
+  func selectErrorOrigin(line number: Int) {
+    let lines = lineStarts()
+    guard lines.indices.contains(number - 1) else { return }
+    let origin = lines[number - 1]
+    interpretationPopover?.close()
+    selectedAnswer = nil
+    setSelectedRange(NSRange(location: origin.1, length: origin.2))
+    scrollRangeToVisible(selectedRange())
+    window?.makeFirstResponder(self)
   }
 
   @objc func askAssistant(_ sender: Any?) {

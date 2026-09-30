@@ -6,6 +6,41 @@ import Testing
 @Suite
 struct SheetCalculatorTests {
   @Test
+  func anExpressionWithBothLocalAndUpstreamBrokenReferencesReportsBothCauses() throws {
+    var calculator = SheetCalculator()
+    let sheet = SheetSource("@deleted\n@1 + @split\n@2")
+    let evaluation = try calculator.evaluate(sheet, context: try sheetContext())
+    #expect(evaluation.lines[1].failureOriginLineNumbers == [1, 2])
+    #expect(evaluation.lines[2].failureOriginLineNumbers == [1, 2])
+  }
+
+  @Test
+  func blockedChainsIdentifyEveryOriginalFailureAndRefreshAfterRepairs() throws {
+    var calculator = SheetCalculator()
+    var sheet = SheetSource("@deleted\nx = @1\ny = x * 2\n@split\n@3 + @4\nprevious * 2\nsum")
+    let context = try sheetContext()
+    let evaluation = try calculator.evaluate(sheet, context: context)
+    #expect(evaluation.lines[0].failureOriginLineNumbers == [1])
+    #expect(evaluation.lines[1].failureOriginLineNumbers == [1])
+    #expect(evaluation.lines[2].failureOriginLineNumbers == [1])
+    for index in [4, 5, 6] {
+      #expect(evaluation.lines[index].failureOriginLineNumbers == [1, 4])
+      guard case .evaluationFailure(let error) = evaluation.lines[index].result else {
+        Issue.record("Expected a blocked result")
+        continue
+      }
+      #expect(error.context == .failedLines([1, 4]))
+    }
+    sheet.replace(utf8Range: 0..<8, with: "10")
+    let repaired = try calculator.evaluate(sheet, context: context)
+    #expect(repaired.lines[2].failureOriginLineNumbers.isEmpty)
+    #expect(repaired.lines[4].failureOriginLineNumbers == [4])
+    sheet.replace(utf8Range: 0..<0, with: "5\n")
+    let moved = try calculator.evaluate(sheet, context: context)
+    #expect(moved.lines.last?.failureOriginLineNumbers == [5])
+  }
+
+  @Test
   func firstGenerationEvaluatesEveryExpression() throws {
     var calculator = SheetCalculator()
     let sheet = SheetSource("# Costs\nrent = 2100\nfood = 500\n\n// note\ntotal")

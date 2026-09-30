@@ -55,8 +55,15 @@ public indirect enum UnitSyntax: Hashable, Sendable {
 public enum LineReference: Hashable, Sendable {
   /// A one-based sheet line number.
   case line(Int)
+  /// Persisted in sheet text as `@deleted` or `@split` until explicitly repaired.
+  case broken(BrokenLineReferenceReason)
   case previous
   case aggregate(Aggregate)
+}
+
+public enum BrokenLineReferenceReason: String, Hashable, Sendable {
+  case deleted
+  case split
 }
 
 public enum Aggregate: String, Hashable, Sendable {
@@ -190,6 +197,38 @@ public indirect enum Expression: Hashable, Sendable {
       return left.references.union(right.references)
     case .call(_, _, let arguments, _):
       return arguments.reduce(into: []) { $0.formUnion($1.references) }
+    }
+  }
+
+  /// Variable names explicitly read by this expression.
+  var identifiers: Set<String> {
+    switch self {
+    case .identifier(let name, _):
+      return [name.lowercased()]
+    case .literal, .temporal, .reference:
+      return []
+    case .assistantPrompt(let parts, _, _):
+      return parts.reduce(into: []) {
+        if case .placeholder(let expression) = $1 {
+          $0.formUnion(expression.identifiers)
+        }
+      }
+    case .prefix(_, let operand, _, _),
+      .percentage(let operand, _, _),
+      .quantity(let operand, _, _),
+      .period(let operand, _, _),
+      .relative(let operand, _, _),
+      .zoneConversion(let operand, _, _),
+      .money(let operand, _, _),
+      .currencyConversion(let operand, _, _),
+      .conversion(let operand, _, _, _),
+      .grouped(let operand, _):
+      return operand.identifiers
+    case .infix(let left, _, let right, _, _),
+      .percentageOperation(_, let left, let right, _, _):
+      return left.identifiers.union(right.identifiers)
+    case .call(_, _, let arguments, _):
+      return arguments.reduce(into: []) { $0.formUnion($1.identifiers) }
     }
   }
 }

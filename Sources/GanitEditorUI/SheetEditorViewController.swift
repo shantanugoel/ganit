@@ -347,39 +347,32 @@ public final class SheetEditorViewController: NSViewController {
     textDidChange()
   }
 
-  /// Lines an edit is adding or removing, until `renumberLineReferences`
-  /// applies them. Undo and redo restore text as it was, so they note none.
-  private var pendingLineShift: (firstMovedLine: Int, delta: Int, editedLines: ClosedRange<Int>)?
+  private var pendingReferenceEdits: [(range: NSRange, number: String)] = []
+  private var isRewritingReferences = false
 
   fileprivate func noteLineShift(replacing range: NSRange, with replacement: String?) {
-    guard let replacement, !documentUndoManager.isUndoing, !documentUndoManager.isRedoing,
-      let shift = LineReferenceRenumbering.shift(
-        replacing: range, in: textView.string, with: replacement)
-    else {
-      return
-    }
-    // End typing coalescence before opening the transaction: AppKit otherwise
-    // separates a reference rewrite from the newline that triggered it.
+    guard let replacement, !isRewritingReferences,
+      !documentUndoManager.isUndoing, !documentUndoManager.isRedoing
+    else { return }
+    let edits = LineReferenceRenumbering.edits(
+      replacing: range, in: textView.string, with: replacement,
+      configuration: context.lexingConfiguration)
+    guard !edits.isEmpty else { return }
     textView.breakUndoCoalescing()
     documentUndoManager.beginUndoGrouping()
-    let first = lineIndex(atUTF16: range.location)
-    let inserted = replacement.utf16.reduce(0) { $0 + ($1 == 10 ? 1 : 0) }
-    pendingLineShift = (shift.firstMovedLine, shift.delta, first...(first + inserted))
+    pendingReferenceEdits = edits
   }
 
-  /// Keeps each `line N` below an edit naming the line it named before.
   fileprivate func renumberLineReferences() {
-    guard let shift = pendingLineShift else {
-      return
-    }
-    pendingLineShift = nil
+    guard !pendingReferenceEdits.isEmpty else { return }
+    let edits = pendingReferenceEdits
+    pendingReferenceEdits = []
+    isRewritingReferences = true
     defer {
+      isRewritingReferences = false
       textView.breakUndoCoalescing()
       documentUndoManager.endUndoGrouping()
     }
-    let edits = LineReferenceRenumbering.edits(
-      in: textView.string, firstMovedLine: shift.firstMovedLine, delta: shift.delta,
-      editedLines: shift.editedLines, configuration: context.lexingConfiguration)
     for edit in edits.reversed()
     where textView.shouldChangeText(in: edit.range, replacementString: edit.number) {
       textView.textStorage?.replaceCharacters(in: edit.range, with: edit.number)
@@ -973,6 +966,7 @@ public final class SheetEditorViewController: NSViewController {
     if case .evaluationFailure(let error) = result,
       error.code == .unresolvedAssistantPrompt
         || error.code == .unusableAssistantAnswer
+        || error.code == .brokenReference
         || error.code == .unavailableReference
         || error.code == .typeMismatch
         || error.code == .incompatibleDimensions
@@ -1106,6 +1100,7 @@ public final class SheetEditorViewController: NSViewController {
     if case .evaluationFailure(let error) = result {
       return ![
         .unresolvedAssistantPrompt, .unusableAssistantAnswer, .unavailableReference,
+        .brokenReference,
         .typeMismatch, .incompatibleDimensions, .missingCurrencyRate,
         .currencyRatesUnavailable,
       ].contains(error.code)
@@ -1350,6 +1345,14 @@ public final class SheetEditorViewController: NSViewController {
         AnswerCell.Detail(
           label: localized("interpretation.problem", "Problem"), value: diagnostic.message)
       ]
+      for number in shown.result.failureOriginLineNumbers
+      where sheet.lines.indices.contains(number - 1) && sheet.lines[number - 1].id != id {
+        details.append(
+          AnswerCell.Detail(
+            label: localized("interpretation.errorOrigin", "Fix first"),
+            value: String(format: localized("interpretation.errorLine", "Line %lld"), number),
+            lineNumber: number))
+      }
       // The text the underline marks, so the card says where as well as what.
       if let range = diagnostic.ranges.first, !range.isEmpty,
         let flagged = range.text(in: shown.text).map(String.init), flagged != details.first?.value

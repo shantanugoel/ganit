@@ -8,6 +8,23 @@ import Testing
 @MainActor
 @Suite
 struct SheetEditorViewControllerTests {
+  @Test(arguments: [false, true])
+  func brokenReferencesAndTheirRepairsUndoAndRedoTogether(_ split: Bool) throws {
+    let source = "10\n20 + 30\n@2 + line 2\n@3 * 2"
+    let editor = SheetEditorViewController(text: source, context: try testContext())
+    let range = split ? NSRange(location: 5, length: 0) : NSRange(location: 3, length: 8)
+    editor.textView.insertText(split ? "\n" : "", replacementRange: range)
+    let changed = editor.textView.string
+    #expect(changed.contains(split ? "@split + @split" : "@deleted + @deleted"))
+    #expect(editor.sheet.text == changed)
+    editor.documentUndoManager.undo()
+    #expect(editor.textView.string == source)
+    editor.documentUndoManager.redo()
+    #expect(editor.textView.string == changed)
+    let reopened = SheetEditorViewController(text: changed, context: try testContext())
+    #expect(reopened.sheet.text == changed)
+  }
+
   @Test
   func mirrorsTypingAndReplacementsIntoTheSheet() throws {
     let editor = SheetEditorViewController(
@@ -76,7 +93,7 @@ struct SheetEditorViewControllerTests {
     textView.insertNewline(nil)
     try await Task.sleep(for: .milliseconds(30))
     let afterReturn = textView.string
-    #expect(afterReturn == "# Heading\n5\n10\n20\nline 2 + line 4\nprevious * 2")
+    #expect(afterReturn == "# Heading\n5\n10\n20\n@split + line 4\nprevious * 2")
     manager.undo()
     #expect(textView.string == beforeReturn)
     #expect(editor.sheet.text == beforeReturn)

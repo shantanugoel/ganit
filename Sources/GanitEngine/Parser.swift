@@ -1134,6 +1134,12 @@ private final class TokenParser {
   /// stack budget, including under Address Sanitizer.
   @inline(never)
   private func parseCompactReference(_ token: Token) -> Expression? {
+    if case .identifier(let name) = current.kind,
+      current.range.lowerBound == token.range.upperBound,
+      let reason = BrokenLineReferenceReason(rawValue: name)
+    {
+      return .reference(.broken(reason), range: token.range.union(advance().range))
+    }
     guard case .number(.integer(let digits, .decimal)) = current.kind,
       current.range.lowerBound == token.range.upperBound,
       let number = Int(digits)

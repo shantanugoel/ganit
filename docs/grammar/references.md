@@ -20,13 +20,17 @@ see [listing the values](#listing-the-values-instead).
 `line N` and `@N` count physical sheet lines, including blank lines, comments, and
 headings. The editor keeps it naming the same line: adding or removing lines
 above that line rewrites `N` in the same undoable edit, as a spreadsheet
-adjusts a cell reference. Lines being typed, comments, and references past the
-last line are left as written.
+adjusts a cell reference. References pasted or explicitly edited by the user, comments, and references
+past the last line are left as written. Deleting a target writes `@deleted`;
+splitting it into two nonempty parts or joining two nonempty lines writes
+`@split`. A newline before or after an intact expression still follows that
+expression. Replace a broken marker with the correct `@N` or `line N` to repair
+it. Markers are plain sheet text and survive saving, reopening, and export.
 
 Write the number immediately after `@`, without a space; it must be a decimal
 integer. `@0`, current or later lines, and lines without an expression are
-invalid references, just as with `line N`. `@name` is an editor completion
-query, not a second spelling of a variable: choosing a variable inserts its
+invalid references, just as with `line N`. Apart from `@deleted` and `@split`,
+`@name` is an editor completion query, not a second spelling of a variable: choosing a variable inserts its
 plain name. Type `@` to see variables in scope and successfully calculated
 earlier lines with previews, then Tab, Return, or click to choose one.
 
@@ -61,9 +65,10 @@ compares quantities after converting them to that unit. Mixing kinds fails with
 
 Errors never count as zero. If any line an aggregate or reference would read
 failed, including an incomplete line, the reference fails with
-`evaluation.unavailableReference`, and its message names the first such line:
-`Line 12 has an error, so this cannot use it.` A variable whose declaration
-failed is named the same way. A reference to a line with no expression,
+`evaluation.unavailableReference`. Its message points to the original failing
+lines through reference and variable chains, including multiple independent
+causes; the editor's interpretation card can jump to each one. Broken markers
+fail with `evaluation.brokenReference` and explain how to repair them. A reference to a line with no expression,
 to the current line or below, or an average or median of an empty block, fails
 with `evaluation.invalidReference`. `sum`, `subtotal`, and `count` of an empty
 block are `0`.

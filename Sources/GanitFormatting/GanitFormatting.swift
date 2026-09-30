@@ -1043,7 +1043,27 @@ public struct DiagnosticFormatter: Sendable {
         "error.evaluation.unknownIdentifier",
         defaultValue: "This identifier is not defined."
       )
+    case .brokenReference:
+      if error.context == .brokenReference(.deleted) {
+        return localized(
+          "error.evaluation.brokenReference.deleted",
+          defaultValue:
+            "The referenced line was deleted. Replace @deleted with a reference to the correct line."
+        )
+      }
+      return localized(
+        "error.evaluation.brokenReference.split",
+        defaultValue:
+          "The referenced line was split or joined. Replace @split with a reference to the correct line."
+      )
     case .unavailableReference:
+      if case .failedLines(let lines) = error.context {
+        return String(
+          format: localized(
+            "error.evaluation.unavailableReference.lines",
+            defaultValue: "Errors begin on lines %@. Fix those lines first."),
+          lines.map(String.init).joined(separator: ", "))
+      }
       if case .failedLine(let line) = error.context {
         return String(
           format: localized(

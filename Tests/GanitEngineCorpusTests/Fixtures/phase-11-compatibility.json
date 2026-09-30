@@ -492,6 +492,30 @@
         "lowerBound": 4,
         "upperBound": 6
       }
+    },
+    {
+      "name": "persisted deleted reference requires repair",
+      "expression": "@deleted",
+      "expected": {
+        "status": "evaluationFailure",
+        "code": "evaluation.brokenReference",
+        "messageKey": "error.evaluation.brokenReference",
+        "message": "The referenced line was deleted. Replace @deleted with a reference to the correct line.",
+        "lowerBound": 0,
+        "upperBound": 8
+      }
+    },
+    {
+      "name": "persisted split reference requires repair",
+      "expression": "@split",
+      "expected": {
+        "status": "evaluationFailure",
+        "code": "evaluation.brokenReference",
+        "messageKey": "error.evaluation.brokenReference",
+        "message": "The referenced line was split or joined. Replace @split with a reference to the correct line.",
+        "lowerBound": 0,
+        "upperBound": 6
+      }
     }
   ]
 }

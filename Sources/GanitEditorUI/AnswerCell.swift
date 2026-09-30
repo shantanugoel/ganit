@@ -7,6 +7,7 @@ struct AnswerCell: Equatable {
   struct Detail: Equatable {
     let label: String
     let value: String
+    var lineNumber: Int? = nil
   }
 
   let text: String
@@ -33,15 +34,17 @@ final class InterpretationViewController: NSViewController {
   private let fullPrecision: String?
   private let availableSize: NSSize
   private let pasteboard: NSPasteboard
+  private let onSelectLine: ((Int) -> Void)?
 
   init(
     details: [AnswerCell.Detail], fullPrecision: String?, availableSize: NSSize,
-    pasteboard: NSPasteboard
+    pasteboard: NSPasteboard, onSelectLine: ((Int) -> Void)? = nil
   ) {
     self.details = details
     self.fullPrecision = fullPrecision
     self.availableSize = availableSize
     self.pasteboard = pasteboard
+    self.onSelectLine = onSelectLine
     super.init(nibName: nil, bundle: nil)
   }
 
@@ -62,6 +65,15 @@ final class InterpretationViewController: NSViewController {
         label.textColor = VisualStyle.Color.secondary
         label.alignment = .right
         label.preferredMaxLayoutWidth = labelWidth
+        if let number = detail.lineNumber, onSelectLine != nil {
+          let button = NSButton(
+            title: detail.value, target: self, action: #selector(selectFailureOrigin(_:)))
+          button.tag = number
+          button.bezelStyle = .inline
+          button.alignment = .left
+          button.cell?.wraps = true
+          return [label, button]
+        }
         return [label, valueView(detail.value, width: valueWidth)]
       })
     grid.rowSpacing = VisualStyle.Spacing.related
@@ -131,6 +143,10 @@ final class InterpretationViewController: NSViewController {
     field.lineBreakMode = .byCharWrapping
     field.preferredMaxLayoutWidth = width
     return field
+  }
+
+  @objc private func selectFailureOrigin(_ sender: NSButton) {
+    onSelectLine?(sender.tag)
   }
 
   @objc func copyFullPrecision(_ sender: Any?) {

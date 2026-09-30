@@ -5,6 +5,22 @@ import Testing
 @Suite
 struct LineReferenceTests {
   @Test
+  func brokenReferencesArePersistentRangedErrors() throws {
+    for (source, reason) in [("@deleted", BrokenLineReferenceReason.deleted), ("@split", .split)] {
+      let engine = CalculationEngine()
+      let result = engine.evaluate(source, context: try sheetContext())
+      guard case .evaluationFailure(let error) = result else {
+        Issue.record("Expected a broken-reference error")
+        continue
+      }
+      #expect(error.code == .brokenReference)
+      #expect(error.context == .brokenReference(reason))
+      #expect(error.ranges.first?.lowerBound == 0)
+      #expect(error.ranges.first?.upperBound == source.utf8.count)
+    }
+  }
+
+  @Test
   func compactReferencesHaveTheSameValuesErrorsAndRanges() throws {
     let results = try sheetOutcomes(
       "10\n20\n// note\n@1 + line 2\n10% of @2\n@0\n@7\n@3\n1/0\n@9")

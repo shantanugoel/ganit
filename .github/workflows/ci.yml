@@ -36,6 +36,17 @@ jobs:
       - name: Check Swift formatting
         run: ./scripts/swift-format.sh lint
 
+      - name: Validate Homebrew cask template
+        run: |
+          version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' App/Info.plist)
+          cask=$(mktemp -t ganit-cask)
+          sed -e "s/@VERSION@/$version/g" -e 's/@SHA256@/0000000000000000000000000000000000000000000000000000000000000000/g' \
+            packaging/ganit.rb.in >"$cask"
+          ruby -c "$cask"
+          grep -q 'uninstall quit: "com.shantanugoel.Ganit"' "$cask"
+          grep -q 'After upgrading, reopen Ganit' "$cask"
+          rm -f "$cask"
+
       - name: Verify generated unit attribution
         run: ./scripts/verify-unit-attribution.sh
 

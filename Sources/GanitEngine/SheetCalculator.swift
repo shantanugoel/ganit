@@ -4,11 +4,20 @@ public struct SheetLineResult: Hashable, Sendable {
   public let id: LineID
   private let source: LineSource
   fileprivate let evaluation: LineEvaluation?
+  /// The result, with diagnostic ranges relative to this line's text.
+  public let result: CalculationResult?
+  /// Original failing lines, including all branches of a blocked expression.
+  public let failureOriginLineNumbers: [Int]
 
-  fileprivate init(id: LineID, source: LineSource, evaluation: LineEvaluation?) {
+  fileprivate init(
+    id: LineID, source: LineSource, evaluation: LineEvaluation?,
+    result: CalculationResult?, failureOrigins: [Int]
+  ) {
     self.id = id
     self.source = source
     self.evaluation = evaluation
+    self.result = result
+    failureOriginLineNumbers = failureOrigins
   }
 
   public var syntax: LineSyntax {
@@ -19,12 +28,6 @@ public struct SheetLineResult: Hashable, Sendable {
   /// Unit, rate, and function definitions do not declare a variable.
   public var declaredVariableName: String? {
     source.declaredName
-  }
-
-  /// The expression's result, or `nil` when the line has no expression.
-  /// Ranges are relative to the start of the line's text.
-  public var result: CalculationResult? {
-    evaluation?.result ?? nil
   }
 
   /// The kinds of exchange rate the result used, for provenance.
@@ -44,6 +47,7 @@ public struct SheetLineResult: Hashable, Sendable {
 
   public static func == (lhs: Self, rhs: Self) -> Bool {
     lhs.id == rhs.id && lhs.syntax == rhs.syntax && lhs.result == rhs.result
+      && lhs.failureOriginLineNumbers == rhs.failureOriginLineNumbers
   }
 
   public func hash(into hasher: inout Hasher) {
@@ -158,13 +162,45 @@ public struct SheetCalculator: Sendable {
         cache[line.id] = (source, evaluation)
       }
 
-      let result = evaluation?.result ?? nil
+      var result = evaluation?.result ?? nil
+      var failureOrigins: [Int] = []
+      if case .syntaxFailure = result {
+        failureOrigins = [outcomes.nextLine]
+      } else if case .evaluationFailure(let error) = result {
+        if error.code == .unavailableReference || error.code == .brokenReference {
+          var roots = outcomes.failures(for: evaluation?.references ?? [])
+          if evaluation?.references.contains(where: {
+            if case .broken = $0 { return true }
+            return false
+          }) == true {
+            roots.insert(outcomes.nextLine)
+          }
+          for name in evaluation?.parsing?.expression?.identifiers ?? [] {
+            roots.formUnion(scope.failureOrigins[name] ?? [])
+          }
+          if case .failedVariable(let name) = error.context {
+            roots.formUnion(scope.failureOrigins[name.lowercased()] ?? [])
+          }
+          if roots.isEmpty {
+            if case .failedLine(let line) = error.context { roots.insert(line) }
+            if case .failedLines(let lines) = error.context { roots.formUnion(lines) }
+          }
+          failureOrigins = roots.sorted()
+          if !failureOrigins.isEmpty, error.code == .unavailableReference {
+            result = .evaluationFailure(
+              EngineError(
+                code: error.code, severity: error.severity, ranges: error.ranges,
+                fixIts: error.fixIts, context: LineOutcomes.failureContext(failureOrigins)))
+          }
+        }
+        if failureOrigins.isEmpty { failureOrigins = [outcomes.nextLine] }
+      }
       if let function = evaluation?.function {
         scope.functions[function.name] = function
         declared.functions[function.name] = function
       }
       if let name = source.declaredName, let result {
-        scope.declare(name, result: result)
+        scope.declare(name, result: result, failureOrigins: failureOrigins)
         if case .value(let value) = result {
           declared.variables[name] = value
         }
@@ -184,7 +220,7 @@ public struct SheetCalculator: Sendable {
         outcomes.append(.value(value), references: evaluation?.references ?? [])
       case .syntaxFailure, .evaluationFailure:
         outcomes.append(
-          .failure(line: outcomes.nextLine), references: evaluation?.references ?? [])
+          .failure(lines: failureOrigins), references: evaluation?.references ?? [])
       }
       switch source.syntax {
       case .blank, .heading:
@@ -195,7 +231,10 @@ public struct SheetCalculator: Sendable {
       case .comment, .calculation, .markdown:
         break
       }
-      results.append(SheetLineResult(id: line.id, source: source, evaluation: evaluation))
+      results.append(
+        SheetLineResult(
+          id: line.id, source: source, evaluation: evaluation,
+          result: result, failureOrigins: failureOrigins))
     }
 
     if cache.count > sheet.lines.count {
@@ -537,6 +576,7 @@ private final class LineEvaluation: Sendable {
 private struct VariableScope: Sendable {
   private var variables: [String: EngineValue?] = [:]
   private var prefixes: Set<String> = []
+  private(set) var failureOrigins: [String: [Int]] = [:]
   /// Manual exchange rates declared above.
   var rates: [CurrencyPair: NumericValue] = [:]
   /// Functions defined above, by lowercased name.
@@ -570,8 +610,11 @@ private struct VariableScope: Sendable {
 
   /// Names match whatever their letter case, so `Rent` and `rent` are one
   /// variable; the sheet still shows each as it is written.
-  mutating func declare(_ rawName: String, result: CalculationResult) {
+  mutating func declare(
+    _ rawName: String, result: CalculationResult, failureOrigins: [Int] = []
+  ) {
     let name = rawName.lowercased()
+    self.failureOrigins[name] = failureOrigins.isEmpty ? nil : failureOrigins
     if case .value(let value) = result {
       variables[name] = value
     } else {

@@ -9,6 +9,25 @@ import Testing
 @MainActor
 @Suite
 struct AnswerInteractionTests {
+  @Test
+  func blockedErrorCardsJumpToEveryOriginalFailure() async throws {
+    let (editor, textView) = try await makeEditor("@deleted\nx = @1\n@split\nx + @3")
+    let id = editor.sheet.lines[3].id
+    let rows = textView.interpretation(id)
+    #expect(rows.compactMap(\.lineNumber) == [1, 3])
+    let card = InterpretationViewController(
+      details: rows, fullPrecision: nil, availableSize: NSSize(width: 800, height: 600),
+      pasteboard: .general, onSelectLine: { textView.selectErrorOrigin(line: $0) })
+    let grid = try #require(
+      (card.view.subviews.first as? NSScrollView)?.documentView as? NSGridView)
+    let buttons = (0..<grid.numberOfRows).compactMap {
+      grid.cell(atColumnIndex: 1, rowIndex: $0).contentView as? NSButton
+    }
+    #expect(buttons.map(\.tag) == [1, 3])
+    buttons.last?.performClick(nil)
+    #expect((textView.string as NSString).substring(with: textView.selectedRange()) == "@split")
+  }
+
   @Test(arguments: [NSSize(width: 1440, height: 900), NSSize(width: 640, height: 400)])
   func mortgagePrecisionCannotExpandTheCardBeyondTheScreen(_ available: NSSize) async throws {
     let (editor, textView) = try await makeEditor("pmt(300,000 USD, 6% / 12, 360)")

@@ -6,49 +6,54 @@ import Testing
 @Suite
 struct LineReferenceRenumberingTests {
   @Test
-  func renumbersBothSpellingsAndLeavesCommentsAndPromptsAlone() {
-    let source = "10\n20\n@1 + @2 + line 2 // @2\nask_assistant(email @2 and {@2})\n# @2"
-    let text = NSMutableString(string: source)
-    for edit in LineReferenceRenumbering.edits(
-      in: source, firstMovedLine: 2, delta: 1, editedLines: 1...1,
-      configuration: .englishUnitedStates
-    ).reversed() {
-      text.replaceCharacters(in: edit.range, with: edit.number)
-    }
+  func insertsAndRemovesLinesAroundIntactTargets() {
     #expect(
-      text as String == "10\n20\n@1 + @3 + line 3 // @2\nask_assistant(email @2 and {@3})\n# @2")
+      edit("10\n20\n@1 + @2 + line 2 // @2\n# @2", 3, 0, "5\n")
+        == "10\n5\n20\n@1 + @3 + line 3 // @2\n# @2")
+    #expect(edit("10\n20\n30\n@3 + line 1", 3, 3, "") == "10\n30\n@2 + line 1")
+    #expect(edit("10\n20\n@2", 3, 0, "\n") == "10\n\n20\n@3")
+    #expect(edit("10\n20\n@2", 5, 0, "\n") == "10\n20\n\n@2")
   }
 
   @Test
-  func findsTheFirstLineAnEditMoves() throws {
-    let old = "a\nbb\nc"
-    // Return at the end of line 1 moves line 2 down.
-    #expect(shift(old, NSRange(location: 1, length: 0), "\n") == [2, 1])
-    // Return at the start of line 2 moves line 2 itself.
-    #expect(shift(old, NSRange(location: 2, length: 0), "\n") == [2, 1])
-    // Deleting line 2 whole moves line 3 up.
-    #expect(shift(old, NSRange(location: 2, length: 3), "") == [3, -1])
-    #expect(shift(old, NSRange(location: 2, length: 1), "x") == nil)
+  func deletionCannotSilentlyRetargetAndMarkersSurviveFurtherEdits() {
+    let deleted = edit("10\n20\n30\n@2 + line 2 + @3", 3, 3, "")
+    #expect(deleted == "10\n30\n@deleted + @deleted + @2")
+    #expect(edit(deleted, 0, 0, "5\n") == "5\n10\n30\n@deleted + @deleted + @3")
+    #expect(edit("10\n20\n@2", 3, 2, "") == "10\n\n@deleted")
+    #expect(edit("10\n20\n@2", 3, 2, "50") == "10\n50\n@2")
   }
 
   @Test
-  func renumbersReferencesToMovedLinesOnly() throws {
-    let source = "rent = 5\nphone = 1\nsubtotal\nx = line 3 + line 1 + line 9 // line 3\n# line 3"
+  func splitsAndJoinsRequireAnExplicitChoice() {
+    #expect(
+      edit("10\n20 + 30\n@2 + line 2", 5, 0, "\n")
+        == "10\n20\n + 30\n@split + @split")
+    #expect(edit("10\n20\n@1 + @2", 2, 1, "") == "1020\n@split + @split")
+    #expect(edit("10\n\n20\n@3", 3, 1, "") == "10\n20\n@2")
+    // References in surviving suffixes still get repaired; pasted ones are literal.
+    #expect(edit("10\n20\n30\n@2", 3, 3, "@1\n") == "10\n@1\n30\n@deleted")
+    #expect(edit("10\n20 + @2", 5, 0, "\n") == "10\n20\n + @split")
+  }
+
+  @Test
+  func preservesCommentsPromptsOutOfRangeReferencesAndUnicodeOffsets() {
+    let source = "# 🧮\n10\n20\n@2 + line 3 + @99 // @3\nask_assistant(email @3 and {@3})"
+    #expect(
+      edit(source, 8, 0, "5\n")
+        == "# 🧮\n10\n5\n20\n@2 + line 4 + @99 // @3\nask_assistant(email @3 and {@4})")
+    #expect(edit("10\r\n20\r\n@2", 4, 0, "5\r\n") == "10\r\n5\r\n20\r\n@3")
+    #expect(edit("10\r20\r@2", 3, 0, "5\r") == "10\r5\r20\r@3")
+  }
+
+  private func edit(_ source: String, _ start: Int, _ length: Int, _ replacement: String) -> String
+  {
+    let range = NSRange(location: start, length: length)
     let edits = LineReferenceRenumbering.edits(
-      in: source, firstMovedLine: 2, delta: 1, editedLines: 1...1,
-      configuration: .englishUnitedStates)
+      replacing: range, in: source, with: replacement, configuration: .englishUnitedStates)
     let text = NSMutableString(string: source)
-    for edit in edits.reversed() {
-      text.replaceCharacters(in: edit.range, with: edit.number)
-    }
-    #expect(
-      text as String
-        == "rent = 5\nphone = 1\nsubtotal\nx = line 4 + line 1 + line 9 // line 3\n# line 3")
-  }
-
-  private func shift(_ old: String, _ range: NSRange, _ replacement: String) -> [Int]? {
-    LineReferenceRenumbering.shift(replacing: range, in: old, with: replacement).map {
-      [$0.firstMovedLine, $0.delta]
-    }
+    text.replaceCharacters(in: range, with: replacement)
+    for edit in edits.reversed() { text.replaceCharacters(in: edit.range, with: edit.number) }
+    return text as String
   }
 }

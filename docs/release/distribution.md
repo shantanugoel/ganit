@@ -116,3 +116,12 @@ disk image and an appcast in five and a half minutes, unattended. A 0.1.0 in
 `/Applications` then found 0.1.1 through **Check for Updates…**, verified the
 signature, and replaced itself, which is the whole path a reader takes and the
 only way to know the nested signing and the sandboxed installer agree.
+
+## Homebrew upgrades
+
+The release workflow renders `packaging/ganit.rb.in` into the separate Homebrew
+tap with the released version and disk image checksum. The cask requests a
+normal quit using Ganit's bundle ID and prints a reminder to reopen the app.
+Users who disable Homebrew's quit behavior should quit with Command-Q and
+reopen Ganit themselves. Release Notes appears once for the newly running
+version.

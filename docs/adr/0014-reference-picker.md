@@ -1,6 +1,6 @@
 # ADR 0014: Quick references with @
 
-- Status: Accepted
+- Status: Accepted (announcement and edit policy superseded by ADR 0015)
 - Date: 2026-09-30
 
 ## Context

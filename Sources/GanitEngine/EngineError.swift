@@ -12,6 +12,7 @@ public enum EngineErrorCode: String, Hashable, Sendable {
   case nonConvergence = "evaluation.nonConvergence"
   case unknownIdentifier = "evaluation.unknownIdentifier"
   case unavailableReference = "evaluation.unavailableReference"
+  case brokenReference = "evaluation.brokenReference"
   case invalidReference = "evaluation.invalidReference"
   case unknownFunction = "evaluation.unknownFunction"
   case unresolvedAssistantPrompt = "evaluation.unresolvedAssistantPrompt"
@@ -74,6 +75,9 @@ public enum EngineErrorContext: Hashable, Sendable {
   case unitPower
   /// The one-based number of a line whose error a reference read.
   case failedLine(Int)
+  /// The original failures, deduplicated and in sheet order.
+  case failedLines([Int])
+  case brokenReference(BrokenLineReferenceReason)
   /// A variable whose declaration failed.
   case failedVariable(String)
   case evaluationContext(EvaluationContextField)

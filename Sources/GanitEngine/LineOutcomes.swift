@@ -9,7 +9,7 @@ struct LineOutcomes: Sendable {
     case none
     case value(EngineValue)
     /// A failed line, by its one-based number, so a reader can be told which.
-    case failure(line: Int)
+    case failure(lines: [Int])
   }
 
   private var outcomes: [Outcome] = []
@@ -52,6 +52,8 @@ struct LineOutcomes: Sendable {
         return nil
       }
       return [outcomes[line - 1]]
+    case .broken:
+      return nil
     case .previous:
       return (blockStart..<outcomes.count).last { outcomes[$0] != .none }
         .map { [outcomes[$0]] }
@@ -64,6 +66,9 @@ struct LineOutcomes: Sendable {
   }
 
   func value(of reference: LineReference) throws -> EngineValue {
+    if case .broken(let reason) = reference {
+      throw EngineError(code: .brokenReference, context: .brokenReference(reason))
+    }
     guard let inputs = inputs(for: reference), inputs.count == 1 else {
       throw EngineError(code: .invalidReference)
     }
@@ -77,14 +82,28 @@ struct LineOutcomes: Sendable {
       .map { (line: $0 + 1, value: try Self.required(outcomes[$0])) }
   }
 
+  static func failureContext(_ lines: [Int]) -> EngineErrorContext {
+    lines.count == 1 ? .failedLine(lines[0]) : .failedLines(lines)
+  }
+
+  func failures(for references: Set<LineReference>) -> Set<Int> {
+    Set(
+      references.flatMap { reference in
+        (inputs(for: reference) ?? []).flatMap { outcome -> [Int] in
+          if case .failure(let lines) = outcome { return lines }
+          return []
+        }
+      })
+  }
+
   private static func required(_ outcome: Outcome) throws -> EngineValue {
     switch outcome {
     case .none:
       throw EngineError(code: .invalidReference)
     case .value(let value):
       return value
-    case .failure(let line):
-      throw EngineError(code: .unavailableReference, context: .failedLine(line))
+    case .failure(let lines):
+      throw EngineError(code: .unavailableReference, context: Self.failureContext(lines))
     }
   }
 }

@@ -1,19 +1,14 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "references.new.title" : {
+    "interpretation.errorOrigin" : {
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "New: quick references with @" } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Fix first" } }
       }
     },
-    "references.new.body" : {
+    "interpretation.errorLine" : {
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Type @ to choose a variable or an earlier line’s answer. Type @rent to find rent, or use @6 instead of line 6. Press Tab or Return to choose. Variable names stay plain, and line references follow edits. New sheets show line numbers; View ▸ Show Line Numbers controls them." } }
-      }
-    },
-    "references.new.done" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Got it" } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Line %lld" } }
       }
     },
     "help.menu.interpretHint" : {
