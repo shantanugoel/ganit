@@ -5,6 +5,11 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+## 0.5.6
+
+- Release Notes no longer opens automatically when a new version is installed.
+  Open Help ▸ Release Notes whenever you want to read them.
+
 ## 0.5.5
 
 - Deleting a referenced line now writes `@deleted`; splitting or joining a
@@ -15,9 +20,6 @@ existing answer. See the [release train](docs/release/release-train.md).
 - Downstream reference errors identify the lines where the failures began,
   including multiple independent causes. Click an originating line in the
   error's interpretation card to jump there and repair it.
-- Release Notes opens once on the first editor open for each installed
-  version, after the welcome tour if needed. This replaces the one-time
-  quick-reference announcement.
 - Homebrew upgrades request a normal quit of Ganit and print a reminder to
   reopen it so the newly installed version runs.
 

@@ -123,5 +123,4 @@ The release workflow renders `packaging/ganit.rb.in` into the separate Homebrew
 tap with the released version and disk image checksum. The cask requests a
 normal quit using Ganit's bundle ID and prints a reminder to reopen the app.
 Users who disable Homebrew's quit behavior should quit with Command-Q and
-reopen Ganit themselves. Release Notes appears once for the newly running
-version.
+reopen Ganit themselves.

@@ -5,7 +5,7 @@ import GanitEditorUI
 @MainActor
 public final class ReleaseNotesWindowController: NSWindowController {
   public convenience init(text: String) {
-    let view = NSTextView()
+    let view = NSTextView(frame: NSRect(x: 0, y: 0, width: 520, height: 440))
     view.string = text
     view.isEditable = false
     view.isRichText = false
@@ -16,6 +16,10 @@ public final class ReleaseNotesWindowController: NSWindowController {
       width: VisualStyle.Spacing.standard, height: VisualStyle.Spacing.standard)
     view.isVerticallyResizable = true
     view.isHorizontallyResizable = false
+    view.autoresizingMask = [.width]
+    view.minSize = .zero
+    view.maxSize = NSSize(
+      width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
     view.textContainer?.widthTracksTextView = true
     let scroll = NSScrollView()
     scroll.documentView = view
@@ -31,6 +35,12 @@ public final class ReleaseNotesWindowController: NSWindowController {
     window.title = localized("menu.releaseNotes", "Release Notes")
     window.contentMinSize = NSSize(width: 360, height: 240)
     window.isReleasedWhenClosed = false
+    let contentSize = window.contentRect(forFrameRect: window.frame).size
+    view.frame = NSRect(origin: .zero, size: contentSize)
+    view.textContainer?.containerSize = NSSize(
+      width: contentSize.width, height: CGFloat.greatestFiniteMagnitude)
+    scroll.frame = NSRect(origin: .zero, size: contentSize)
+    scroll.autoresizingMask = [.width, .height]
     window.contentView = scroll
     window.center()
     self.init(window: window)

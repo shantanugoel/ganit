@@ -11,6 +11,9 @@ struct ReleaseNotesTests {
     let notes = ReleaseNotesWindowController(text: "# Changelog\n\n## 0.1.0\n\nFirst release.")
     #expect(notes.window?.title == "Release Notes")
     #expect(notes.displayedText.contains("First release."))
+    let textView = (notes.window?.contentView as? NSScrollView)?.documentView as? NSTextView
+    #expect((textView?.frame.width ?? 0) > 0)
+    #expect((textView?.frame.height ?? 0) > 0)
   }
 
   @Test

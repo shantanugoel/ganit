@@ -53,7 +53,6 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   private var releaseNotes: ReleaseNotesWindowController?
   private var settingsWindow: NSWindow?
   private var tourSheet: NSWindow?
-  private let releaseNotesAnnouncement = ReleaseNotesAnnouncement()
   /// The assistant's settings, read once so that asking about a line does not
   /// go to the keychain every time.
   private var assistantSettings = AssistantSettings.load()
@@ -156,8 +155,6 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     NSApplication.shared.activate()
     if !GanitPreferences.hasCompletedTour {
       showTour(nil)
-    } else {
-      showNewReleaseNotes()
     }
   }
 
@@ -173,7 +170,6 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     if workspace?.windows.isEmpty == true {
       openMostRecentSheet()
     }
-    showNewReleaseNotes()
     return true
   }
 
@@ -190,7 +186,6 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   @objc func newSheet(_ sender: Any?) {
     do {
       try workspace?.openNewSheet(source: "")
-      showNewReleaseNotes()
     } catch {
       NSApplication.shared.presentError(error)
     }
@@ -215,7 +210,6 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
         application.presentError(error)
       }
     }
-    showNewReleaseNotes()
   }
 
   /// Opens the definitions sheet, whose variables and units every sheet
@@ -233,7 +227,6 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     do {
       try workspace?.openScratch()
       NSApplication.shared.activate()
-      showNewReleaseNotes()
     } catch {
       NSApplication.shared.presentError(error)
     }
@@ -245,7 +238,6 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     do {
       try workspace?.showCurrentWindow()
       NSApplication.shared.activate()
-      showNewReleaseNotes()
     } catch {
       NSApplication.shared.presentError(error)
     }
@@ -306,7 +298,6 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
 
   @objc func showQuickGanit(_ sender: Any?) {
     quickGanit()?.show()
-    showNewReleaseNotes()
   }
 
   @objc func showQuickGanitShortcut(_ sender: Any?) {
@@ -441,23 +432,8 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     sheet.styleMask = [.titled]
     sheet.title = String(
       localized: "tour.title", defaultValue: "Welcome to Ganit", bundle: .main)
-    parent.beginSheet(sheet) { [weak self] _ in
-      // AppKit still reports the ending sheet during this completion callback.
-      // Present on the next turn, after it has detached from the editor.
-      DispatchQueue.main.async { [weak self] in self?.showNewReleaseNotes() }
-    }
+    parent.beginSheet(sheet, completionHandler: nil)
     tourSheet = sheet
-  }
-
-  private func showNewReleaseNotes() {
-    guard GanitPreferences.hasCompletedTour, tourSheet == nil, releaseNotesAnnouncement.shouldShow,
-      NSApplication.shared.orderedWindows.contains(where: { candidate in
-        candidate.isVisible && candidate.attachedSheet == nil
-          && (workspace?.windows.contains { $0.window === candidate } == true
-            || quickPanel?.window === candidate)
-      }), ReleaseNotesWindowController.text(in: .main) != nil
-    else { return }
-    showReleaseNotes(nil)
   }
 
   // MARK: Help
@@ -487,7 +463,6 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       releaseNotes = ReleaseNotesWindowController(text: text)
     }
     releaseNotes?.window?.makeKeyAndOrderFront(nil)
-    if releaseNotes?.window?.isVisible == true { releaseNotesAnnouncement.didShow() }
   }
 
   // MARK: The assistant
