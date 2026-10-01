@@ -186,6 +186,14 @@ may proceed. The fallback decision does not waive expanded-editor accessibility
 or source correctness. This sequencing change does not manufacture native
 acceptance evidence; the exact production format is still validated/frozen in M1.
 
+## Storage scope amendment — 2026-10-01
+
+Backward compatibility was removed from the plan and ADR 0017. Later work uses
+only current metadata/manifest schema 2, without old-schema readers, migrations,
+downgrade support, compatibility shims or a legacy capability barrier.
+Atomic saves, exact plain source and current-format backup/recovery remain
+required. This changes the implementation scope, not the recorded M0 results.
+
 ## Repository verification
 
 - `swift build`: passed for all products.

@@ -40,4 +40,4 @@ wholesale into a shipping module. Remove this target when production tests
 supersede its proofs.
 
 See [evidence](evidence.md), [semantics/editor ADR](../../docs/adr/0016-table-semantics-and-editor-ownership.md)
-and [source/storage ADR](../../docs/adr/0017-table-source-and-storage-compatibility.md).
+and [source/storage ADR](../../docs/adr/0017-table-source-and-storage.md).
