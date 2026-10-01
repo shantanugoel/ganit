@@ -1,6 +1,6 @@
 # ADR 0016: Calculation table semantics and editor ownership
 
-- Status: Proposed; M0 feasibility results recorded, native acceptance pending
+- Status: Accepted (architectural direction; production acceptance is M4–M6)
 - Date: 2026-10-01
 - Scope: Architecture for M1–M6, not shipping table support
 
@@ -133,7 +133,11 @@ column must skip the full mapped block in both modes.
 Production engine, storage and editor APIs remain unchanged in M0. The new
 executable is disposable and excluded from shipping dependencies. See the
 [evidence](../../Spikes/TablesM0/evidence.md) for measurements, native results
-and explicit gaps. This ADR remains proposed until native acceptance and the
-reference grammar fixtures are reviewed. No unresolved choice should be left
-for incidental grid code; failed gates require revision or the selected
-preview fallback, not a silent exception.
+and explicit gaps. Architectural direction is accepted: M1 may proceed using
+these defaults without another user decision. The reference grammar is to be
+implemented and verified in M2. Real IME, VoiceOver, Find and layout tasks are
+mandatory integrated-editor gates in M4/M5 and before release, not prerequisites
+for source/storage implementation. This is an explicit sequencing adjustment
+from the original M0 gate, not a claim that unrun native tests passed. Failed
+production gates require fixes or a documented scope revision; the selected
+preview fallback does not waive expanded-editor accessibility or source safety.

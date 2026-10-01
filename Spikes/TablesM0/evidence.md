@@ -3,10 +3,14 @@
 ## Status and scope
 
 Disposable spike implementation and automated verification are complete.
-**M0 exit is not complete.** Native task acceptance and resolution of the two
-proposed ADRs remain required before M1 or any public format freeze.
+**M0 feasibility is complete**, with the permitted inline preview/Open Table
+fallback selected and ADRs 0016/0017 accepted as architectural decisions. The
+original M0 native gate sequencing has been explicitly revised in the plan:
+full native tasks run on the integrated M4/M5 editor and remain release gates.
+They are not claimed as passed. M1 may proceed without a user decision and
+will validate/freeze the production wire format; this spike format is experimental.
 
-Worktree branch: `codex/tables-m0`. The original checkout is clean. No production
+Worktree branch: `tables`. The original checkout is clean. No production
 engine/editor/storage schema constants changed, and shipping products do not
 depend on the spike. Experimental plain source fixtures are not supported
 Ganit documents and must not be imported into the shipping app.
@@ -119,7 +123,7 @@ It interns stable target IDs and uses exact formula-source strings as ledger
 fingerprints. Full compact decode → IDs → model matches the original, including
 deleted target IDs that are no longer in row membership. The verbose encoding
 is rejected. The compact candidate still exceeds the 1,048,576-byte source budget (`SheetExchange.maximumSourceBytes`) at
-10,000 cells, so ADR 0017 proposes reducing the populated ceiling to **4,000**.
+10,000 cells, so ADR 0017 sets the provisional populated ceiling to **4,000**.
 Byte limits remain independent: long text, long formulas or many references
 can exhaust the source budget earlier. This is not a promised minimum capacity.
 More compact wire records or a different ceiling require measurement/review;
@@ -159,7 +163,7 @@ foundation. Do not enable direct inline editing on these proofs. A production
 source coordinator must be extracted from NSTextView ownership in M3; keeping
 a hidden editor and rewriting whole JSON blocks is only a disposable proof.
 
-Remaining M0 native task acceptance, with explicit expected results:
+Native task acceptance carried forward from M0 to M4/M5, with explicit expected results:
 
 1. Use a real installed input method to compose cell and prose input, switch
    focus and commit/cancel. No source rewrite or evaluation may disrupt marked
@@ -175,10 +179,12 @@ Remaining M0 native task acceptance, with explicit expected results:
    prose must remain editable. The current screenshot covers the spike only.
 
 Real IME, VoiceOver listening, native Find-panel routing and integrated
-answer placement were **not run**. The M0 native checkbox stays unchecked and
-both ADRs stay proposed. The fallback decision does not waive expanded-editor
-accessibility or source correctness. Do not proceed to M1/format freeze until
-these acceptance questions have been reviewed and resolved.
+answer placement were **not run**. Tasks 1–2 are explicit M4 gates; tasks 3–4
+are explicit M5 gates, with transition checks repeated there and release
+verification in M6. Both ADRs are accepted for architectural direction and M1
+may proceed. The fallback decision does not waive expanded-editor accessibility
+or source correctness. This sequencing change does not manufacture native
+acceptance evidence; the exact production format is still validated/frozen in M1.
 
 ## Repository verification
 

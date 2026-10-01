@@ -1,6 +1,6 @@
 # ADR 0017: Table source and storage compatibility
 
-- Status: Proposed; M0 experimental encodings only, no frozen public format
+- Status: Accepted (architecture and schema selection; wire-format freeze in M1)
 - Date: 2026-10-01
 
 ## Decision
@@ -63,7 +63,7 @@ Verbose repeated UUID/SHA records are rejected for production. Even the
 experimental compact encoding cannot store the measured 10,000-cell chain
 under the existing 1,048,576-byte (1 MiB) budget. Revise the provisional populated
 ceiling to **4,000 cells per sheet**, retaining the byte limit as an independent,
-often tighter gate. This is a proposed ceiling, not a guaranteed capacity for
+often tighter gate. This is a provisional ceiling, not a guaranteed capacity for
 long formulas/text or many references. Retain the 10,000-node engine stress
 fixture to establish stack safety. M2/M6 must revisit encoding/limits with
 shared ranges, dense graphs and measured resource budgets before release.
@@ -108,6 +108,9 @@ The M0 disk round trip does not establish production migration durability.
 
 Source recovery, durable binding ownership and compact encoding feasibility
 have executable prototypes. Precise compact wire layout remains experimental
-until M1's frozen fixtures and grammar collision tests are reviewed. This ADR
-must be accepted before freezing or publishing the format. See ADR 0016 for
+until M1 defines and verifies its frozen-format fixtures, binding validation
+and recovery checks. Architecture and schema choices are accepted; M1 may
+proceed without additional user approval. Do not publish the experimental
+spike encoding as a supported format. M2 owns full formula-grammar collision
+tests; M4/M5 own the native acceptance tasks recorded in M0. See ADR 0016 for
 editor ownership, reference transformations and the inline-preview decision.

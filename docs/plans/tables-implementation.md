@@ -1,10 +1,10 @@
 # Calculation tables: implementation plan
 
-Date: 2026-10-01. Status: M0 disposable spikes implemented and measured;
-M0 exit remains pending native task acceptance and ADR resolution. Production
-implementation has not started. This plan refines the [investigation](../design/tables-investigation.md)
+Date: 2026-10-01. Status: M0 feasibility complete with inline preview/Open Table
+selected; architectural decisions resolved in ADRs 0016/0017. Start M1 next.
+Production implementation has not started. This plan refines the [investigation](../design/tables-investigation.md)
 and governs its unresolved details for this feature. It does not replace
-accepted ADRs; milestone M0 must record the new architecture decisions.
+accepted ADRs; M0 decisions and evidence are linked below.
 
 ## Outcome and scope
 
@@ -129,8 +129,8 @@ Map the visuals to [Ganit's semantic visual system](../design/visual-system.md).
 
 ### Addressing
 
-These spellings are proposed implementation contracts, pending the grammar
-spike and ADR. Examples assume header row 1, first data row 2.
+These spellings follow the accepted M0 reference contract in ADR 0016;
+the production parser and collision corpus are M2 work. Examples assume header row 1, first data row 2.
 
 | Form | Meaning |
 | --- | --- |
@@ -300,13 +300,16 @@ Keep unfinished behavior behind a development flag until all v1 gates pass.
       commas and formula `|`. Check size overhead against the 1 MB source limit.
 - [x] Prototype a rightward/downward dependency, a cycle with an independent
       valid component, and a 10,000-cell chain using Ganit arithmetic.
-- [ ] Prototype an expanded native grid edit through document Undo and a
-      source-mapped inline block. Check focus, cross-boundary selection/copy,
-      Find navigation, IME and VoiceOver; check the answer-column layout.
+- [x] Prototype an expanded native grid edit through document Undo and a
+      source-mapped inline preview. Verify automated focus, cross-boundary copy,
+      mapped Find selection, marked-text retention and accessibility labels;
+      inspect the prototype divider. Choose preview/Open Table. Full native
+      task acceptance on the integrated editor remains mandatory in M4/M5.
 - [x] Specify reference grammar/escaping, inherited-variable qualifier,
       ledger/broken-marker encoding and exact range transformation rules.
-- [x] Write proposed ADRs for table semantics/editor ownership and table-source/
-      storage compatibility. Resolve them before freezing a public format.
+- [x] Resolve ADRs for table semantics/editor ownership and table-source/
+      storage compatibility. The experimental wire format is frozen only after
+      M1 fixtures and validation; architecture acceptance is not a format freeze.
 
 M0 execution evidence is in [the disposable spike report](../../Spikes/TablesM0/evidence.md).
 Run instructions, CR/LF/CRLF round-trip fixtures, recovery examples, a native
@@ -315,9 +318,10 @@ preview capture and dependency traces are checked in alongside the isolated
 
 [ADR 0016](../adr/0016-table-semantics-and-editor-ownership.md) specifies the
 semantics, reference escaping and precise transformation rules. [ADR 0017](../adr/0017-table-source-and-storage-compatibility.md)
-specifies experimental ledger encoding and proposes metadata/manifest schema 2
-with the durable capability barrier. Both remain **proposed**, not public format
-approval. Source byte measurements motivate a **4,000 populated-cell proposed
+specifies the ledger approach and metadata/manifest schema 2 with the durable
+capability barrier. Both ADRs are **accepted architectural decisions**. M1 must
+validate and freeze the production wire format; the disposable encoding is not
+a public format. Source byte measurements set a **4,000 populated-cell provisional
 ceiling**, independently subject to the existing 1 MB source limit; the engine
 still proves a stack-safe 10,000-node chain. M2/M6 must validate the remaining
 resource budgets and full edit-to-visible latency.
@@ -328,10 +332,14 @@ disk reload, cross-boundary copy, mapped Find selection, Return focus and
 marked-text simulation pass. A derived inline native preview is captured and
 source-mapped, and its divider skips the table. Real input-method composition,
 VoiceOver task completion, native Find-panel navigation, both sheet modes and
-integrated answer placement have **not** been verified. Therefore the native
-M0 checkbox and overall exit stay open; do not start M1 or freeze a format on
-these results alone. See the report for the exact task acceptance run still
-required. No production schema constants or document files were changed.
+integrated answer placement have **not** been verified. These are mandatory
+**M4/M5 acceptance and M6 release gates**, rather than blockers for M1 source
+and storage implementation. This explicitly revises the original M0 sequencing:
+M0 establishes feasibility and selects the permitted preview fallback; full
+editor task verification runs when the integrated editor exists. No unrun test
+is marked passed, and release gates are not waived. See the report for the
+exact task acceptance runs required. No user decision is needed to begin M1,
+and no production schema constants or document files were changed.
 
 **Exit:** round-trip fixture examples, dependency traces, native editing proof,
 measured size/latency, and an explicit inline-edit versus preview decision are
@@ -381,7 +389,7 @@ missing metadata: older binaries cannot be retroactively taught the syntax.
 - [ ] Reuse exact arithmetic, conversions, functions, rate/clock context and
       provenance. Diagnose unsupported/bare table functions explicitly.
 - [ ] Add dependency invalidation, range-membership invalidation and resource
-      limits. Start with M0's proposed per-sheet 4,000 populated cells,
+      limits. Start with M0's provisional per-sheet 4,000 populated cells,
       100,000 dependency links and 1,000,000 range-cell visits per generation;
       validate/tune these in M0/M6. Keep the existing 1 MB source limit and
       arithmetic/syntax limits. Diagnose limits; never truncate calculation.
@@ -418,6 +426,12 @@ results. Existing ordinary/Markdown/definitions answers remain compatible.
 
 ### M4 — Expanded native table editing
 
+Carry forward [M0 native acceptance tasks 1–2](../../Spikes/TablesM0/evidence.md):
+real input-method composition/commit/cancel and VoiceOver task completion.
+Automated marked-text/label checks are supporting evidence, not substitutes.
+Run these on the integrated controller; do not mark this milestone complete
+without results.
+
 - [ ] Build a view-based AppKit grid using reused rows/cells and the existing
       visual tokens/formatters. Add virtualized rendering before large-table QA.
 - [ ] Implement cell-versus-edit selection states, rectangular selection,
@@ -440,6 +454,11 @@ column formula, pick a reference, paste a rectangle, recover an error, undo and
 return to prose. No separate grid Undo/source store or eager per-cell views.
 
 ### M5 — Embedded presentation in both sheet modes
+
+Carry forward [M0 native acceptance tasks 3–4](../../Spikes/TablesM0/evidence.md):
+native Find-panel routing, cross-boundary copy and state restoration; regular/
+Markdown answer placement, narrow widths, scaled text and RTL. Repeat real IME
+and VoiceOver checks across text/grid transitions. These remain release gates.
 
 - [ ] Reserve mapped block layout without object-replacement characters in
       canonical source. Make surrounding text selection, caret movement,
@@ -528,16 +547,24 @@ editing/scheduler, storage/write order, recovery and headless integration on
 | Inline native integration may not pass usability/accessibility gates | Keep expanded editing as the foundation and allow accessible inline preview as a bounded fallback |
 | Existing line-oriented exports/headless answers could flatten tables | Block-aware renderers and explicit structured CLI output, preserving old output for old sheets |
 
-No unresolved issue blocks **starting M0**. Source grammar, ledger encoding,
-schema versions, measured limits and the native inline approach remain explicit
-M0 decisions, with proof required before production implementation. They are
-not implicit approvals to bypass the exit gates.
+M0 source/binding fixtures, graph traces, measured limits and editor choice are
+recorded in the [evidence report](../../Spikes/TablesM0/evidence.md) and accepted
+ADRs 0016/0017. No architectural approval from the user is required to start M1.
+Resource limits remain provisional until integrated M2/M6 measurement. Native
+task checks are explicitly tracked under M4/M5 and the release matrix; no
+unverified acceptance result has been converted into a pass.
 
-## First implementation task
+## Next implementation task and agent handoff
 
-Start M0 with a source/binding round-trip fixture and a tiny native prototype
-containing an assumption, a three-row Items table and a dependent prose line.
-Prove delete-target → broken reference → Undo → save/reload; a forward cell
-reference and cycle; and expanded-grid editing through the sheet's Undo.
-Record the resulting codec/editor decisions and measurements in the ADRs and
-this plan before proceeding to M1.
+Use branch `tables` in `/Users/shantanugoel/.codex/worktrees/tables-m0/ganit`.
+Start **M1 — Source model, identity and safe storage**, then work through M2–M6
+in order. Read this plan and accepted ADRs [0016](../adr/0016-table-semantics-and-editor-ownership.md)
+and [0017](../adr/0017-table-source-and-storage-compatibility.md), plus the linked
+[M0 evidence](../../Spikes/TablesM0/evidence.md) and [spike README](../../Spikes/TablesM0/README.md).
+The prototypes are disposable proof, not shipping implementation. Keep work in
+this worktree, preserve milestone boundaries and enforce the native M4/M5 and
+M6 release gates. Defaults are resolved: inline preview/Open Table; shared
+canonical source/Undo; persistent identity and source-validated ledger;
+metadata/manifest schema 2 with capability barrier; provisional 4,000-cell
+ceiling plus the existing 1 MiB source limit. M1 owns validating/freezing the
+exact production wire encoding with fixtures before later modules consume it.
