@@ -84,6 +84,86 @@
         "lowerBound": 3,
         "upperBound": 12
       }
+    },
+    {
+      "name": "percentage scalar multiplication",
+      "expression": "8% * 5",
+      "expected": {
+        "status": "value",
+        "display": "40%",
+        "fullPrecision": "40%",
+        "approximate": false
+      }
+    },
+    {
+      "name": "percentage fractional scaling",
+      "expression": "8% / 5",
+      "expected": {
+        "status": "value",
+        "display": "1.6%",
+        "fullPrecision": "8/5%",
+        "approximate": false
+      }
+    },
+    {
+      "name": "percentage scale round trip",
+      "expression": "(8% / 5) * 5",
+      "expected": {
+        "status": "value",
+        "display": "8%",
+        "fullPrecision": "8%",
+        "approximate": false
+      }
+    },
+    {
+      "name": "scaled percentage addition",
+      "expression": "(8% * 5) + 3%",
+      "expected": {
+        "status": "value",
+        "display": "43%",
+        "fullPrecision": "43%",
+        "approximate": false
+      }
+    },
+    {
+      "name": "percentage point addition",
+      "expression": "40% + 3%",
+      "expected": {
+        "status": "value",
+        "display": "43%",
+        "fullPrecision": "43%",
+        "approximate": false
+      }
+    },
+    {
+      "name": "scaled percentage of a number",
+      "expression": "(8% * 5) of 200",
+      "expected": {
+        "status": "value",
+        "display": "80",
+        "fullPrecision": "80",
+        "approximate": false
+      }
+    },
+    {
+      "name": "number multiplied by a percentage rate",
+      "expression": "5 * 8%",
+      "expected": {
+        "status": "value",
+        "display": "0.4",
+        "fullPrecision": "2/5",
+        "approximate": false
+      }
+    },
+    {
+      "name": "number adjusted by a percentage rate",
+      "expression": "(5 * 8%) + 3%",
+      "expected": {
+        "status": "value",
+        "display": "0.412",
+        "fullPrecision": "103/250",
+        "approximate": false
+      }
     }
   ]
 }

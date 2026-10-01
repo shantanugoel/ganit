@@ -544,19 +544,11 @@ private struct EvaluationWorker {
 
     case (.percentage(let percentage), .number(let number)):
       switch binaryOperator {
-      case .multiply:
-        return .number(
-          try operations.applying(
-            .multiply,
-            left: try percentageRate(percentage),
-            right: number
-          )
-        )
-      case .divide:
+      case .multiply, .divide:
         return .percentage(
           PercentageValue(
             points: try operations.applying(
-              .divide,
+              binaryOperator,
               left: percentage.points,
               right: number
             )

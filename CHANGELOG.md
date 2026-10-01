@@ -5,6 +5,10 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Multiplying a percentage by a plain number now preserves the percentage
+  type, matching division. Subsequent percentage addition and subtraction
+  operate on percentage points.
+
 ## 0.5.6
 
 - Release Notes no longer opens automatically when a new version is installed.

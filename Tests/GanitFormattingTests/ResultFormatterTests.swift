@@ -52,6 +52,40 @@ struct ResultFormatterTests {
   }
 
   @Test
+  func formatsScaledPercentagesAcrossLocalesAndPrecisionSettings() throws {
+    let cases = [
+      ("8% * 5", "40%"),
+      ("(8% / 3) * 3", "8%"),
+      ("8% * (1 / 3)", "(8 / 3)%"),
+      ("-8% * 5", "-40%"),
+      ("(8% * 5) + 3%", "43%"),
+      ("8% * pi", "(8 * pi)%"),
+    ]
+    for locale in ["en-US", "tr-TR", "de-DE", "fr-FR", "ar-SA", "hi-IN"] {
+      for digits in [3, 9, 15] {
+        let evaluationContext = try context(localeIdentifier: locale, significantDigits: digits)
+        let engine = CalculationEngine()
+        let formatter = ResultFormatter(context: evaluationContext)
+        for (source, expected) in cases {
+          guard
+            case .value(.percentage(let actual)) = engine.evaluate(
+              source, context: evaluationContext),
+            case .value(let target) = engine.evaluate(expected, context: evaluationContext)
+          else {
+            Issue.record("Expected percentage values for \(source) and \(expected)")
+            continue
+          }
+          let formatted = try formatter.format(.percentage(actual))
+          let expectedFormat = try formatter.format(target)
+          #expect(formatted.display == expectedFormat.display, "\(locale): \(source)")
+          #expect(formatted.fullPrecision == expectedFormat.fullPrecision, "\(locale): \(source)")
+          #expect(formatted.isApproximate == expectedFormat.isApproximate, "\(locale): \(source)")
+        }
+      }
+    }
+  }
+
+  @Test
   func keepsLocaleSignsAndApproximationOutsidePercentAffixes() throws {
     let formatter = ResultFormatter(
       context: try context(localeIdentifier: "tr-TR")

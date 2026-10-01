@@ -1678,9 +1678,9 @@ private final class TokenParser {
         return leftKind == .percentage && rightKind == .percentage
           ? .percentage
           : .number
-      case .multiply, .power, .bitwiseAnd, .bitwiseOr, .shiftLeft, .shiftRight:
+      case .power, .bitwiseAnd, .bitwiseOr, .shiftLeft, .shiftRight:
         return .number
-      case .divide:
+      case .multiply, .divide:
         return leftKind == .percentage && rightKind == .number
           ? .percentage
           : .number

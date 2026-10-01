@@ -25,7 +25,7 @@ struct PercentageTests {
   func composesPercentagesWithoutLosingTheirType() throws {
     #expect(try evaluate("20% + 5%") == percentage(25))
     #expect(try evaluate("20% / 2") == percentage(10))
-    #expect(try evaluate("20% * 50") == number(10))
+    #expect(try evaluate("20% * 50") == percentage(1000))
     #expect(try evaluate("(20% of 50) + 2") == number(12))
     #expect(try evaluate("-20% of 50") == number(-10))
     #expect(try evaluate("-20% off 50") == number(60))
@@ -43,6 +43,24 @@ struct PercentageTests {
           )
         )
     )
+  }
+
+  @Test
+  func scalesPercentagePointsThroughArithmeticAndPhrases() throws {
+    #expect(try evaluate("8% * 5") == percentage(40))
+    #expect(try evaluate("(8% / 5) * 5") == percentage(8))
+    #expect(try evaluate("(8% * 5) / 5") == percentage(8))
+    #expect(try evaluate("(8% * 5) + 3%") == percentage(43))
+    #expect(try evaluate("(8% * 5) - 3%") == percentage(37))
+    #expect(try evaluate("8% * -5") == percentage(-40))
+    #expect(try evaluate("8% * 0") == percentage(0))
+    #expect(try evaluate("8% * 0.5") == (try evaluate("4.0%")))
+    #expect(try evaluate("(8% * 5) of 200") == number(80))
+    #expect(try evaluate("(8% * 5) off 200") == number(120))
+    #expect(try evaluate("(8% * 5) on 200") == number(280))
+    #expect(try evaluate("5 * 8%") == (try evaluate("8% of 5")))
+    #expect(try evaluate("8% * 5%") == (try evaluate("1 / 250")))
+    #expect(try evaluate("8% / 5%") == (try evaluate("8 / 5")))
   }
 
   @Test

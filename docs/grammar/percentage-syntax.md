@@ -35,8 +35,11 @@ reverse-percent phrases bind below addition. Parentheses remain available when
 the intended grouping differs.
 
 Percentage addition and subtraction preserve the percentage type.
-Multiplying a number by a percentage applies its rate. Dividing a percentage
-by a number preserves the percentage type. Unsupported mixed-type operations
+Multiplying a number by a percentage applies its rate. Multiplying or dividing
+a percentage by a number scales its points and preserves the percentage type.
+For example, `8% * 5` is `40%`, while `5 * 8%` is `0.4`. Use `8% of 5`
+to apply a percentage rate with the percentage written first.
+Unsupported mixed-type operations
 fail with `evaluation.typeMismatch`; they are never silently flattened.
 Division-by-zero and resource-limit behavior is inherited from exact numeric
 operations.
