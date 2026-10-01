@@ -1,7 +1,11 @@
-# ADR 0017: Table source and storage compatibility
+# ADR 0017: Table source and storage
 
 - Status: Accepted (architecture and schema selection; wire-format freeze in M1)
 - Date: 2026-10-01
+- Amended: 2026-10-01 — backward compatibility is explicitly out of scope.
+  This supersedes the initial table requirements for earlier-schema readers,
+  migration backups, capability-publication barriers and downgrade handling.
+  It also overrides general earlier-format support expectations for this feature.
 
 ## Decision
 
@@ -71,38 +75,40 @@ Never truncate data, bypass the byte limit or advertise 10,000 source cells
 based on an engine-only benchmark. Both encodings and byte counts are in the
 [M0 evidence](../../Spikes/TablesM0/evidence.md).
 
-## Compatibility and migration order
+## Current format and durable storage
 
-Reserve **sheet metadata schema 2**, **`.ganit` manifest schema 2**, and required
-capability **`calculation-tables-v1`** for the first table-capable implementation.
-Version-1 ordinary documents remain readable. Do not change current constants
-or frozen-format tests in M0. M1 must add versioned fixtures and update the
-frozen-format registry together with readers/writers. Schema 2 must reject
-unknown required capabilities explicitly; malformed source can still be
-retained and saved under a table-capable envelope.
+Use **sheet metadata schema 2** and **`.ganit` manifest schema 2** as the sole
+supported document/package schemas for this implementation. M1 adds current-
+format fixtures and updates the frozen-format registry with its readers and
+writers. Reject unsupported schemas clearly. Do not implement earlier-schema
+readers, automatic format migration, downgrade export or compatibility shims.
+The table block still has its own version for validation and malformed/unknown
+block quarantine; versioning does not require supporting older versions.
 
-Before the first table-bearing save of a legacy document, durably capture its
-immediate pre-migration source and metadata, independently of the daily backup.
-Then atomically write and fsync table-capable schema/capability metadata and
-its directory **before** writing table source. Only after this durable barrier
-may source and normal metadata/checksum saves proceed. A crash after the barrier
-but before source publication yields table-capable metadata with the old source,
-which a modern reader accepts. A crash must never yield old metadata and new
-table source. Keep the migration backup through verification.
+Use the same current metadata schema for ordinary and table-bearing documents.
+There is no per-document legacy upgrade, one-time capability-publication barrier
+or migration-specific backup. New writes use the current format directly.
+Preserve existing atomic file/package replacement and ordinary backup behavior;
+add no separate compatibility storage path.
 
-Modern recovery inspects canonical source for any table opener, including
-unknown/malformed versions. Missing/corrupt metadata must be recovered to a
-capable envelope, never a version-1 envelope around table syntax. Package
-export/import uses schema-2 manifests and refuses unsupported downgrade.
-Existing atomic package replacement remains valid; plain-source export retains
-IDs and ledgers. Values-only CSV/Markdown is explicitly lossy.
+Canonical source remains authoritative. Interrupted writes must retain either
+the previously committed current-format source or a complete replacement, never
+partially written source. Rebuild missing/corrupt metadata in the current schema
+without discarding source, IDs, bindings or malformed table blocks. Unknown
+blocks remain quarantined from ordinary calculations. A stale checksum must
+not replace canonical source with a cached projection.
 
-Old binaries reject known-new manifest/metadata versions where they already
-check versions. Raw text import, missing-metadata reconstruction and arbitrary
-older binaries are outside that protection: no claim of retroactive safety.
-M1 needs crash injection at every backup/barrier/source/metadata boundary,
-backup restore, stale checksum, corruption and modern recovery fixtures.
-The M0 disk round trip does not establish production migration durability.
+Package import/export supports only the current manifest schema. Plain UTF-8
+source remains a supported input/output independent of package schema; retain
+its exact bytes, IDs and ledgers. Values-only CSV/Markdown is explicitly lossy.
+Current-format backup restore must retain source and references; unsupported
+backup schemas are rejected without conversion.
+
+M1 needs fault injection at atomic source/metadata/package write boundaries,
+current-format backup restore, stale checksum and missing/corrupt metadata
+fixtures. These prove present-format durability, not migration or interoperability
+with earlier binaries. The M0 disk round trip does not establish production
+save durability.
 
 ## Resolution boundary
 

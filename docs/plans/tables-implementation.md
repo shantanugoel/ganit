@@ -27,6 +27,21 @@ references between tables, cross-sheet dependencies, array spills, charts and
 `.xlsx` compatibility are outside the first release. Unsupported formulas get
 explicit diagnostics, not approximate substitutes.
 
+## Compatibility scope
+
+Backward compatibility is out of scope. Implement one current source/package
+format; reject unsupported schema versions clearly. Do not add old-schema
+readers, migration/conversion paths, downgrade support, compatibility shims,
+migration-specific backups or an older-reader capability-publication barrier.
+No byte-for-byte preservation of earlier CLI output is required. This policy
+supersedes prior compatibility requirements for the table work and applies to
+all milestones and the linked ADRs.
+
+Atomic writes, lossless source storage, malformed-block quarantine, current-
+format backups/recovery, and correctness of the supported ordinary calculator
+remain required. Version fields identify the current format and detect
+unsupported inputs; they do not create an obligation to support past formats.
+
 ## Visual references and interaction requirements
 
 The references are saved in the repository and do not depend on this chat:
@@ -247,9 +262,9 @@ type names below describe responsibilities, not mandatory API names.
 | `GanitEngine` | Block source map/codec, typed references and range operands, graph evaluation, identities/bindings, structural-edit transformations, table result snapshots |
 | `GanitFormatting` | Cell/column formats, range errors, interpretation/provenance, source-reference completions |
 | `GanitEditorUI` | Document source-edit coordinator, expanded/inline grid controllers, cell selection, reference picking, summary bar and source-mapped projection |
-| `GanitDocuments` | Capability-aware schema migration/write ordering, recovery, backups, export/import and identity remapping |
+| `GanitDocuments` | Current-format atomic storage, recovery, backups, export/import and identity remapping |
 | `GanitWorkspaceUI` | Insert/Open/Return commands, table-first template, focused-view restoration, title/search integration and multiwindow synchronization |
-| `GanitSystemIntegration` / CLI / Quick UI | Shared evaluator and explicit behavior for table-bearing input; preserve legacy output for ordinary sheets |
+| `GanitSystemIntegration` / CLI / Quick UI | Shared evaluator and explicit scalar/table output contracts |
 
 Extend the sheet evaluation result with a table-result collection keyed by
 identity and source span while retaining per-physical-line results. Refactor
@@ -308,7 +323,7 @@ Keep unfinished behavior behind a development flag until all v1 gates pass.
 - [x] Specify reference grammar/escaping, inherited-variable qualifier,
       ledger/broken-marker encoding and exact range transformation rules.
 - [x] Resolve ADRs for table semantics/editor ownership and table-source/
-      storage compatibility. The experimental wire format is frozen only after
+      storage. The experimental wire format is frozen only after
       M1 fixtures and validation; architecture acceptance is not a format freeze.
 
 M0 execution evidence is in [the disposable spike report](../../Spikes/TablesM0/evidence.md).
@@ -317,9 +332,10 @@ preview capture and dependency traces are checked in alongside the isolated
 `GanitTablesM0` executable. The shipping targets do not depend on it.
 
 [ADR 0016](../adr/0016-table-semantics-and-editor-ownership.md) specifies the
-semantics, reference escaping and precise transformation rules. [ADR 0017](../adr/0017-table-source-and-storage-compatibility.md)
-specifies the ledger approach and metadata/manifest schema 2 with the durable
-capability barrier. Both ADRs are **accepted architectural decisions**. M1 must
+semantics, reference escaping and precise transformation rules. [ADR 0017](../adr/0017-table-source-and-storage.md)
+specifies the ledger approach, current metadata/manifest schema 2, and atomic
+storage/recovery. Backward compatibility and migration are excluded. Both ADRs
+are **accepted architectural decisions**. M1 must
 validate and freeze the production wire format; the disposable encoding is not
 a public format. Source byte measurements set a **4,000 populated-cell provisional
 ceiling**, independently subject to the existing 1 MB source limit; the engine
@@ -352,36 +368,31 @@ before proceeding.
 
 - [ ] Implement block segmentation, source-coordinate mapping, lossless codec,
       IDs, binding validation and malformed/unsupported-block diagnostics.
-- [ ] Add frozen format fixtures and readers for existing and table-capable
-      schemas. Select exact schema numbers in the ADR; do not guess them here.
-- [ ] Establish a pre-migration backup before changing an existing document.
-      This must capture the immediate pre-migration state, even when today's
-      ordinary daily backup already exists; retain it through migration checks.
-      In the first save that introduces table syntax, durably publish the
-      supported capability/schema metadata **before** writing table source.
-      This is an explicit exception to current source-before-metadata saving:
-      old metadata plus new table source after a crash is unsafe. Subsequent
-      saves can use the existing sequence once that barrier is established.
-- [ ] Make modern recovery derive table capability from canonical source when
-      metadata is missing/corrupt. Never recreate legacy metadata around table
-      source or treat unknown table versions as ordinary calculations.
-- [ ] Gate package import/export with its table-capable manifest; preserve
-      old-schema readers, per-document migration and existing plain source.
-      Readers encountering newer required capabilities fail explicitly.
+- [ ] Add frozen fixtures and readers/writers for the single current format:
+      metadata/manifest schema 2, as selected in ADR 0017. Reject unsupported
+      schemas explicitly; do not add older readers or migration paths.
+- [ ] Use atomic source/metadata/package writes and retain ordinary current-
+      format backups. Test interrupted writes; no migration-specific backup
+      or one-time capability barrier is required.
+- [ ] Recover missing/corrupt metadata in the current schema from canonical
+      source without losing IDs, bindings or malformed blocks. Unknown table
+      versions must stay quarantined from ordinary calculations.
+- [ ] Support current-format package import/export and exact plain-source
+      import/export. Do not add downgrade export or schema conversion.
 - [ ] Make malformed tables retainable/saveable without source loss; editing
       must not replace an invalid table with the last valid projection.
 
-**Exit:** interrupted saves at each capability/source/metadata stage recover
-the complete old or new source. IDs, broken references and formulas survive
-save/reload, plain-source recovery, backup restore and corruption drills.
-Existing schema fixtures still load; supported package downgrade is rejected
-clearly. Do not promise safety when old apps import raw new text or reconstruct
-missing metadata: older binaries cannot be retroactively taught the syntax.
+**Exit:** interrupted atomic writes preserve a complete committed source.
+IDs, broken references and formulas survive current-format save/reload,
+plain-source recovery, current-format backup restore and corruption drills.
+Current-format fixtures load; unsupported schemas are rejected explicitly.
+No older-format reader, upgrade/downgrade or migration rollback is required.
 
 ### M2 — Formula grammar, graph and typed range operations
 
 - [ ] Add scoped AST/reference forms, bindings, inherited-scope reads and
-      typed cell/range operands. Preserve legacy grammar and corpus answers.
+      typed cell/range operands. Verify supported ordinary syntax and arithmetic
+      alongside table formulas; no separate legacy parser or evaluator path.
 - [ ] Implement iterative graph evaluation, SCC diagnostics, blocked-result
       propagation, cycle paths and original-cause source ranges.
 - [ ] Implement range aggregates, empty/type/error rules, whole-row/column
@@ -422,7 +433,7 @@ an edit invalidates the necessary dependents without reparsing unrelated cells.
 **Exit:** insert/delete/rename/copy/fill → Undo → redo → save → reload tests
 preserve intended targets. Added rows inherit the column formula and update
 later prose. Changing an earlier assumption recalculates cells and downstream
-results. Existing ordinary/Markdown/definitions answers remain compatible.
+results. Supported ordinary/Markdown/definitions calculations remain correct.
 
 ### M4 — Expanded native table editing
 
@@ -486,9 +497,9 @@ IME, Find, Undo or accessibility correctness to match a screenshot.
       `+`, `-` or `@` when another app might interpret them as formulas.
 - [ ] Update HTML, PDF/print and Quick Look to render mixed blocks, with repeated
       table headers on continued pages, readable units and explicit failures.
-- [ ] Keep current CLI output byte-compatible for table-free sheets. Add a
-      documented structured table-result output mode rather than flattening
-      cell results into unrelated physical-line answers. Single-expression
+- [ ] Define documented scalar and structured table-result CLI output modes;
+      do not flatten cells into unrelated physical-line answers or add legacy
+      output adapters. Single-expression
       Services/Shortcuts retain their scalar contract and diagnose table input.
 - [ ] Complete the verification matrix below, frozen-format/grammar docs,
       Help/completions, recovery guidance, release notes and sample sheets.
@@ -505,12 +516,12 @@ implemented in documentation. Publish/ship remains a separate release action.
 
 | Concern | Verification / likely suite |
 | --- | --- |
-| Legacy compatibility | Existing engine golden corpora, variable/line-reference/Markdown/definitions suites; collision cases for B2, `$`, `!`, `:`, `|` and `@N` |
+| Current calculator correctness | Engine golden corpora, variable/line-reference/Markdown/definitions suites; scoped syntax cases for B2, `$`, `!`, `:`, `|` and `@N`; no cross-version compatibility matrix |
 | Source fidelity and IDs | New block/codec tests with untouched-byte round trips, Unicode/line endings, duplicate IDs, stale ledgers, malformed and unknown blocks |
 | Formula correctness | New table parser/evaluator fixtures and seeded properties for exact values, range versus scalar reductions, directionality and error propagation |
 | Reference integrity | New transformation/property tests with randomized edits; replay inverse edits and reopen source to check targets and copy flags |
 | Scope and snapshots | SheetCalculator/scheduler tests for redefinitions, dividers, earlier tables, superseded generations, cancellation and clock/rate changes |
-| Storage and recovery | GanitDocuments schema/frozen-format/fault/recovery tests; crash barrier, missing metadata, backup restore, duplicate import and migration rollback |
+| Storage and recovery | Current-schema frozen-format/fault/recovery tests; atomic writes, missing/corrupt metadata, current-format backup restore and duplicate import |
 | Native editing | GanitEditorUI integration tests for cell/edit/reference-pick states, shared Undo, copy/paste and Find; real IME, VoiceOver listening and RTL review |
 | Presentation/export | Mixed-sheet renderer/Quick Look fixtures; inspect multi-page print/PDF, display/full precision, invalid cells, CSV literal/formula cases |
 | Scale and footprint | Benchmarks with 1,000 populated ordinary cells and 10,000 dependent cells; range membership edits, cancellation, memory and idle CPU |
@@ -534,12 +545,12 @@ editing/scheduler, storage/write order, recovery and headless integration on
 | --- | --- |
 | IDs alone do not preserve bindings after reload | Persist a source-validated reference ledger and broken targets; distinguish new text from existing bindings |
 | Finite rectangles versus growing columns were underspecified | Explicit insertion/deletion/append rules; data-only growing named columns; destructive sorting deferred |
-| A named sheet variable can look like an address | Scoped parsing and explicit `sheet[B2]`; legacy bare B2 remains a variable |
+| A named sheet variable can look like an address | Scoped parsing and explicit `sheet[B2]`; ordinary bare B2 is a variable |
 | Blank/text/count rules could silently inherit Excel coercion | Define scalar errors, range policies, empty results, override blanks and Ganit count behavior |
 | Type-directed parsing can precede dependency availability | Separate reference discovery/binding from typed parsing and graph evaluation |
-| New schemas do not fix a source-first crash window | Pre-migration backup and durable capability barrier before the first table-source write |
-| Recovery can regenerate old metadata around new syntax | Modern recovery discovers capability from source; document the old-reader/raw-text limitation |
-| Fragment-by-fragment evaluation would reset sheet state | Integrate blocks into one scope/physical-line fold and preserve legacy instrumentation |
+| Interrupted writes must retain complete canonical source | Atomic current-format writes and recovery; no legacy migration or capability barrier |
+| Missing/corrupt metadata must not lose table source | Rebuild current-schema metadata from canonical source; retain malformed/unknown blocks |
+| Fragment-by-fragment evaluation would reset sheet state | Integrate blocks into one scope/physical-line fold and retain ordinary-sheet cache instrumentation |
 | Raw table lines could enter aggregates or assistant fallback | Explicit block boundaries, non-scalar table lines and no automatic table assistant fan-out |
 | Expanded grid could create a second source/Undo owner | One source coordinator, derived projections, coherent Undo and multiwindow synchronization |
 | Visuals omit several production interactions | List formula editing, column rules, repair, selection/paste and Return to Sheet explicitly |
@@ -559,12 +570,13 @@ unverified acceptance result has been converted into a pass.
 Use branch `tables` in `/Users/shantanugoel/.codex/worktrees/tables-m0/ganit`.
 Start **M1 — Source model, identity and safe storage**, then work through M2–M6
 in order. Read this plan and accepted ADRs [0016](../adr/0016-table-semantics-and-editor-ownership.md)
-and [0017](../adr/0017-table-source-and-storage-compatibility.md), plus the linked
+and [0017](../adr/0017-table-source-and-storage.md), plus the linked
 [M0 evidence](../../Spikes/TablesM0/evidence.md) and [spike README](../../Spikes/TablesM0/README.md).
 The prototypes are disposable proof, not shipping implementation. Keep work in
 this worktree, preserve milestone boundaries and enforce the native M4/M5 and
 M6 release gates. Defaults are resolved: inline preview/Open Table; shared
 canonical source/Undo; persistent identity and source-validated ledger;
-metadata/manifest schema 2 with capability barrier; provisional 4,000-cell
+current metadata/manifest schema 2 with atomic storage and no backward
+compatibility; provisional 4,000-cell
 ceiling plus the existing 1 MiB source limit. M1 owns validating/freezing the
 exact production wire encoding with fixtures before later modules consume it.
