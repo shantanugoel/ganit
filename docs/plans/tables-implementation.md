@@ -1,0 +1,517 @@
+# Calculation tables: implementation plan
+
+Date: 2026-10-01. Status: reviewed implementation proposal; implementation has
+not started. This plan refines the [investigation](../design/tables-investigation.md)
+and governs its unresolved details for this feature. It does not replace
+accepted ADRs; milestone M0 must record the new architecture decisions.
+
+## Outcome and scope
+
+Add named, bounded calculation tables to regular and Markdown workspace
+sheets. Users can keep assumptions above a table, calculate cells and columns
+inside it, and refer to its results below. Expanded editing operates on the
+same table and shares the document's source and Undo history. A table-first
+new-sheet action is a template, not a separate sheet format or engine.
+
+The first release includes typed inputs, formula cells, calculated columns,
+A1 and structured references, ranges, row/column addressing, copy/fill locking,
+cycle diagnostics, rectangular selection/paste, totals, focused editing and
+lossless storage. Inline editing is a gated part of that release: if native
+editing gates fail, ship an inline preview plus Open Table, preserving the
+same block model. No dates or effort estimate until M0's spikes pass.
+
+Comparisons, lazy `if`, conditional aggregates, lookup and text functions are
+a following increment. Destructive sort, filtering, arbitrary forward
+references between tables, cross-sheet dependencies, array spills, charts and
+`.xlsx` compatibility are outside the first release. Unsupported formulas get
+explicit diagnostics, not approximate substitutes.
+
+## Visual references and interaction requirements
+
+The references are saved in the repository and do not depend on this chat:
+
+- [Interactive concept](../design/tables/concept.html): use the bottom picker
+  to switch between Within a sheet and Expanded table. Change quantities,
+  prices or add a row to explore the fixed calculation rule.
+- [Editable reference source and notes](../design/tables/README.md).
+
+### Within a sheet
+
+![Table between assumptions and dependent sheet calculations](../design/tables/within-sheet.jpg)
+
+Preserve the ordinary writing surface around the table. Use quiet dividers,
+system fonts, numeric alignment and existing Ganit number formatting. A
+selected formula exposes its source and referenced cells. Addresses appear
+when useful, rather than making a permanent spreadsheet frame dominate prose.
+The block can use the available editor width; the answer-column rule must
+not cut through it. Below-table results use the sheet's existing regular or
+Markdown answer placement.
+
+### Expanded editing
+
+![Expanded editing of the same table with row and column addresses](../design/tables/expanded-table.jpg)
+
+Use the editor pane for the selected table with stable headers, a compact
+formula field and a discoverable Return to Sheet action. Restore the previous
+prose cursor, table selection and scroll position. The illustrated formula
+field is read-only in the concept; production editing, reference picking,
+column-formula controls, error cards and Return to Sheet are required work.
+
+The concept is an interaction/layout reference, not production code, a native
+screenshot, a storage-format example or a general formula parser. Its fixed
+INR arithmetic, simplified validation and controls do not define engine rules.
+Map the visuals to [Ganit's semantic visual system](../design/visual-system.md).
+
+## Contract to implement
+
+### Document and scope
+
+1. Recognize explicitly delimited table blocks before ordinary line syntax
+   or Markdown prose classification. Plain Markdown pipe tables stay prose.
+2. Preserve physical source-line numbering. Each table source line has no
+   ordinary scalar answer: `line N`/`@N` targeting it fails explicitly and
+   points to qualified table references instead.
+3. Preserve existing top-to-bottom scope, redeclarations, custom-unit/rate/
+   function closures and divider resets. Capture the visible scope when the
+   table begins. References to later prose or later tables fail in v1.
+4. Inside one table, references may point in any direction; graph order,
+   rather than row order, determines evaluation. Later tables and ordinary
+   lines can read visible earlier tables.
+5. Table names are case-insensitively unique within a sheet, even across
+   dividers. Dividers reset table visibility along with ordinary local scope.
+   Column names are unique within their table. Headers can contain spaces,
+   currency names and unit words without becoming variables or units.
+6. A table ends the ordinary aggregate block before and after itself without
+   resetting variables. Its cells and visual totals never silently join bare
+   `sum`, `subtotal` or `previous` in prose. Use qualified references to consume
+   them. Inside table formulas, diagnose bare aggregate/`previous` keywords;
+   explicit range arguments are required.
+7. V1's grid UI is a workspace feature. Definitions remains a declaration
+   surface; reject tables there rather than accidentally exporting table
+   values globally. Quick Ganit must identify pasted table blocks and offer
+   an explicit workspace path or a clear unsupported-view response. It must
+   not calculate raw table rows as ordinary lines or lose their source.
+
+### Cell input and values
+
+- Distinguish blank, literal text, typed literal input, formula source,
+  inherited column formula and an explicit override. Formula cells start
+  with `=`. Empty input is blank, not zero. A blank override is distinguishable
+  from clearing an override and inheriting the column rule again.
+- Start with explicit text versus value column input policies. Value inputs
+  accept complete supported literals: numbers, percentages, money, quantities
+  and temporal values. Arithmetic such as `1-2` requires `=`; suggest that fix
+  instead of interpreting it as a date or silently switching it to text.
+  Column unit/currency defaults affect interpretation and therefore belong in
+  canonical source, not just display metadata. Use existing locale policy.
+- Keep ordinary scalar values as `EngineValue`. A separate cell/operand layer
+  carries text, blank, range views and failures. General string and boolean
+  expression support is not required for v1.
+- Arithmetic on blank/text is an error. Range `sum`, `average`, `median`,
+  `min` and `max` skip blank/text, propagate failed cells and require compatible
+  scalar kinds. Preserve exactness, dimensional checks and currency checks;
+  require explicit currency conversion. Typed min/max need implementation
+  and tests; current numeric-only paths are not automatically sufficient.
+- Preserve existing empty numeric `sum` → `0`. An empty typed column can
+  produce its declared typed zero when its kind admits an additive zero;
+  otherwise diagnose the unsupported aggregation. Empty average/median/min/max
+  is an error regardless of column type. Reference failure is never an empty
+  range or zero.
+- Preserve existing explicit-list `count(...)` semantics. In v1, `count(range)`
+  counts nonblank scalar values, including money/units/temporal values, and
+  fails on formula errors; text is excluded. Selection shows selected cell
+  count separately. Document this Ganit behavior instead of claiming Excel
+  COUNT compatibility; a distinct nonblank count can follow later.
+- Formatting never changes stored values. Ranges/derived totals must not
+  substitute rounded or displayed text into formulas. Carry approximation,
+  rounding, currency-rate and clock provenance through dependencies.
+
+### Addressing
+
+These spellings are proposed implementation contracts, pending the grammar
+spike and ADR. Examples assume header row 1, first data row 2.
+
+| Form | Meaning |
+| --- | --- |
+| `=B2 * C2` | Scalars within the current table |
+| `=$B$2`, `=$B2`, `=B$2` | Both, column-only or row-only locking during copy/fill |
+| `=sum(B2:D6)` | Rectangular range |
+| `=sum(C:C)` | Bounded data column; excludes header and visual totals |
+| `=sum(2:2)` | Bounded data row; does not exclude the formula cell if it lies there |
+| `=[@Qty] * [@[Unit price]]` | Current row's named columns |
+| `=sum(Items[Amount])` | Current data membership of a named column |
+| `=Rates!B2`, `=sum(Rates!B2:B8)` | Qualified cells/ranges in a visible earlier table |
+| `=sheet[B2]` | Inherited ordinary variable named B2, rather than a cell |
+| `cost = sum(Items[Amount])` | Qualified table operand in a later ordinary line |
+
+Reserve `sheet` as a table identifier for the inherited-scope qualifier, not
+as a new forbidden ordinary variable name. Outside table formulas, bare `B2`
+keeps its current variable meaning; only explicit table-qualified references
+enter the added grammar. Add escaping rules for punctuation in headers and
+table identifiers. Do not silently reinterpret `$` money, `!` factorial,
+time/label `:`, bitwise `|`, `@N`, or completion queries.
+
+In table formulas accept case-insensitive aliases for the supported built-in
+function set, so `SUM` and `sum` work alike. Preserve ordinary-sheet dispatch
+and existing custom-function naming. Diagnosing bare aggregate keywords must
+not reject an inherited variable with that name; `sheet[count]` makes that
+intent explicit when it would otherwise be ambiguous.
+
+Scalar header references return text. The totals footer is a summary surface
+without a numbered data row; its configuration is persisted, and its operands
+read data rows only. Refer to its equivalent named aggregate in prose. A
+whole row/column that includes the formula itself is a cycle: never special-
+case it by removing the current cell. A1 addresses outside table bounds fail;
+there is no infinite worksheet or automatically expanding reference target.
+
+### Structural edit semantics
+
+| Operation | Required behavior |
+| --- | --- |
+| Edit a value/formula | Keep table/row/column identities; recalculate dependents |
+| Insert row/column | Existing scalar references follow targets, including `$` references; insertion strictly inside a rectangular range expands it, insertion before it shifts it, insertion just outside it does not extend it |
+| Append a row | Named/whole-column ranges grow; a finite rectangle does not grow merely because a row was appended after it |
+| Delete a scalar target | Persist a broken-reference token with original target identity; reuse of its old coordinate cannot repair it |
+| Delete inside a rectangle | Remove that membership and shrink surviving bounds; if no referenced data survives, persist a broken range |
+| Delete a rectangular endpoint | Surviving included rows/columns become the new bounds; do not accidentally include an adjacent outside row |
+| Rename table/column | Rewrite bound source references in the same Undo transaction; ordinary text/comments are untouched |
+| Copy/fill formula | Translate unlocked axes from source cell to destination; locked axes stay fixed; out-of-bounds translations become persistent broken references |
+| Move formula/cell | Preserve referenced identities; do not apply copy translation |
+| Copy table/sheet | Mint appropriate new table/row/column IDs and rebind references internal to the copied set; preserve external references only when their targets remain visible, otherwise mark broken |
+| Change column rule | Update inherited cells; preserve and visibly mark per-cell overrides |
+| Undo/redo | Restore source, IDs, references and selection as one coherent document edit; then recalculate |
+
+Structured column names stay attached to the same column during v1 copy/fill;
+only a current-row qualifier changes its row context. This is a documented
+simplification of Excel's structured-reference fill variants. A relative A1
+column-rule template is anchored to the first data row and instantiated with
+the same copy rules, including newly appended rows. Preserve relative offsets
+and locked target identities when inserting/deleting the anchor row; rebase
+the template as part of that edit. An empty table retains a virtual row-2
+template anchor and instantiates its rule when data is added. Test zero-row,
+one-row and first-row insertion/deletion cases explicitly.
+
+Use a versioned Ganit clipboard payload with source origin and formula/input
+policy for internal copy/fill; preserve plain TSV as the interoperable fallback.
+An arbitrary external formula string has no trustworthy source origin: bind
+it at the destination after explicit formula-paste selection. V1 rectangular
+move applies within the same table; cross-table moves are deferred until target
+qualification and inherited-scope changes have an explicit contract.
+
+V1 has no destructive sort or arbitrary row move. A later sorting increment
+must settle the tension between references that follow records and rectangular
+ranges before enabling it. View-only sort/filter does not change canonical
+address order; ordinary aggregates still include hidden data.
+
+### Identity in source and after reload
+
+Use persistent `TableID`, `RowID` and `ColumnID`; a data-cell identity is their
+tuple, avoiding an extra UUID for every cell. Header identities are distinct.
+Never use session `LineID` or a physical row index as durable identity.
+
+The versioned block stores readable inputs/formulas, ordered IDs, semantic
+column settings, column rules/overrides and a reference-binding ledger. The
+ledger associates formula occurrences with target identities and copy flags;
+readable A1/name source alone is insufficient to stop deleted references from
+rebinding after reload. Successful structural edits rewrite both together.
+Broken references are explicitly represented in source, with repair commands.
+The exact ledger encoding and broken-marker spelling are M0 decisions.
+
+Anchor table-formula bindings by owning cell/rule identity, not a global text
+offset. Ordinary prose references use the existing rewrite-and-persist pattern:
+successful table address rewrites and deleted-target markers survive reload
+as source. Prose lines do not gain persistent `LineID`s for this feature. M0
+must prove both paths, including duplicate formula text in different locations.
+
+Bind a freshly typed/pasted reference to its current address. Reuse persisted
+bindings only when their formula-source fingerprint matches. A manually
+edited formula invalidates its old bindings; do not attach a stale occurrence
+ordinal to different text. Diagnose duplicate IDs, conflicting ledgers and
+malformed blocks without mutating their source. New IDs are minted only for
+deliberate creation, duplication or an explicit repair, not on every parse.
+
+Lossless parse/serialize preserves untouched UTF-8 text and line endings.
+Source commands patch relevant spans; parser recovery retains the complete
+malformed/unknown block and stops its body from being evaluated as prose.
+Plain source export includes identities/bindings; values-only Markdown/CSV
+exports are explicitly lossy presentations.
+
+## Architecture and ownership
+
+Keep the existing module boundaries and deterministic engine. Proposed new
+type names below describe responsibilities, not mandatory API names.
+
+| Layer | Work |
+| --- | --- |
+| `GanitEngine` | Block source map/codec, typed references and range operands, graph evaluation, identities/bindings, structural-edit transformations, table result snapshots |
+| `GanitFormatting` | Cell/column formats, range errors, interpretation/provenance, source-reference completions |
+| `GanitEditorUI` | Document source-edit coordinator, expanded/inline grid controllers, cell selection, reference picking, summary bar and source-mapped projection |
+| `GanitDocuments` | Capability-aware schema migration/write ordering, recovery, backups, export/import and identity remapping |
+| `GanitWorkspaceUI` | Insert/Open/Return commands, table-first template, focused-view restoration, title/search integration and multiwindow synchronization |
+| `GanitSystemIntegration` / CLI / Quick UI | Shared evaluator and explicit behavior for table-bearing input; preserve legacy output for ordinary sheets |
+
+Extend the sheet evaluation result with a table-result collection keyed by
+identity and source span while retaining per-physical-line results. Refactor
+the existing top-to-bottom fold to visit text/table blocks with one live scope
+and one physical-line map. Do not evaluate separate text fragments using fresh
+`SheetCalculator`s: that loses references, redeclarations and aggregate state.
+Keep a fast path and existing cache instrumentation for table-free sheets.
+
+Each table calculator binds references, discovers dependencies, identifies
+cycles and evaluates the acyclic graph. Discover references using a dedicated
+syntax/binding pass before Ganit's value-kind-directed parse. Defer parsing
+percentage/unit phrases until dependency kinds are available. Cache parsed
+ASTs by source and operand kinds, outcomes by inputs/context, and range nodes
+by membership. Include inherited custom functions and captured dependencies.
+
+Use an iterative graph walk/SCC algorithm with reverse dependencies and
+cancellation; recursive 10,000-cell chains must not overflow the stack. Report
+cycle participants, blocked dependents and original failing cell addresses.
+Independent components still calculate. Recheck missing-reference bindings
+when structure changes, so adding a previously missing named column can
+repair a fresh unresolved name without reviving a deliberate deleted marker.
+
+Ranges are bounded views over outcomes, with shared membership/dependency
+nodes; do not convert a range into thousands of positional function arguments
+or repeat its cell-edge set for every reader. One generation uses one clock,
+currency-rate snapshot and inherited-scope snapshot. Reuse latest-generation
+commit, clock-boundary scheduling and cancellation in the current scheduler.
+
+Move authoritative source-edit orchestration out of `NSTextView` ownership
+only as needed. Text and grid edits must pass through the same document Undo,
+source update, reference rewrite, autosave and evaluation pipeline. Projections
+are derived and never independently saved. Multiwindow updates must refresh
+both projections and preserve the existing document conflict policy.
+
+No automatic assistant fallback for table syntax/errors and no per-cell request
+fan-out. Keep formula computation local. Any later explicit selected-cell
+assistant action follows the existing opt-in behavior and marks provenance.
+
+## Milestones and exit criteria
+
+Each milestone should be a reviewable change or a small series of changes.
+Keep unfinished behavior behind a development flag until all v1 gates pass.
+
+### M0 — Close architectural questions with disposable spikes
+
+- [ ] Prototype a lossless versioned block plus identity/reference ledger.
+      Exercise Unicode, CR/LF/CRLF, quotes, brackets, multi-line text, decimal
+      commas and formula `|`. Check size overhead against the 1 MB source limit.
+- [ ] Prototype a rightward/downward dependency, a cycle with an independent
+      valid component, and a 10,000-cell chain using Ganit arithmetic.
+- [ ] Prototype an expanded native grid edit through document Undo and a
+      source-mapped inline block. Check focus, cross-boundary selection/copy,
+      Find navigation, IME and VoiceOver; check the answer-column layout.
+- [ ] Specify reference grammar/escaping, inherited-variable qualifier,
+      ledger/broken-marker encoding and exact range transformation rules.
+- [ ] Write proposed ADRs for table semantics/editor ownership and table-source/
+      storage compatibility. Resolve them before freezing a public format.
+
+**Exit:** round-trip fixture examples, dependency traces, native editing proof,
+measured size/latency, and an explicit inline-edit versus preview decision are
+recorded. No unresolved semantic question is delegated to incidental UI code.
+If inline editing fails, accept the documented preview/Open Table fallback.
+If source recovery, exact arithmetic or shared Undo fails, revise the design
+before proceeding.
+
+### M1 — Source model, identity and safe storage
+
+- [ ] Implement block segmentation, source-coordinate mapping, lossless codec,
+      IDs, binding validation and malformed/unsupported-block diagnostics.
+- [ ] Add frozen format fixtures and readers for existing and table-capable
+      schemas. Select exact schema numbers in the ADR; do not guess them here.
+- [ ] Establish a pre-migration backup before changing an existing document.
+      This must capture the immediate pre-migration state, even when today's
+      ordinary daily backup already exists; retain it through migration checks.
+      In the first save that introduces table syntax, durably publish the
+      supported capability/schema metadata **before** writing table source.
+      This is an explicit exception to current source-before-metadata saving:
+      old metadata plus new table source after a crash is unsafe. Subsequent
+      saves can use the existing sequence once that barrier is established.
+- [ ] Make modern recovery derive table capability from canonical source when
+      metadata is missing/corrupt. Never recreate legacy metadata around table
+      source or treat unknown table versions as ordinary calculations.
+- [ ] Gate package import/export with its table-capable manifest; preserve
+      old-schema readers, per-document migration and existing plain source.
+      Readers encountering newer required capabilities fail explicitly.
+- [ ] Make malformed tables retainable/saveable without source loss; editing
+      must not replace an invalid table with the last valid projection.
+
+**Exit:** interrupted saves at each capability/source/metadata stage recover
+the complete old or new source. IDs, broken references and formulas survive
+save/reload, plain-source recovery, backup restore and corruption drills.
+Existing schema fixtures still load; supported package downgrade is rejected
+clearly. Do not promise safety when old apps import raw new text or reconstruct
+missing metadata: older binaries cannot be retroactively taught the syntax.
+
+### M2 — Formula grammar, graph and typed range operations
+
+- [ ] Add scoped AST/reference forms, bindings, inherited-scope reads and
+      typed cell/range operands. Preserve legacy grammar and corpus answers.
+- [ ] Implement iterative graph evaluation, SCC diagnostics, blocked-result
+      propagation, cycle paths and original-cause source ranges.
+- [ ] Implement range aggregates, empty/type/error rules, whole-row/column
+      bounds and data-only named membership; audit typed min/max explicitly.
+- [ ] Reuse exact arithmetic, conversions, functions, rate/clock context and
+      provenance. Diagnose unsupported/bare table functions explicitly.
+- [ ] Add dependency invalidation, range-membership invalidation and resource
+      limits. Start with provisional per-sheet 10,000 populated cells,
+      100,000 dependency links and 1,000,000 range-cell visits per generation;
+      validate/tune these in M0/M6. Keep the existing 1 MB source limit and
+      arithmetic/syntax limits. Diagnose limits; never truncate calculation.
+      Bound total scalar operations per table generation as well as per cell,
+      so many individually legal heavy formulas cannot evade the work budget.
+
+**Exit:** engine/corpus cases cover references in every direction, exact
+money/units, compatible/incompatible ranges, empty inputs, dynamic column
+membership, cycles and independent results. A 10,000-cell chain is stack-safe;
+an edit invalidates the necessary dependents without reparsing unrelated cells.
+
+### M3 — Structural edits and mixed-sheet evaluation
+
+- [ ] Implement pure source transformations for creation, insertion/deletion,
+      rename, formula copy/fill/move, table/sheet duplication and column rules.
+      Persist automatic rewrites and broken markers in the triggering edit.
+- [ ] Apply every operation in the structural-edit contract, including range
+      endpoint deletion and copy-lock behavior. Reject ambiguous partial moves
+      rather than guessing; basic contiguous rectangular moves are sufficient.
+- [ ] Integrate table evaluation into the existing fold/cache, keeping inherited
+      definitions, dividers, physical line references and aggregate boundaries.
+- [ ] Extend result snapshots/scheduler and failure navigation; check ordinary
+      line-reference renumbering never scans table formula or identity text as
+      prose. Table formulas' deliberate `@N` reads of earlier prose still follow
+      their targets through the unified transformation path.
+- [ ] Verify definitions/Quick boundaries, assistant suppression, title
+      derivation and search. A table-first sheet should be titled from its
+      display name, not an identity/codec record.
+
+**Exit:** insert/delete/rename/copy/fill → Undo → redo → save → reload tests
+preserve intended targets. Added rows inherit the column formula and update
+later prose. Changing an earlier assumption recalculates cells and downstream
+results. Existing ordinary/Markdown/definitions answers remain compatible.
+
+### M4 — Expanded native table editing
+
+- [ ] Build a view-based AppKit grid using reused rows/cells and the existing
+      visual tokens/formatters. Add virtualized rendering before large-table QA.
+- [ ] Implement cell-versus-edit selection states, rectangular selection,
+      keyboard navigation, commit/cancel and document Undo. Test IME composition
+      without recalculating or rewriting marked text before commit.
+- [ ] Implement editable formula field, reference picking/dragging, completion
+      and source/target highlighting. During formula editing, picking a cell
+      inserts a reference rather than unexpectedly committing or moving focus.
+- [ ] Add explicit column-rule creation, per-cell override indication/reset,
+      row/column add/delete, copy values/formulas, rectangular TSV paste/fill,
+      totals and typed selection summaries.
+- [ ] Add Show Interpretation, full-precision copy, broken-reference repair and
+      original-failure navigation. Pending evaluation must not display an old
+      answer as if it belongs to newly edited input.
+- [ ] Implement Open Table/Return to Sheet state restoration and multiwindow
+      projection synchronization through the source coordinator.
+
+**Exit:** keyboard and VoiceOver users can create a table, enter data, write a
+column formula, pick a reference, paste a rectangle, recover an error, undo and
+return to prose. No separate grid Undo/source store or eager per-cell views.
+
+### M5 — Embedded presentation in both sheet modes
+
+- [ ] Reserve mapped block layout without object-replacement characters in
+      canonical source. Make surrounding text selection, caret movement,
+      scrolling and answer placement work at both table boundaries.
+- [ ] Add Insert Table and rectangular-paste conversion with deliberate header/
+      type selection. Keep ordinary multi-line paste unchanged unless chosen.
+- [ ] Render inline totals/errors and formula inspection. If M0 selected the
+      fallback, make the inline preview accessible and use Open Table for edits.
+- [ ] Integrate Find, cross-boundary copy, printing/source inspection, narrow
+      windows, scaled text, right-to-left content and assistive navigation.
+      Search results must open the relevant cell in expanded mode when needed.
+- [ ] Recheck native marked text, responder-chain commands and Undo after
+      moving between text and table editing. Support normal and Markdown answer
+      placement without changing table formula semantics.
+
+**Exit:** repeat M0's native editing checks on the integrated controller.
+If direct editing fails them, use the preview fallback; do not waive source,
+IME, Find, Undo or accessibility correctness to match a screenshot.
+
+### M6 — Export, verification and release readiness
+
+- [ ] Export/import `.ganit` and plain source losslessly; expose selected-table
+      TSV/CSV values and explicit formulas mode with locale/header handling.
+      Define a documented safe CSV/text treatment for literal leading `=`,
+      `+`, `-` or `@` when another app might interpret them as formulas.
+- [ ] Update HTML, PDF/print and Quick Look to render mixed blocks, with repeated
+      table headers on continued pages, readable units and explicit failures.
+- [ ] Keep current CLI output byte-compatible for table-free sheets. Add a
+      documented structured table-result output mode rather than flattening
+      cell results into unrelated physical-line answers. Single-expression
+      Services/Shortcuts retain their scalar contract and diagnose table input.
+- [ ] Complete the verification matrix below, frozen-format/grammar docs,
+      Help/completions, recovery guidance, release notes and sample sheets.
+- [ ] Run task-based usability checks and performance gates on representative
+      supported macOS versions, including macOS 14. Keep feature initialization
+      lazy for ordinary sheets and Quick Ganit.
+
+**Exit:** all mandatory rows in the verification matrix have recorded evidence;
+the selected inline mode passes native editing gates; ordinary workflows meet
+existing budgets. Only then remove the development flag and mark the feature
+implemented in documentation. Publish/ship remains a separate release action.
+
+## Verification matrix
+
+| Concern | Verification / likely suite |
+| --- | --- |
+| Legacy compatibility | Existing engine golden corpora, variable/line-reference/Markdown/definitions suites; collision cases for B2, `$`, `!`, `:`, `|` and `@N` |
+| Source fidelity and IDs | New block/codec tests with untouched-byte round trips, Unicode/line endings, duplicate IDs, stale ledgers, malformed and unknown blocks |
+| Formula correctness | New table parser/evaluator fixtures and seeded properties for exact values, range versus scalar reductions, directionality and error propagation |
+| Reference integrity | New transformation/property tests with randomized edits; replay inverse edits and reopen source to check targets and copy flags |
+| Scope and snapshots | SheetCalculator/scheduler tests for redefinitions, dividers, earlier tables, superseded generations, cancellation and clock/rate changes |
+| Storage and recovery | GanitDocuments schema/frozen-format/fault/recovery tests; crash barrier, missing metadata, backup restore, duplicate import and migration rollback |
+| Native editing | GanitEditorUI integration tests for cell/edit/reference-pick states, shared Undo, copy/paste and Find; real IME, VoiceOver listening and RTL review |
+| Presentation/export | Mixed-sheet renderer/Quick Look fixtures; inspect multi-page print/PDF, display/full precision, invalid cells, CSV literal/formula cases |
+| Scale and footprint | Benchmarks with 1,000 populated ordinary cells and 10,000 dependent cells; range membership edits, cancellation, memory and idle CPU |
+| Real jobs | 5–8 participants: budget/per-person cost, unit-aware materials estimate and monthly figures; observe creation, formula picking, growth and error repair |
+
+Use the existing P95 16 ms ordinary / 50 ms stress edit-to-visible-answer
+goals as provisional table targets. Record hardware, release build, dataset,
+populated cell/edge counts, measured percentile and resident footprint. Run
+long-chain, many readers of one large range, dense dependencies, structure
+changes and alternating text/table edits. If a gate fails, fix or explicitly
+reduce/review the documented limits; do not relabel unmeasured goals as results.
+Table-free sheets and Quick Ganit retain current launch, memory and idle gates.
+
+## Re-review record
+
+Reviewed again against the current calculator, parser/value model, source
+editing/scheduler, storage/write order, recovery and headless integration on
+2026-10-01. This is a design review, not verification of an implementation.
+
+| Issue found in the investigation | Resolution in this plan |
+| --- | --- |
+| IDs alone do not preserve bindings after reload | Persist a source-validated reference ledger and broken targets; distinguish new text from existing bindings |
+| Finite rectangles versus growing columns were underspecified | Explicit insertion/deletion/append rules; data-only growing named columns; destructive sorting deferred |
+| A named sheet variable can look like an address | Scoped parsing and explicit `sheet[B2]`; legacy bare B2 remains a variable |
+| Blank/text/count rules could silently inherit Excel coercion | Define scalar errors, range policies, empty results, override blanks and Ganit count behavior |
+| Type-directed parsing can precede dependency availability | Separate reference discovery/binding from typed parsing and graph evaluation |
+| New schemas do not fix a source-first crash window | Pre-migration backup and durable capability barrier before the first table-source write |
+| Recovery can regenerate old metadata around new syntax | Modern recovery discovers capability from source; document the old-reader/raw-text limitation |
+| Fragment-by-fragment evaluation would reset sheet state | Integrate blocks into one scope/physical-line fold and preserve legacy instrumentation |
+| Raw table lines could enter aggregates or assistant fallback | Explicit block boundaries, non-scalar table lines and no automatic table assistant fan-out |
+| Expanded grid could create a second source/Undo owner | One source coordinator, derived projections, coherent Undo and multiwindow synchronization |
+| Visuals omit several production interactions | List formula editing, column rules, repair, selection/paste and Return to Sheet explicitly |
+| Empty/first-row tables and external formula paste have special binding behavior | Define virtual template anchors, rebase rules, internal clipboard origins and explicit external formula paste |
+| Inline native integration may not pass usability/accessibility gates | Keep expanded editing as the foundation and allow accessible inline preview as a bounded fallback |
+| Existing line-oriented exports/headless answers could flatten tables | Block-aware renderers and explicit structured CLI output, preserving old output for old sheets |
+
+No unresolved issue blocks **starting M0**. Source grammar, ledger encoding,
+schema versions, measured limits and the native inline approach remain explicit
+M0 decisions, with proof required before production implementation. They are
+not implicit approvals to bypass the exit gates.
+
+## First implementation task
+
+Start M0 with a source/binding round-trip fixture and a tiny native prototype
+containing an assumption, a three-row Items table and a dependent prose line.
+Prove delete-target → broken reference → Undo → save/reload; a forward cell
+reference and cycle; and expanded-grid editing through the sheet's Undo.
+Record the resulting codec/editor decisions and measurements in the ADRs and
+this plan before proceeding to M1.

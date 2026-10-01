@@ -1,0 +1,183 @@
+<div id="ganit-tables-concept">
+  <style>
+    #ganit-tables-concept { color-scheme: light dark; font: 14px -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; --gt-paper: light-dark(#ffffff, #202020); --gt-chrome: light-dark(#f1f1f1, #303030); --gt-ink: light-dark(#202020, #eeeeee); --gt-secondary: light-dark(#656565, #b4b4b4); --gt-rule: light-dark(#dddddd, #464646); --gt-focus: light-dark(#006ac3, #67b7ff); --gt-selected: light-dark(#e5f1ff, #263c4f); color: var(--gt-ink); }
+    #ganit-tables-concept * { box-sizing: border-box; }
+    #ganit-tables-concept .gt-stage { min-height: 610px; }
+    #ganit-tables-concept .gt-window { background: var(--gt-paper); border: 1px solid var(--gt-rule); border-radius: 12px; overflow: hidden; min-height: 590px; }
+    #ganit-tables-concept .gt-toolbar { padding: 13px 17px; background: var(--gt-chrome); border-bottom: 1px solid var(--gt-rule); display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+    #ganit-tables-concept .gt-toolbar strong { font-weight: 500; }
+    #ganit-tables-concept .gt-toolbar span { color: var(--gt-secondary); }
+    #ganit-tables-concept .gt-dots { display: flex; gap: 6px; }
+    #ganit-tables-concept .gt-dots i { width: 10px; height: 10px; border-radius: 50%; background: var(--gt-secondary); opacity: .45; }
+    #ganit-tables-concept .gt-layout { display: grid; grid-template-columns: 155px minmax(0, 1fr); min-height: 538px; }
+    #ganit-tables-concept .gt-sidebar { background: var(--gt-chrome); border-right: 1px solid var(--gt-rule); padding: 20px 12px; }
+    #ganit-tables-concept .gt-sidebar p { margin: 0 8px 12px; color: var(--gt-secondary); }
+    #ganit-tables-concept .gt-sidebar div { padding: 8px; border-radius: 6px; margin-bottom: 4px; }
+    #ganit-tables-concept .gt-sidebar .gt-active { background: var(--gt-selected); color: var(--gt-focus); }
+    #ganit-tables-concept .gt-sidebar hr { border: 0; border-top: 1px solid var(--gt-rule); margin: 18px 0; }
+    #ganit-tables-concept .gt-document { padding: 23px; min-width: 0; }
+    #ganit-tables-concept .gt-heading { margin: 0 0 16px; font-weight: 500; }
+    #ganit-tables-concept .gt-line { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin: 9px 0; flex-wrap: wrap; }
+    #ganit-tables-concept .gt-result { font-variant-numeric: tabular-nums; margin-left: auto; }
+    #ganit-tables-concept .gt-note { color: var(--gt-secondary); margin: 20px 0 14px; }
+    #ganit-tables-concept .gt-table-block { margin: 16px 0 20px; min-width: 0; }
+    #ganit-tables-concept .gt-table-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+    #ganit-tables-concept .gt-table-title { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+    #ganit-tables-concept .gt-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    #ganit-tables-concept button { font: inherit; color: var(--gt-ink); background: var(--gt-paper); border: 1px solid var(--gt-rule); border-radius: 5px; padding: 5px 9px; }
+    #ganit-tables-concept button[aria-pressed="true"] { background: var(--gt-selected); color: var(--gt-focus); }
+    #ganit-tables-concept .gt-scroll { overflow-x: auto; }
+    #ganit-tables-concept table { border-collapse: collapse; width: 100%; min-width: 450px; font: inherit; }
+    #ganit-tables-concept th { text-align: left; font-weight: 500; color: var(--gt-secondary); padding: 9px 8px; border-bottom: 1px solid var(--gt-rule); }
+    #ganit-tables-concept th span { display: block; font-weight: 400; margin-top: 3px; }
+    #ganit-tables-concept td { padding: 6px 8px; border-bottom: 1px solid var(--gt-rule); }
+    #ganit-tables-concept th.gt-numeric, #ganit-tables-concept td.gt-numeric { text-align: right; font-variant-numeric: tabular-nums; }
+    #ganit-tables-concept .gt-cell-input { font: inherit; background: transparent; color: var(--gt-ink); border: 1px solid transparent; padding: 4px; border-radius: 3px; text-align: right; width: 75px; max-width: 100%; font-variant-numeric: tabular-nums; }
+    #ganit-tables-concept .gt-cell-input:hover { border-color: var(--gt-rule); }
+    #ganit-tables-concept .gt-row-name { width: 120px; text-align: left; }
+    #ganit-tables-concept .gt-amount { padding: 4px; border-color: transparent; border-radius: 3px; min-width: 82px; text-align: right; font-variant-numeric: tabular-nums; }
+    #ganit-tables-concept .gt-amount.gt-chosen { border-color: var(--gt-focus); background: var(--gt-selected); }
+    #ganit-tables-concept tfoot td { font-weight: 500; border-bottom: 0; padding-top: 12px; }
+    #ganit-tables-concept .gt-formula { display: flex; align-items: center; gap: 10px; margin: 12px 0; padding: 9px; background: var(--gt-chrome); border-radius: 5px; }
+    #ganit-tables-concept .gt-formula label { white-space: nowrap; color: var(--gt-secondary); }
+    #ganit-tables-concept .gt-formula input { font: inherit; min-width: 0; flex: 1; color: var(--gt-ink); background: transparent; border: 0; padding: 3px 0; }
+    #ganit-tables-concept .gt-formula-status { color: var(--gt-secondary); margin: 8px 0 0; }
+    #ganit-tables-concept .gt-address { display: none; }
+    #ganit-tables-concept .gt-show-addresses .gt-address { display: table-cell; }
+    #ganit-tables-concept .gt-show-addresses .gt-address-inline { display: inline; }
+    #ganit-tables-concept .gt-address-inline { display: none; color: var(--gt-secondary); font-weight: 400; padding-right: 5px; }
+    #ganit-tables-concept .gt-footer { padding: 11px 17px; border-top: 1px solid var(--gt-rule); color: var(--gt-secondary); background: var(--gt-chrome); display: flex; gap: 12px; justify-content: space-between; flex-wrap: wrap; }
+    #ganit-tables-concept .gt-focused { padding: 18px 23px 23px; }
+    #ganit-tables-concept .gt-focused .gt-table-block { margin-top: 12px; }
+    #ganit-tables-concept .gt-focused table { min-width: 520px; }
+    #ganit-tables-concept .gt-focused .gt-cell-input { width: 100px; }
+    #ganit-tables-concept .gt-focused .gt-row-name { width: 190px; }
+    #ganit-tables-concept .gt-context { display: flex; gap: 8px; color: var(--gt-secondary); align-items: center; flex-wrap: wrap; }
+    #ganit-tables-concept .gt-validation { color: var(--gt-secondary); }
+    @media (max-width: 660px) {
+      #ganit-tables-concept .gt-layout { grid-template-columns: minmax(0, 1fr); }
+      #ganit-tables-concept .gt-sidebar { display: none; }
+      #ganit-tables-concept .gt-document, #ganit-tables-concept .gt-focused { padding: 17px 12px; }
+      #ganit-tables-concept .gt-stage { min-height: 650px; }
+      #ganit-tables-concept .gt-window { min-height: 630px; }
+      #ganit-tables-concept .gt-layout { min-height: 555px; }
+    }
+    @media (pointer: coarse) {
+      #ganit-tables-concept button, #ganit-tables-concept .gt-cell-input { min-height: 44px; }
+      #ganit-tables-concept .gt-cell-input { font-size: 16px; }
+    }
+  </style>
+  <div class="viz-carousel" aria-label="Ganit table views">
+    <section class="gt-stage" data-variant="Within a sheet" aria-label="Table within a Ganit sheet">
+      <div class="gt-window">
+        <div class="gt-toolbar"><div class="gt-dots" aria-hidden="true"><i></i><i></i><i></i></div><strong>Party for 20</strong><span>Ganit · concept</span></div>
+        <div class="gt-layout">
+          <aside class="gt-sidebar" aria-label="Sheet library"><p>Library</p><div>All Sheets</div><div>Recent</div><div>Favorites</div><hr><div>Scratch</div><div class="gt-active">Party for 20</div><div>Kitchen estimate</div></aside>
+          <main class="gt-document">
+            <p class="gt-heading"># Party for 20</p>
+            <div class="gt-line"><span>people = 20</span><span class="gt-result">20</span></div>
+            <p class="gt-note">// Keep the quantities and prices together</p>
+            <div class="gt-table-block" data-table-view="embedded" aria-label="Embedded Items table"></div>
+            <div class="gt-line"><span>cost = sum(Items[Amount])</span><output class="gt-result" data-total-output aria-label="Total cost"></output></div>
+            <div class="gt-line"><span>cost / people</span><output class="gt-result" data-person-output aria-label="Cost per person"></output></div>
+            <p class="gt-note">// Add a row or change a quantity to explore the budget</p>
+          </main>
+        </div>
+        <div class="gt-footer"><span>Regular or Markdown sheet</span><span>Same formulas · same source</span></div>
+      </div>
+    </section>
+    <section class="gt-stage" data-variant="Expanded table" aria-label="Expanded view of the same Ganit table" hidden>
+      <div class="gt-window">
+        <div class="gt-toolbar"><div class="gt-dots" aria-hidden="true"><i></i><i></i><i></i></div><strong>Items</strong><span>Party for 20 · expanded table concept</span></div>
+        <main class="gt-focused">
+          <div class="gt-context"><i data-lucide="table-2" aria-hidden="true"></i><span>Table in Party for 20</span><span>·</span><span>people = 20</span></div>
+          <div class="gt-table-block gt-show-addresses" data-table-view="expanded" aria-label="Expanded Items table"></div>
+          <div class="gt-line"><span>Sheet result: cost / people</span><output class="gt-result" data-person-output aria-label="Cost per person in the sheet"></output></div>
+          <p class="gt-note">// Input changes also update the sheet</p>
+        </main>
+        <div class="gt-footer"><span>Calculated column: Amount</span><span data-row-count></span></div>
+      </div>
+    </section>
+  </div>
+  <script>
+    (() => {
+      const root = document.getElementById('ganit-tables-concept');
+      const views = Array.from(root.querySelectorAll('[data-table-view]'));
+      const money = new Intl.NumberFormat('en-IN', {style:'currency', currency:'INR', maximumFractionDigits:2});
+      const initialRows = [{name:'Drinks',qty:20,price:120},{name:'Food',qty:20,price:280},{name:'Cake',qty:1,price:1200}];
+      let rows = initialRows.map(row => ({...row}));
+      let selected = 0;
+      const localState = views.map(view => ({view,formulas:false,addresses:view.dataset.tableView === 'expanded'}));
+      function applySaved(snapshot) {
+        const savedRows = snapshot && snapshot.modelContent && snapshot.modelContent.rows;
+        if (Array.isArray(savedRows) && savedRows.length > 0 && savedRows.length <= 30 && savedRows.every(row => row && typeof row.name === 'string' && Number.isFinite(row.qty) && Number.isFinite(row.price) && row.qty >= 0 && row.price >= 0)) {
+          rows = savedRows.map(row => ({name:row.name.slice(0,60),qty:row.qty,price:row.price}));
+          selected = Math.min(selected, rows.length - 1);
+        }
+      }
+      applySaved(window.openai && window.openai.widgetState);
+      function remember() {
+        if (window.openai && window.openai.setWidgetState) window.openai.setWidgetState({modelContent:{concept:'Ganit table blocks with expanded editing',rows:rows.map(row=>({...row}))},privateContent:{selectedRow:selected}}).catch(()=>{});
+      }
+      function amount(row) { return Math.round(row.qty * Math.round(row.price * 100)); }
+      function total() { return rows.reduce((sum,row)=>sum+amount(row),0); }
+      function refresh() {
+        root.querySelectorAll('[data-total-output]').forEach(output=>{output.textContent=money.format(total()/100);});
+        root.querySelectorAll('[data-person-output]').forEach(output=>{output.textContent=money.format(total()/2000);});
+        root.querySelectorAll('[data-row-count]').forEach(output=>{output.textContent=rows.length+' data rows';});
+        localState.forEach(state=>{
+          state.view.classList.toggle('gt-show-addresses', state.addresses);
+          state.view.querySelectorAll('[data-amount-row]').forEach(button=>{
+            const index=Number(button.dataset.amountRow);
+            button.textContent=state.formulas?'=B'+(index+2)+' * C'+(index+2):money.format(amount(rows[index])/100);
+            button.classList.toggle('gt-chosen',index===selected);
+            button.setAttribute('aria-pressed',String(index===selected));
+          });
+          state.view.querySelector('[data-table-total]').textContent=money.format(total()/100);
+          state.view.querySelector('[data-formula-address]').textContent='D'+(selected+2);
+          state.view.querySelector('[data-formula-source]').value='=[@Qty] * [@[Unit price]]';
+          state.view.querySelector('[data-formula-status]').textContent='Amount · '+rows[selected].name+' · column formula';
+          state.view.querySelector('[data-show-formulas]').setAttribute('aria-pressed',String(state.formulas));
+        });
+      }
+      function buildView(state,index) {
+        const view=state.view;
+        view.innerHTML='<div class="gt-table-toolbar"><span class="gt-table-title">Items <span aria-label="Calculated column">· Amount ƒ</span></span><div class="gt-controls"><button type="button" class="cursor-interaction" data-show-formulas aria-pressed="false">Show formulas</button><button type="button" class="cursor-interaction" data-add-row>Add row</button></div></div><div class="gt-scroll"><table aria-label="Items quantities, prices and calculated amounts"><thead><tr><th class="gt-address" scope="col">Row</th><th scope="col"><span class="gt-address-inline">A</span>Item</th><th class="gt-numeric" scope="col"><span class="gt-address-inline">B</span>Qty</th><th class="gt-numeric" scope="col"><span class="gt-address-inline">C</span>Unit price<span>INR</span></th><th class="gt-numeric" scope="col"><span class="gt-address-inline">D</span>Amount<span>INR · formula</span></th></tr></thead><tbody></tbody><tfoot><tr><td class="gt-address"></td><td>Total</td><td></td><td></td><td class="gt-numeric" data-table-total></td></tr></tfoot></table></div><div class="gt-formula"><label for="gt-formula-'+index+'" data-formula-address>D2</label><input id="gt-formula-'+index+'" data-formula-source readonly aria-label="Selected cell formula"></div><p class="gt-formula-status" data-formula-status></p><p class="gt-validation" role="status" aria-live="polite" data-validation></p>';
+        const body=view.querySelector('tbody');
+        rows.forEach((row,rowIndex)=>{
+          const tr=document.createElement('tr');
+          const address=document.createElement('td'); address.className='gt-address'; address.textContent=String(rowIndex+2); tr.append(address);
+          ['name','qty','price'].forEach(key=>{
+            const td=document.createElement('td'); if(key!=='name')td.className='gt-numeric';
+            const input=document.createElement('input'); input.className='gt-cell-input'+(key==='name'?' gt-row-name':''); input.value=String(row[key]);
+            input.setAttribute('aria-label',(key==='name'?'Item':key==='qty'?'Quantity':'Unit price in INR')+' in row '+(rowIndex+2));
+            input.dataset.inputRow=String(rowIndex); input.dataset.inputKey=key;
+            if(key!=='name'){input.type='number';input.min='0';input.max='1000000';input.step=key==='qty'?'1':'0.01';}
+            input.addEventListener('input',()=>{
+              if(key==='name'){rows[rowIndex].name=input.value.slice(0,60);}
+              else {const value=Number(input.value);if(input.value.trim()===''||!Number.isFinite(value)||value<0||value>1000000){view.querySelector('[data-validation]').textContent='Enter a value from 0 to 1,000,000; results use the last valid value.';return;}rows[rowIndex][key]=value;}
+              view.querySelector('[data-validation]').textContent='';
+              localState.forEach(other=>{if(other!==state){const target=other.view.querySelector('[data-input-row="'+rowIndex+'"][data-input-key="'+key+'"]'); if(target)target.value=String(rows[rowIndex][key]);}});
+              refresh();remember();
+            });
+            td.append(input);tr.append(td);
+          });
+          const result=document.createElement('td');result.className='gt-numeric';
+          const button=document.createElement('button');button.type='button';button.className='gt-amount cursor-interaction';button.dataset.amountRow=String(rowIndex);button.setAttribute('aria-label','Inspect Amount formula for row '+(rowIndex+2));
+          button.addEventListener('click',()=>{selected=rowIndex;refresh();remember();});result.append(button);tr.append(result);body.append(tr);
+        });
+        view.querySelector('[data-show-formulas]').addEventListener('click',()=>{state.formulas=!state.formulas;refresh();});
+        view.querySelector('[data-add-row]').addEventListener('click',()=>{
+          if(rows.length>=30){view.querySelector('[data-validation]').textContent='This concept supports up to 30 rows.';return;}
+          rows.push({name:'Extra item',qty:1,price:100});selected=rows.length-1;render();remember();
+          const input=state.view.querySelector('[data-input-row="'+selected+'"][data-input-key="name"]');input.focus();input.select();
+          state.view.querySelector('[data-validation]').textContent='Row added; Amount inherits the column formula.';
+        });
+      }
+      function render(){localState.forEach(buildView);refresh();}
+      render();
+      window.addEventListener('openai:set_globals',event=>{if(event.detail&&event.detail.globals&&event.detail.globals.widgetState){applySaved(event.detail.globals.widgetState);render();}});
+      if(globalThis.Tweak){localState.forEach(state=>{const tweaks=new Tweak({container:state.view,onChange:refresh});tweaks.addToggle(state,'addresses',{label:'Show cell addresses'});});}
+    })();
+  </script>
+</div>
