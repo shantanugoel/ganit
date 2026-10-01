@@ -1,0 +1,3 @@
+# Preserve byte-oriented line-ending fixtures without Git text conversion.
+cr.txt -text -diff
+crlf.txt -text -diff

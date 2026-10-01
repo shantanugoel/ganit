@@ -1,0 +1,89 @@
+@ganit-table 1
+{
+  "bindings" : [
+    {
+      "deleted" : true,
+      "fingerprint" : "8b3382dc3247a0ee9b8eeb7ad79845ed598d0cfe0933482b024fb4ead654ffc2",
+      "lockColumn" : false,
+      "lockRow" : false,
+      "occurrence" : 0,
+      "owner" : {
+        "column" : "c-qty",
+        "row" : "r-a",
+        "table" : "t-items"
+      },
+      "target" : {
+        "column" : "c-qty",
+        "row" : "r-b",
+        "table" : "t-items"
+      }
+    }
+  ],
+  "cells" : [
+    {
+      "input" : "चाय 😀 é\r\nsecond line\rthird\nUnicode separators     [brackets] \"quoted\"",
+      "key" : {
+        "column" : "c-name",
+        "row" : "r-a",
+        "table" : "t-items"
+      },
+      "override" : false
+    },
+    {
+      "input" : "=#REF!{t-items/r-b/c-qty}",
+      "key" : {
+        "column" : "c-qty",
+        "row" : "r-a",
+        "table" : "t-items"
+      },
+      "override" : true
+    },
+    {
+      "input" : "1,25",
+      "key" : {
+        "column" : "c-qty",
+        "row" : "r-c",
+        "table" : "t-items"
+      },
+      "override" : false
+    },
+    {
+      "input" : "=1 | 2",
+      "key" : {
+        "column" : "c-price",
+        "row" : "r-a",
+        "table" : "t-items"
+      },
+      "override" : true
+    }
+  ],
+  "columns" : [
+    {
+      "id" : "c-name",
+      "name" : "品名 ] \" |",
+      "policy" : "text"
+    },
+    {
+      "id" : "c-qty",
+      "name" : "Qty",
+      "policy" : "value"
+    },
+    {
+      "defaultUnit" : "INR",
+      "id" : "c-price",
+      "name" : "Unit price",
+      "policy" : "value"
+    }
+  ],
+  "id" : "t-items",
+  "name" : "Items",
+  "rows" : [
+    "r-a",
+    "r-c",
+    "r-new"
+  ],
+  "totals" : {
+    "c-qty" : "sum"
+  }
+}
+@end-ganit-table

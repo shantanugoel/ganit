@@ -1,0 +1,126 @@
+α = 2
+@ganit-table 1
+{
+  "bindings" : [
+    {
+      "deleted" : false,
+      "fingerprint" : "e7292e853a0d45ee1b44abfbe26cf7cbb72e0a2b4014a9558622946664d85be3",
+      "lockColumn" : false,
+      "lockRow" : false,
+      "occurrence" : 0,
+      "owner" : {
+        "column" : "c-qty",
+        "row" : "r-a",
+        "table" : "t-items"
+      },
+      "target" : {
+        "column" : "c-qty",
+        "row" : "r-b",
+        "table" : "t-items"
+      }
+    },
+    {
+      "deleted" : false,
+      "fingerprint" : "e7292e853a0d45ee1b44abfbe26cf7cbb72e0a2b4014a9558622946664d85be3",
+      "lockColumn" : false,
+      "lockRow" : false,
+      "occurrence" : 0,
+      "owner" : {
+        "column" : "c-qty",
+        "row" : "r-b",
+        "table" : "t-items"
+      },
+      "target" : {
+        "column" : "c-qty",
+        "row" : "r-b",
+        "table" : "t-items"
+      }
+    }
+  ],
+  "cells" : [
+    {
+      "input" : "चाय 😀 é\r\nsecond line\rthird\nUnicode separators     [brackets] \"quoted\"",
+      "key" : {
+        "column" : "c-name",
+        "row" : "r-a",
+        "table" : "t-items"
+      },
+      "override" : false
+    },
+    {
+      "input" : "=B3",
+      "key" : {
+        "column" : "c-qty",
+        "row" : "r-a",
+        "table" : "t-items"
+      },
+      "override" : true
+    },
+    {
+      "input" : "=B3",
+      "key" : {
+        "column" : "c-qty",
+        "row" : "r-b",
+        "table" : "t-items"
+      },
+      "override" : true
+    },
+    {
+      "input" : "1,25",
+      "key" : {
+        "column" : "c-qty",
+        "row" : "r-c",
+        "table" : "t-items"
+      },
+      "override" : false
+    },
+    {
+      "input" : "=1 | 2",
+      "key" : {
+        "column" : "c-price",
+        "row" : "r-a",
+        "table" : "t-items"
+      },
+      "override" : true
+    },
+    {
+      "input" : "",
+      "key" : {
+        "column" : "c-price",
+        "row" : "r-b",
+        "table" : "t-items"
+      },
+      "override" : true
+    }
+  ],
+  "columns" : [
+    {
+      "id" : "c-name",
+      "name" : "品名 ] \" |",
+      "policy" : "text"
+    },
+    {
+      "id" : "c-qty",
+      "name" : "Qty",
+      "policy" : "value"
+    },
+    {
+      "defaultUnit" : "INR",
+      "id" : "c-price",
+      "name" : "Unit price",
+      "policy" : "value"
+    }
+  ],
+  "id" : "t-items",
+  "name" : "Items",
+  "rows" : [
+    "r-a",
+    "r-b",
+    "r-c"
+  ],
+  "totals" : {
+    "c-qty" : "sum"
+  }
+}
+@end-ganit-table
+after = 3

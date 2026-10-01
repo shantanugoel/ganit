@@ -113,6 +113,13 @@ let package = Package(
       name: "GanitCLI",
       dependencies: ["GanitDocuments", "GanitEngine", "GanitSystemIntegration"]
     ),
+    // Disposable M0 proof; never linked into the shipping app or CLI.
+    .executableTarget(
+      name: "GanitTablesM0",
+      dependencies: ["GanitEngine", "GanitEditorUI"],
+      path: "Spikes/TablesM0",
+      exclude: ["Fixtures", "README.md", "evidence.md"]
+    ),
     .executableTarget(
       name: "GanitEngineHarness",
       dependencies: [

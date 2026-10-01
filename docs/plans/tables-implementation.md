@@ -1,7 +1,8 @@
 # Calculation tables: implementation plan
 
-Date: 2026-10-01. Status: reviewed implementation proposal; implementation has
-not started. This plan refines the [investigation](../design/tables-investigation.md)
+Date: 2026-10-01. Status: M0 disposable spikes implemented and measured;
+M0 exit remains pending native task acceptance and ADR resolution. Production
+implementation has not started. This plan refines the [investigation](../design/tables-investigation.md)
 and governs its unresolved details for this feature. It does not replace
 accepted ADRs; milestone M0 must record the new architecture decisions.
 
@@ -294,18 +295,43 @@ Keep unfinished behavior behind a development flag until all v1 gates pass.
 
 ### M0 — Close architectural questions with disposable spikes
 
-- [ ] Prototype a lossless versioned block plus identity/reference ledger.
+- [x] Prototype a lossless versioned block plus identity/reference ledger.
       Exercise Unicode, CR/LF/CRLF, quotes, brackets, multi-line text, decimal
       commas and formula `|`. Check size overhead against the 1 MB source limit.
-- [ ] Prototype a rightward/downward dependency, a cycle with an independent
+- [x] Prototype a rightward/downward dependency, a cycle with an independent
       valid component, and a 10,000-cell chain using Ganit arithmetic.
 - [ ] Prototype an expanded native grid edit through document Undo and a
       source-mapped inline block. Check focus, cross-boundary selection/copy,
       Find navigation, IME and VoiceOver; check the answer-column layout.
-- [ ] Specify reference grammar/escaping, inherited-variable qualifier,
+- [x] Specify reference grammar/escaping, inherited-variable qualifier,
       ledger/broken-marker encoding and exact range transformation rules.
-- [ ] Write proposed ADRs for table semantics/editor ownership and table-source/
+- [x] Write proposed ADRs for table semantics/editor ownership and table-source/
       storage compatibility. Resolve them before freezing a public format.
+
+M0 execution evidence is in [the disposable spike report](../../Spikes/TablesM0/evidence.md).
+Run instructions, CR/LF/CRLF round-trip fixtures, recovery examples, a native
+preview capture and dependency traces are checked in alongside the isolated
+`GanitTablesM0` executable. The shipping targets do not depend on it.
+
+[ADR 0016](../adr/0016-table-semantics-and-editor-ownership.md) specifies the
+semantics, reference escaping and precise transformation rules. [ADR 0017](../adr/0017-table-source-and-storage-compatibility.md)
+specifies experimental ledger encoding and proposes metadata/manifest schema 2
+with the durable capability barrier. Both remain **proposed**, not public format
+approval. Source byte measurements motivate a **4,000 populated-cell proposed
+ceiling**, independently subject to the existing 1 MB source limit; the engine
+still proves a stack-safe 10,000-node chain. M2/M6 must validate the remaining
+resource budgets and full edit-to-visible latency.
+
+The explicit editor choice is **inline preview + Open Table**, with expanded
+AppKit editing. Automated native field commits, source/Undo/redo, deletion and
+disk reload, cross-boundary copy, mapped Find selection, Return focus and
+marked-text simulation pass. A derived inline native preview is captured and
+source-mapped, and its divider skips the table. Real input-method composition,
+VoiceOver task completion, native Find-panel navigation, both sheet modes and
+integrated answer placement have **not** been verified. Therefore the native
+M0 checkbox and overall exit stay open; do not start M1 or freeze a format on
+these results alone. See the report for the exact task acceptance run still
+required. No production schema constants or document files were changed.
 
 **Exit:** round-trip fixture examples, dependency traces, native editing proof,
 measured size/latency, and an explicit inline-edit versus preview decision are
@@ -355,7 +381,7 @@ missing metadata: older binaries cannot be retroactively taught the syntax.
 - [ ] Reuse exact arithmetic, conversions, functions, rate/clock context and
       provenance. Diagnose unsupported/bare table functions explicitly.
 - [ ] Add dependency invalidation, range-membership invalidation and resource
-      limits. Start with provisional per-sheet 10,000 populated cells,
+      limits. Start with M0's proposed per-sheet 4,000 populated cells,
       100,000 dependency links and 1,000,000 range-cell visits per generation;
       validate/tune these in M0/M6. Keep the existing 1 MB source limit and
       arithmetic/syntax limits. Diagnose limits; never truncate calculation.
