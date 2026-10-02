@@ -69,6 +69,10 @@ public struct SheetEvaluation: Hashable, Sendable {
   /// The earliest moment a result that read the clock can change, or `nil`
   /// when no result depends on the time.
   public let nextRecalculation: Date?
+  /// Block diagnostics remain separate from scalar physical-line answers.
+  public let tableDiagnostics: [TableSourceDiagnostic]
+  /// The table segmentation work this generation did.
+  let tableWork: TableSourceDocument.Work
 }
 
 /// Evaluates sheets incrementally.
@@ -87,6 +91,7 @@ public struct SheetCalculator: Sendable {
   private let definitions: SheetDefinitions
   private var context: EvaluationContext?
   private var cache: [LineID: (source: LineSource, evaluation: LineEvaluation?)] = [:]
+  private var tableBlocks: [TableSourceBlock] = []
 
   /// A calculator for sheets evaluated with these definitions. Definitions
   /// are fixed for a calculator's life, so changing them means a new one.
@@ -124,11 +129,40 @@ public struct SheetCalculator: Sendable {
     var declared = SheetDefinitions()
     results.reserveCapacity(sheet.lines.count)
 
-    for line in sheet.lines {
+    // Table-free sheets only scan line starts; a block reparses only when
+    // its bytes change.
+    let tableSource = TableSourceDocument(sheet, reusing: tableBlocks)
+    tableBlocks = tableSource.blocks
+    var block = 0
+    for (lineIndex, line) in sheet.lines.enumerated() {
       try Task.checkCancellation()
+      while block < tableSource.blocks.count,
+        tableSource.blocks[block].physicalLines.upperBound <= lineIndex
+      {
+        block += 1
+      }
+      if block < tableSource.blocks.count,
+        tableSource.blocks[block].physicalLines.contains(lineIndex)
+      {
+        // Every block line, valid or not, has no answer, declares nothing,
+        // asks no assistant and separates the aggregate blocks around it.
+        let cached = cache[line.id]?.source
+        let source =
+          cached?.isTableSource == true && cached?.text.utf8.elementsEqual(line.text.utf8) == true
+          ? cached! : LineSource(line.text, units, engine, context, isTableSource: true)
+        cache[line.id] = (source, nil)
+        outcomes.endBlock()
+        outcomes.append(.none)
+        outcomes.endBlock()
+        results.append(
+          SheetLineResult(
+            id: line.id, source: source, evaluation: nil, result: nil, failureOrigins: []))
+        continue
+      }
       let cached = cache[line.id]
       let source =
         cached?.source.text == line.text && cached?.source.units == units
+          && cached?.source.isTableSource == false
         ? cached!.source : LineSource(line.text, units, engine, context)
       var evaluation = cached?.source === source ? cached?.evaluation : nil
 
@@ -247,7 +281,9 @@ public struct SheetCalculator: Sendable {
       definitions: declared,
       evaluatedLineIDs: evaluated,
       parsedLineIDs: parsed,
-      nextRecalculation: results.compactMap { $0.evaluation?.clockInterval?.end }.min()
+      nextRecalculation: results.compactMap { $0.evaluation?.clockInterval?.end }.min(),
+      tableDiagnostics: tableSource.diagnostics,
+      tableWork: tableSource.work
     )
   }
 }
@@ -259,6 +295,8 @@ private final class LineSource: Sendable {
   /// name, so a line is derived again when they change.
   let units: [CustomUnit]
   let syntax: LineSyntax
+  /// A physical line of a table block, which is never calculated as prose.
+  let isTableSource: Bool
   /// Runs of adjacent identifier words, which bound the names a parse can use.
   let words: [[String]]
   /// The normalized declared name, if the line declares a valid one.
@@ -276,10 +314,25 @@ private final class LineSource: Sendable {
     _ text: String,
     _ units: [CustomUnit],
     _ engine: CalculationEngine,
-    _ context: EvaluationContext
+    _ context: EvaluationContext,
+    isTableSource: Bool = false
   ) {
     self.text = text
+    self.isTableSource = isTableSource
     self.units = units
+    if isTableSource {
+      syntax = .comment(
+        SourceRange(
+          lowerBound: 0, upperBound: text.utf8.count, graphemeLowerBound: 0,
+          graphemeUpperBound: text.count))
+      words = []
+      declaredName = nil
+      unitName = nil
+      rateCurrency = nil
+      function = nil
+      nameFailure = nil
+      return
+    }
     let parsed = LineSyntax(text)
     syntax =
       context.isMarkdownMode

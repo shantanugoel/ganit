@@ -1,0 +1,4 @@
+# Byte-exact frozen fixtures: no Git text or line-ending conversion. Their
+# deliberate CR, CRLF and trailing-space lines are not whitespace errors, and
+# they stay reviewable as diffs.
+*.txt -text whitespace=-blank-at-eol,-cr-at-eol,-space-before-tab,-indent-with-non-tab,-blank-at-eof

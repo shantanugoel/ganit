@@ -10,7 +10,8 @@ root, as decided in [ADR 0004](../adr/0004-storage-and-export.md):
 ```
 
 Source files contain exactly the editor's text with no header or byte-order
-mark, so line terminators and every character round trip. Loading source that
+mark, so line terminators and every character round trip. Calculation tables are
+[table blocks](table-blocks.md) inside that text, not separate files. Loading source that
 is not valid UTF-8 fails with `DocumentStorageError.invalidUTF8` instead of
 decoding lossily.
 

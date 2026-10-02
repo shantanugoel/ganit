@@ -46,6 +46,32 @@ struct LineReferenceRenumberingTests {
     #expect(edit("10\r20\r@2", 3, 0, "5\r") == "10\r5\r20\r@3")
   }
 
+  @Test
+  func tableBlockLinesAreNeverRenumbered() throws {
+    var model = TableSample.model
+    model.cells.append(
+      TableCell(row: TableSample.first, column: TableSample.note, source: "see @1 and line 2"))
+    let valid = try TableSample.block(model)
+    let quarantined = "@ganit-table 9\nx = @2 + line 1\n@end-ganit-table\n"
+    let blocks = valid + quarantined
+    let source = "10\n20\n" + blocks + "30\n@1 + @2 + @9 + line 9"
+    #expect(edit(source, 3, 0, "5\n") == "10\n5\n20\n" + blocks + "30\n@1 + @3 + @10 + line 10")
+    #expect(edit(source, 0, 3, "") == "20\n" + blocks + "30\n@deleted + @1 + @8 + line 8")
+    // An edit below the blocks leaves them alone too.
+    let below = edit(source, (source as NSString).length - 21, 0, "1\n")
+    #expect(below.hasPrefix("10\n20\n" + blocks + "30\n1\n"))
+    // Lines entering a block are not rewritten, and lines leaving one keep
+    // the numbers they had while quarantined.
+    #expect(
+      edit("10\n20\n@2 + @1\n", 0, 0, "@ganit-table 1\n") == "@ganit-table 1\n10\n20\n@2 + @1\n")
+    #expect(edit("@ganit-table 1\n10\n20\n@3 + @2\n", 0, 15, "") == "10\n20\n@3 + @2\n")
+    #expect(edit("10\n20\n@2 + @1", 0, 0, "5\n") == "5\n10\n20\n@3 + @2")
+    // Unterminated blocks run to the end, and nothing in them is rewritten.
+    #expect(
+      edit("10\n20\n@2\n@ganit-table 1\n@2 + line 2", 3, 0, "5\n")
+        == "10\n5\n20\n@3\n@ganit-table 1\n@2 + line 2")
+  }
+
   private func edit(_ source: String, _ start: Int, _ length: Int, _ replacement: String) -> String
   {
     let range = NSRange(location: start, length: length)

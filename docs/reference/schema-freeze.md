@@ -11,10 +11,13 @@ notes. `FrozenFormatTests` fails if a version changes without this file.
 | Folders file | 1 | `SheetFolders`, [library](../workspace/library.md) |
 | `.ganit` package manifest | 1 | `GanitManifest.currentSchemaVersion`, [.ganit format](../storage/ganit-format.md) |
 | Exchange-rate snapshot metadata | 1 | `RateSnapshotMetadata.currentSchemaVersion`, [currency snapshots](../storage/currency-snapshots.md) |
+| Table block (`@ganit-table`) in sheet source | 1 | `TableSourceDocument.currentBlockVersion`, [table blocks](../storage/table-blocks.md) |
 | Ambiguity registry (grammar policy) | 8 | [ambiguity registry](../grammar/ambiguity-registry.md) |
 | Golden corpus fixtures | 1 | `Tests/GanitEngineCorpusTests/Fixtures` |
 
 Sheet source is plain UTF-8 text and has no version: every Ganit reads it.
+Table blocks inside it carry their own version; only version 1 is read, and
+other versions stay quarantined with their bytes intact.
 Grammar changes that alter an existing answer bump the ambiguity registry and
 update the golden corpus in the same change; purely additive syntax that
 previously failed to parse does not.

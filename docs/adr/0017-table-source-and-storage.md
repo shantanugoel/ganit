@@ -6,6 +6,12 @@
   This supersedes the initial table requirements for earlier-schema readers,
   migration backups, capability-publication barriers and downgrade handling.
   It also overrides general earlier-format support expectations for this feature.
+- Amended: 2026-10-02 — M1 froze table block version 1 in
+  [table blocks](../storage/table-blocks.md). Its layout supersedes the
+  spike-only wording below: owners, targets, operand spans and copy locks are
+  positional JSON arrays in the frozen format; a binding's occurrence ordinal
+  is its position in its owner's ledger entry and is not stored; and `current`
+  (`[@Qty]`) bindings use the `#REF!{range:binding-id}` marker spelling.
 
 ## Decision
 

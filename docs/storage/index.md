@@ -28,4 +28,5 @@ in the report's `unreadable`; their files are never modified by indexing.
 Search scans indexed rows rather than using SQLite full-text search, which is
 added only if profiling at the target library size shows the scan is too slow.
 Text is stored and read by byte length, so source containing any character,
-including NUL, is indexed intact.
+including NUL, is indexed intact. Sheets with [table blocks](table-blocks.md)
+are indexed as their exact source text, including the block payloads.
