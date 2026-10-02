@@ -1,6 +1,7 @@
 # ADR 0017: Table source and storage
 
-- Status: Accepted (architecture and schema selection; wire-format freeze in M1)
+- Status: Accepted (architecture and schema selection; wire format v1 frozen in
+  M1 as [table blocks](../storage/table-blocks.md))
 - Date: 2026-10-01
 - Amended: 2026-10-01 — backward compatibility is explicitly out of scope.
   This supersedes the initial table requirements for earlier-schema readers,

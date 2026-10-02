@@ -1,8 +1,11 @@
 # Calculation tables: implementation plan
 
-Date: 2026-10-01. Status: M0 feasibility complete with inline preview/Open Table
-selected; architectural decisions resolved in ADRs 0016/0017. Start M1 next.
-Production implementation has not started. This plan refines the [investigation](../design/tables-investigation.md)
+Date: 2026-10-01; updated 2026-10-03. Status: M0 feasibility complete with
+inline preview/Open Table selected; architectural decisions resolved in ADRs
+0016/0017. M1 (source model, identity and safe storage) is complete on branch
+`tables`: table block format v1 and metadata/manifest schema 2 are frozen with
+fixtures, and its exit evidence passes. Start M2 next. Table formulas do not
+yet calculate; blocks are retained and quarantined. This plan refines the [investigation](../design/tables-investigation.md)
 and governs its unresolved details for this feature. It does not replace
 accepted ADRs; M0 decisions and evidence are linked below.
 
@@ -335,9 +338,9 @@ preview capture and dependency traces are checked in alongside the isolated
 semantics, reference escaping and precise transformation rules. [ADR 0017](../adr/0017-table-source-and-storage.md)
 specifies the ledger approach, current metadata/manifest schema 2, and atomic
 storage/recovery. Backward compatibility and migration are excluded. Both ADRs
-are **accepted architectural decisions**. M1 must
-validate and freeze the production wire format; the disposable encoding is not
-a public format. Source byte measurements set a **4,000 populated-cell provisional
+are **accepted architectural decisions**. M1 validated and froze the production
+wire format as [table block version 1](../storage/table-blocks.md); the
+disposable spike encoding is not a public format. Source byte measurements set a **4,000 populated-cell provisional
 ceiling**, independently subject to the existing 1 MB source limit; the engine
 still proves a stack-safe 10,000-node chain. M2/M6 must validate the remaining
 resource budgets and full edit-to-visible latency.
@@ -560,7 +563,7 @@ editing/scheduler, storage/write order, recovery and headless integration on
 
 M0 source/binding fixtures, graph traces, measured limits and editor choice are
 recorded in the [evidence report](../../Spikes/TablesM0/evidence.md) and accepted
-ADRs 0016/0017. No architectural approval from the user is required to start M1.
+ADRs 0016/0017. M1 is complete; no architectural approval is required to start M2.
 Resource limits remain provisional until integrated M2/M6 measurement. Native
 task checks are explicitly tracked under M4/M5 and the release matrix; no
 unverified acceptance result has been converted into a pass.
@@ -568,15 +571,25 @@ unverified acceptance result has been converted into a pass.
 ## Next implementation task and agent handoff
 
 Use branch `tables` in `/Users/shantanugoel/.codex/worktrees/tables-m0/ganit`.
-Start **M1 — Source model, identity and safe storage**, then work through M2–M6
-in order. Read this plan and accepted ADRs [0016](../adr/0016-table-semantics-and-editor-ownership.md)
-and [0017](../adr/0017-table-source-and-storage.md), plus the linked
-[M0 evidence](../../Spikes/TablesM0/evidence.md) and [spike README](../../Spikes/TablesM0/README.md).
-The prototypes are disposable proof, not shipping implementation. Keep work in
-this worktree, preserve milestone boundaries and enforce the native M4/M5 and
-M6 release gates. Defaults are resolved: inline preview/Open Table; shared
-canonical source/Undo; persistent identity and source-validated ledger;
-current metadata/manifest schema 2 with atomic storage and no backward
-compatibility; provisional 4,000-cell
-ceiling plus the existing 1 MiB source limit. M1 owns validating/freezing the
-exact production wire encoding with fixtures before later modules consume it.
+M1 is complete (commits 5dc34c3..ac67993 plus the exit record). Start
+**M2 — Formula grammar, graph and typed range operations**, then M3–M6 in
+order. Read this plan, accepted ADRs [0016](../adr/0016-table-semantics-and-editor-ownership.md)
+and [0017](../adr/0017-table-source-and-storage.md) with their amendments,
+[table blocks](../storage/table-blocks.md) (frozen v1: consume
+`TableSourceDocument`/`TableModel`, patch spans with `TableSourcePatch`, never
+re-encode untouched blocks or mint IDs outside explicit creation, duplication or
+repair), [fault tolerance](../storage/fault-tolerance.md), and the linked
+[M0 evidence](../../Spikes/TablesM0/evidence.md). The prototypes are disposable
+proof, not shipping implementation. Keep work in this worktree, preserve
+milestone boundaries and enforce the native M4/M5 and M6 release gates.
+Defaults are resolved: inline preview/Open Table; shared canonical source/Undo;
+persistent identity and source-validated ledger; current metadata/manifest
+schema 2 with atomic storage and no backward compatibility; provisional
+4,000-cell ceiling plus the existing 1 MiB source limit.
+
+Carried forward: reference visibility and operand/coordinate agreement belong
+to the M2 calculator; table-aware titles and ID reminting on table or sheet copy
+belong to M3; the Writing Tools policy for calculation source belongs to M5.
+Schema 2 and block quarantine are not behind a development flag, so merging
+this branch makes schema-1 libraries unsupported; decide the flag policy before
+merging to main or releasing.

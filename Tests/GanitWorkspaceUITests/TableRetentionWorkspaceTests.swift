@@ -27,6 +27,7 @@ struct TableRetentionWorkspaceTests {
   @Test(arguments: [
     "malformed-json.txt", "malformed-opener.txt", "unsupported-version.txt", "unterminated.txt",
     "duplicate-id.txt", "stale-fingerprint.txt", "orphan-target.txt", "line-endings-crlf.txt",
+    "valid-two-tables.txt",
   ])
   func blocksSurviveEditsSavesReopeningAndRestore(fixture: String) async throws {
     defer { try? FileManager.default.removeItem(at: root) }
