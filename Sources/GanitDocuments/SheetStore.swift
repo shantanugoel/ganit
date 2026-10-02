@@ -388,7 +388,7 @@ public struct SheetStore: Sendable {
   /// `SheetLibrary.load(id:)` repairs what can be repaired.
   public func load(id: UUID) throws -> StoredSheet {
     let sourceData = try Data(contentsOf: sourceURL(id))
-    guard let source = String(data: sourceData, encoding: .utf8) else {
+    guard let source = exactUTF8(sourceData) else {
       throw DocumentStorageError.invalidUTF8(sourceURL(id))
     }
     let metadataData = try Data(contentsOf: metadataURL(id))
@@ -465,4 +465,14 @@ public struct SheetStore: Sendable {
 /// `sha256:` and the lowercase hex SHA-256 digest of `data`.
 func checksum(of data: Data) -> String {
   "sha256:" + SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+}
+
+/// `bytes` as UTF-8 text, every byte kept, or `nil` when they are not valid
+/// UTF-8. Unlike `String(data:encoding:)`, which drops a leading U+FEFF,
+/// nothing is removed or replaced, so the text's UTF-8 is `bytes` exactly.
+/// Decoding repairs invalid input, so a repaired text differs from `bytes`;
+/// the buffers are compared in bulk.
+func exactUTF8(_ bytes: Data) -> String? {
+  let text = String(decoding: bytes, as: UTF8.self)
+  return Data(text.utf8) == bytes ? text : nil
 }

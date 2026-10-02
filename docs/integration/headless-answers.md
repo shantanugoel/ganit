@@ -121,8 +121,10 @@ $ printf 'rent = 2,100\nrent * 12\n' | ganit
 With arguments, `ganit` answers each one as a line of a sheet through
 `answers(forSheet:)`, so a line may declare a name that a later line uses. One
 argument that fails reports on standard error, as a script expects of a single
-expression. Without arguments it reads a sheet of at most 1 MB of UTF-8 from standard input
-and prints one line per source line through `answers(forSheet:)`: the answer,
+expression. Without arguments it reads a sheet of at most 1 MB of UTF-8 from
+standard input, ignoring one leading byte-order mark as import does (the limit
+excludes it), and prints one line per source line through
+`answers(forSheet:)`: the answer,
 a failure message, or an empty line for headings, comments, and blank lines.
 It exits with status 1 when any line fails.
 

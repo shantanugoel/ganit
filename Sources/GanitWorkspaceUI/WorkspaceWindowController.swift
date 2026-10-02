@@ -344,27 +344,34 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
       let type = types[formats.indexOfSelectedItem]
       Task { @MainActor in
         let lines = await editor.exportedLines()
-        let name = url.deletingPathExtension().lastPathComponent
         self?.perform {
-          switch type {
-          case .pdf:
-            try SheetDocumentRenderer.pdf(lines, title: name).write(to: url, options: .atomic)
-          case .commaSeparatedText:
-            try Data(SheetDocumentRenderer.csv(lines).utf8).write(to: url, options: .atomic)
-          case .html:
-            try Data(SheetDocumentRenderer.html(lines, title: name).utf8).write(
-              to: url, options: .atomic)
-          default:
-            let pdf = try SheetDocumentRenderer.pdf(lines, title: name)
-            let quickLook =
-              type == .ganitSheet
-              ? SheetDocumentRenderer.thumbnail(ofPDF: pdf).map {
-                QuickLookPreview(pdf: pdf, thumbnailPNG: $0)
-              } : nil
-            try self?.library.exportSheet(sheetID, to: url, quickLook: quickLook)
-          }
+          try self?.export(sheetID, lines: lines, as: type, to: url)
         }
       }
+    }
+  }
+
+  /// Writes an export once its destination is chosen. A Ganit Sheet or plain
+  /// text holds the sheet's stored source bytes exactly; PDF, CSV and HTML
+  /// show `lines`, its source beside its answers.
+  func export(_ sheetID: UUID, lines: [ExportedLine], as type: UTType, to url: URL) throws {
+    let name = url.deletingPathExtension().lastPathComponent
+    switch type {
+    case .pdf:
+      try SheetDocumentRenderer.pdf(lines, title: name).write(to: url, options: .atomic)
+    case .commaSeparatedText:
+      try Data(SheetDocumentRenderer.csv(lines).utf8).write(to: url, options: .atomic)
+    case .html:
+      try Data(SheetDocumentRenderer.html(lines, title: name).utf8).write(
+        to: url, options: .atomic)
+    case .ganitSheet:
+      let pdf = try SheetDocumentRenderer.pdf(lines, title: name)
+      let quickLook = SheetDocumentRenderer.thumbnail(ofPDF: pdf).map {
+        QuickLookPreview(pdf: pdf, thumbnailPNG: $0)
+      }
+      try library.exportSheet(sheetID, to: url, quickLook: quickLook)
+    default:
+      try library.exportSheet(sheetID, to: url, quickLook: nil)
     }
   }
 

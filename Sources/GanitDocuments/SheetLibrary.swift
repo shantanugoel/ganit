@@ -291,8 +291,7 @@ public final class SheetLibrary {
   /// sheet as reread, with its index entry updated.
   @discardableResult
   private func recoverMetadata(of id: UUID) throws -> StoredSheet {
-    guard let source = String(data: try Data(contentsOf: store.sourceURL(id)), encoding: .utf8)
-    else {
+    guard let source = exactUTF8(try Data(contentsOf: store.sourceURL(id))) else {
       throw DocumentStorageError.invalidUTF8(store.sourceURL(id))
     }
     let metadataURL = store.metadataURL(id)
@@ -317,10 +316,28 @@ public final class SheetLibrary {
     return recovered
   }
 
+  /// The longest title taken from a sheet's first line, in characters and in
+  /// UTF-8 bytes, so a long line cannot make a package manifest larger than
+  /// import accepts.
+  static let maximumDerivedTitleCharacters = 200
+  static let maximumDerivedTitleBytes = 1_024
+
   /// The title of a sheet not named by the user: its first non-blank line,
-  /// without a heading's `#`.
+  /// without a leading U+FEFF or a heading's `#`, cut at a character
+  /// boundary to at most 200 characters and 1,024 UTF-8 bytes, without
+  /// trailing spaces.
   private func derivedTitle(of source: String) -> String {
-    SheetSource(source).lines.lazy.compactMap(title(of:)).first ?? ""
+    let line = SheetSource(source).lines.lazy.compactMap(title(of:)).first ?? ""
+    var title = ""
+    var bytes = 0
+    for character in line.prefix(Self.maximumDerivedTitleCharacters) {
+      bytes += character.utf8.count
+      guard bytes <= Self.maximumDerivedTitleBytes else {
+        break
+      }
+      title.append(character)
+    }
+    return title.trimmingCharacters(in: .whitespaces)
   }
 
   /// The sheet every library has: somewhere to work a number out without
@@ -517,14 +534,18 @@ public final class SheetLibrary {
   }
 
   private func title(of line: SheetLine) -> String? {
+    // A leading U+FEFF is invisible; it hides neither a heading nor a blank.
+    let line =
+      line.text.unicodeScalars.first == "\u{FEFF}"
+      ? String(line.text.unicodeScalars.dropFirst()) : line.text
     let text: Substring?
-    switch LineSyntax(line.text) {
+    switch LineSyntax(line) {
     case .blank:
       return nil
     case .heading(let title):
-      text = title.text(in: line.text)
+      text = title.text(in: line)
     default:
-      text = Substring(line.text.trimmingCharacters(in: .whitespaces))
+      text = Substring(line.trimmingCharacters(in: .whitespaces))
     }
     return text.flatMap { $0.isEmpty ? nil : String($0) }
   }

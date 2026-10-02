@@ -12,6 +12,13 @@
   positional JSON arrays in the frozen format; a binding's occurrence ordinal
   is its position in its owner's ledger entry and is not stored; and `current`
   (`[@Qty]`) bindings use the `#REF!{range:binding-id}` marker spelling.
+- Amended: 2026-10-02 — exact-byte exchange has one exception. Plain-text and
+  `.ganit` package import remove exactly one leading UTF-8 byte-order mark
+  (`EF BB BF`), an encoding signature some editors add, so a first-line heading
+  or table block is still recognized. Library storage, backups and export are
+  exact and never add a mark. Consequence: stored text that itself begins with
+  U+FEFF keeps it in the library and on export, but loses it when that export
+  is imported again. See the [.ganit format](../storage/ganit-format.md).
 
 ## Decision
 
