@@ -377,7 +377,7 @@ before proceeding.
 - [x] Recover missing/corrupt metadata in the current schema from canonical
       source without losing IDs, bindings or malformed blocks. Unknown table
       versions must stay quarantined from ordinary calculations.
-- [ ] Support current-format package import/export and exact plain-source
+- [x] Support current-format package import/export and exact plain-source
       import/export. Do not add downgrade export or schema conversion.
 - [ ] Make malformed tables retainable/saveable without source loss; editing
       must not replace an invalid table with the last valid projection.

@@ -48,10 +48,14 @@ Ganit. The library opens with every sheet, title, folder, and backup.
 ## Keep an independent copy
 
 Choose **File ▸ Export…** and **Ganit Sheet** for each sheet. A `.ganit`
-package holds the exact source, title, and preferences. Import it with
+package holds the exact source, including its tables, and the title,
+preferences, and column widths. Import it with
 **File ▸ Import…** or by opening it in Finder; a package keeps its sheet's
 identity when that sheet is not already in the library. The source is also
 plain text you can read without Ganit: `source.txt` inside the package.
+**Plain Text** export writes the same bytes, which import back unchanged
+unless the text begins with an invisible U+FEFF, which import removes, or is
+larger than 1 MB, which import refuses.
 
 ## Sheets in an unsupported format
 

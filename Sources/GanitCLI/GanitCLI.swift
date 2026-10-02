@@ -50,9 +50,11 @@ enum GanitCLI {
       }
       return
     }
-    let input = FileHandle.standardInput.readData(ofLength: maximumSheetBytes + 1)
-    guard input.count <= maximumSheetBytes, let source = String(data: input, encoding: .utf8)
-    else {
+    // Read as import reads a file: one leading byte-order mark is not part
+    // of the sheet or its limit.
+    let input = FileHandle.standardInput.readData(
+      ofLength: maximumSheetBytes + SheetExchange.byteOrderMark.count + 1)
+    guard let source = SheetExchange.importedSource(input) else {
       fail("The sheet must be UTF-8 text of at most 1 MB.")
     }
     do {
@@ -68,8 +70,8 @@ enum GanitCLI {
     }
   }
 
-  /// The engine's source limit.
-  static let maximumSheetBytes = 1_048_576
+  /// The engine's source limit, which import also applies.
+  static let maximumSheetBytes = SheetExchange.maximumSourceBytes
 
   /// The last-known-good snapshot in the sandboxed app's container, if the app
   /// has accepted one.

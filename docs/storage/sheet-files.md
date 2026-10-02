@@ -9,11 +9,12 @@ root, as decided in [ADR 0004](../adr/0004-storage-and-export.md):
 └── Metadata/<UUID>.json   versioned metadata
 ```
 
-Source files contain exactly the editor's text with no header or byte-order
-mark, so line terminators and every character round trip. Calculation tables are
-[table blocks](table-blocks.md) inside that text, not separate files. Loading source that
-is not valid UTF-8 fails with `DocumentStorageError.invalidUTF8` instead of
-decoding lossily.
+Source files contain exactly the editor's text with no header, and Ganit adds
+no byte-order mark, so line terminators and every character round trip. Text
+that itself begins with U+FEFF is stored and loaded with it; loading never
+drops a leading U+FEFF. Calculation tables are [table blocks](table-blocks.md)
+inside that text, not separate files. Loading source that is not valid UTF-8
+fails with `DocumentStorageError.invalidUTF8` instead of decoding lossily.
 
 ## Metadata, schema version 2
 
@@ -25,7 +26,7 @@ holding an invalid value, fails to decode.
 |---|---|
 | `schemaVersion` | `2`; any other version, including `1`, fails with `unsupportedSchemaVersion` and is never converted |
 | `id` | stable sheet UUID, matching both file names; metadata naming another sheet is corrupt |
-| `title` | display title |
+| `title` | display title; one following the first line omits a leading U+FEFF and a heading's `#` and keeps at most 200 characters and 1,024 UTF-8 bytes, cut between characters, so it cannot make a package manifest too large to export |
 | `folderID` | containing folder, if any |
 | `createdAt`, `modifiedAt` | ISO 8601 UTC timestamps, second precision |
 | `isFavorite` | favorite flag |
