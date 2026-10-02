@@ -371,7 +371,7 @@ before proceeding.
 - [x] Add frozen fixtures and readers/writers for the single current format:
       metadata/manifest schema 2, as selected in ADR 0017. Reject unsupported
       schemas explicitly; do not add older readers or migration paths.
-- [ ] Use atomic source/metadata/package writes and retain ordinary current-
+- [x] Use atomic source/metadata/package writes and retain ordinary current-
       format backups. Test interrupted writes; no migration-specific backup
       or one-time capability barrier is required.
 - [ ] Recover missing/corrupt metadata in the current schema from canonical

@@ -385,6 +385,27 @@ public struct SheetStore: Sendable {
       .sorted { $0.uuidString < $1.uuidString }
   }
 
+  /// Removes regular files that interrupted atomic writes left in the source
+  /// and metadata directories, named exactly as `AtomicFile` names its
+  /// temporary files. Cleanup is best effort: a directory that cannot be
+  /// listed or a file that cannot be removed is skipped. Only call it when
+  /// no write is in progress.
+  func removeTemporaryFiles() {
+    for directory in [sheetsDirectory, metadataDirectory] {
+      guard let names = try? FileManager.default.contentsOfDirectory(atPath: directory.path)
+      else {
+        continue
+      }
+      for name in names where AtomicFile.isWriterTemporary(name) {
+        let file = directory.appending(path: name)
+        let type = try? FileManager.default.attributesOfItem(atPath: file.path)[.type]
+        if type as? FileAttributeType == .typeRegular {
+          try? FileManager.default.removeItem(at: file)
+        }
+      }
+    }
+  }
+
   private struct SchemaVersion: Decodable {
     let schemaVersion: Int
   }
