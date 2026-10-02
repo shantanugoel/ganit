@@ -2,8 +2,11 @@ import Darwin
 import Foundation
 
 /// The portable metadata of a `.ganit` package.
+///
+/// Schema 2 is the only schema read or written. Any other version is refused
+/// with `SheetExchangeError.unsupportedSchemaVersion`; there is no migration.
 public struct GanitManifest: Codable, Equatable, Sendable {
-  public static let currentSchemaVersion = 1
+  public static let currentSchemaVersion = 2
 
   public private(set) var schemaVersion = currentSchemaVersion
   public var id: UUID
@@ -14,6 +17,8 @@ public struct GanitManifest: Codable, Equatable, Sendable {
   public var preferences: SheetPreferences
   /// `sha256:` and the lowercase hex SHA-256 of `source.txt`.
   public var sourceChecksum: String
+  /// How the sheet's tables are drawn; never canonical.
+  public var tables: TablePresentations
 }
 
 /// A sheet read from a `.ganit` package or plain-text file.
@@ -40,7 +45,8 @@ public struct QuickLookPreview: Sendable {
 
 public enum SheetExchangeError: Error, Equatable {
   case invalidUTF8(URL)
-  /// A file larger than import accepts.
+  /// A file larger than import accepts, or a package export would write
+  /// that import would refuse.
   case tooLarge(URL)
   case unsupportedSchemaVersion(Int)
 }
@@ -87,21 +93,35 @@ public enum SheetExchange {
       try AtomicFile.write(sourceData, to: url)
       return
     }
-    let manifest = GanitManifest(
+    var manifest = GanitManifest(
       id: metadata.id,
       title: metadata.title,
       hasCustomTitle: metadata.hasCustomTitle,
       createdAt: metadata.createdAt,
       modifiedAt: metadata.modifiedAt,
       preferences: metadata.preferences,
-      sourceChecksum: checksum(of: sourceData)
+      sourceChecksum: checksum(of: sourceData),
+      tables: metadata.tables.pruned(toTablesIn: sourceData)
     )
+    // A package import would refuse is never written. Presentation is not
+    // canonical, so it is left out rather than keep a sheet from exporting.
+    var manifestData = try encoder.encode(manifest)
+    if manifestData.count > maximumManifestBytes, !manifest.tables.byTableID.isEmpty {
+      manifest.tables = TablePresentations()
+      manifestData = try encoder.encode(manifest)
+    }
+    guard manifestData.count <= maximumManifestBytes else {
+      throw SheetExchangeError.tooLarge(url)
+    }
+    guard sourceData.count <= maximumSourceBytes else {
+      throw SheetExchangeError.tooLarge(url)
+    }
     let directory = url.deletingLastPathComponent()
     let temporary = directory.appending(path: ".\(url.lastPathComponent).\(UUID().uuidString).tmp")
     try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: false)
     do {
       try AtomicFile.write(sourceData, to: temporary.appending(path: "source.txt"))
-      try AtomicFile.write(encoder.encode(manifest), to: temporary.appending(path: "manifest.json"))
+      try AtomicFile.write(manifestData, to: temporary.appending(path: "manifest.json"))
       if let quickLook {
         let folder = temporary.appending(path: "QuickLook", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: false)
@@ -151,14 +171,14 @@ public enum SheetExchange {
     return text
   }
 
-  private static let encoder: JSONEncoder = {
+  static let encoder: JSONEncoder = {
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
     encoder.dateEncodingStrategy = .iso8601
     return encoder
   }()
 
-  private static let decoder: JSONDecoder = {
+  static let decoder: JSONDecoder = {
     let decoder = JSONDecoder()
     decoder.dateDecodingStrategy = .iso8601
     return decoder
@@ -167,8 +187,9 @@ public enum SheetExchange {
 
 extension SheetLibrary {
   /// Imports a `.ganit` package or UTF-8 text file as a new sheet. A package
-  /// keeps its ID, title, and preferences unless the library already has a
-  /// sheet with that ID; plain text uses `preferences`.
+  /// keeps its ID, title, preferences, and table presentation unless the
+  /// library already has a sheet with that ID, when it gets a new ID; plain
+  /// text uses `preferences`.
   public func importSheet(from url: URL, preferences: SheetPreferences) throws -> SheetMetadata {
     let exchanged = try SheetExchange.read(from: url)
     let manifest = exchanged.manifest
@@ -182,6 +203,7 @@ extension SheetLibrary {
       preferences: manifest?.preferences ?? preferences
     )
     metadata.hasCustomTitle = manifest?.hasCustomTitle ?? false
+    metadata.tables = manifest?.tables ?? TablePresentations()
     return try save(source: exchanged.source, metadata: metadata)
   }
 

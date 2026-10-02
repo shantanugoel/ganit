@@ -1,0 +1,3 @@
+# Rent
+rent = 2,100
+rent * 12

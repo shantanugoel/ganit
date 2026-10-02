@@ -64,27 +64,6 @@ public struct DisplayOptions: Codable, Equatable, Sendable {
     self.dollarCurrency = dollarCurrency
     self.ambiguousSuffixes = ambiguousSuffixes
   }
-
-  /// A sheet written before answers could sit inline names neither choice,
-  /// and means the column with its rule.
-  public init(from decoder: any Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    groupsDigits = try container.decode(Bool.self, forKey: .groupsDigits)
-    groupsInLakhs = try container.decodeIfPresent(Bool.self, forKey: .groupsInLakhs) ?? false
-    numbers = try container.decode(NumberDisplay.self, forKey: .numbers)
-    writesAnswersInline =
-      try container.decodeIfPresent(Bool.self, forKey: .writesAnswersInline) ?? false
-    showsAnswerSeparator =
-      try container.decodeIfPresent(Bool.self, forKey: .showsAnswerSeparator) ?? true
-    showsLineNumbers =
-      try container.decodeIfPresent(Bool.self, forKey: .showsLineNumbers) ?? true
-    answerFormats =
-      try container.decodeIfPresent([String: NumberDisplay].self, forKey: .answerFormats) ?? [:]
-    dollarCurrency = try container.decodeIfPresent(String.self, forKey: .dollarCurrency) ?? "USD"
-    ambiguousSuffixes =
-      try container.decodeIfPresent(
-        [String: AmbiguousSuffixMeaning].self, forKey: .ambiguousSuffixes) ?? [:]
-  }
 }
 
 /// The forms a number can take on a sheet. They are exclusive: a fixed number

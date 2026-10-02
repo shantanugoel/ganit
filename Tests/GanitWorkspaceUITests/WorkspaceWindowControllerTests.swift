@@ -581,6 +581,100 @@ struct WorkspaceWindowControllerTests {
     #expect(rule.state == .off)
   }
 
+  /// A scratch sheet Ganit cannot read does not keep the workspace from
+  /// opening; it stays untouched, and asking for it reports the error.
+  @Test(arguments: [1, 3])
+  func anUnreadableScratchSheetDoesNotKeepTheWorkspaceClosed(version: Int) throws {
+    let (first, ids) = try makeWorkspace(["rent"])
+    close(first)
+    let library = first.library
+    let scratch = SheetLibrary.scratchID.uuidString
+    let metadataURL = root.appending(path: "Metadata/\(scratch).json")
+    let sourceURL = root.appending(path: "Sheets/\(scratch).txt")
+    let metadata = Data(
+      try String(contentsOf: metadataURL, encoding: .utf8)
+        .replacingOccurrences(of: "\"schemaVersion\" : 2", with: "\"schemaVersion\" : \(version)")
+        .utf8)
+    try metadata.write(to: metadataURL)
+    let source = try Data(contentsOf: sourceURL)
+    let backups = try library.backups(of: SheetLibrary.scratchID)
+    try FileManager.default.removeItem(at: root.appending(path: "Index"))
+
+    let workspace = try Workspace(library: try SheetLibrary(root: root))
+    defer { close(workspace) }
+
+    // The rebuild could not read the scratch sheet, so a notice waits until
+    // the app asks for it; opening or restoring a window does not use it up.
+    #expect(workspace.pendingNotice == UnreadableSheetsNotice(count: 1))
+    #expect(workspace.pendingNotice?.recoverySuggestion?.contains("unchanged") == true)
+    #expect(throws: DocumentStorageError.unsupportedSchemaVersion(version)) {
+      try workspace.openScratch()
+    }
+    let controller = try workspace.openMostRecentSheet()
+    #expect(controller.sheetID == ids[0])
+    #expect(controller.window?.attachedSheet == nil)
+    #expect(workspace.pendingNotice != nil)
+    #expect(try workspace.library.index.summaries().map(\.id) == ids)
+    #expect(try Data(contentsOf: metadataURL) == metadata)
+    #expect(try Data(contentsOf: sourceURL) == source)
+    #expect(try workspace.library.backups(of: SheetLibrary.scratchID) == backups)
+  }
+
+  /// The unreadable-sheets notice is shown as a sheet once launching has
+  /// finished and is kept until its button dismisses it: with no visible
+  /// window it waits for the next one, and a window closed under it passes it
+  /// on to the next.
+  @Test
+  func theUnreadableSheetsNoticeLastsUntilDismissed() throws {
+    let library = try SheetLibrary(root: root)
+    let sheet = try library.save(source: "1", metadata: library.create(preferences: .standard))
+    try Data("{\"schemaVersion\" : 1}".utf8).write(
+      to: root.appending(path: "Metadata/\(sheet.id.uuidString).json"))
+    try FileManager.default.removeItem(at: root.appending(path: "Index"))
+    let workspace = try Workspace(library: try SheetLibrary(root: root))
+    defer { close(workspace) }
+    #expect(workspace.pendingNotice == UnreadableSheetsNotice(count: 1))
+
+    // No visible window yet, as when Ganit starts in the menu bar.
+    workspace.presentPendingNotice()
+    #expect(workspace.pendingNotice != nil)
+    let first = try #require(workspace.openWindow(showing: nil).window)
+    let firstSheet = try #require(first.attachedSheet)
+    #expect(workspace.pendingNotice != nil)
+
+    // Closing the window under the notice does not count as seeing it.
+    first.close()
+    first.endSheet(firstSheet, returnCode: .abort)
+    #expect(workspace.pendingNotice != nil)
+    let second = try #require(workspace.openWindow(showing: nil).window)
+    let notice = try #require(second.attachedSheet)
+
+    second.endSheet(notice, returnCode: .alertFirstButtonReturn)
+    #expect(workspace.pendingNotice == nil)
+    let third = try #require(workspace.openWindow(showing: nil).window)
+    #expect(third.attachedSheet == nil)
+  }
+
+  /// Failing to create a new library's scratch sheet still keeps the
+  /// workspace from opening, rather than being ignored.
+  @Test
+  func failingToCreateTheScratchSheetIsNotIgnored() throws {
+    let library = try SheetLibrary(root: root)
+    try library.save(source: "rent", metadata: library.create(preferences: .standard))
+    let sheets = root.appending(path: "Sheets")
+    try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: sheets.path)
+    defer {
+      try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: sheets.path)
+    }
+
+    #expect(throws: DocumentStorageError.self) {
+      try Workspace(library: library)
+    }
+    #expect(
+      !FileManager.default.fileExists(
+        atPath: sheets.appending(path: "\(SheetLibrary.scratchID.uuidString).txt").path))
+  }
+
   private func makeWorkspace(
     _ sources: [String],
     library: SheetLibrary? = nil

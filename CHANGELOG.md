@@ -12,6 +12,12 @@ existing answer. See the [release train](docs/release/release-train.md).
   while commented; uncommenting restores their references without repair.
 - Replace All tracks each replacement separately so references to intact
   lines between matches remain valid, with reference updates in the same Undo.
+- Sheets and `.ganit` packages now use format 2, which also stores
+  presentation such as table column widths. Sheets and packages saved in
+  format 1 are not converted: Ganit leaves their files unchanged, says how
+  many sheets it couldn't open, and explains the format when one is opened.
+  Their source stays readable as plain text. The library index is rebuilt
+  once on first launch.
 
 - Multiplying a percentage by a plain number now preserves the percentage
   type, matching division. Subsequent percentage addition and subtraction

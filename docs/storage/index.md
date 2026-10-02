@@ -6,7 +6,7 @@ time) and source. Sheet files remain the only authority: the index can be
 deleted at any time without losing content.
 
 It uses the system SQLite library directly through a small adapter; there is no
-ORM. The table schema version is stored in `PRAGMA user_version` (currently 1).
+ORM. The table schema version is stored in `PRAGMA user_version` (currently 3).
 
 ## Health and rebuild
 

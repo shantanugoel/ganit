@@ -58,6 +58,9 @@ public final class SheetLibrary {
 
   public let store: SheetStore
   public let index: SheetIndex
+  /// Sheets the last index rebuild could not read, such as ones with an
+  /// unsupported metadata schema. Their files were left untouched.
+  public private(set) var unreadableSheetIDs: [UUID] = []
   private let backupPolicy: BackupPolicy
   let now: () -> Date
   private let dayFormatter: DateFormatter
@@ -108,8 +111,8 @@ public final class SheetLibrary {
   /// Repairs sheets whose metadata is stale, unreadable, or missing, keeping
   /// their source, and rebuilds the index. Unreadable metadata is moved to
   /// `Quarantine/` rather than deleted. Sheets that still cannot be read, such
-  /// as source that is not UTF-8 or metadata from a newer schema, are left
-  /// untouched.
+  /// as source that is not UTF-8 or metadata in a schema other than the
+  /// current one, are left untouched.
   @discardableResult
   public func recoverAndRebuildIndex() throws -> IndexRebuildReport {
     for id in try store.sheetIDs() {
@@ -125,6 +128,7 @@ public final class SheetLibrary {
       }
     }
     let report = try index.rebuild(from: store)
+    unreadableSheetIDs = report.unreadable
     try? FileManager.default.removeItem(at: unsyncedMarker)
     return report
   }
@@ -155,10 +159,29 @@ public final class SheetLibrary {
   public static let scratchID = UUID(uuidString: "5C4A7C40-0000-4000-8000-000000000001")!
 
   /// Creates the scratch sheet when the library has none, and returns it.
+  /// Missing or corrupt current-schema metadata is recovered from the source,
+  /// as the library's recovery does. A scratch sheet that still cannot be
+  /// read, such as one with an unsupported schema or source that is not
+  /// UTF-8, throws and is left untouched rather than replaced.
   @discardableResult
   public func openScratch() throws -> SheetMetadata {
-    if let existing = try? store.load(id: Self.scratchID) {
-      return existing.metadata
+    if FileManager.default.fileExists(atPath: store.sourceURL(Self.scratchID).path) {
+      do {
+        return try store.load(id: Self.scratchID).metadata
+      } catch is DecodingError, CocoaError.fileReadNoSuchFile {
+        // Marked unsynchronized throughout, so an interruption is repaired
+        // by the next open's recovery.
+        return try changingIndexedFiles {
+          try recoverMetadata(of: Self.scratchID)
+          let sheet = try store.load(id: Self.scratchID)
+          var metadata = sheet.metadata
+          metadata.title = "Scratch"
+          metadata.hasCustomTitle = true
+          let saved = try store.saveMetadata(metadata)
+          try index.upsert(saved, source: sheet.source)
+          return saved
+        }
+      }
     }
     var metadata = SheetMetadata(
       id: Self.scratchID, title: "Scratch", createdAt: now(), preferences: .standard)
@@ -205,9 +228,9 @@ public final class SheetLibrary {
     var metadata = sheet.metadata
     change(&metadata)
     return try changingIndexedFiles {
-      try store.saveMetadata(metadata)
-      try index.upsert(metadata, source: sheet.source)
-      return metadata
+      let saved = try store.saveMetadata(metadata)
+      try index.upsert(saved, source: sheet.source)
+      return saved
     }
   }
 
@@ -232,6 +255,7 @@ public final class SheetLibrary {
       preferences: sheet.metadata.preferences
     )
     copy.hasCustomTitle = sheet.metadata.hasCustomTitle
+    copy.tables = sheet.metadata.tables
     return try save(source: sheet.source, metadata: copy)
   }
 

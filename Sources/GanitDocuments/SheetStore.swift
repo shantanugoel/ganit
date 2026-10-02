@@ -38,16 +38,6 @@ public struct SheetPreferences: Codable, Equatable, Sendable {
     self.significantDecimalDigits = significantDecimalDigits
     self.display = display
   }
-
-  /// Metadata written before a sheet could say how to write its answers names
-  /// no display, and means the standard one.
-  public init(from decoder: any Decoder) throws {
-    let container = try decoder.container(keyedBy: CodingKeys.self)
-    localeIdentifier = try container.decode(String.self, forKey: .localeIdentifier)
-    angleMode = try container.decode(AngleMode.self, forKey: .angleMode)
-    significantDecimalDigits = try container.decode(Int.self, forKey: .significantDecimalDigits)
-    display = try container.decodeIfPresent(DisplayOptions.self, forKey: .display) ?? .standard
-  }
 }
 
 extension SheetPreferences {
@@ -93,9 +83,156 @@ extension SheetPreferences {
   }
 }
 
+/// Presentation-only state of one calculation table, such as how wide its
+/// columns are drawn.
+public struct TablePresentation: Codable, Equatable, Sendable {
+  /// The narrowest a column can be drawn, in points.
+  public static let minimumColumnWidth = 1.0
+  /// The widest a column can be drawn, in points.
+  public static let maximumColumnWidth = 10_000.0
+
+  /// Column widths in points, keyed by each column's canonical lowercase
+  /// ColumnID. Change them with `setWidth(_:column:)`.
+  public private(set) var columnWidths: [String: Double]
+
+  public init() {
+    columnWidths = [:]
+  }
+
+  /// Unchecked, so tests and decoding can hold what was read; writers drop
+  /// what is invalid.
+  init(columnWidths: [String: Double]) {
+    self.columnWidths = columnWidths
+  }
+
+  /// Sets a column's width, clamped to the allowed range, or removes it when
+  /// `width` is `nil`. An identity that is not a canonical lowercase UUID, or
+  /// a width that is not finite, is ignored.
+  public mutating func setWidth(_ width: Double?, column: String) {
+    guard isCanonicalIdentity(column) else {
+      return
+    }
+    guard let width else {
+      columnWidths[column] = nil
+      return
+    }
+    guard width.isFinite else {
+      return
+    }
+    columnWidths[column] = min(max(width, Self.minimumColumnWidth), Self.maximumColumnWidth)
+  }
+
+  public init(from decoder: any Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    // Presentation is new in schema 2, so it accepts no keys it does not
+    // define. A missing `columnWidths` fails below as a missing key.
+    let keys = try decoder.container(keyedBy: AnyKey.self).allKeys.map(\.stringValue)
+    guard keys.allSatisfy({ $0 == CodingKeys.columnWidths.stringValue }) else {
+      throw DecodingError.dataCorrupted(
+        DecodingError.Context(
+          codingPath: decoder.codingPath, debugDescription: "Unknown table presentation key"))
+    }
+    columnWidths = try container.decode([String: Double].self, forKey: .columnWidths)
+  }
+
+  private struct AnyKey: CodingKey {
+    let stringValue: String
+    var intValue: Int? { nil }
+    init(stringValue: String) { self.stringValue = stringValue }
+    init?(intValue: Int) { nil }
+  }
+
+  static func isValid(column: String, width: Double) -> Bool {
+    isCanonicalIdentity(column) && width.isFinite && width >= minimumColumnWidth
+      && width <= maximumColumnWidth
+  }
+}
+
+/// Presentation-only state of a sheet's calculation tables, keyed by each
+/// table's canonical lowercase TableID.
+///
+/// It is never canonical: the table blocks in the source win. Decoding is
+/// strict: an identity that is not a canonical lowercase UUID, a width that
+/// is not finite or outside `TablePresentation`'s range, or an unknown key
+/// in an entry makes the whole metadata invalid, so recovery quarantines it
+/// and rebuilds metadata from the source, resetting the title, folder,
+/// favorite flag, state, and preferences too. Writers never fail because of
+/// it; they drop invalid entries and entries for tables or columns whose
+/// identity no longer occurs in the saved source.
+public struct TablePresentations: Codable, Equatable, Sendable {
+  /// Change entries with `setWidth(_:column:table:)`.
+  public private(set) var byTableID: [String: TablePresentation]
+
+  public init() {
+    byTableID = [:]
+  }
+
+  /// Unchecked, so tests and decoding can hold what was read.
+  init(_ byTableID: [String: TablePresentation]) {
+    self.byTableID = byTableID
+  }
+
+  /// Sets a column's width in a table, as `TablePresentation.setWidth`
+  /// does, or removes it when `width` is `nil`. A table left with no widths
+  /// is removed, and an invalid table identity is ignored.
+  public mutating func setWidth(_ width: Double?, column: String, table: String) {
+    guard isCanonicalIdentity(table) else {
+      return
+    }
+    var presentation = byTableID[table] ?? TablePresentation()
+    presentation.setWidth(width, column: column)
+    byTableID[table] = presentation.columnWidths.isEmpty ? nil : presentation
+  }
+
+  public init(from decoder: any Decoder) throws {
+    let container = try decoder.singleValueContainer()
+    byTableID = try container.decode([String: TablePresentation].self)
+    guard byTableID == pruned(keeping: { _ in true }).byTableID else {
+      throw DecodingError.dataCorruptedError(
+        in: container, debugDescription: "Invalid table identity or column width")
+    }
+  }
+
+  /// Writes only valid entries, so presentation never keeps a save from
+  /// happening.
+  public func encode(to encoder: any Encoder) throws {
+    var container = encoder.singleValueContainer()
+    try container.encode(pruned(keeping: { _ in true }).byTableID)
+  }
+
+  /// The valid entries whose table and column identities occur in `source`,
+  /// so the state cannot outgrow the sheet. A plain byte search keeps
+  /// entries for malformed blocks whose identities are still written.
+  func pruned(toTablesIn source: Data) -> TablePresentations {
+    pruned { source.range(of: Data($0.utf8)) != nil }
+  }
+
+  private func pruned(keeping occurs: (String) -> Bool) -> TablePresentations {
+    var kept: [String: TablePresentation] = [:]
+    for (table, presentation) in byTableID where isCanonicalIdentity(table) && occurs(table) {
+      let widths = presentation.columnWidths.filter { column, width in
+        TablePresentation.isValid(column: column, width: width) && occurs(column)
+      }
+      if !widths.isEmpty || presentation.columnWidths.isEmpty {
+        kept[table] = TablePresentation(columnWidths: widths)
+      }
+    }
+    return TablePresentations(kept)
+  }
+}
+
+/// Whether `text` is a UUID in canonical lowercase 36-character form, the
+/// only spelling table identities have.
+private func isCanonicalIdentity(_ text: String) -> Bool {
+  UUID(uuidString: text)?.uuidString.lowercased() == text
+}
+
 /// Small, versioned metadata stored beside a sheet's canonical source.
+///
+/// Schema 2 is the only schema read or written. Any other version is refused
+/// with `DocumentStorageError.unsupportedSchemaVersion`; there is no migration.
 public struct SheetMetadata: Codable, Equatable, Sendable {
-  public static let currentSchemaVersion = 1
+  public static let currentSchemaVersion = 2
 
   public private(set) var schemaVersion = currentSchemaVersion
   public let id: UUID
@@ -112,6 +249,9 @@ public struct SheetMetadata: Codable, Equatable, Sendable {
   /// `sha256:` followed by the lowercase hex digest of the source's UTF-8
   /// bytes, as of the last save.
   public internal(set) var sourceChecksum: String
+  /// How the sheet's tables are drawn. Writers keep only valid entries whose
+  /// identities occur in the saved source.
+  public var tables = TablePresentations()
 
   public init(
     id: UUID = UUID(),
@@ -172,8 +312,8 @@ public struct SheetStore: Sendable {
   }
 
   /// Saves source and metadata, stamping the metadata with the source's
-  /// checksum and whole-second timestamps, and returns the metadata as
-  /// written.
+  /// checksum and whole-second timestamps and dropping presentation state of
+  /// tables the source no longer has, and returns the metadata as written.
   @discardableResult
   public func save(source: String, metadata: SheetMetadata) throws -> SheetMetadata {
     try FileManager.default.createDirectory(at: sheetsDirectory, withIntermediateDirectories: true)
@@ -182,19 +322,29 @@ public struct SheetStore: Sendable {
     let sourceData = Data(source.utf8)
     var metadata = metadata
     metadata.sourceChecksum = checksum(of: sourceData)
+    metadata.tables = metadata.tables.pruned(toTablesIn: sourceData)
     metadata.createdAt = Date(
       timeIntervalSince1970: metadata.createdAt.timeIntervalSince1970.rounded(.down))
     metadata.modifiedAt = Date(
       timeIntervalSince1970: metadata.modifiedAt.timeIntervalSince1970.rounded(.down))
+    // Encoding first means metadata that cannot be encoded leaves both files
+    // untouched.
+    let metadataData = try Self.encoder.encode(metadata)
     try AtomicFile.write(sourceData, to: sourceURL(metadata.id))
-    try AtomicFile.write(try Self.encoder.encode(metadata), to: metadataURL(metadata.id))
+    try AtomicFile.write(metadataData, to: metadataURL(metadata.id))
     return metadata
   }
 
   /// Replaces only a sheet's metadata, keeping the checksum of its current
-  /// source.
-  public func saveMetadata(_ metadata: SheetMetadata) throws {
+  /// source and dropping presentation state of tables that source does not
+  /// have, and returns the metadata as written.
+  @discardableResult
+  public func saveMetadata(_ metadata: SheetMetadata) throws -> SheetMetadata {
+    var metadata = metadata
+    metadata.tables = metadata.tables.pruned(
+      toTablesIn: try Data(contentsOf: sourceURL(metadata.id)))
     try AtomicFile.write(try Self.encoder.encode(metadata), to: metadataURL(metadata.id))
+    return metadata
   }
 
   /// Removes a sheet's source and metadata files.
@@ -239,14 +389,14 @@ public struct SheetStore: Sendable {
     let schemaVersion: Int
   }
 
-  private static let encoder: JSONEncoder = {
+  static let encoder: JSONEncoder = {
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
     encoder.dateEncodingStrategy = .iso8601
     return encoder
   }()
 
-  private static let decoder: JSONDecoder = {
+  static let decoder: JSONDecoder = {
     let decoder = JSONDecoder()
     decoder.dateDecodingStrategy = .iso8601
     return decoder

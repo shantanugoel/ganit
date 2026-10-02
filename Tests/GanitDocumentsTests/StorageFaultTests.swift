@@ -55,7 +55,7 @@ struct StorageFaultTests {
     let missing = try library!.save(
       source: "# Missing\n2", metadata: library!.create(preferences: .standard))
     library = nil
-    try Data("{\"schemaVersion\": 1, \"id\":".utf8).write(
+    try Data("{\"schemaVersion\": 2, \"id\":".utf8).write(
       to: root.appending(path: "Metadata/\(corrupt.id.uuidString).json"))
     try FileManager.default.removeItem(
       at: root.appending(path: "Metadata/\(missing.id.uuidString).json"))
