@@ -122,6 +122,14 @@ final class SheetTextView: NSTextView {
   var line: (Int) -> (number: Int, id: LineID)? = { _ in nil }
   /// The one-based number of a line.
   var lineNumber: (LineID) -> Int? = { _ in nil }
+  /// Whether the line containing a UTF-16 offset belongs to a table block,
+  /// valid or not. Completion, scrubbing, answer arrows, inserted lines and
+  /// references, prefix toggles and reinterpretation never rewrite block
+  /// source; only what the reader types, pastes or deletes changes it.
+  var isTableLine: (Int) -> Bool = { _ in false }
+  /// Whether any line a UTF-16 range touches, including the line at its
+  /// end, belongs to a table block.
+  var touchesTableLine: (NSRange) -> Bool = { _ in false }
   /// Every line's ID, UTF-16 start offset, and UTF-16 length, in order.
   var lineStarts: () -> [(id: LineID, start: Int, length: Int)] = { [] }
   private lazy var problemRotor = LineRotor(textView: self, failures: true)
@@ -245,6 +253,10 @@ final class SheetTextView: NSTextView {
   /// Ends the insertion point's line with `=>`, as ⌘↩ does in Calca, unless it
   /// already has one.
   @objc func insertAnswerArrow(_ sender: Any?) {
+    guard canInsertAnswerArrow else {
+      NSSound.beep()
+      return
+    }
     let string = self.string as NSString
     var contentsEnd = 0
     string.getLineStart(
@@ -858,7 +870,7 @@ final class SheetTextView: NSTextView {
 
   /// Only tokens beside an amount can have these competing meanings.
   private func sourceInterpretation(atUTF16 offset: Int) -> SourceInterpretation? {
-    guard let info = line(offset),
+    guard !isTableLine(offset), let info = line(offset),
       let start = lineStarts().first(where: { $0.id == info.id })
     else { return nil }
     let lineText = (string as NSString).substring(
@@ -1276,7 +1288,7 @@ final class SheetTextView: NSTextView {
   /// holding it.
   private func number(at offset: Int) -> (number: ScrubbableNumber, lineStart: Int)? {
     let text = string as NSString
-    guard offset <= text.length else {
+    guard offset <= text.length, !isTableLine(offset) else {
       return nil
     }
     let line = text.paragraphRange(for: NSRange(location: offset, length: 0))
@@ -1437,7 +1449,7 @@ final class SheetTextView: NSTextView {
   /// assistant prompt prose. A placeholder remains an expression.
   private func isCompletionPosition() -> Bool {
     let cursor = selectedRange()
-    guard cursor.length == 0 else { return false }
+    guard cursor.length == 0, !isTableLine(cursor.location) else { return false }
     let text = string as NSString
     let lineRange = text.lineRange(for: cursor)
     let contents = text.substring(with: lineRange)
@@ -1717,7 +1729,7 @@ final class SheetTextView: NSTextView {
     case #selector(copyFullPrecision(_:)):
       return targetAnswer?.cell.fullPrecision != nil
     case #selector(insertReference(_:)):
-      return referenceTarget != nil
+      return referenceTarget != nil && canInsertReferenceHere
     case #selector(nextProblem(_:)), #selector(previousProblem(_:)):
       return !answerLines(failures: true).isEmpty
     case #selector(decreaseTextSize(_:)):
@@ -1726,10 +1738,12 @@ final class SheetTextView: NSTextView {
       return textScale < Self.textScales[Self.textScales.count - 1]
     case #selector(resetTextSize(_:)):
       return textScale != 1
-    case #selector(insertSubtotal(_:)), #selector(insertAnswerArrow(_:)),
-      #selector(toggleHeading(_:)),
-      #selector(toggleComment(_:)), #selector(insertDivider(_:)):
-      return isEditable
+    case #selector(insertSubtotal(_:)), #selector(insertDivider(_:)):
+      return isEditable && !isTableLine(lineInsertionPoint)
+    case #selector(insertAnswerArrow(_:)):
+      return isEditable && canInsertAnswerArrow
+    case #selector(toggleHeading(_:)), #selector(toggleComment(_:)):
+      return isEditable && canTogglePrefix
     case #selector(stepNumberUp(_:)), #selector(stepNumberDown(_:)):
       return isEditable && number(at: selectedRange().location) != nil
     default:
@@ -1814,28 +1828,55 @@ final class SheetTextView: NSTextView {
     return true
   }
 
-  private func insertLineAfterCurrent(_ text: String) {
+  /// Whether the answer arrow would be written outside table blocks.
+  private var canInsertAnswerArrow: Bool {
+    !isTableLine(selectedRange().location)
+  }
+
+  /// Where a line inserted after the selection's last line begins: the end
+  /// of that line's contents.
+  private var lineInsertionPoint: Int {
     let string = self.string as NSString
-    let lineRange = string.lineRange(for: selectedRange())
     var contentsEnd = 0
-    string.getLineStart(nil, end: nil, contentsEnd: &contentsEnd, for: lineRange)
+    string.getLineStart(
+      nil, end: nil, contentsEnd: &contentsEnd, for: string.lineRange(for: selectedRange()))
+    return contentsEnd
+  }
+
+  /// Whether a reference replacing the selection would leave every table
+  /// block's bytes alone.
+  private var canInsertReferenceHere: Bool {
+    !touchesTableLine(selectedRange())
+  }
+
+  private func insertLineAfterCurrent(_ text: String) {
+    let contentsEnd = lineInsertionPoint
+    guard !isTableLine(contentsEnd) else {
+      NSSound.beep()
+      return
+    }
     let inserted = "\n" + text
     insertText(inserted, replacementRange: NSRange(location: contentsEnd, length: 0))
     setSelectedRange(NSRange(location: contentsEnd + (inserted as NSString).length, length: 0))
   }
 
   /// Toggles a marker on the selected lines as one edit: removes it when
-  /// every non-blank line starts with it, and adds it otherwise.
+  /// every non-blank line starts with it, and adds it otherwise. Lines of a
+  /// table block keep their bytes.
   private func togglePrefix(_ marker: String) {
-    let string = self.string as NSString
-    let block = string.lineRange(for: selectedRange())
-    let lines = string.substring(with: block).components(separatedBy: "\n")
-    let contentLines = lines.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+    let (block, lines, inTable) = prefixToggleLines()
+    let contentLines = zip(lines, inTable).filter {
+      !$0.1 && !$0.0.trimmingCharacters(in: .whitespaces).isEmpty
+    }.map(\.0)
+    guard !contentLines.isEmpty || !inTable.contains(true) else {
+      NSSound.beep()
+      return
+    }
     let removing =
       !contentLines.isEmpty
       && contentLines.allSatisfy { $0.drop(while: \.isWhitespace).hasPrefix(marker) }
-    let toggled = lines.map { line -> String in
-      guard !line.trimmingCharacters(in: .whitespaces).isEmpty else {
+    let toggled = zip(lines, inTable).map { line, isTable -> String in
+      guard !isTable, !line.trimmingCharacters(in: .whitespaces).isEmpty else {
         return line
       }
       let indent = line.prefix(while: \.isWhitespace)
@@ -1853,12 +1894,38 @@ final class SheetTextView: NSTextView {
     setSelectedRange(NSRange(location: block.location, length: (toggled as NSString).length))
   }
 
+  /// The selected lines a prefix toggle reads, and which of them belong to
+  /// table blocks.
+  private func prefixToggleLines() -> (block: NSRange, lines: [String], inTable: [Bool]) {
+    let string = self.string as NSString
+    let block = string.lineRange(for: selectedRange())
+    let lines = string.substring(with: block).components(separatedBy: "\n")
+    var start = block.location
+    let inTable = lines.map { line -> Bool in
+      defer { start += (line as NSString).length + 1 }
+      return isTableLine(start)
+    }
+    return (block, lines, inTable)
+  }
+
+  /// Whether a prefix toggle has a line outside table blocks to act on, or
+  /// a selection without block lines.
+  private var canTogglePrefix: Bool {
+    let (_, lines, inTable) = prefixToggleLines()
+    return !inTable.contains(true)
+      || zip(lines, inTable).contains { !$1 && !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+  }
+
   /// Inserts `line N` for an answer above the insertion point's line.
   private func insertReference(to answerLine: LineID) {
     guard let number = lineNumber(answerLine),
       let caretLine = line(selectedRange().location),
       number < caretLine.number
     else {
+      NSSound.beep()
+      return
+    }
+    guard canInsertReferenceHere else {
       NSSound.beep()
       return
     }

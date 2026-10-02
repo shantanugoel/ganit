@@ -158,6 +158,30 @@ Explanations wrap; long values use a 96-point-high selectable scroll field.
 Copy Full Precision stays outside the scrolling details so an exact value can
 be copied in full.
 
+## Table blocks
+
+Every physical line of a [table block](../storage/table-blocks.md), valid or
+not, is block source. It shows no answer in either sheet mode, is decorated as
+a comment, is never sent to an assistant and never joins the selection
+summary. Block diagnostics are in the evaluation's `tableDiagnostics`;
+integrated table presentation is later work, so the answer separator still
+draws across blocks for now.
+
+Only explicit user edits change block bytes — typing, pasting, deleting,
+drag and drop, Find and Replace, Services, Writing Tools, Restore Previous
+Version, Undo and Redo — and exactly the bytes edited: nothing reformats or
+repairs a block, even a malformed one, and the autosaver writes the text
+storage as it is. Automatic and convenience rewrites leave block lines alone:
+line-reference renumbering skips them, and no completion or `@` picker opens
+on them, so Return stays a newline. Number scrubbing and stepping, Insert
+Answer Arrow, Insert Subtotal and Insert Divider are disabled where they would
+write into a block, as is Insert Reference when the selection touches a block
+line; called directly, they beep. Interpret As is not offered on block lines.
+Toggle Comment and Toggle Heading change only the selected lines outside
+blocks, and are disabled when every selected line is a block line. Which lines
+are block lines is found by scanning line starts, so a table-free sheet does no
+further work.
+
 ## Selection summary
 
 A bar below the sheet counts selected calculations and how many have engine

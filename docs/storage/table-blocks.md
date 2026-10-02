@@ -49,6 +49,27 @@ ordinary aggregate block (`total`, `subtotal`, `previous`) before and after the
 table without clearing variables. A block with any diagnostic has no
 projection; Ganit never substitutes a previous valid table.
 
+### Retention while editing
+
+A malformed, unsupported, unterminated, stale or conflicting block is kept
+byte for byte while a sheet is edited, saved, closed, reopened or restored.
+Each evaluation segments the current source again and reports that source's
+diagnostics; a block whose bytes are unchanged reuses its parse, but
+sheet-wide checks (names, identities, cross-table targets, the cell and byte
+limits) run on every evaluation, so an edit elsewhere can withhold or restore
+a projection. The editor commits only the newest evaluation, so a superseded
+generation never shows an older valid table after a newer invalid one.
+
+No automatic rewrite changes bytes inside a block. Line-reference renumbering
+skips lines that are in a block before or after the edit, and editor
+conveniences (completion, scrubbing, inserted lines and references, prefix
+toggles, reinterpretation) do not act on block lines; see the
+[text view](../editor/text-view.md#table-blocks). Explicit user edits, such
+as typing, pasting, deleting or Find and Replace, change exactly the bytes
+edited, and Undo restores them exactly.
+Deleting a closer extends the block to the next closer, or quarantines it
+through the end of the sheet; restoring the closer is the repair.
+
 ## Payload JSON
 
 The payload is one JSON object with surrounding JSON whitespace (space, tab,

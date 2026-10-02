@@ -99,6 +99,9 @@ public final class SheetEditorViewController: NSViewController {
   private var cachedUTF16Starts: [Int]?
   /// Gutter drawing must not scan the whole sheet for every visible number.
   private var cachedLineNumbers: [LineID: Int]?
+  /// The physical lines of every table block, valid or not, which editor
+  /// conveniences such as completion and scrubbing never rewrite.
+  private var cachedTableLines: IndexSet?
   /// The text and result of each line in the newest shown evaluation.
   private var shownLines: [LineID: (text: String, result: SheetLineResult)] = [:]
   private var decorations: [LineID: LineDecoration] = [:]
@@ -161,6 +164,15 @@ public final class SheetEditorViewController: NSViewController {
       }
       let index = lineIndex(atUTF16: offset)
       return (index + 1, sheet.lines[index].id)
+    }
+    sheetTextView.isTableLine = { [weak self] offset in
+      guard let self else { return false }
+      return tableLines().contains(lineIndex(atUTF16: offset))
+    }
+    sheetTextView.touchesTableLine = { [weak self] range in
+      guard let self else { return false }
+      return tableLines().intersects(
+        integersIn: lineIndex(atUTF16: range.location)...lineIndex(atUTF16: range.upperBound))
     }
     sheetTextView.lineNumber = { [weak self] id in
       guard let self else { return nil }
@@ -336,6 +348,7 @@ public final class SheetEditorViewController: NSViewController {
     mirroredText = current
     cachedUTF16Starts = nil
     cachedLineNumbers = nil
+    cachedTableLines = nil
     for index in lineIndex(atUTF16: newRange.location)...lineIndex(atUTF16: newRange.upperBound) {
       let id = sheet.lines[index].id
       editedLines.insert(id)
@@ -483,8 +496,11 @@ public final class SheetEditorViewController: NSViewController {
     var values: [EngineValue] = []
     var failedCount = 0
     var pendingCount = 0
-    for (line, start) in zip(sheet.lines, utf16Starts()) {
-      guard start < selection.upperBound, start + line.text.utf16.count > selection.location else {
+    let tableLines = tableLines()
+    for (index, (line, start)) in zip(sheet.lines, utf16Starts()).enumerated() {
+      guard start < selection.upperBound, start + line.text.utf16.count > selection.location,
+        !tableLines.contains(index)
+      else {
         continue
       }
       let shown = shownLines[line.id]
@@ -691,8 +707,10 @@ public final class SheetEditorViewController: NSViewController {
     }
     let defaults = variables
     var lines: [CompletionItem] = []
+    let tableLines = tableLines()
     for (index, line) in sheet.lines.prefix(lineIndex(atUTF16: offset)).enumerated() {
-      if case .divider = LineSyntax(line.text) {
+      // A `---` line inside a table block is block source, not a divider.
+      if !tableLines.contains(index), case .divider = LineSyntax(line.text) {
         variables = defaults
       }
       guard let shown = shownLines[line.id], shown.text == line.text else { continue }
@@ -1445,7 +1463,10 @@ public final class SheetEditorViewController: NSViewController {
       run.style.underlineColor.map { (range: run.range, color: $0) }
     }
     sheetTextView.underlines[line.id] = underlines.isEmpty ? nil : underlines
-    for run in decoration.runs where !run.style.attributes.isEmpty {
+    // TextKit 2 throws on a rendering attribute for an empty text range. A
+    // blank table block line has a zero-length comment run, so opening a
+    // sheet with one crashed on first display.
+    for run in decoration.runs where !run.style.attributes.isEmpty && run.range.length > 0 {
       guard let runStart = contentManager.location(start, offsetBy: run.range.location),
         let runEnd = contentManager.location(runStart, offsetBy: run.range.length),
         let runRange = NSTextRange(location: runStart, end: runEnd)
@@ -1458,6 +1479,19 @@ public final class SheetEditorViewController: NSViewController {
     }
     decorations[line.id] = decoration
     editedLines.remove(line.id)
+  }
+
+  /// Physical lines of table blocks, found by scanning line starts only.
+  private func tableLines() -> IndexSet {
+    if let cachedTableLines {
+      return cachedTableLines
+    }
+    var lines = IndexSet()
+    for range in TableSourceDocument.blockLineRanges(in: sheet) {
+      lines.insert(integersIn: range)
+    }
+    cachedTableLines = lines
+    return lines
   }
 
   private func utf16Starts() -> [Int] {

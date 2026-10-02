@@ -73,6 +73,19 @@ public struct SheetEvaluation: Hashable, Sendable {
   public let tableDiagnostics: [TableSourceDiagnostic]
   /// The table segmentation work this generation did.
   let tableWork: TableSourceDocument.Work
+  /// Every table block of this generation's source, in order. A block with
+  /// any diagnostic has no projection; a previous generation's table is
+  /// never substituted for it.
+  let tables: [TableBlockResult]
+}
+
+/// One table block's outcome in a sheet evaluation.
+struct TableBlockResult: Hashable, Sendable {
+  /// Zero-based physical source lines, opener and closer included.
+  let physicalLines: Range<Int>
+  /// The validated table, or `nil` whenever `diagnostics` is not empty.
+  let projection: TableModel?
+  let diagnostics: [TableSourceDiagnostic]
 }
 
 /// Evaluates sheets incrementally.
@@ -283,7 +296,11 @@ public struct SheetCalculator: Sendable {
       parsedLineIDs: parsed,
       nextRecalculation: results.compactMap { $0.evaluation?.clockInterval?.end }.min(),
       tableDiagnostics: tableSource.diagnostics,
-      tableWork: tableSource.work
+      tableWork: tableSource.work,
+      tables: tableSource.blocks.map {
+        TableBlockResult(
+          physicalLines: $0.physicalLines, projection: $0.table, diagnostics: $0.diagnostics)
+      }
     )
   }
 }

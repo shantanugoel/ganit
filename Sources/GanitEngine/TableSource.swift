@@ -180,6 +180,14 @@ public struct TableSourceDocument: Sendable {
     self.work = work
   }
 
+  /// The physical lines of every block in `sheet`, valid or not, opener and
+  /// closer included. Only line starts are scanned and no payload is read,
+  /// so editors can keep automatic rewrites and conveniences out of block
+  /// source cheaply. An unterminated block runs to the last line.
+  package static func blockLineRanges(in sheet: SheetSource) -> [Range<Int>] {
+    blockLines(in: sheet.lines).map(\.lines)
+  }
+
   /// The physical lines of every block, valid or not, by scanning line starts
   /// only. An unterminated block runs to the last line.
   static func blockLines(in lines: [SheetLine]) -> [(lines: Range<Int>, terminated: Bool)] {

@@ -72,6 +72,32 @@ struct LineReferenceRenumberingTests {
         == "10\n5\n20\n@3\n@ganit-table 1\n@2 + line 2")
   }
 
+  /// Every recognized block, valid or not and in any line ending, keeps its
+  /// exact bytes while prose references around it are renumbered or marked.
+  @Test(arguments: [
+    "valid-two-tables.txt", "line-endings-crlf.txt", "line-endings-cr.txt",
+    "line-endings-mixed.txt", "malformed-json.txt", "malformed-opener.txt",
+    "unsupported-version.txt", "duplicate-id.txt", "stale-fingerprint.txt", "orphan-target.txt",
+  ])
+  func blocksKeepTheirBytesWhileProseAroundThemIsRenumbered(fixture: String) throws {
+    let blocks = try TableBlockFixtureTests.text(fixture)
+    let head = "10\n20\n@2 + line 1\n"
+    let source = head + blocks + "\n30\n@1 + @2 + line 3 + @99"
+    let original = TableSourceDocument(blocks).blocks.map { Array($0.rawSource.utf8) }
+    #expect(!original.isEmpty)
+    let length = (source as NSString).length
+    for (start, removed, inserted) in [
+      (0, 0, "5\n"), (0, 3, ""), (4, 0, "\n"), (5, 1, ""), (3, 3, ""),
+      (length, 0, "\n@3"), (length - 26, 0, "4\n"), (length - 27, 1, ""),
+    ] {
+      let changed = edit(source, start, removed, inserted)
+      let after = TableSourceDocument(changed).blocks.map { Array($0.rawSource.utf8) }
+      #expect(after == original, "\(start) \(removed) \(inserted.debugDescription)")
+    }
+    // The surrounding prose itself is still renumbered.
+    #expect(edit(source, 0, 0, "5\n").hasPrefix("5\n10\n20\n@3 + line 2\n"))
+  }
+
   private func edit(_ source: String, _ start: Int, _ length: Int, _ replacement: String) -> String
   {
     let range = NSRange(location: start, length: length)
