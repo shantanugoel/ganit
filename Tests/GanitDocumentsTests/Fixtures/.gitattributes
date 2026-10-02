@@ -1,0 +1,4 @@
+# Byte-exact frozen fixtures: no Git text or line-ending conversion. The
+# CRLF source lines and the encoder's blank lines inside empty JSON objects
+# are deliberate, and they stay reviewable as diffs.
+* -text whitespace=-blank-at-eol,-cr-at-eol,-space-before-tab,-indent-with-non-tab,-blank-at-eof

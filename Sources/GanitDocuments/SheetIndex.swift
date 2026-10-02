@@ -27,7 +27,10 @@ public struct IndexRebuildReport: Equatable, Sendable {
 /// an unexpected schema version, replaces it with an empty index and sets
 /// `needsRebuild`; `rebuild(from:)` then repopulates it from the store.
 public final class SheetIndex {
-  static let schemaVersion: Int32 = 2
+  /// The table layout is unchanged from version 2. Version 3 only marks
+  /// indexes written before metadata schema 2 as stale, so they are rebuilt
+  /// once and stop listing sheets whose metadata is no longer readable.
+  static let schemaVersion: Int32 = 3
 
   public private(set) var needsRebuild = false
   private let url: URL

@@ -137,6 +137,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     // from a script with `open -a Ganit --args --quick-ganit`.
     if CommandLine.arguments.contains("--quick-ganit") {
       showQuickGanit(nil)
+      workspace?.presentPendingNotice()
       return
     }
     // Starting in the menu bar leaves even restored windows closed until
@@ -147,11 +148,14 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       for controller in workspace?.windows ?? [] {
         controller.close()
       }
+      // With no window open, the notice waits for the first one.
+      workspace?.presentPendingNotice()
       return
     }
     if workspace?.windows.isEmpty == true {
       openMostRecentSheet()
     }
+    workspace?.presentPendingNotice()
     NSApplication.shared.activate()
     if !GanitPreferences.hasCompletedTour {
       showTour(nil)

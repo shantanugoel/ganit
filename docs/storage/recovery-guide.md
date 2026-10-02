@@ -39,12 +39,16 @@ package holds the exact source, title, and preferences. Import it with
 identity when that sheet is not already in the library. The source is also
 plain text you can read without Ganit: `source.txt` inside the package.
 
-## Return to an older Ganit
+## Sheets in an unsupported format
 
-Sheets that a newer Ganit saved in a newer format are left untouched: an older
-version skips them, reports them as unreadable, and never rewrites or deletes
-their files. Every other sheet keeps working. Open the library in the newer
-Ganit again to use those sheets.
+Ganit reads only the current metadata format, schema 2. A sheet whose metadata
+has any other schema, such as `1` or a later version, is left untouched:
+Ganit never rewrites, converts, or deletes its files, and every other sheet
+keeps working. When Ganit rebuilds its index, such as the first launch after
+the format changed, it leaves these sheets out of the library and, when a
+window opens, says how many sheets it couldn't open. Opening one, such as the
+scratch sheet, explains which format it was saved in. The sheet's source in
+`Sheets/` is still plain text you can read or import.
 
 ## Damaged exchange rates
 

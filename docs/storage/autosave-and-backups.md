@@ -41,10 +41,10 @@ that save is itself protected by the day's backup, a restore never discards the
 version it replaces. `SheetLibraryTests` restores a backup and verifies the
 saved result.
 
-## Migrations
+## Schema versions
 
-Schema version 1 is the only document format. As
-[ADR 0004](../adr/0004-storage-and-export.md) requires, any other version fails
-explicitly, and there are no legacy readers. A migration step, with a
-pre-migration backup and a new ADR, is added when a second schema exists rather
-than as unused machinery now.
+Metadata schema 2 is the only document format, as
+[ADR 0017](../adr/0017-table-source-and-storage.md) decides. Any other version,
+including `1`, fails explicitly and is left untouched. There are no legacy
+readers, migrations, or migration backups; backups hold current-format files,
+and restoring one with another schema fails the same way.

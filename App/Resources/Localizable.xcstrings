@@ -2000,6 +2000,86 @@
           }
         }
       }
+    },
+    "storage.unsupportedSchema" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This sheet was saved in format %lld, which this version of Ganit can't open."
+          }
+        }
+      }
+    },
+    "storage.invalidUTF8" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This sheet's text isn't valid UTF-8, so Ganit can't open it."
+          }
+        }
+      }
+    },
+    "storage.leftUnchanged" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The file was left unchanged."
+          }
+        }
+      }
+    },
+    "exchange.unsupportedSchema" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Ganit sheet was saved in format %lld, which this version of Ganit can't open."
+          }
+        }
+      }
+    },
+    "exchange.invalidUTF8" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” isn't UTF-8 text, so Ganit can't open it."
+          }
+        }
+      }
+    },
+    "exchange.tooLarge" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” is larger than a Ganit sheet can be."
+          }
+        }
+      }
+    },
+    "library.unreadable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some sheets couldn't be opened."
+          }
+        }
+      }
+    },
+    "library.unreadable.detail" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sheets Ganit couldn't open: %lld. Their files were left unchanged in Ganit's library folder. See “Sheets in an unsupported format” in the recovery guide."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

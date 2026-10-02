@@ -24,8 +24,10 @@ index, runs `recoverAndRebuildIndex()`:
    preferences;
 3. the index is rebuilt from the sheet files.
 
-Sheets that still cannot be read, such as non-UTF-8 source or metadata from a
-newer schema, are left untouched and reported by the rebuild.
+Sheets that still cannot be read, such as non-UTF-8 source or metadata with a
+schema other than the current schema 2, are left untouched and listed in the
+rebuild's report, which the library keeps as `unreadableSheetIDs`; the app
+shows their count once when a window opens. Nothing is migrated or converted.
 
 ## Verification
 

@@ -1,0 +1,37 @@
+{
+  "createdAt" : "2026-09-15T08:00:00Z",
+  "hasCustomTitle" : true,
+  "id" : "6A4E2C10-0000-4000-8000-000000000002",
+  "modifiedAt" : "2026-09-16T09:30:00Z",
+  "preferences" : {
+    "angleMode" : "degrees",
+    "display" : {
+      "ambiguousSuffixes" : {
+        "m" : "unit"
+      },
+      "answerFormats" : {
+        "rate * 3" : {
+          "fixedDecimals" : {
+            "_0" : 2
+          }
+        }
+      },
+      "dollarCurrency" : "INR",
+      "groupsDigits" : true,
+      "groupsInLakhs" : true,
+      "numbers" : {
+        "scientific" : {
+
+        }
+      },
+      "showsAnswerSeparator" : false,
+      "showsLineNumbers" : true,
+      "writesAnswersInline" : true
+    },
+    "localeIdentifier" : "en-DE",
+    "significantDecimalDigits" : 12
+  },
+  "schemaVersion" : 1,
+  "sourceChecksum" : "sha256:178cf3b0ea72b05985270a71e43a952ccce29b1b48bd17f4bd7c721d859df128",
+  "title" : "Shopping rates"
+}

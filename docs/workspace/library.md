@@ -27,7 +27,11 @@ when the library opens. It is somewhere to work a number out without naming or
 filing it first, so **Window ▸ Scratch** (⇧⌘S) and the menu bar item both open
 it, and it cannot be renamed, archived, trashed, or deleted; `deletePermanently`
 refuses its ID. It is an ordinary sheet in every other way, and can be
-duplicated, favorited, and filed.
+duplicated, favorited, and filed. It is created only when its source file is
+missing. Missing or corrupt metadata is rebuilt from its source. A scratch
+sheet Ganit still cannot read, such as one with an unsupported metadata schema,
+is left untouched, the library still opens, and opening Scratch reports the
+error instead of replacing it.
 
 ## Commands
 

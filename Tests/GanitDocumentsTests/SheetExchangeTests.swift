@@ -126,11 +126,15 @@ struct SheetExchangeTests {
     #expect(!edited.isChecksumValid)
 
     let manifest = package.appending(path: "manifest.json")
-    let future = try String(contentsOf: manifest, encoding: .utf8)
-      .replacingOccurrences(of: "\"schemaVersion\" : 1", with: "\"schemaVersion\" : 7")
-    try Data(future.utf8).write(to: manifest)
-    #expect(throws: SheetExchangeError.unsupportedSchemaVersion(7)) {
-      try SheetExchange.read(from: package)
+    let current = try String(contentsOf: manifest, encoding: .utf8)
+    #expect(current.contains("\"schemaVersion\" : 2"))
+    for version in [1, 7] {
+      let unsupported = current.replacingOccurrences(
+        of: "\"schemaVersion\" : 2", with: "\"schemaVersion\" : \(version)")
+      try Data(unsupported.utf8).write(to: manifest)
+      #expect(throws: SheetExchangeError.unsupportedSchemaVersion(version)) {
+        try SheetExchange.read(from: package)
+      }
     }
   }
 }

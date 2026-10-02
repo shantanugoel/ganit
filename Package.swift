@@ -164,7 +164,9 @@ let package = Package(
     ),
     .testTarget(
       name: "GanitDocumentsTests",
-      dependencies: ["GanitData", "GanitDocuments", "GanitEngine", "GanitStorageStressHelper"]
+      dependencies: ["GanitData", "GanitDocuments", "GanitEngine", "GanitStorageStressHelper"],
+      // Byte-exact metadata and package fixtures, read through #filePath.
+      exclude: ["Fixtures"]
     ),
     .testTarget(
       name: "GanitEditorUITests",

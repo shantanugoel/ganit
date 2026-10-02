@@ -368,7 +368,7 @@ before proceeding.
 
 - [x] Implement block segmentation, source-coordinate mapping, lossless codec,
       IDs, binding validation and malformed/unsupported-block diagnostics.
-- [ ] Add frozen fixtures and readers/writers for the single current format:
+- [x] Add frozen fixtures and readers/writers for the single current format:
       metadata/manifest schema 2, as selected in ADR 0017. Reject unsupported
       schemas explicitly; do not add older readers or migration paths.
 - [ ] Use atomic source/metadata/package writes and retain ordinary current-
