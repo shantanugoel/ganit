@@ -119,7 +119,9 @@ public enum SheetExchange {
     let directory = url.deletingLastPathComponent()
     let temporary = directory.appending(path: ".\(url.lastPathComponent).\(UUID().uuidString).tmp")
     try FileManager.default.createDirectory(at: temporary, withIntermediateDirectories: false)
+    var swapped = false
     do {
+      try StorageFaults.reach(.packageDirectoryCreated, url)
       try AtomicFile.write(sourceData, to: temporary.appending(path: "source.txt"))
       try AtomicFile.write(manifestData, to: temporary.appending(path: "manifest.json"))
       if let quickLook {
@@ -128,22 +130,37 @@ public enum SheetExchange {
         try AtomicFile.write(quickLook.pdf, to: folder.appending(path: "Preview.pdf"))
         try AtomicFile.write(quickLook.thumbnailPNG, to: folder.appending(path: "Thumbnail.png"))
       }
+      try StorageFaults.reach(.packageAssembled, url)
       if FileManager.default.fileExists(atPath: url.path) {
         guard renamex_np(temporary.path, url.path, UInt32(RENAME_SWAP)) == 0 else {
           throw DocumentStorageError.posix(operation: "renamex_np", code: errno)
         }
+        swapped = true
       } else {
         guard rename(temporary.path, url.path) == 0 else {
           throw DocumentStorageError.posix(operation: "rename", code: errno)
         }
       }
+      try StorageFaults.reach(.packageReplaced, url)
       try AtomicFile.synchronizeDirectory(directory)
     } catch {
-      try? FileManager.default.removeItem(at: temporary)
+      // Before the swap the temporary name holds the unfinished new package,
+      // which is removed. After it, the new package is in place but may not
+      // be durable, so the replaced package is kept there as a hidden sibling.
+      if !swapped {
+        try? FileManager.default.removeItem(at: temporary)
+      }
       throw error
     }
-    // After a swap, the temporary name holds the replaced package.
-    try? FileManager.default.removeItem(at: temporary)
+    guard swapped else {
+      return
+    }
+    // The export is complete, so failing to remove the replaced package
+    // leaves it as a hidden sibling rather than failing the export.
+    do {
+      try StorageFaults.reach(.removingReplacedPackage, url)
+      try FileManager.default.removeItem(at: temporary)
+    } catch {}
   }
 
   /// A file's bytes, reading no more than `limit` of them, since an imported

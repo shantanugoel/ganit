@@ -80,7 +80,10 @@ Every write goes to a uniquely named hidden sibling (`.<name>.<UUID>.tmp`), is
 flushed with `F_FULLFSYNC`, renamed over the destination, and followed by a
 directory `fsync`. A reader or a recovering launch sees the previous or the new
 complete file. A failed write removes its temporary file and leaves the
-destination untouched.
+destination untouched. A write the process cannot finish, such as one killed
+partway, leaves its temporary file. Library recovery, when it runs, removes
+such files from `Sheets/` and `Metadata/` only, where it can; see
+[fault tolerance](fault-tolerance.md).
 
 `save` encodes metadata first, so metadata that cannot be written leaves both
 files untouched, then writes source before metadata and stamps the metadata

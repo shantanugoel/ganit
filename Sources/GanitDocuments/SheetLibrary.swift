@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import GanitEngine
 
@@ -96,14 +97,35 @@ public final class SheetLibrary {
     store.root.appending(path: "Index/unsynchronized")
   }
 
+  /// Whether a change failed after marking the index unsynchronized, since
+  /// the last recovery. Its files may be stale, so the marker stays.
+  private var hasFailedChange = false
+
   /// Marks the index unsynchronized while `change` writes sheet files, so an
   /// interruption before the index update is detected on the next open.
+  ///
+  /// The marker's directory is synchronized before any sheet file changes,
+  /// so the marker is durable before they are. A change that fails leaves
+  /// the marker until recovery runs, even when later changes succeed.
   private func changingIndexedFiles<Result>(_ change: () throws -> Result) throws -> Result {
-    guard FileManager.default.createFile(atPath: unsyncedMarker.path, contents: nil) else {
-      throw DocumentStorageError.posix(operation: "create", code: errno)
+    // Created in place: an atomic write would leave its own temporary file
+    // if interrupted.
+    let marker = open(unsyncedMarker.path, O_WRONLY | O_CREAT | O_CLOEXEC, 0o644)
+    guard marker >= 0 else {
+      throw DocumentStorageError.posix(operation: "open", code: errno)
     }
-    let result = try change()
-    try FileManager.default.removeItem(at: unsyncedMarker)
+    close(marker)
+    try AtomicFile.synchronizeDirectory(unsyncedMarker.deletingLastPathComponent())
+    let result: Result
+    do {
+      result = try change()
+    } catch {
+      hasFailedChange = true
+      throw error
+    }
+    if !hasFailedChange {
+      try FileManager.default.removeItem(at: unsyncedMarker)
+    }
     sheetsDidChange?()
     return result
   }
@@ -112,9 +134,14 @@ public final class SheetLibrary {
   /// their source, and rebuilds the index. Unreadable metadata is moved to
   /// `Quarantine/` rather than deleted. Sheets that still cannot be read, such
   /// as source that is not UTF-8 or metadata in a schema other than the
-  /// current one, are left untouched.
+  /// current one, are left untouched. Temporary files abandoned by
+  /// interrupted writes are removed where possible.
+  ///
+  /// The library must be the only writer of its files, with no write in
+  /// progress, since recovery rewrites metadata and removes temporary files.
   @discardableResult
   public func recoverAndRebuildIndex() throws -> IndexRebuildReport {
+    store.removeTemporaryFiles()
     for id in try store.sheetIDs() {
       do {
         let sheet = try store.load(id: id)
@@ -130,6 +157,7 @@ public final class SheetLibrary {
     let report = try index.rebuild(from: store)
     unreadableSheetIDs = report.unreadable
     try? FileManager.default.removeItem(at: unsyncedMarker)
+    hasFailedChange = false
     return report
   }
 

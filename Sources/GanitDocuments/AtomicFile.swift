@@ -17,11 +17,13 @@ public enum DocumentStorageError: Error, Equatable {
 enum AtomicFile {
   static func write(_ data: Data, to url: URL) throws {
     let directory = url.deletingLastPathComponent()
+    // `isWriterTemporary` matches exactly this name, uppercase UUID included.
     let temporary = directory.appending(path: ".\(url.lastPathComponent).\(UUID().uuidString).tmp")
     let descriptor = Int32(
       try check("open") { open(temporary.path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0o644) }
     )
     do {
+      try StorageFaults.reach(.temporaryCreated, url)
       try data.withUnsafeBytes { buffer in
         var offset = 0
         while offset < buffer.count {
@@ -31,6 +33,7 @@ enum AtomicFile {
           offset += written
         }
       }
+      try StorageFaults.reach(.temporaryWritten, url)
       try check("fsync") { fcntl(descriptor, F_FULLFSYNC) }
       try check("close") { close(descriptor) }
     } catch {
@@ -39,15 +42,18 @@ enum AtomicFile {
       throw error
     }
     do {
+      try StorageFaults.reach(.temporaryFlushed, url)
       try check("rename") { rename(temporary.path, url.path) }
     } catch {
       unlink(temporary.path)
       throw error
     }
+    try StorageFaults.reach(.renamed, url)
     try synchronizeDirectory(directory)
   }
 
   static func synchronizeDirectory(_ directory: URL) throws {
+    try StorageFaults.reach(.synchronizingDirectory, directory)
     let descriptor = Int32(try check("open") { open(directory.path, O_RDONLY | O_CLOEXEC) })
     defer { close(descriptor) }
     try check("fsync") { fsync(descriptor) }
@@ -56,6 +62,21 @@ enum AtomicFile {
   /// Whether a file name is an in-progress or abandoned temporary write.
   static func isTemporary(_ name: String) -> Bool {
     name.hasPrefix(".") && name.hasSuffix(".tmp")
+  }
+
+  /// Whether a name has exactly the shape `write(_:to:)` gives its
+  /// temporary files, `.<name>.<UUID>.tmp`, so cleanup never matches a name
+  /// a person chose, such as `.tmp` or `.notes.tmp`.
+  static func isWriterTemporary(_ name: String) -> Bool {
+    guard name.hasPrefix("."), name.hasSuffix(".tmp") else {
+      return false
+    }
+    let stem = name.dropFirst().dropLast(4)
+    guard let dot = stem.lastIndex(of: "."), dot > stem.startIndex else {
+      return false
+    }
+    let uuid = stem[stem.index(after: dot)...]
+    return UUID(uuidString: String(uuid))?.uuidString == String(uuid)
   }
 
   @discardableResult

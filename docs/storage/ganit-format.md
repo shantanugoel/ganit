@@ -65,7 +65,9 @@ as stale.
 A writer creates the complete package in a hidden temporary sibling directory,
 flushing each file, then atomically swaps it with an existing package
 (`renamex_np` with `RENAME_SWAP`) or renames it into place, and removes the
-replaced package. Readers therefore see the previous or the new package.
+replaced package. Readers therefore see the previous or the new package. An
+interrupted export can leave the hidden temporary sibling behind; see
+[fault tolerance](fault-tolerance.md).
 
 ## Import and export in Ganit
 
