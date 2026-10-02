@@ -1,0 +1,13 @@
+{
+  "createdAt" : "2026-09-15T08:00:00Z",
+  "hasCustomTitle" : false,
+  "id" : "C0DE0000-0000-4000-8000-000000000003",
+  "isFavorite" : false,
+  "modifiedAt" : "2026-09-16T09:30:00Z",
+  "preferences" : {
+    "angleMode" : "radians",
+    "display" : {
+      "ambiguousSuffixes" : {
+
+      },
+      "ans

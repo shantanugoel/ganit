@@ -185,7 +185,9 @@ public final class SheetIndex {
   private func isHealthy() -> Bool {
     let check = try? query("PRAGMA quick_check") { $0.text(0) }
     let version = try? query("PRAGMA user_version") { $0.integer(0) }
-    return check == ["ok"] && (version == [0] || version == [Int(Self.schemaVersion)])
+    // An existing file at version 0, such as an empty file left by an
+    // interrupted creation, was never populated, so it is rebuilt.
+    return check == ["ok"] && version == [Int(Self.schemaVersion)]
   }
 
   private func execute(_ sql: String) throws {

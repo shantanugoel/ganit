@@ -85,8 +85,10 @@ import Testing
         paths.insert(path)
       }
     }
-    #expect(paths == Set(Self.checksums.keys))
-    for (path, checksum) in Self.checksums {
+    // The corruption drills' inputs are frozen here too.
+    let checksums = Self.checksums.merging(CorruptionDrillTests.checksums) { $1 }
+    #expect(paths == Set(checksums.keys))
+    for (path, checksum) in checksums {
       let digest = SHA256.hash(data: try Self.data(path))
       #expect(digest.map { String(format: "%02x", $0) }.joined() == checksum, "\(path) changed")
     }

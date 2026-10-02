@@ -93,14 +93,18 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
 
   /// Shows a sheet in this window, or brings forward the window already
   /// showing it.
-  func show(_ id: UUID) {
+  /// Shows a sheet, returning whether it could be loaded. A failure is
+  /// presented on the window unless `presentingErrors` is false.
+  @discardableResult
+  func show(_ id: UUID, presentingErrors: Bool = true) -> Bool {
     let previous = sheetID
+    var loaded = true
     do {
       let next = try workspace.sheet(id)
       if let other = next.window, other !== self {
         other.showWindow(nil)
         sidebar.select(sheet: sheetID)
-        return
+        return true
       }
       saveNow(nil)
       sheet?.window = nil
@@ -116,10 +120,14 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
       window?.makeFirstResponder(next.editor.textView)
       discardIfUntouched(previous)
     } catch {
-      window?.presentError(error)
+      loaded = false
+      if presentingErrors {
+        window?.presentError(error)
+      }
     }
     updateTitle()
     window?.invalidateRestorableState()
+    return loaded
   }
 
   /// Shows the first listed sheet other than `excluded`, or clears the
@@ -227,11 +235,18 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     sidebar.search = restorable.search
     searchItem.searchField.stringValue = restorable.search
     splitViewController.splitViewItems[0].isCollapsed = restorable.isSidebarCollapsed
-    guard let id = restorable.sheetID, (try? library.store.load(id: id)) != nil else {
+    // Showing the sheet loads it through the workspace, which repairs its
+    // metadata if needed and reloads the sidebars.
+    guard let id = restorable.sheetID else {
       showFirstListedSheet()
       return
     }
-    show(id)
+    guard show(id, presentingErrors: false) else {
+      // A sheet that still cannot be loaded may still be listed; skip it so
+      // restoring never presents its error.
+      showFirstListedSheet(excluding: id)
+      return
+    }
     guard let textView = editor?.textView, restorable.selection.count == 2 else {
       return
     }
@@ -547,7 +562,7 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
   @objc public func toggleMarkdownMode(_ sender: Any?) {
     let id = sidebar.targetSheet?.id ?? sheetID
     guard let id,
-      var options = (try? library.store.load(id: id))?.metadata.preferences.display
+      var options = (try? library.load(id: id))?.metadata.preferences.display
     else {
       return
     }
@@ -561,7 +576,7 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     }
     let id = sidebar.targetSheet?.id ?? sheetID
     guard let id,
-      var options = (try? library.store.load(id: id))?.metadata.preferences.display
+      var options = (try? library.load(id: id))?.metadata.preferences.display
     else {
       return
     }
