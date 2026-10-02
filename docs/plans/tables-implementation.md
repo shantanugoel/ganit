@@ -379,7 +379,7 @@ before proceeding.
       versions must stay quarantined from ordinary calculations.
 - [x] Support current-format package import/export and exact plain-source
       import/export. Do not add downgrade export or schema conversion.
-- [ ] Make malformed tables retainable/saveable without source loss; editing
+- [x] Make malformed tables retainable/saveable without source loss; editing
       must not replace an invalid table with the last valid projection.
 
 **Exit:** interrupted atomic writes preserve a complete committed source.
