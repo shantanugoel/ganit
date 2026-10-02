@@ -226,7 +226,7 @@ extension SheetLibrary {
 
   /// Exports a sheet as a `.ganit` package or, for other extensions, plain text.
   public func exportSheet(_ id: UUID, to url: URL, quickLook: QuickLookPreview?) throws {
-    let sheet = try store.load(id: id)
+    let sheet = try load(id: id)
     try SheetExchange.write(
       source: sheet.source, metadata: sheet.metadata, to: url, quickLook: quickLook)
   }

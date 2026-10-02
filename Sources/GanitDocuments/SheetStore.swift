@@ -274,6 +274,25 @@ public struct SheetMetadata: Codable, Equatable, Sendable {
   }
 }
 
+extension SheetMetadata {
+  /// Drops fractional seconds, which the ISO 8601 encoding does not keep.
+  fileprivate mutating func wholeSecondTimestamps() {
+    createdAt = Date(timeIntervalSince1970: createdAt.timeIntervalSince1970.rounded(.down))
+    modifiedAt = Date(timeIntervalSince1970: modifiedAt.timeIntervalSince1970.rounded(.down))
+  }
+}
+
+/// How `SheetLibrary.load(id:)` repaired a sheet's metadata from its
+/// canonical source before returning it. The source is never written.
+public enum MetadataRepair: Equatable, Sendable {
+  /// The checksum no longer matched the source, so it was rewritten for the
+  /// current source; every other field was kept.
+  case checksum
+  /// Metadata was missing, or could not be decoded and was moved to
+  /// `Quarantine/`, so it was recreated from the source with reset fields.
+  case rebuiltFromSource
+}
+
 /// A sheet read from storage.
 public struct StoredSheet: Equatable, Sendable {
   public let source: String
@@ -283,6 +302,10 @@ public struct StoredSheet: Equatable, Sendable {
   /// the source changed after the metadata was written, such as after an
   /// interrupted save; the source is canonical.
   public let isChecksumValid: Bool
+
+  /// How the metadata was repaired before this sheet was returned, if it
+  /// was. `SheetStore.load(id:)` never repairs.
+  public internal(set) var metadataRepair: MetadataRepair? = nil
 }
 
 /// Reads and writes sheets as `Sheets/<UUID>.txt` source files with
@@ -323,10 +346,7 @@ public struct SheetStore: Sendable {
     var metadata = metadata
     metadata.sourceChecksum = checksum(of: sourceData)
     metadata.tables = metadata.tables.pruned(toTablesIn: sourceData)
-    metadata.createdAt = Date(
-      timeIntervalSince1970: metadata.createdAt.timeIntervalSince1970.rounded(.down))
-    metadata.modifiedAt = Date(
-      timeIntervalSince1970: metadata.modifiedAt.timeIntervalSince1970.rounded(.down))
+    metadata.wholeSecondTimestamps()
     // Encoding first means metadata that cannot be encoded leaves both files
     // untouched.
     let metadataData = try Self.encoder.encode(metadata)
@@ -335,15 +355,21 @@ public struct SheetStore: Sendable {
     return metadata
   }
 
-  /// Replaces only a sheet's metadata, keeping the checksum of its current
-  /// source and dropping presentation state of tables that source does not
-  /// have, and returns the metadata as written.
+  /// Replaces only a sheet's metadata, stamping it with the checksum of the
+  /// source file's current bytes and dropping presentation state of tables
+  /// that source does not have, and returns the metadata as written. The
+  /// source file is read, never written.
   @discardableResult
   public func saveMetadata(_ metadata: SheetMetadata) throws -> SheetMetadata {
+    let sourceData = try Data(contentsOf: sourceURL(metadata.id))
     var metadata = metadata
-    metadata.tables = metadata.tables.pruned(
-      toTablesIn: try Data(contentsOf: sourceURL(metadata.id)))
-    try AtomicFile.write(try Self.encoder.encode(metadata), to: metadataURL(metadata.id))
+    metadata.sourceChecksum = checksum(of: sourceData)
+    metadata.tables = metadata.tables.pruned(toTablesIn: sourceData)
+    metadata.wholeSecondTimestamps()
+    let metadataData = try Self.encoder.encode(metadata)
+    try FileManager.default.createDirectory(
+      at: metadataDirectory, withIntermediateDirectories: true)
+    try AtomicFile.write(metadataData, to: metadataURL(metadata.id))
     return metadata
   }
 
@@ -355,6 +381,11 @@ public struct SheetStore: Sendable {
     }
   }
 
+  /// Reads a sheet's source and metadata without changing either file.
+  /// Source that is not UTF-8 throws `invalidUTF8`, metadata in another
+  /// schema throws `unsupportedSchemaVersion`, and metadata that cannot be
+  /// decoded, or whose `id` names a different sheet, throws `DecodingError`.
+  /// `SheetLibrary.load(id:)` repairs what can be repaired.
   public func load(id: UUID) throws -> StoredSheet {
     let sourceData = try Data(contentsOf: sourceURL(id))
     guard let source = String(data: sourceData, encoding: .utf8) else {
@@ -366,6 +397,13 @@ public struct SheetStore: Sendable {
       throw DocumentStorageError.unsupportedSchemaVersion(version)
     }
     let metadata = try Self.decoder.decode(SheetMetadata.self, from: metadataData)
+    // Metadata naming another sheet, such as a copied file, is corrupt:
+    // trusting it would save this sheet's source over the other sheet.
+    guard metadata.id == id else {
+      throw DecodingError.dataCorrupted(
+        DecodingError.Context(
+          codingPath: [], debugDescription: "Metadata names a different sheet"))
+    }
     return StoredSheet(
       source: source,
       metadata: metadata,

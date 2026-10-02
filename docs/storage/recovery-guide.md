@@ -2,7 +2,7 @@
 
 Every instruction here is rehearsed by `RecoveryRehearsalTests` against a real
 library on disk, and the automatic recovery paths by `StorageFaultTests`,
-`SheetLibraryTests`, and `RateSnapshotStoreTests`.
+`CorruptionDrillTests`, `SheetLibraryTests`, and `RateSnapshotStoreTests`.
 
 Ganit keeps its library in its sandbox container:
 
@@ -18,6 +18,20 @@ Ganit keeps its library in its sandbox container:
 Nothing to do. Every save is atomic, so each sheet is its previous or new
 complete version. The next launch rewrites stale metadata, moves unreadable
 metadata to `Quarantine/`, and rebuilds the index from the sheet files.
+
+## A sheet's metadata is damaged or missing
+
+Nothing to do. Opening the sheet, or the next launch that rebuilds the index,
+moves damaged metadata to `Quarantine/` and recreates it from the sheet's text,
+which is never changed: its calculations and tables, including ones Ganit
+can't read yet, are kept exactly. The sheet's title then follows its first line,
+and its name, folder, favorite, archive or trash state, number settings, and
+column widths go back to their defaults; set them again if you need them. The
+quarantined file stays in `Quarantine/` for reference. A metadata file whose
+sheet text is gone is ignored. If Ganit can't write the repaired metadata, for
+example because the disk is full or the library folder's permissions were
+changed, the library still opens, the sheet's text is left as it is, and
+Ganit tries again at the next launch once the problem is fixed.
 
 ## Undo a day's mistakes
 

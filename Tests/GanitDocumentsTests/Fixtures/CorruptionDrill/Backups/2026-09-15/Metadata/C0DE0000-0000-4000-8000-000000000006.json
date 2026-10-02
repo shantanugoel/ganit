@@ -1,0 +1,44 @@
+{
+  "createdAt" : "2026-09-15T08:00:00Z",
+  "folderID" : "C0DE0000-0000-4000-8000-0000000000F1",
+  "hasCustomTitle" : true,
+  "id" : "C0DE0000-0000-4000-8000-000000000006",
+  "isFavorite" : true,
+  "modifiedAt" : "2026-09-16T09:30:00Z",
+  "preferences" : {
+    "angleMode" : "degrees",
+    "display" : {
+      "ambiguousSuffixes" : {
+
+      },
+      "answerFormats" : {
+
+      },
+      "dollarCurrency" : "INR",
+      "groupsDigits" : true,
+      "groupsInLakhs" : false,
+      "numbers" : {
+        "automatic" : {
+
+        }
+      },
+      "showsAnswerSeparator" : true,
+      "showsLineNumbers" : true,
+      "writesAnswersInline" : true
+    },
+    "localeIdentifier" : "en-DE",
+    "significantDecimalDigits" : 12
+  },
+  "schemaVersion" : 2,
+  "sourceChecksum" : "sha256:f4d2bc869bd06df9f5ca80db901d450203874a688b8e86a283c28267bde7309a",
+  "state" : "archived",
+  "tables" : {
+    "20000000-0000-4000-8000-000000000001" : {
+      "columnWidths" : {
+        "20000000-0000-4000-8000-000000000011" : 140,
+        "20000000-0000-4000-8000-000000000014" : 88.5
+      }
+    }
+  },
+  "title" : "Stale rates"
+}

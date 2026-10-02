@@ -121,11 +121,13 @@ public final class Workspace {
   public init(library: SheetLibrary, definitions store: TextDocumentStore? = nil) throws {
     self.library = library
     definitionsStore = store
+    let hasScratch = (try? library.store.sheetIDs().contains(SheetLibrary.scratchID)) ?? false
     do {
       try library.openScratch()
-    } catch DocumentStorageError.unsupportedSchemaVersion, DocumentStorageError.invalidUTF8 {
-      // An existing scratch sheet Ganit cannot read is left untouched and
-      // does not keep the workspace from opening; opening Scratch shows why.
+    } catch  where hasScratch {
+      // An existing scratch sheet Ganit cannot read or repair is left
+      // untouched and does not keep the workspace from opening; opening
+      // Scratch shows why. Failing to create one still does.
     }
     pendingNotice = UnreadableSheetsNotice(count: library.unreadableSheetIDs.count)
     if let text = store?.load(), !text.isEmpty {
@@ -286,7 +288,8 @@ public final class Workspace {
     if let sheet = sheets[id] {
       return sheet
     }
-    let stored = try library.store.load(id: id)
+    // Repairs metadata the sheet's source can restore, as recovery would.
+    let stored = try library.load(id: id)
     let editor = SheetEditorViewController(
       text: stored.source,
       context: try stored.metadata.preferences.evaluationContext(currencyRates: currencyRates),
@@ -311,6 +314,13 @@ public final class Workspace {
     editor.sourceDidChange = { [weak autosaver] in autosaver?.sourceDidChange() }
     let sheet = OpenSheet(editor: editor, autosaver: autosaver)
     sheets[id] = sheet
+    if stored.metadataRepair != nil {
+      // A repair can change the title and state sidebars list. Only the
+      // lists reload: a window may be partway through showing this sheet.
+      for window in windows {
+        window.sidebar.reload()
+      }
+    }
     return sheet
   }
 
@@ -348,7 +358,7 @@ public final class Workspace {
     _ change: () throws -> SheetMetadata
   ) throws {
     sheets[id]?.autosaver.saveNow()
-    let before = try library.store.load(id: id).metadata
+    let before = try library.load(id: id).metadata
     didChange(try change())
     undoManager?.registerUndo(withTarget: self) { workspace in
       try? workspace.organize(id, named: actionName, undoManager: undoManager) {

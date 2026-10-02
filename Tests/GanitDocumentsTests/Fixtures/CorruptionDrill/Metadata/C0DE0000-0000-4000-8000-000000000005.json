@@ -1,0 +1,42 @@
+{
+  "createdAt" : "2026-09-15T08:00:00Z",
+  "hasCustomTitle" : false,
+  "id" : "C0DE0000-0000-4000-8000-000000000005",
+  "isFavorite" : false,
+  "modifiedAt" : "2026-09-16T09:30:00Z",
+  "preferences" : {
+    "angleMode" : "radians",
+    "display" : {
+      "ambiguousSuffixes" : {
+
+      },
+      "answerFormats" : {
+
+      },
+      "dollarCurrency" : "USD",
+      "groupsDigits" : true,
+      "groupsInLakhs" : false,
+      "numbers" : {
+        "automatic" : {
+
+        }
+      },
+      "showsAnswerSeparator" : true,
+      "showsLineNumbers" : true,
+      "writesAnswersInline" : false
+    },
+    "localeIdentifier" : "en-US",
+    "significantDecimalDigits" : 15
+  },
+  "schemaVersion" : 2,
+  "sourceChecksum" : "sha256:04109ffd1074b7cd37b1156fd2a985de7960ee542d059e366dfaac3bb2b50cde",
+  "state" : "active",
+  "tables" : {
+    "20000000-0000-4000-8000-000000000001" : {
+      "columnWidths" : {
+        "20000000-0000-4000-8000-000000000011" : 0
+      }
+    }
+  },
+  "title" : "Invalid tables drill"
+}

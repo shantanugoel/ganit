@@ -620,6 +620,130 @@ struct WorkspaceWindowControllerTests {
     #expect(try workspace.library.backups(of: SheetLibrary.scratchID) == backups)
   }
 
+  /// A listed sheet whose metadata went missing or became unreadable after
+  /// it was indexed still opens: its metadata is rebuilt from the source,
+  /// unreadable metadata is quarantined, and the sidebar lists the rebuilt
+  /// title.
+  @Test
+  func aSheetWithDamagedMetadataOpensFromItsSource() throws {
+    defer { try? FileManager.default.removeItem(at: root) }
+    let tables = "@ganit-table 2\n{\"future\":true}\n@end-ganit-table\n"
+    let (first, ids) = try makeWorkspace(["# Rent\nrent = 2,100\n" + tables, "# Trip\n1 + 1"])
+    try first.library.rename(ids[1], to: "Named")
+    close(first)
+    try FileManager.default.removeItem(at: root.appending(path: "Metadata/\(ids[0]).json"))
+    let damaged = Data("{\"schemaVersion\" : 2, \"title\"".utf8)
+    try damaged.write(to: root.appending(path: "Metadata/\(ids[1]).json"))
+    let sources = try ids.map { try Data(contentsOf: root.appending(path: "Sheets/\($0).txt")) }
+
+    let workspace = try Workspace(library: try SheetLibrary(root: root))
+    defer { close(workspace) }
+    let controller = workspace.openWindow(showing: ids[0])
+    #expect(controller.sheetID == ids[0])
+    #expect(controller.editor?.textView.string == "# Rent\nrent = 2,100\n" + tables)
+    select(ids[1], in: controller)
+
+    #expect(controller.sheetID == ids[1])
+    #expect(controller.editor?.textView.string == "# Trip\n1 + 1")
+    #expect(controller.window?.attachedSheet == nil)
+    let titles = Dictionary(
+      uniqueKeysWithValues: controller.sidebar.sheets.map { ($0.id, $0.title) })
+    #expect(titles[ids[0]] == "Rent" && titles[ids[1]] == "Trip")
+    #expect(
+      try ids.map { try Data(contentsOf: root.appending(path: "Sheets/\($0).txt")) } == sources)
+    let quarantine = try FileManager.default.contentsOfDirectory(
+      atPath: root.appending(path: "Quarantine").path)
+    #expect(quarantine.count == 1)
+    #expect(try Data(contentsOf: root.appending(path: "Quarantine/\(quarantine[0])")) == damaged)
+  }
+
+  /// Restoring a window on a sheet whose metadata was damaged shows the
+  /// sheet, and the sidebar lists its rebuilt title and state.
+  @Test
+  func restoringASheetWithDamagedMetadataListsItsRepair() throws {
+    defer { try? FileManager.default.removeItem(at: root) }
+    let (first, ids) = try makeWorkspace(["# Trip\n1 + 1", "other"])
+    defer { close(first) }
+    let original = first.openWindow(showing: ids[0])
+    let archiver = NSKeyedArchiver(requiringSecureCoding: true)
+    original.window(try #require(original.window), willEncodeRestorableState: archiver)
+    archiver.finishEncoding()
+    original.close()
+    try first.library.update(ids[0]) {
+      $0.title = "Named"
+      $0.hasCustomTitle = true
+      $0.state = .trashed
+    }
+    try Data("garbage".utf8).write(to: root.appending(path: "Metadata/\(ids[0]).json"))
+
+    let workspace = try Workspace(library: try SheetLibrary(root: root))
+    defer { close(workspace) }
+    let restored = workspace.openWindow(showing: nil)
+    let unarchiver = try NSKeyedUnarchiver(forReadingFrom: archiver.encodedData)
+    restored.window(try #require(restored.window), didDecodeRestorableState: unarchiver)
+
+    #expect(restored.sheetID == ids[0])
+    #expect(restored.editor?.textView.string == "# Trip\n1 + 1")
+    #expect(restored.sidebar.sheets.first { $0.id == ids[0] }?.title == "Trip")
+    #expect(restored.window?.attachedSheet == nil)
+  }
+
+  /// Restoring a window whose sheet still cannot be loaded, though it is
+  /// listed, shows another sheet without presenting the error.
+  @Test
+  func restoringAnUnloadableListedSheetShowsAnother() throws {
+    defer { try? FileManager.default.removeItem(at: root) }
+    let clock = TestClock()
+    let library = try SheetLibrary(root: root, now: clock.now)
+    let first = try Workspace(library: library)
+    defer { close(first) }
+    let other = try library.save(source: "other", metadata: library.create(preferences: .standard))
+    let bad = try library.save(source: "# Trip", metadata: library.create(preferences: .standard))
+    let original = first.openWindow(showing: bad.id)
+    let archiver = NSKeyedArchiver(requiringSecureCoding: true)
+    original.window(try #require(original.window), willEncodeRestorableState: archiver)
+    archiver.finishEncoding()
+    original.close()
+    try Data("garbage".utf8).write(to: root.appending(path: "Metadata/\(bad.id).json"))
+    try Data("a file".utf8).write(to: root.appending(path: "Quarantine"))
+
+    let workspace = try Workspace(library: try SheetLibrary(root: root))
+    defer { close(workspace) }
+    let restored = workspace.openWindow(showing: nil)
+    // The unloadable sheet is the first listed, so only excluding it avoids it.
+    #expect(restored.sidebar.sheets.first?.id == bad.id)
+    let unarchiver = try NSKeyedUnarchiver(forReadingFrom: archiver.encodedData)
+    restored.window(try #require(restored.window), didDecodeRestorableState: unarchiver)
+
+    #expect(restored.sheetID == other.id)
+    #expect(restored.window?.attachedSheet == nil)
+    #expect(workspace.library.unrepairedSheetIDs == [bad.id])
+  }
+
+  /// An existing scratch sheet whose metadata cannot be repaired does not
+  /// keep the workspace from opening, and opening it reports why; once the
+  /// fault is cleared it opens as Scratch.
+  @Test
+  func anUnrepairableScratchSheetDoesNotKeepTheWorkspaceClosed() throws {
+    defer { try? FileManager.default.removeItem(at: root) }
+    let (first, ids) = try makeWorkspace(["rent"])
+    close(first)
+    let scratch = SheetLibrary.scratchID.uuidString
+    try Data("garbage".utf8).write(to: root.appending(path: "Metadata/\(scratch).json"))
+    let quarantine = root.appending(path: "Quarantine")
+    try Data("a file".utf8).write(to: quarantine)
+
+    let workspace = try Workspace(library: try SheetLibrary(root: root))
+    defer { close(workspace) }
+    #expect(throws: (any Error).self) { try workspace.openScratch() }
+    #expect(workspace.openWindow(showing: ids[0]).sheetID == ids[0])
+
+    try FileManager.default.removeItem(at: quarantine)
+    let controller = try workspace.openScratch()
+    #expect(controller.sheetID == SheetLibrary.scratchID)
+    #expect(controller.window?.title == "Scratch")
+  }
+
   /// The unreadable-sheets notice is shown as a sheet once launching has
   /// finished and is kept until its button dismisses it: with no visible
   /// window it waits for the next one, and a window closed under it passes it
@@ -715,4 +839,15 @@ private func firstImageView(in view: NSView) -> NSImageView? {
     }
   }
   return nil
+}
+
+/// Seconds that advance on every reading, so sheets saved in turn are listed
+/// newest first.
+private final class TestClock: @unchecked Sendable {
+  private var seconds = 0.0
+
+  func now() -> Date {
+    seconds += 1
+    return Date(timeIntervalSince1970: 1_800_000_000 + seconds)
+  }
 }

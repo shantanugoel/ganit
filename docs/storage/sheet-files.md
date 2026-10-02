@@ -24,7 +24,7 @@ holding an invalid value, fails to decode.
 | Key | Meaning |
 |---|---|
 | `schemaVersion` | `2`; any other version, including `1`, fails with `unsupportedSchemaVersion` and is never converted |
-| `id` | stable sheet UUID, matching both file names |
+| `id` | stable sheet UUID, matching both file names; metadata naming another sheet is corrupt |
 | `title` | display title |
 | `folderID` | containing folder, if any |
 | `createdAt`, `modifiedAt` | ISO 8601 UTC timestamps, second precision |
@@ -87,9 +87,13 @@ such files from `Sheets/` and `Metadata/` only, where it can; see
 
 `save` encodes metadata first, so metadata that cannot be written leaves both
 files untouched, then writes source before metadata and stamps the metadata
-with the new checksum. If a save is interrupted between the two, the new source remains with
+with the new checksum. `saveMetadata` writes only metadata, stamped with the
+checksum of the source file's current bytes; recovery uses it, so it never
+writes source. If a save is interrupted between the two, the new source remains with
 metadata whose checksum does not match; `load` reports this as
-`isChecksumValid == false`, and the source stays canonical.
+`isChecksumValid == false`, and the source stays canonical. `load` only
+reads; `SheetLibrary.load(id:)` repairs such metadata from the source, as
+[fault tolerance](fault-tolerance.md) describes.
 
 `sheetIDs()` discovers sheets by scanning `Sheets/`, ignoring temporary files
 and other names, so no index is needed to find every sheet.
