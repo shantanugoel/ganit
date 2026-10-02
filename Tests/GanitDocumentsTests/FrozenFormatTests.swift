@@ -1,5 +1,6 @@
 import Foundation
 import GanitData
+import GanitEngine
 import Testing
 
 @testable import GanitDocuments
@@ -11,6 +12,7 @@ func formatVersionsMatchTheFreeze() throws {
   #expect(SheetMetadata.currentSchemaVersion == 1)
   #expect(GanitManifest.currentSchemaVersion == 1)
   #expect(RateSnapshotMetadata.currentSchemaVersion == 1)
+  #expect(TableSourceDocument.currentBlockVersion == 1)
 
   let repository = URL(fileURLWithPath: #filePath)
     .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
@@ -20,4 +22,5 @@ func formatVersionsMatchTheFreeze() throws {
   let freeze = try String(
     contentsOf: repository.appending(path: "docs/reference/schema-freeze.md"), encoding: .utf8)
   #expect(freeze.contains("| Ambiguity registry (grammar policy) | 8 |"))
+  #expect(freeze.contains("| Table block (`@ganit-table`) in sheet source | 1 |"))
 }

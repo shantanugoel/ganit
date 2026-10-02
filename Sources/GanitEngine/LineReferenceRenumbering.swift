@@ -128,8 +128,22 @@ public enum LineReferenceRenumbering {
       for index in indices { targets[index] = .broken(.split) }
     }
 
+    // Table block lines are never prose: their references are rewritten with
+    // their ledger by table edits, so even quarantined blocks stay untouched.
+    // A reference is skipped when its line is in a block before the edit or
+    // ends up in one after it. Text leaving a block (as when its opener is
+    // deleted) is therefore not rewritten retroactively either; it keeps the
+    // numbers it had while quarantined.
+    var oldTableLines = IndexSet()
+    for span in TableSourceDocument.blockLines(in: oldLines) {
+      oldTableLines.insert(integersIn: span.lines)
+    }
+    var newTableLines = IndexSet()
+    for span in TableSourceDocument.blockLines(in: newLines) {
+      newTableLines.insert(integersIn: span.lines)
+    }
     var edits: [(range: NSRange, number: String)] = []
-    for (index, line) in oldLines.enumerated() {
+    for (index, line) in oldLines.enumerated() where !oldTableLines.contains(index) {
       guard case .calculation(_, _, let expression?, _) = LineSyntax(line.text),
         let expressionText = expression.text(in: line.text)
       else { continue }
@@ -146,10 +160,9 @@ public enum LineReferenceRenumbering {
         let referenceEnd =
           oldStarts[index] + utf16Offset(base + number.range.upperBound, in: line.text)
         // An edit inside a reference is the user's explicit choice.
-        guard
-          changes.allSatisfy({ range, _ in
-            referenceEnd <= range.location || referenceStart >= range.upperBound
-          })
+        guard changes.allSatisfy({ range, _ in
+          referenceEnd <= range.location || referenceStart >= range.upperBound
+        }), !newTableLines.contains(lineNumber(at: moved(referenceStart)) - 1)
         else { continue }
         switch targets[target - 1] {
         case .line(let updated) where updated != target:

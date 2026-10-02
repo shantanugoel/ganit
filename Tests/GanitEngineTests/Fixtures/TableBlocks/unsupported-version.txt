@@ -1,0 +1,10 @@
+x = 10
+5
+@ganit-table 2
+x = 999
+ask_assistant(hello)
+1 + 2
+@end-ganit-table
+x
+2
+total

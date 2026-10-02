@@ -366,7 +366,7 @@ before proceeding.
 
 ### M1 — Source model, identity and safe storage
 
-- [ ] Implement block segmentation, source-coordinate mapping, lossless codec,
+- [x] Implement block segmentation, source-coordinate mapping, lossless codec,
       IDs, binding validation and malformed/unsupported-block diagnostics.
 - [ ] Add frozen fixtures and readers/writers for the single current format:
       metadata/manifest schema 2, as selected in ADR 0017. Reject unsupported
