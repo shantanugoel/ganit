@@ -758,3 +758,11 @@ tests. An earlier broad sanitizer run passed 427 tests. Formatting, package
 validation, release app build, bundle validation, command-line checks,
 document links and whitespace checks passed. The acceptance report records
 the log paths. M4, M5 and M6 native acceptance remains incomplete.
+
+## M4 execution record
+
+Work started on 2026-10-03 on branch `tables`.
+
+- Task 1: Add a view-based AppKit grid. The table view reuses visible cells.
+  It uses system colors, table addresses and the sheet number formatter.
+  Source projections contain no editable document store.

@@ -73,6 +73,7 @@ public final class SheetEditorViewController: NSViewController {
   private(set) var scheduler: SheetEvaluationScheduler?
   /// How this sheet reads numbers, which line references are lexed with.
   var lexingConfiguration: LexingConfiguration { context.lexingConfiguration }
+  package func formatTableValue(_ value: EngineValue) -> FormattedResult? { try? resultFormatter.format(value) }
   private var resultFormatter: ResultFormatter
   /// Writes values to fewer digits for an answer column too narrow for them.
   private var compactFormatter: ResultFormatter

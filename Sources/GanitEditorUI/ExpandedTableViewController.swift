@@ -1,0 +1,131 @@
+import AppKit
+import GanitEngine
+import GanitFormatting
+
+/// Shows the visible rows of one table. All edits use the sheet coordinator.
+@MainActor
+package final class ExpandedTableViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate {
+  package let tableID: TableID
+  private unowned let editor: SheetEditorViewController
+  package private(set) var projection: TableEditingSnapshot?
+  package private(set) var result: TableResultSnapshot?
+  package let grid = NSTableView()
+  package let scroll = NSScrollView()
+  package let formula = NSTextField(string: "")
+  package let status = NSTextField(labelWithString: "")
+  package var returnToSheet: (() -> Void)?
+  package var position = TableCellPosition(row: 0, column: 0)
+
+  package init(editor: SheetEditorViewController, table: TableID) {
+    self.editor = editor
+    tableID = table
+    super.init(nibName: nil, bundle: nil)
+  }
+  @available(*, unavailable)
+  required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
+
+  package override func loadView() {
+    view = NSView()
+    let back = NSButton(title: localized("table.return", "Return to Sheet"), target: self, action: #selector(goBack))
+    formula.setAccessibilityLabel(localized("table.formula", "Cell input or formula"))
+    status.setAccessibilityLabel(localized("table.status", "Table status"))
+    let top = NSStackView(views: [back, formula])
+    top.orientation = .horizontal
+    top.spacing = VisualStyle.Spacing.group
+    grid.dataSource = self
+    grid.delegate = self
+    grid.rowHeight = 30
+    grid.intercellSpacing = NSSize(width: 1, height: 1)
+    grid.gridStyleMask = [.solidHorizontalGridLineMask, .solidVerticalGridLineMask]
+    grid.gridColor = VisualStyle.Color.separator
+    grid.usesAlternatingRowBackgroundColors = false
+    grid.setAccessibilityLabel(localized("table.grid", "Calculation table"))
+    scroll.hasVerticalScroller = true
+    scroll.hasHorizontalScroller = true
+    scroll.documentView = grid
+    let stack = NSStackView(views: [top, scroll, status])
+    stack.orientation = .vertical
+    stack.alignment = .leading
+    stack.spacing = VisualStyle.Spacing.standard
+    stack.translatesAutoresizingMaskIntoConstraints = false
+    view.addSubview(stack)
+    NSLayoutConstraint.activate([
+      stack.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 12),
+      stack.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -12),
+      stack.topAnchor.constraint(equalTo: view.topAnchor, constant: 12),
+      stack.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -12),
+      top.widthAnchor.constraint(equalTo: stack.widthAnchor),
+      scroll.widthAnchor.constraint(equalTo: stack.widthAnchor),
+      status.widthAnchor.constraint(equalTo: stack.widthAnchor),
+      formula.widthAnchor.constraint(greaterThanOrEqualToConstant: 120),
+    ])
+    refresh()
+  }
+  @objc private func goBack() { returnToSheet?() }
+
+  package func refresh() {
+    let next = TableEditingSnapshot(TableSourceDocument(editor.sheet), id: tableID)
+    let columnsChanged = projection?.columns.map(\.id) != next?.columns.map(\.id)
+    projection = next
+    result = editor.latestEvaluation?.tableResult(tableID)
+    if columnsChanged {
+      for column in grid.tableColumns { grid.removeTableColumn(column) }
+      let address = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("row"))
+      address.title = "#"
+      address.width = 44
+      grid.addTableColumn(address)
+      for (index, column) in next?.columns.enumerated() ?? [].enumerated() {
+        let item = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(column.id.uuid.uuidString))
+        item.title = TableSourceDocument.letters(index) + "  " + column.header
+        item.width = 160
+        item.minWidth = 80
+        grid.addTableColumn(item)
+      }
+    }
+    grid.reloadData()
+    status.stringValue = next?.name ?? localized("table.unavailable", "Table is unavailable. Return to the sheet to repair its source.")
+  }
+  package func numberOfRows(in tableView: NSTableView) -> Int { projection?.rows.count ?? 0 }
+  package func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
+    guard let projection, let tableColumn, projection.rows.indices.contains(row) else { return nil }
+    let index = grid.tableColumns.firstIndex(of: tableColumn) ?? 0
+    let identifier = NSUserInterfaceItemIdentifier("table-cell")
+    let cell = grid.makeView(withIdentifier: identifier, owner: self) as? NSTableCellView ?? NSTableCellView()
+    cell.identifier = identifier
+    if cell.textField == nil {
+      let label = NSTextField(labelWithString: "")
+      label.translatesAutoresizingMaskIntoConstraints = false
+      label.font = VisualStyle.Typography.answer(scale: 1)
+      cell.addSubview(label)
+      cell.textField = label
+      NSLayoutConstraint.activate([
+        label.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 6),
+        label.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -6),
+        label.centerYAnchor.constraint(equalTo: cell.centerYAnchor),
+      ])
+    }
+    let label = cell.textField!
+    label.textColor = VisualStyle.Color.primary
+    if index == 0 {
+      label.stringValue = String(row + 2)
+      label.alignment = .left
+    } else {
+      let column = projection.columns[index - 1]
+      let value = result?.value(row: projection.rows[row], column: column.id)
+      label.stringValue = display(value)
+      label.alignment = column.input == .text ? .left : .right
+      if case .failure = value { label.textColor = VisualStyle.Color.failure }
+      label.setAccessibilityLabel("\(TableSourceDocument.letters(index - 1))\(row + 2), \(column.header), \(label.stringValue)")
+    }
+    return cell
+  }
+  package func display(_ value: TableCellValue?) -> String {
+    switch value {
+    case .value(let scalar): return editor.formatTableValue(scalar)?.display ?? ""
+    case .text(let text): return text
+    case .blank: return ""
+    case .failure: return localized("table.failure", "Error")
+    case nil: return localized("table.pending", "Pending…")
+    }
+  }
+}

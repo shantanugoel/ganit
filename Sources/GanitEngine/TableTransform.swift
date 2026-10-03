@@ -1003,7 +1003,7 @@ extension TableSourceDocument {
   private static func bracket(_ name: String) -> String {
     name.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "]", with: "\\]")
   }
-  static func letters(_ index: Int) -> String {
+  package static func letters(_ index: Int) -> String {
     var number = index + 1
     var result = ""
     while number > 0 {
