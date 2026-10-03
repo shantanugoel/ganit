@@ -13,6 +13,8 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
   package let scroll = NSScrollView()
   package let formula = NSTextField(string: "")
   package let status = NSTextField(labelWithString: "")
+  package let observerID = UUID()
+  package var navigateFailure: ((TableCellFailureOrigin) -> Void)?
   package var returnToSheet: (() -> Void)?
   package var anchor = TableCellPosition(row: 0, column: 0)
   package private(set) var isEditingCell = false
@@ -26,6 +28,7 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     self.editor = editor
     tableID = table
     super.init(nibName: nil, bundle: nil)
+    editor.tableProjectionObservers[observerID] = { [weak self] in self?.refresh() }
   }
   @available(*, unavailable)
   required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
@@ -196,7 +199,7 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     let next = TableEditingSnapshot(TableSourceDocument(editor.sheet), id: tableID)
     let columnsChanged = projection?.columns.map(\.id) != next?.columns.map(\.id)
     projection = next
-    result = editor.latestEvaluation?.tableResult(tableID)
+    result = editor.tableEvaluationSource?.utf8.elementsEqual(editor.sheet.text.utf8) == true ? editor.latestEvaluation?.tableResult(tableID) : nil
     if columnsChanged {
       for column in grid.tableColumns { grid.removeTableColumn(column) }
       let address = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("row"))
@@ -213,6 +216,7 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     }
     grid.reloadData()
     updateSummary()
+    if result == nil { status.stringValue += "   " + localized("table.pending", "Pending…") }
     if next == nil { status.stringValue = localized("table.unavailable", "Table is unavailable. Return to the sheet to repair its source.") }
   }
   package func numberOfRows(in tableView: NSTableView) -> Int { projection?.rows.count ?? 0 }

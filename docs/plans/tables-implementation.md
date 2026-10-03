@@ -779,3 +779,7 @@ Work started on 2026-10-03 on branch `tables`.
   paste, fill and totals. Internal copy carries version 1, source identity
   and input policy. External formula paste is an explicit command. Selection
   sums and averages use typed engine values.
+
+- Task 5: Add interpretation, full-precision copy, broken-reference repair and
+  original-failure navigation. Source edits invalidate displayed results until
+  the matching evaluation commits. Projection observers do not own source.

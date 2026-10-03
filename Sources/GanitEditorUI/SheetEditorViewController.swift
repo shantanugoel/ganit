@@ -20,6 +20,12 @@ public final class SheetEditorViewController: NSViewController {
   /// The newest evaluation shown, which may trail the source while a
   /// generation is running.
   public private(set) var latestEvaluation: SheetEvaluation?
+  package private(set) var tableEvaluationSource: String?
+  package var tableProjectionObservers: [UUID: () -> Void] = [:]
+  public var evaluationDidCommit: ((SheetEvaluation) -> Void)?
+  private func refreshTableProjections() {
+    for observer in tableProjectionObservers.values { observer() }
+  }
   /// Undo belongs to the document, not the window, so each sheet has its own
   /// history.
   public let documentUndoManager = UndoManager()
@@ -366,6 +372,7 @@ public final class SheetEditorViewController: NSViewController {
       // Underline ranges no longer match the edited text.
       sheetTextView.underlines[id] = nil
     }
+    refreshTableProjections()
     sourceDidChange?()
     // Undo and other programmatic edits do not send `textDidChange`.
     textDidChange()
@@ -558,6 +565,9 @@ public final class SheetEditorViewController: NSViewController {
 
   private func show(_ evaluation: SheetEvaluation, of snapshot: SheetSource) {
     latestEvaluation = evaluation
+    tableEvaluationSource = snapshot.text
+    refreshTableProjections()
+    evaluationDidCommit?(evaluation)
     if evaluation.definitions != shownDefinitions {
       shownDefinitions = evaluation.definitions
       definitionsDidChange?(evaluation.definitions)

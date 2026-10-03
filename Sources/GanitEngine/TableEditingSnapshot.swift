@@ -26,6 +26,14 @@ package struct TableEditingSnapshot: Sendable {
       return (TableCellPosition(row: row, column: column), cell.source)
     })
   }
+  package func brokenReferenceRange(in source: String) -> NSRange? {
+    guard let syntax = try? TableFormulaSyntax.discover(source),
+      let reference = syntax.references.first(where: { if case .broken = $0.syntax { return true }; return false }),
+      let lower = source.utf8.index(source.utf8.startIndex, offsetBy: reference.range.lowerBound, limitedBy: source.utf8.endIndex),
+      let upper = source.utf8.index(source.utf8.startIndex, offsetBy: reference.range.upperBound, limitedBy: source.utf8.endIndex),
+      let start = String.Index(lower, within: source), let end = String.Index(upper, within: source) else { return nil }
+    return NSRange(start..<end, in: source)
+  }
   package func referencedCells(in source: String) -> Set<TableCellPosition> {
     guard let syntax = try? TableFormulaSyntax.discover(source) else { return [] }
     var result: Set<TableCellPosition> = []

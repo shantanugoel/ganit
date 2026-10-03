@@ -15,6 +15,10 @@ extension ExpandedTableViewController {
   @objc func showActions() {
     let menu = NSMenu()
     let commands: [(String, Selector)] = [
+      (localized("table.interpretation", "Show Interpretation"), #selector(showInterpretation(_:))),
+      (localized("table.precision", "Copy Full Precision"), #selector(copyFullPrecision(_:))),
+      (localized("table.repair", "Repair Broken Reference"), #selector(repairReference)),
+      (localized("table.origin", "Go to Original Failure"), #selector(goToOriginalFailure)),
       (localized("table.addRow", "Add Row"), #selector(addRow)),
       (localized("table.deleteRows", "Delete Selected Rows"), #selector(deleteRows)),
       (localized("table.addColumn", "Add Column…"), #selector(addColumn)),
@@ -171,5 +175,51 @@ extension ExpandedTableViewController {
       }
     }
     status.stringValue = parts.joined(separator: "   ")
+  }
+}
+
+
+extension ExpandedTableViewController {
+  @objc func copyFullPrecision(_ sender: Any?) {
+    guard let projection, !isEditingCell, let result else { return }
+    let text = rectangle.rows.map { row in rectangle.columns.map { column in
+      let value = result.value(row: projection.rows[row], column: projection.columns[column].id)
+      if case .value(let scalar) = value { return tsv(editor.formatTableValue(scalar)?.fullPrecision ?? "") }
+      return tsv(display(value))
+    }.joined(separator: "\t") }.joined(separator: "\n")
+    editor.resultPasteboard.clearContents()
+    editor.resultPasteboard.setString(text, forType: .string)
+  }
+  @objc func showInterpretation(_ sender: Any?) {
+    guard let projection, projection.rows.indices.contains(position.row), let column = selectedColumn else { return }
+    let row = projection.rows[position.row]
+    var details = [AnswerCell.Detail(label: "Input", value: projection.source(at: position))]
+    var fullPrecision: String?
+    if case .value(let scalar) = result?.value(row: row, column: column.id), let formatted = editor.formatTableValue(scalar) {
+      fullPrecision = formatted.fullPrecision
+      details.append(.init(label: "Result", value: formatted.display))
+      details.append(.init(label: "Full precision", value: formatted.fullPrecision))
+      details.append(.init(label: "Kind", value: scalar.tableKindName))
+      details.append(.init(label: "Exactness", value: formatted.isApproximate ? "Approximate" : formatted.isRounded ? "Exact; display rounded" : "Exact"))
+    }
+    details += result?.interpretation(row: row, column: column.id).map { .init(label: $0.0, value: $0.1) } ?? [.init(label: "Result", value: "Pending…")]
+    let card = InterpretationViewController(details: details, fullPrecision: fullPrecision,
+      availableSize: view.window?.frame.size ?? NSSize(width: 600, height: 400), pasteboard: editor.resultPasteboard)
+    let popover = NSPopover()
+    popover.contentViewController = card
+    popover.behavior = .transient
+    popover.show(relativeTo: formula.bounds, of: formula, preferredEdge: .maxY)
+  }
+  @objc func repairReference() {
+    beginEditing()
+    guard let range = projection?.brokenReferenceRange(in: formula.stringValue), let input = formula.currentEditor() as? NSTextView else { return }
+    input.setSelectedRange(range)
+    status.stringValue = localized("table.pickReplacement", "Pick a cell to replace the selected broken reference. Return commits. Escape cancels.")
+  }
+  @objc func goToOriginalFailure() {
+    guard let projection, projection.rows.indices.contains(position.row), let column = selectedColumn,
+      case .failure(let origins) = result?.value(row: projection.rows[position.row], column: column.id),
+      let origin = origins.first else { return }
+    navigateFailure?(origin)
   }
 }

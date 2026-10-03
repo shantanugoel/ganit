@@ -104,6 +104,21 @@ public struct TableResultSnapshot: Sendable {
     }
   }
 
+  package func interpretation(row: RowID, column: ColumnID) -> [(String, String)] {
+    guard let id, let snapshot = block.calculation else { return [] }
+    let address = TableCellAddress(table: id, row: row, column: column)
+    var details: [(String, String)] = []
+    if let source = snapshot.sources[address] { details.append(("Source", source)) }
+    if case .failure(let failure) = snapshot.result(at: address) {
+      details.append(("Problem", failure.referenceDiagnostic?.code.rawValue ?? failure.engineError?.code.rawValue ?? failure.code.rawValue))
+    }
+    if let provenance = snapshot.provenance[address] {
+      if let clock = provenance.clock { details.append(("Clock", String(describing: clock))) }
+      for rate in provenance.rateUses { details.append(("Currency rate", String(describing: rate))) }
+      for finance in provenance.financeUses { details.append(("Finance assumption", finance.rawValue)) }
+    }
+    return details
+  }
   package func aggregate(_ function: TableTotal, rectangle: TableCellRectangle) -> EngineValue? {
     guard let snapshot = block.calculation,
       rectangle.rows.lowerBound >= 0, rectangle.rows.upperBound <= rows.count,
