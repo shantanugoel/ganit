@@ -52,7 +52,8 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     scroll.hasVerticalScroller = true
     scroll.hasHorizontalScroller = true
     scroll.documentView = grid
-    let stack = NSStackView(views: [top, scroll, status])
+    let actions = NSButton(title: localized("table.actions", "Table Actions"), target: self, action: #selector(showActions))
+    let stack = NSStackView(views: [top, actions, scroll, status])
     stack.orientation = .vertical
     stack.alignment = .leading
     stack.spacing = VisualStyle.Spacing.standard
@@ -88,6 +89,7 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     grid.scrollColumnToVisible(target.column + 1)
     formula.stringValue = projection.source(at: target)
     grid.reloadData()
+    updateSummary()
   }
   package func beginEditing() {
     guard let projection, projection.rows.indices.contains(position.row),
@@ -210,7 +212,8 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
       }
     }
     grid.reloadData()
-    status.stringValue = next?.name ?? localized("table.unavailable", "Table is unavailable. Return to the sheet to repair its source.")
+    updateSummary()
+    if next == nil { status.stringValue = localized("table.unavailable", "Table is unavailable. Return to the sheet to repair its source.") }
   }
   package func numberOfRows(in tableView: NSTableView) -> Int { projection?.rows.count ?? 0 }
   package func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
@@ -246,6 +249,7 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
       let column = projection.columns[index - 1]
       let value = result?.value(row: projection.rows[row], column: column.id)
       label.stringValue = display(value)
+      if projection.isOverride(at: .init(row: row, column: index - 1)) { label.stringValue += " •" }
       label.alignment = column.input == .text ? .left : .right
       if case .failure = value { label.textColor = VisualStyle.Color.failure }
       label.setAccessibilityLabel("\(TableSourceDocument.letters(index - 1))\(row + 2), \(column.header), \(label.stringValue)")

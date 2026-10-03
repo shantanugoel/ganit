@@ -25,6 +25,10 @@ final class TableGridView: NSTableView {
       else { controller?.select(target, extending: true) }
     }
   }
+  @objc func copy(_ sender: Any?) { controller?.copyValues() }
+  @objc func paste(_ sender: Any?) { controller?.pasteCells() }
+  @objc func undo(_ sender: Any?) { undoManager?.undo() }
+  @objc func redo(_ sender: Any?) { undoManager?.redo() }
   override func keyDown(with event: NSEvent) {
     guard let controller else { return }
     var target = controller.position

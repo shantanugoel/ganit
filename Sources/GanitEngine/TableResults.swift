@@ -104,6 +104,27 @@ public struct TableResultSnapshot: Sendable {
     }
   }
 
+  package func aggregate(_ function: TableTotal, rectangle: TableCellRectangle) -> EngineValue? {
+    guard let snapshot = block.calculation,
+      rectangle.rows.lowerBound >= 0, rectangle.rows.upperBound <= rows.count,
+      rectangle.columns.lowerBound >= 0, rectangle.columns.upperBound <= columns.count,
+      let operation = TableRangeFunction(name: function.rawValue) else { return nil }
+    var values: [EngineValue] = []
+    for row in rectangle.rows { for column in rectangle.columns {
+      switch value(row: rows[row], column: columns[column].id) {
+      case .value(let scalar): values.append(scalar)
+      case .text, .blank: break
+      default: return nil
+      }
+    } }
+    let reduced = TableRangeReducer(context: snapshot.context, limits: .default).reduce(operation, values) {
+      tableTypedZero(snapshot.table, axes: snapshot.axes, columns: rectangle.columns.map { columns[$0].id },
+        engine: CalculationEngine(), context: snapshot.context, scalarBudget: nil)
+    }
+    if case .success(let value) = reduced { return value }
+    return nil
+  }
+
   /// The qualified A1 address of a cell, such as `Items!C3`; the header row
   /// is 1. `nil` outside the table.
   public func address(row: RowID?, column: ColumnID) -> String? {

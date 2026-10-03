@@ -50,3 +50,8 @@ package struct TableEditingSnapshot: Sendable {
     columns[position.column].rule != nil && cells[position] != nil
   }
 }
+
+extension TableSourceDocument {
+  package var editingTableIDs: [TableID] { blocks.compactMap { $0.table?.id } }
+  package var editingSource: String { source }
+}

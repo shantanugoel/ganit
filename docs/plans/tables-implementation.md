@@ -774,3 +774,8 @@ Work started on 2026-10-03 on branch `tables`.
 - Task 3: Add formula reference picking and range dragging. Picking keeps the
   formula draft open. Add a completion menu for range functions and current-row
   column references. Mark referenced cells with the system accent color.
+
+- Task 4: Add column rules, override reset, row and column commands, copy,
+  paste, fill and totals. Internal copy carries version 1, source identity
+  and input policy. External formula paste is an explicit command. Selection
+  sums and averages use typed engine values.

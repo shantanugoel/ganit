@@ -279,6 +279,11 @@ private struct TableJSONParser {
 /// An explicit edit with an optimistic-source guard. No invalid projection is
 /// ever substituted for canonical source; repair is an ordinary raw-source edit.
 package struct TableSourcePatch: Hashable, Sendable {
+  package init(utf8Range: Range<Int>, expected: String, replacement: String) {
+    self.utf8Range = utf8Range
+    self.expected = expected
+    self.replacement = replacement
+  }
   package let utf8Range: Range<Int>
   package let expected: String
   package let replacement: String
