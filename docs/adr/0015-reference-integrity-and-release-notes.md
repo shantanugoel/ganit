@@ -6,8 +6,9 @@
 ## Decision
 
 Track references across each editor edit using the old source and the actual
-replacement range. Existing references to intact expressions follow their
-new positions. Newly pasted or explicitly edited references stay as written.
+replacement ranges (including each match in Replace All). Existing references
+to intact expressions follow their new positions. Newly pasted or explicitly
+edited references stay as written.
 Deleting a target makes its surviving references `@deleted`. Splitting a
 nonempty expression or joining nonempty lines makes them `@split`. Blank-line
 insertion or removal preserves intact expressions. Each automatic rewrite is
@@ -17,7 +18,9 @@ Broken markers are additive grammar, evaluated as ranged errors. They persist
 in plain source, require no storage schema change, and require an explicit new
 reference to repair. Earlier versions reject them as syntax errors rather than
 silently computing a different value. Ordinary edits to an intact expression
-continue to update its result.
+continue to update its result. Comment and heading toggles change prefixes,
+not line identity: references keep their numbers while the target has no
+calculated value, and toggling back restores evaluation.
 
 Sheet evaluation carries original failure line numbers through line references,
 variables, and aggregates. Multiple known failing dependencies are deduplicated

@@ -10,6 +10,60 @@ import Testing
 struct SheetCommandTests {
   private static var windows: [NSWindow] = []
 
+  @Test(arguments: ["\n", "\r", "\r\n"])
+  func togglesReferencedLinesWithoutBreakingReferences(_ newline: String) async throws {
+    let original = ["1", "2", "3", "@2 + @3"].joined(separator: newline)
+    let (editor, textView) = try await makeEditor(original)
+    let manager = editor.documentUndoManager
+    manager.groupsByEvent = false
+    let start = 1 + newline.utf16.count
+    textView.setSelectedRange(NSRange(location: start, length: start + 1))
+    perform(manager) { textView.toggleComment(nil) }
+    let commented = ["1", "// 2", "// 3", "@2 + @3"].joined(separator: newline)
+    #expect(textView.string == commented)
+    #expect(editor.sheet.text == commented)
+    perform(manager) { textView.toggleComment(nil) }
+    #expect(textView.string == original)
+    manager.undo()
+    #expect(textView.string == commented)
+    manager.undo()
+    #expect(textView.string == original)
+    manager.redo()
+    #expect(textView.string == commented)
+    manager.redo()
+    #expect(textView.string == original)
+    #expect(editor.sheet.text == original)
+  }
+
+  @Test(arguments: ["30", "30\n40", ""])
+  func multipleRangeReplacementPreservesIntactReferences(_ replacement: String) async throws {
+    let original = "1\n2\n@2\n3\n@2 + @4"
+    let (editor, textView) = try await makeEditor(original)
+    let manager = editor.documentUndoManager
+    manager.groupsByEvent = false
+    let ranges = [NSRange(location: 0, length: 1), NSRange(location: 7, length: 1)]
+    perform(manager) {
+      if textView.shouldChangeText(
+        inRanges: ranges.map { NSValue(range: $0) },
+        replacementStrings: ["10", replacement])
+      {
+        for (range, text) in zip(ranges, ["10", replacement]).reversed() {
+          textView.textStorage?.replaceCharacters(in: range, with: text)
+        }
+        textView.didChangeText()
+      }
+    }
+    let target = replacement.isEmpty ? "@deleted" : (replacement.contains("\n") ? "@split" : "@4")
+    let changed = "10\n2\n@2\n" + replacement + "\n@2 + " + target
+    #expect(textView.string == changed)
+    #expect(editor.sheet.text == changed)
+    manager.undo()
+    #expect(textView.string == original)
+    manager.redo()
+    #expect(textView.string == changed)
+    #expect(editor.sheet.text == changed)
+  }
+
   @Test
   func togglesCommentsOnSelectedLinesAsOneUndoableEdit() async throws {
     let original = "rent = 2100\n\n  food = 500\n1 + 1"

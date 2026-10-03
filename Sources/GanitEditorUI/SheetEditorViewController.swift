@@ -350,12 +350,12 @@ public final class SheetEditorViewController: NSViewController {
   private var pendingReferenceEdits: [(range: NSRange, number: String)] = []
   private var isRewritingReferences = false
 
-  fileprivate func noteLineShift(replacing range: NSRange, with replacement: String?) {
-    guard let replacement, !isRewritingReferences,
+  fileprivate func noteLineShift(replacing ranges: [NSRange], with replacements: [String]?) {
+    guard let replacements, !isRewritingReferences,
       !documentUndoManager.isUndoing, !documentUndoManager.isRedoing
     else { return }
     let edits = LineReferenceRenumbering.edits(
-      replacing: range, in: textView.string, with: replacement,
+      replacing: ranges, in: textView.string, with: replacements,
       configuration: context.lexingConfiguration)
     guard !edits.isEmpty else { return }
     textView.breakUndoCoalescing()
@@ -1512,9 +1512,10 @@ private final class StorageObserver: NSObject, @preconcurrency NSTextStorageDele
   }
 
   func textView(
-    _ textView: NSTextView, shouldChangeTextIn range: NSRange, replacementString: String?
+    _ textView: NSTextView, shouldChangeTextInRanges ranges: [NSValue],
+    replacementStrings: [String]?
   ) -> Bool {
-    controller?.noteLineShift(replacing: range, with: replacementString)
+    controller?.noteLineShift(replacing: ranges.map(\.rangeValue), with: replacementStrings)
     return true
   }
 

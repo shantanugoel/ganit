@@ -13,9 +13,21 @@ public enum LineReferenceRenumbering {
     replacing range: NSRange, in old: String, with replacement: String,
     configuration: LexingConfiguration
   ) -> [(range: NSRange, number: String)] {
+    edits(replacing: [range], in: old, with: [replacement], configuration: configuration)
+  }
+
+  /// Ranges are nonoverlapping UTF-16 ranges in the old source, as supplied
+  /// by NSTextView's multiple-range editing delegate.
+  public static func edits(
+    replacing ranges: [NSRange], in old: String, with replacements: [String],
+    configuration: LexingConfiguration
+  ) -> [(range: NSRange, number: String)] {
+    precondition(ranges.count == replacements.count)
+    let changes = zip(ranges, replacements).sorted { $0.0.location < $1.0.location }
     let oldText = old as NSString
-    let removed = oldText.substring(with: range)
-    if !hasNewline(removed), !hasNewline(replacement) {
+    if changes.count == 1, let (range, replacement) = changes.first,
+      !hasNewline(oldText.substring(with: range)), !hasNewline(replacement)
+    {
       if !replacement.trimmingCharacters(in: .whitespaces).isEmpty { return [] }
       let span = oldText.lineRange(for: range)
       let local = NSRange(location: range.location - span.location, length: range.length)
@@ -23,10 +35,13 @@ public enum LineReferenceRenumbering {
         .replacingCharacters(in: local, with: replacement)
       if !changed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return [] }
     }
-    let newText = oldText.replacingCharacters(in: range, with: replacement)
+    let updated = NSMutableString(string: old)
+    for (range, replacement) in changes.reversed() {
+      updated.replaceCharacters(in: range, with: replacement)
+    }
+    let newText = updated as String
     let oldLines = SheetSource(old).lines
     let newLines = SheetSource(newText).lines
-    let delta = replacement.utf16.count - range.length
     func starts(_ lines: [SheetLine]) -> [Int] {
       var offset = 0
       return lines.map { line in
@@ -46,7 +61,10 @@ public enum LineReferenceRenumbering {
       return low + 1
     }
     func moved(_ offset: Int) -> Int {
-      offset >= range.upperBound ? offset + delta : offset
+      offset
+        + changes.reduce(0) { delta, change in
+          delta + (offset >= change.0.upperBound ? change.1.utf16.count - change.0.length : 0)
+        }
     }
     var targets: [Target] = []
     var occupants: [Int: [Int]] = [:]
@@ -62,21 +80,31 @@ public enum LineReferenceRenumbering {
       let firstOffset = start + significant.location
       let endOffset = start + last.upperBound
       var anchors: [Int] = []
-      if firstOffset < range.location {
-        anchors.append(firstOffset)
-        anchors.append(min(endOffset, range.location) - 1)
+      var cursor = firstOffset
+      for (range, _) in changes {
+        guard range.location < endOffset,
+          range.upperBound > firstOffset
+            || (range.length == 0 && range.location >= firstOffset && range.location < endOffset)
+        else { continue }
+        if cursor < range.location {
+          anchors.append(moved(cursor))
+          anchors.append(moved(min(endOffset, range.location) - 1))
+        }
+        cursor = max(cursor, range.upperBound)
       }
-      if endOffset > range.upperBound {
-        anchors.append(max(firstOffset, range.upperBound) + delta)
-        anchors.append(endOffset - 1 + delta)
+      if cursor < endOffset {
+        anchors.append(moved(cursor))
+        anchors.append(moved(endOffset - 1))
       }
       if anchors.isEmpty {
-        // Replacing a line's expression normally keeps its references. Removing
-        // it, or replacing it as part of a multiline selection, does not.
-        let removed = oldText.substring(with: range)
-        if replacement.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-          || hasNewline(removed)
-        {
+        // Replacing one expression preserves its identity. A multiline
+        // deletion or replacement cannot identify a surviving target.
+        guard
+          let (range, replacement) = changes.first(where: {
+            $0.0.location <= firstOffset && $0.0.upperBound >= endOffset
+          }), !replacement.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+          !hasNewline(oldText.substring(with: range))
+        else {
           targets.append(.broken(.deleted))
           continue
         }
@@ -84,7 +112,8 @@ public enum LineReferenceRenumbering {
         let first = written.rangeOfCharacter(from: .whitespacesAndNewlines.inverted)
         let last = written.rangeOfCharacter(
           from: .whitespacesAndNewlines.inverted, options: .backwards)
-        anchors = [range.location + first.location, range.location + last.upperBound - 1]
+        let start = moved(range.location)
+        anchors = [start + first.location, start + last.upperBound - 1]
       }
       let numbers = Set(anchors.map { lineNumber(at: $0) })
       guard numbers.count == 1, let number = numbers.first else {
@@ -117,7 +146,11 @@ public enum LineReferenceRenumbering {
         let referenceEnd =
           oldStarts[index] + utf16Offset(base + number.range.upperBound, in: line.text)
         // An edit inside a reference is the user's explicit choice.
-        guard referenceEnd <= range.location || referenceStart >= range.upperBound else { continue }
+        guard
+          changes.allSatisfy({ range, _ in
+            referenceEnd <= range.location || referenceStart >= range.upperBound
+          })
+        else { continue }
         switch targets[target - 1] {
         case .line(let updated) where updated != target:
           let start = oldStarts[index] + utf16Offset(base + number.range.lowerBound, in: line.text)

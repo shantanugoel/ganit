@@ -1829,27 +1829,49 @@ final class SheetTextView: NSTextView {
   private func togglePrefix(_ marker: String) {
     let string = self.string as NSString
     let block = string.lineRange(for: selectedRange())
-    let lines = string.substring(with: block).components(separatedBy: "\n")
-    let contentLines = lines.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+    let lines = SheetSource(string.substring(with: block)).lines
+    let contentLines = lines.map(\.text).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
     let removing =
       !contentLines.isEmpty
       && contentLines.allSatisfy { $0.drop(while: \.isWhitespace).hasPrefix(marker) }
-    let toggled = lines.map { line -> String in
+    var offset = block.location
+    var changes: [(range: NSRange, replacement: String)] = []
+    let toggled = lines.map { sourceLine -> String in
+      let line = sourceLine.text
+      let terminator = sourceLine.terminator?.rawValue ?? ""
+      defer { offset += line.utf16.count + terminator.utf16.count }
       guard !line.trimmingCharacters(in: .whitespaces).isEmpty else {
-        return line
+        return line + terminator
       }
       let indent = line.prefix(while: \.isWhitespace)
       var rest = line.dropFirst(indent.count)
       guard removing else {
-        return indent + marker + " " + rest
+        changes.append((NSRange(location: offset + indent.utf16.count, length: 0), marker + " "))
+        return indent + marker + " " + rest + terminator
       }
       rest = rest.dropFirst(marker.count)
       if rest.first == " " {
         rest = rest.dropFirst()
       }
-      return String(indent + rest)
-    }.joined(separator: "\n")
-    insertText(toggled, replacementRange: block)
+      changes.append(
+        (
+          NSRange(
+            location: offset + indent.utf16.count,
+            length: line.utf16.count - indent.utf16.count - rest.utf16.count), ""
+        ))
+      return String(indent + rest) + terminator
+    }.joined()
+    undoManager?.beginUndoGrouping()
+    defer { undoManager?.endUndoGrouping() }
+    guard !changes.isEmpty,
+      shouldChangeText(
+        inRanges: changes.map { NSValue(range: $0.range) },
+        replacementStrings: changes.map(\.replacement))
+    else { return }
+    for change in changes.reversed() {
+      textStorage?.replaceCharacters(in: change.range, with: change.replacement)
+    }
+    didChangeText()
     setSelectedRange(NSRange(location: block.location, length: (toggled as NSString).length))
   }
 

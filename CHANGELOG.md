@@ -5,6 +5,12 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Toggle Comment and Toggle Heading preserve references to the toggled lines
+  and handle LF, CRLF, and CR line endings. Commented targets have no result
+  while commented; uncommenting restores their references without repair.
+- Replace All tracks each replacement separately so references to intact
+  lines between matches remain valid, with reference updates in the same Undo.
+
 - Multiplying a percentage by a plain number now preserves the percentage
   type, matching division. Subsequent percentage addition and subtraction
   operate on percentage points.
