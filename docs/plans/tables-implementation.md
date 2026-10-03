@@ -479,17 +479,17 @@ native Find-panel routing, cross-boundary copy and state restoration; regular/
 Markdown answer placement, narrow widths, scaled text and RTL. Repeat real IME
 and VoiceOver checks across text/grid transitions. These remain release gates.
 
-- [ ] Reserve mapped block layout without object-replacement characters in
+- [x] Reserve mapped block layout without object-replacement characters in
       canonical source. Make surrounding text selection, caret movement,
       scrolling and answer placement work at both table boundaries.
-- [ ] Add Insert Table and rectangular-paste conversion with deliberate header/
+- [x] Add Insert Table and rectangular-paste conversion with deliberate header/
       type selection. Keep ordinary multi-line paste unchanged unless chosen.
-- [ ] Render inline totals/errors and formula inspection. If M0 selected the
+- [x] Render inline totals/errors and formula inspection. If M0 selected the
       fallback, make the inline preview accessible and use Open Table for edits.
-- [ ] Integrate Find, cross-boundary copy, printing/source inspection, narrow
+- [x] Integrate Find, cross-boundary copy, printing/source inspection, narrow
       windows, scaled text, right-to-left content and assistive navigation.
       Search results must open the relevant cell in expanded mode when needed.
-- [ ] Recheck native marked text, responder-chain commands and Undo after
+- [x] Recheck native marked text, responder-chain commands and Undo after
       moving between text and table editing. Support normal and Markdown answer
       placement without changing table formula semantics.
 
@@ -683,8 +683,8 @@ only. The M3 execution record below gives the current status. All M2 exit criter
 ## Next implementation task and handoff
 
 Use branch `tables` in `/Users/shantanugoel/.codex/worktrees/tables-m0/ganit`.
-M1, M2, M3 and M4 implementations are complete. Start
-**M5 — Embedded presentation in both sheet modes** next. Then implement M6.
+M1, M2, M3, M4 and M5 implementations are complete. Start
+**M6 — Export, verification and release readiness** next.
 
 Read this plan, accepted ADRs [0016](../adr/0016-table-semantics-and-editor-ownership.md)
 and [0017](../adr/0017-table-source-and-storage.md), the frozen
@@ -822,3 +822,11 @@ Work started on 2026-10-04 on branch `tables`.
   commands use the source coordinator. Keep marked prose input in its current
   editor. Writing Tools is disabled on workspace sheets with tables. This
   prevents a text service from rewriting the canonical table payload.
+
+- Phase review and native checks: commit `a9c6ab5` contains the review
+  corrections and regression tests. See the
+  [M5 preview test report](../design/tables/m5-preview-evidence.md) for task
+  commits, review corrections, test results and native checks.
+
+The M5 exit checks are complete. Real IME and deep VoiceOver checks remain
+release gates in M6. Start M6 next.
