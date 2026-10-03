@@ -1,5 +1,6 @@
 import AppKit
 import GanitEngine
+import GanitFormatting
 
 /// A bounded read-only view of one source block.
 @MainActor
@@ -134,11 +135,18 @@ extension SheetEditorViewController {
     guard permitsInlineTables, !textView.hasMarkedText(), let storage = textView.textStorage else { return }
     let document = TableSourceDocument(sheet)
     let ids = Set(document.editingTableIDs)
+    if #available(macOS 15.0, *) {
+      textView.writingToolsBehavior = ids.isEmpty ? .default : .none
+    }
     for id in inlineTableViews.keys where !ids.contains(id) {
       inlineTableViews.removeValue(forKey: id)?.removeFromSuperview()
     }
     inlineTableRanges = [:]
     storage.beginEditing()
+    storage.addAttributes([
+      .font: VisualStyle.Typography.source(scale: (textView as? SheetTextView)?.textScale ?? 1),
+      .foregroundColor: NSColor.textColor, .paragraphStyle: NSParagraphStyle.default,
+    ], range: NSRange(location: 0, length: storage.length))
     for id in document.editingTableIDs {
       guard let projection = TableEditingSnapshot(document, id: id) else { continue }
       let bytes = sheet.text.utf8

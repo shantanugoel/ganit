@@ -77,6 +77,8 @@ public final class SheetEditorViewController: NSViewController {
   package var permitsInlineTables: Bool { permitsTableEditing && !showsTableSource }
   package private(set) var showsTableSource = false
   var inlineTableViews: [TableID: InlineTablePreview] = [:]
+  private var normalizingInlineSelection = false
+  private var previousProseSelection = NSRange(location: 0, length: 0)
   package var inlineTableRanges: [TableID: NSRange] = [:]
   let summaryBar = SelectionSummaryBar()
   private let sheetTextView = SheetTextView(usingTextLayoutManager: true)
@@ -508,6 +510,26 @@ public final class SheetEditorViewController: NSViewController {
   }
 
   fileprivate func selectionDidChange() {
+    guard !normalizingInlineSelection else { return }
+    let selected = textView.selectedRange()
+    if permitsInlineTables, !textView.hasMarkedText(), !sheetTextView.isPerformingFind,
+      !scrollView.isFindBarVisible, !sourceCoordinator.isApplying {
+      var mapped = selected
+      for block in inlineTableRanges.values {
+        if mapped.length == 0, mapped.location > block.location, mapped.location < block.upperBound {
+          let edge = previousProseSelection.location <= mapped.location ? block.upperBound : block.location
+          mapped = NSRange(location: edge, length: 0)
+        } else if mapped.length > 0, NSIntersectionRange(mapped, block).length > 0 {
+          mapped = NSUnionRange(mapped, block)
+        }
+      }
+      if mapped != selected {
+        normalizingInlineSelection = true
+        textView.setSelectedRange(mapped)
+        normalizingInlineSelection = false
+      }
+    }
+    previousProseSelection = textView.selectedRange()
     summarizeSelection()
     let line = sheet.lines[lineIndex(atUTF16: textView.selectedRange().location)].id
     guard line != editingLine else {
@@ -1627,6 +1649,7 @@ private final class StorageObserver: NSObject, @preconcurrency NSTextStorageDele
     _ textView: NSTextView, shouldChangeTextInRanges ranges: [NSValue],
     replacementStrings: [String]?
   ) -> Bool {
+    guard controller?.permitsInlineEdit(ranges.map(\.rangeValue), replacements: replacementStrings) != false else { return false }
     controller?.noteLineShift(replacing: ranges.map(\.rangeValue), with: replacementStrings)
     return true
   }
@@ -1659,6 +1682,20 @@ extension CalculationResult {
 }
 
 extension SheetEditorViewController {
+  fileprivate func permitsInlineEdit(_ ranges: [NSRange], replacements: [String]?) -> Bool {
+    guard permitsInlineTables, !sourceCoordinator.isApplying else { return true }
+    for (index, range) in ranges.enumerated() {
+      for block in inlineTableRanges.values {
+        if range.length == 0 {
+          if range.location > block.location && range.location < block.upperBound { return false }
+          if range.location == block.location, let replacements, replacements.indices.contains(index),
+            !replacements[index].isEmpty, !replacements[index].hasSuffix("\n"), !replacements[index].hasSuffix("\r") { return false }
+        } else if NSIntersectionRange(range, block).length > 0,
+          !(range.location <= block.location && range.upperBound >= block.upperBound) { return false }
+      }
+    }
+    return true
+  }
   @objc public func inspectTableSource(_ sender: Any?) {
     returnFromTable(nil)
     guard expandedTable == nil, !textView.hasMarkedText() else { return }
@@ -1865,7 +1902,7 @@ extension SheetEditorViewController {
     if let id = sender.representedObject as? TableID { openTable(id) }
   }
   public func openTable(_ id: TableID) {
-    guard permitsTableEditing, TableEditingSnapshot(TableSourceDocument(sheet), id: id) != nil
+    guard !textView.hasMarkedText(), permitsTableEditing, TableEditingSnapshot(TableSourceDocument(sheet), id: id) != nil
     else { return }
     loadViewIfNeeded()
     if expandedTable != nil {

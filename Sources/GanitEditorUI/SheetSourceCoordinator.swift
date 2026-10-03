@@ -19,6 +19,7 @@ final class SheetSourceCoordinator {
     case staleEdit
   }
 
+  private(set) var isApplying = false
   private unowned let textView: NSTextView
   private let undoManager: UndoManager
 
@@ -32,6 +33,8 @@ final class SheetSourceCoordinator {
   /// applies, or none does.
   func apply(_ patches: [TableSourcePatch], actionName: String) throws {
     guard !patches.isEmpty else { return }
+    isApplying = true
+    defer { isApplying = false }
     guard textView.isEditable, let storage = textView.textStorage else {
       throw Failure.notEditable
     }

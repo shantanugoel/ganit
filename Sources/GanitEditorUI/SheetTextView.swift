@@ -17,8 +17,11 @@ import GanitFormatting
 /// no answer is selected.
 @MainActor
 final class SheetTextView: NSTextView {
+  private(set) var isPerformingFind = false
   var findTableHit: () -> Void = {}
   override func performTextFinderAction(_ sender: Any?) {
+    isPerformingFind = true
+    defer { isPerformingFind = false }
     super.performTextFinderAction(sender)
     let tag = (sender as? NSMenuItem)?.tag ?? (sender as? NSButton)?.tag
     if tag == NSTextFinder.Action.nextMatch.rawValue || tag == NSTextFinder.Action.previousMatch.rawValue {

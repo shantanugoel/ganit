@@ -817,3 +817,8 @@ Work started on 2026-10-04 on branch `tables`.
   expanded cell. Add source inspection. Cross-boundary copy uses native source
   selection and keeps canonical blocks. Printing shows table values and totals.
   Preview controls use natural text direction and scale with editor text.
+
+- Task 5: Make preview blocks atomic for prose selection and edits. Structural
+  commands use the source coordinator. Keep marked prose input in its current
+  editor. Writing Tools is disabled on workspace sheets with tables. This
+  prevents a text service from rewriting the canonical table payload.
