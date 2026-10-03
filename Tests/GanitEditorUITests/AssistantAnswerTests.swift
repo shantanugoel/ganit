@@ -121,7 +121,9 @@ struct AssistantAnswerTests {
     }
     let textView = try #require(editor.textView as? SheetTextView)
     await editor.scheduler?.waitUntilIdle()
-    let answers = try await answers(of: textView) { $0.count == 2 && !$0[1].isFailure }
+    let answers = try await answers(of: textView) {
+      $0.count == 2 && !$0[1].isFailure && !$0[1].isPending
+    }
 
     #expect(await asked.recorded == ["10 kg of water in ml"])
     #expect(answers[0].text.contains("mL"))
@@ -141,7 +143,9 @@ struct AssistantAnswerTests {
     }
     let textView = try #require(editor.textView as? SheetTextView)
     await editor.scheduler?.waitUntilIdle()
-    let answers = try await answers(of: textView) { $0.count == 2 && !$0[1].isFailure }
+    let answers = try await answers(of: textView) {
+      $0.count == 2 && !$0[1].isFailure && !$0[1].isPending
+    }
 
     #expect(await asked.recorded == ["1,200 kg of water in ml"])
     #expect(answers[1].text.contains("mL"))
@@ -421,7 +425,7 @@ struct AssistantAnswerTests {
     editor.askAssistant = { _ in "10000 ml" }
     let textView = try #require(editor.textView as? SheetTextView)
     await editor.scheduler?.waitUntilIdle()
-    _ = try await answers(of: textView) { $0.count == 2 && !$0[1].isFailure }
+    _ = try await answers(of: textView) { $0.count == 2 && !$0[1].isFailure && !$0[1].isPending }
 
     textView.setSelectedRange(NSRange(location: 0, length: 0))
     #expect(editor.canChangeAssistantAnswer())

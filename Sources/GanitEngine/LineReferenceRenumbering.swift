@@ -160,9 +160,10 @@ public enum LineReferenceRenumbering {
         let referenceEnd =
           oldStarts[index] + utf16Offset(base + number.range.upperBound, in: line.text)
         // An edit inside a reference is the user's explicit choice.
-        guard changes.allSatisfy({ range, _ in
-          referenceEnd <= range.location || referenceStart >= range.upperBound
-        }), !newTableLines.contains(lineNumber(at: moved(referenceStart)) - 1)
+        guard
+          changes.allSatisfy({ range, _ in
+            referenceEnd <= range.location || referenceStart >= range.upperBound
+          }), !newTableLines.contains(lineNumber(at: moved(referenceStart)) - 1)
         else { continue }
         switch targets[target - 1] {
         case .line(let updated) where updated != target:

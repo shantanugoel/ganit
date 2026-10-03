@@ -46,10 +46,19 @@ public struct Parser: Sendable {
       )
     }
 
+    return parse(tokens: lexingResult.tokens, diagnostics: lexingResult.diagnostics)
+  }
+
+  /// Scoped table syntax supplies operand tokens, while every arithmetic,
+  /// unit, percentage and function production stays in this parser.
+  func parse(tokens: [Token], diagnostics lexingDiagnostics: [SyntaxDiagnostic]) -> ParsingResult {
+    if lexingDiagnostics.contains(where: { $0.code == .resourceLimitExceeded }) {
+      return ParsingResult(expression: nil, diagnostics: lexingDiagnostics)
+    }
     let tokenParser = TokenParser(
       source: source,
       origin: origin,
-      tokens: lexingResult.tokens,
+      tokens: tokens,
       maximumParseDepth: limits.maximumParseDepth,
       catalog: catalog,
       variables: variables,
@@ -57,13 +66,12 @@ public struct Parser: Sendable {
       ambiguousSuffixes: ambiguousSuffixes
     )
     let parsedExpression = tokenParser.parse()
-    let diagnostics = lexingResult.diagnostics + tokenParser.diagnostics
-
+    let diagnostics = lexingDiagnostics + tokenParser.diagnostics
     return ParsingResult(
       expression: diagnostics.isEmpty ? parsedExpression : nil,
-      diagnostics: diagnostics
-    )
+      diagnostics: diagnostics)
   }
+
 }
 
 /// Words with grammatical meaning, which cannot appear in variable names.

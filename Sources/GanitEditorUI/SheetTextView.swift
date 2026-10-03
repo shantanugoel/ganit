@@ -1864,7 +1864,7 @@ final class SheetTextView: NSTextView {
   /// every non-blank line starts with it, and adds it otherwise. Lines of a
   /// table block keep their bytes.
   private func togglePrefix(_ marker: String) {
-    let (block, lines, inTable) = prefixToggleLines()
+    let (block, lines, inTable, terminators) = prefixToggleLines()
     let contentLines = zip(lines, inTable).filter {
       !$0.1 && !$0.0.trimmingCharacters(in: .whitespaces).isEmpty
     }.map(\.0)
@@ -1880,9 +1880,10 @@ final class SheetTextView: NSTextView {
     let toggled = zip(lines, inTable).enumerated().map { element -> String in
       let (index, pair) = element
       let (line, isTable) = pair
-      defer { offset += line.utf16.count + (index < lines.count - 1 ? 1 : 0) }
+      let terminator = terminators[index]
+      defer { offset += line.utf16.count + terminator.utf16.count }
       guard !isTable, !line.trimmingCharacters(in: .whitespaces).isEmpty else {
-        return line
+        return line + terminator
       }
       let indent = line.prefix(while: \.isWhitespace)
       var rest = line.dropFirst(indent.count)
@@ -1901,7 +1902,7 @@ final class SheetTextView: NSTextView {
             length: line.utf16.count - indent.utf16.count - rest.utf16.count), ""
         ))
       return String(indent + rest) + terminator
-    }.joined(separator: "\n")
+    }.joined()
     undoManager?.beginUndoGrouping()
     defer { undoManager?.endUndoGrouping() }
     guard !changes.isEmpty,
@@ -1918,22 +1919,24 @@ final class SheetTextView: NSTextView {
 
   /// The selected lines a prefix toggle reads, and which of them belong to
   /// table blocks.
-  private func prefixToggleLines() -> (block: NSRange, lines: [String], inTable: [Bool]) {
+  private func prefixToggleLines() -> (
+    block: NSRange, lines: [String], inTable: [Bool], terminators: [String]
+  ) {
     let string = self.string as NSString
     let block = string.lineRange(for: selectedRange())
-    let lines = string.substring(with: block).components(separatedBy: "\n")
+    let physical = SheetSource(string.substring(with: block)).lines
     var start = block.location
-    let inTable = lines.map { line -> Bool in
-      defer { start += (line as NSString).length + 1 }
+    let inTable = physical.map { line -> Bool in
+      defer { start += line.text.utf16.count + (line.terminator?.rawValue.utf16.count ?? 0) }
       return isTableLine(start)
     }
-    return (block, lines, inTable)
+    return (block, physical.map(\.text), inTable, physical.map { $0.terminator?.rawValue ?? "" })
   }
 
   /// Whether a prefix toggle has a line outside table blocks to act on, or
   /// a selection without block lines.
   private var canTogglePrefix: Bool {
-    let (_, lines, inTable) = prefixToggleLines()
+    let (_, lines, inTable, _) = prefixToggleLines()
     return !inTable.contains(true)
       || zip(lines, inTable).contains { !$1 && !$0.trimmingCharacters(in: .whitespaces).isEmpty }
   }

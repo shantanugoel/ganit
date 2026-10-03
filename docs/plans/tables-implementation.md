@@ -4,7 +4,7 @@ Date: 2026-10-01; updated 2026-10-03. Status: M0 feasibility complete with
 inline preview/Open Table selected; architectural decisions resolved in ADRs
 0016/0017. M1 (source model, identity and safe storage) is complete on branch
 `tables`: table block format v1 and metadata/manifest schema 2 are frozen with
-fixtures, and its exit evidence passes. Start M2 next. Table formulas do not
+fixtures, and its exit evidence passes. M2 is in progress (see durable status below). Table formulas do not
 yet calculate; blocks are retained and quarantined. This plan refines the [investigation](../design/tables-investigation.md)
 and governs its unresolved details for this feature. It does not replace
 accepted ADRs; M0 decisions and evidence are linked below.
@@ -393,7 +393,7 @@ No older-format reader, upgrade/downgrade or migration rollback is required.
 
 ### M2 — Formula grammar, graph and typed range operations
 
-- [ ] Add scoped AST/reference forms, bindings, inherited-scope reads and
+- [x] Add scoped AST/reference forms, bindings, inherited-scope reads and
       typed cell/range operands. Verify supported ordinary syntax and arithmetic
       alongside table formulas; no separate legacy parser or evaluator path.
 - [ ] Implement iterative graph evaluation, SCC diagnostics, blocked-result
@@ -567,6 +567,36 @@ ADRs 0016/0017. M1 is complete; no architectural approval is required to start M
 Resource limits remain provisional until integrated M2/M6 measurement. Native
 task checks are explicitly tracked under M4/M5 and the release matrix; no
 unverified acceptance result has been converted into a pass.
+
+## M2 durable execution status
+
+Updated 2026-10-03. Worktree `/Users/shantanugoel/.codex/worktrees/tables-m0/ganit`,
+branch `tables`; clean starting HEAD `4a1e765`. M2 only is authorized in this
+execution; do not begin M3 until all M2 exit criteria have recorded evidence.
+
+- Task 1 (scoped grammar/bindings/operands): implement → independent review →
+  test complete, approved; commit/push pending below. Shared Parser token hook,
+  scoped binding/typed operand foundation; no IDs minted or source re-encoded.
+  Ordinary syntax/collision/visibility/ledger corpus includes time precedence:
+  existing lexer time tokens remain temporal; `Items!12:30` selects data rows.
+  Baseline repairs preserve prefix-toggle LF/CR/CRLF and wait for completed
+  assistant test output. All review findings resolved with regressions.
+  Verification: full suite **809 passed** before final nested-percentage-only
+  scanner fix; final affected **23 grammar + 2 editor tests passed** (editor
+  toggle parameterized for three line endings); package dump, all-product
+  build, pinned formatter and whitespace checks passed. Evidence logs:
+  `/tmp/ganit-m2-task1-full-final.log`,
+  `/tmp/ganit-m2-task1-affected-final.log`,
+  `/tmp/ganit-m2-task1-build-final.log`.
+- Tasks 2–5: not started. Next is iterative graph/SCC evaluation, only after
+  task 1 commit/push succeeds. Full app build/verification at M2 exit.
+- Read plan, accepted ADRs 0016/0017 and amendments, frozen v1 source/storage
+  contract and M0 evidence. Preserve current schemas, quarantine and byte fidelity.
+- Native acceptance remains mandatory in M4/M5 and M6: real IME, VoiceOver,
+  Find/copy/restoration and integrated layout are **not verified by M2**.
+- Root orchestrator owns this record and commit/push; implementation, independent
+  review and verification use separate subagents. Resolve findings and rerun
+  affected checks before each task's commit. No compatibility implementation.
 
 ## Next implementation task and agent handoff
 
