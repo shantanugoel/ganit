@@ -825,6 +825,79 @@ public struct DiagnosticFormatter: Sendable {
     )
   }
 
+  /// A quarantined table block's reason, for a reader that shows the block
+  /// instead of calculating it. The code names the problem; the detail is
+  /// developer-facing and never shown.
+  public func format(_ diagnostic: TableSourceDiagnostic) -> FormattedDiagnostic {
+    let message: String
+    switch diagnostic.code {
+    case .malformed:
+      message = localized(
+        "error.tableSource.malformed",
+        defaultValue:
+          "This table block is not valid, so Ganit keeps it unchanged and calculates nothing in it."
+      )
+    case .unsupportedVersion:
+      message = localized(
+        "error.tableSource.unsupportedVersion",
+        defaultValue:
+          "This table block names a version Ganit does not read, so Ganit keeps it unchanged."
+      )
+    case .unterminated:
+      message = localized(
+        "error.tableSource.unterminated",
+        defaultValue:
+          "This table block never ends, so Ganit keeps it unchanged and calculates nothing in it."
+      )
+    case .invalidRecord:
+      message = localized(
+        "error.tableSource.invalidRecord",
+        defaultValue:
+          "This table block breaks a table rule, so Ganit keeps it unchanged."
+      )
+    case .duplicateIdentity:
+      message = localized(
+        "error.tableSource.duplicateIdentity",
+        defaultValue:
+          "Two records share one table, row or column identity, so Ganit keeps this block unchanged."
+      )
+    case .duplicateName:
+      message = localized(
+        "error.tableSource.duplicateName",
+        defaultValue:
+          "Two visible tables share one name, so Ganit keeps both unchanged."
+      )
+    case .staleBinding:
+      message = localized(
+        "error.tableSource.staleBinding",
+        defaultValue:
+          "A stored reference does not match its formula, so Ganit keeps this table unchanged."
+      )
+    case .orphanTarget:
+      message = localized(
+        "error.tableSource.orphanTarget",
+        defaultValue:
+          "A reference names a table, row or column that does not exist, so Ganit keeps this table unchanged."
+      )
+    case .cellLimit:
+      message = localized(
+        "error.tableSource.cellLimit",
+        defaultValue: "The sheet has more populated table cells than Ganit calculates."
+      )
+    case .sourceLimit:
+      message = localized(
+        "error.tableSource.sourceLimit",
+        defaultValue: "The sheet is larger than Ganit reads, so Ganit keeps its tables unchanged."
+      )
+    }
+    return FormattedDiagnostic(
+      code: "tableSource.\(diagnostic.code.rawValue)",
+      severity: .error,
+      ranges: [],
+      message: message
+    )
+  }
+
   public func format(
     _ error: FormattingError,
     ranges: [SourceRange]

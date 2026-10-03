@@ -1,5 +1,6 @@
 import AppKit
 import GanitEngine
+import GanitFormatting
 
 private struct TableCopyPayload: Codable {
   let version: Int
@@ -13,6 +14,12 @@ extension ExpandedTableViewController {
   private static var copyType: NSPasteboard.PasteboardType { .init("app.ganit.table-range.v1") }
 
   @objc func showActions() {
+    let menu = actionsMenu()
+    menu.popUp(positioning: nil, at: NSPoint(x: 12, y: view.bounds.maxY - 60), in: view)
+  }
+
+  /// The Table Actions menu, so tests can list the commands it offers.
+  func actionsMenu() -> NSMenu {
     let menu = NSMenu()
     let commands: [(String, Selector)] = [
       (localized("table.interpretation", "Show Interpretation"), #selector(showInterpretation(_:))),
@@ -31,6 +38,7 @@ extension ExpandedTableViewController {
       (localized("table.paste", "Paste"), #selector(pasteCells)),
       (localized("table.pasteFormulas", "Paste TSV as Formulas"), #selector(pasteFormulas)),
       (localized("table.fill", "Fill Selection from First Cell"), #selector(fillSelection)),
+      (localized("table.export", "Export Table…"), #selector(exportTable(_:))),
     ]
     for (title, action) in commands {
       let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
@@ -53,7 +61,7 @@ extension ExpandedTableViewController {
     submenu.addItem(clear)
     totals.submenu = submenu
     menu.addItem(totals)
-    menu.popUp(positioning: nil, at: NSPoint(x: 12, y: view.bounds.maxY - 60), in: view)
+    return menu
   }
   func performEdit(_ operation: () throws -> Void) {
     guard !isEditingCell else {
@@ -347,5 +355,109 @@ extension ExpandedTableViewController {
       let origin = origins.first
     else { return }
     navigateFailure?(origin)
+  }
+
+  /// Writes the open table as TSV or CSV, in values or formulas mode. The
+  /// file shows the same values the sheet displays, with a header row by
+  /// default and the totals footer as the last row.
+  @objc func exportTable(_ sender: Any?) {
+    guard !isEditingCell, let projection, let window = view.window else { return }
+    let panel = NSSavePanel()
+    panel.allowedContentTypes = [.commaSeparatedText, .tabSeparatedText]
+    panel.nameFieldStringValue = projection.name
+    let mode = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 220, height: 26), pullsDown: false)
+    mode.addItems(withTitles: [
+      localized("table.exportValues", "Values"),
+      localized("table.exportFormulas", "Inputs and Formulas"),
+    ])
+    mode.setAccessibilityLabel(localized("table.exportMode", "Export mode"))
+    let headerBox = NSButton(
+      checkboxWithTitle: localized("table.exportHeaders", "Include header row"), target: nil,
+      action: nil)
+    headerBox.state = .on
+    let accessory = NSStackView(views: [mode, headerBox])
+    accessory.orientation = .vertical
+    accessory.edgeInsets = NSEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
+    panel.accessoryView = accessory
+    panel.beginSheetModal(for: window) { [weak self] response in
+      guard response == .OK, let self, let url = panel.url else { return }
+      let format: TableTextFormat =
+        url.pathExtension.lowercased() == "csv" ? .csv : .tsv
+      let grid = self.exportGrid(
+        mode: mode.indexOfSelectedItem == 1 ? .formulas : .values)
+      let text = TableGridText.text(
+        grid, format: format, includesHeader: headerBox.state == .on,
+        locale: self.editor.tableExportLocale)
+      do {
+        try text.write(to: url, atomically: true, encoding: .utf8)
+      } catch {
+        let alert = NSAlert(error: error)
+        alert.beginSheetModal(for: window)
+      }
+    }
+  }
+
+  /// Which text an export writes: what cells show, or what they hold.
+  enum ExportMode { case values, formulas }
+
+  /// The open table as display text: values with their units, or the source
+  /// of each cell, with the column rule spelled in every inherited cell.
+  func exportGrid(mode: ExportMode) -> TableGrid {
+    guard let projection else {
+      return TableGrid(name: nil, headers: [], rows: [], totals: [], failures: [])
+    }
+    let rows: [[String]]
+    switch mode {
+    case .values:
+      rows = projection.rows.map { row in
+        projection.columns.map { column in
+          exportCell(result?.value(row: row, column: column.id), row: row, column: column.id)
+        }
+      }
+    case .formulas:
+      rows = projection.rows.indices.map { rowIndex in
+        projection.columns.indices.map { columnIndex in
+          projection.source(at: TableCellPosition(row: rowIndex, column: columnIndex))
+        }
+      }
+    }
+    let totals: [String?]
+    if let result {
+      totals = projection.columns.enumerated().map { index, column -> String? in
+        guard let total = column.total else { return nil }
+        let value = result.aggregate(
+          total, rectangle: .init(rows: 0..<projection.rows.count, columns: index..<(index + 1)))
+        return value.flatMap { editor.formatTableValue($0)?.display }
+          ?? localized(
+            "table.failure", "Error")
+      }
+    } else {
+      totals = []
+    }
+    let failures = result?.calculationFailure.map { [editor.formatTableError($0)] } ?? []
+    return TableGrid(
+      name: projection.name, headers: projection.columns.map(\.header), rows: rows,
+      totals: totals.contains(where: { $0 != nil }) ? totals : [], failures: failures)
+  }
+
+  /// A value cell as the export shows it: the display text, or the failure
+  /// message that names the problem.
+  private func exportCell(_ value: TableCellValue?, row: RowID, column: ColumnID) -> String {
+    switch value {
+    case .value(let scalar):
+      return editor.formatTableValue(scalar)?.display ?? ""
+    case .text(let text): return text
+    case .blank: return ""
+    case .failure:
+      if let error = result?.cellError(row: row, column: column) {
+        return editor.formatTableError(error)
+      }
+      return localized("table.failure", "Error")
+    case nil:
+      if let error = result?.calculationFailure {
+        return editor.formatTableError(error)
+      }
+      return localized("table.pending", "Pending…")
+    }
   }
 }

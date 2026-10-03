@@ -43,6 +43,15 @@ that starts with `=` as formulas. Fill uses the selected source cell and the
 selected rectangle. Column Total adds a typed total below the grid. The
 selection summary shows a typed sum and average when the values permit them.
 
+Export Table writes the open table as a tab- or comma-separated file. Choose
+Values for the displayed values, or Inputs and Formulas for the stored
+sources. A column rule appears in every cell that inherits it. The totals
+footer is the last row. The header row follows the Include header row choice.
+The CSV separator follows the sheet's number locale, so a decimal comma uses
+a semicolon. A field that a spreadsheet would run as a formula starts with
+an apostrophe, which keeps `-`, `+`, `=`, and `@` text safe to open in
+another app. Remove the apostrophe to run that formula.
+
 ## Results and errors
 
 The grid uses the sheet number format. Pending means that the edited source

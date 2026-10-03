@@ -48,7 +48,7 @@ package enum TableInputPolicy: String, Hashable, Sendable {
 }
 
 /// The totals-footer summary for one column. The footer reads data rows only.
-package enum TableTotal: String, Hashable, Sendable, CaseIterable {
+public enum TableTotal: String, Hashable, Sendable, CaseIterable {
   case sum, average, median, min, max, count
 }
 

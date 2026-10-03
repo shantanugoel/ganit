@@ -139,7 +139,7 @@ let package = Package(
     ),
     .testTarget(
       name: "GanitFormattingTests",
-      dependencies: ["GanitFormatting"]
+      dependencies: ["GanitFormatting", "GanitEngine"]
     ),
     .testTarget(
       name: "GanitEngineCorpusTests",

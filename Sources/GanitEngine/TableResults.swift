@@ -37,6 +37,9 @@ public struct TableResultColumn: Hashable, Sendable {
   public let id: ColumnID
   /// Literal header text.
   public let header: String
+  /// The column's totals footer, or `nil` without one. Operands read data
+  /// rows only.
+  public let total: TableTotal?
 }
 
 /// What a table cell holds in one generation.
@@ -76,7 +79,9 @@ public struct TableResultSnapshot: Sendable {
     physicalLines = block.physicalLines
     diagnostics = block.diagnostics
     columns =
-      block.projection?.columns.map { TableResultColumn(id: $0.id, header: $0.header) } ?? []
+      block.projection?.columns.map {
+        TableResultColumn(id: $0.id, header: $0.header, total: $0.total)
+      } ?? []
     rows = block.projection?.rows ?? []
     calculationFailure = block.calculationFailure
   }

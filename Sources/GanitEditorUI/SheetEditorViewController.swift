@@ -96,6 +96,11 @@ public final class SheetEditorViewController: NSViewController {
   package func formatTableError(_ error: EngineError) -> String {
     diagnosticFormatter.format(error).message
   }
+  /// The sheet's number locale, which table exports and headless readers
+  /// follow so values read the same everywhere.
+  package var tableExportLocale: Locale {
+    Locale(identifier: context.localeIdentifier)
+  }
   package func tableFinanceAssumption(_ name: String) -> String {
     FinanceFunction(rawValue: name).map { assumption(of: $0) } ?? name
   }
