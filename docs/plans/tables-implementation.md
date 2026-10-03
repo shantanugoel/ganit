@@ -766,3 +766,7 @@ Work started on 2026-10-03 on branch `tables`.
 - Task 1: Add a view-based AppKit grid. The table view reuses visible cells.
   It uses system colors, table addresses and the sheet number formatter.
   Source projections contain no editable document store.
+
+- Task 2: Add cell selection, rectangular selection, arrow and Tab navigation,
+  and a native input field. Return commits. Escape cancels. Marked input does
+  not change source. Committed cell edits use document Undo.

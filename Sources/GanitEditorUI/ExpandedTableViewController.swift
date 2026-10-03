@@ -4,16 +4,19 @@ import GanitFormatting
 
 /// Shows the visible rows of one table. All edits use the sheet coordinator.
 @MainActor
-package final class ExpandedTableViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate {
+package final class ExpandedTableViewController: NSViewController, NSTableViewDataSource, NSTableViewDelegate, NSTextFieldDelegate {
   package let tableID: TableID
-  private unowned let editor: SheetEditorViewController
+  package unowned let editor: SheetEditorViewController
   package private(set) var projection: TableEditingSnapshot?
   package private(set) var result: TableResultSnapshot?
-  package let grid = NSTableView()
+  let grid = TableGridView()
   package let scroll = NSScrollView()
   package let formula = NSTextField(string: "")
   package let status = NSTextField(labelWithString: "")
   package var returnToSheet: (() -> Void)?
+  package var anchor = TableCellPosition(row: 0, column: 0)
+  package private(set) var isEditingCell = false
+  private var editOrigin: (RowID, ColumnID)?
   package var position = TableCellPosition(row: 0, column: 0)
 
   package init(editor: SheetEditorViewController, table: TableID) {
@@ -32,6 +35,8 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     let top = NSStackView(views: [back, formula])
     top.orientation = .horizontal
     top.spacing = VisualStyle.Spacing.group
+    formula.delegate = self
+    grid.controller = self
     grid.dataSource = self
     grid.delegate = self
     grid.rowHeight = 30
@@ -61,7 +66,90 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     ])
     refresh()
   }
-  @objc private func goBack() { returnToSheet?() }
+  @objc private func goBack() {
+    guard commitCellEditing() else { return }
+    returnToSheet?()
+  }
+  package var rectangle: TableCellRectangle {
+    .init(rows: min(anchor.row, position.row)..<(max(anchor.row, position.row) + 1),
+          columns: min(anchor.column, position.column)..<(max(anchor.column, position.column) + 1))
+  }
+  package func select(_ target: TableCellPosition, extending: Bool = false) {
+    guard let projection, projection.rows.indices.contains(target.row),
+      projection.columns.indices.contains(target.column), !isEditingCell else { return }
+    position = target
+    if !extending { anchor = target }
+    grid.selectRowIndexes(IndexSet(integer: target.row), byExtendingSelection: false)
+    grid.scrollRowToVisible(target.row)
+    grid.scrollColumnToVisible(target.column + 1)
+    formula.stringValue = projection.source(at: target)
+    grid.reloadData()
+  }
+  package func beginEditing() {
+    guard let projection, projection.rows.indices.contains(position.row),
+      projection.columns.indices.contains(position.column) else { return }
+    isEditingCell = true
+    editOrigin = (projection.rows[position.row], projection.columns[position.column].id)
+    formula.stringValue = projection.source(at: position)
+    view.window?.makeFirstResponder(formula)
+    formula.selectText(nil)
+  }
+  package func controlTextDidBeginEditing(_ obj: Notification) {
+    if !isEditingCell { beginEditing() }
+  }
+  package func controlTextDidEndEditing(_ obj: Notification) {
+    // Losing focus does not discard the draft or commit marked input.
+  }
+  package func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
+    if selector == #selector(NSResponder.cancelOperation(_:)) { cancelEditing(); return true }
+    if selector == #selector(NSResponder.insertNewline(_:)) || selector == #selector(NSResponder.insertTab(_:)) {
+      guard !textView.hasMarkedText(), commitCellEditing() else { return true }
+      select(.init(row: min(position.row + 1, (projection?.rows.count ?? 1) - 1), column: position.column))
+      return true
+    }
+    return false
+  }
+  @discardableResult
+  package func commitCellEditing() -> Bool {
+    guard isEditingCell else { return true }
+    guard (formula.currentEditor() as? NSTextView)?.hasMarkedText() != true else { return false }
+    guard let projection, let editOrigin,
+      projection.rows.indices.contains(position.row), projection.columns.indices.contains(position.column),
+      projection.rows[position.row] == editOrigin.0, projection.columns[position.column].id == editOrigin.1
+    else { status.stringValue = localized("table.stale", "The cell changed. Cancel and select it again."); return false }
+    let source = formula.stringValue
+    let before = position
+    isEditingCell = false
+    editor.documentUndoManager.beginUndoGrouping()
+    defer { editor.documentUndoManager.endUndoGrouping() }
+    do {
+      try editor.setTableCell(tableID, at: position, source: source)
+      editor.documentUndoManager.registerUndo(withTarget: self) { controller in
+        controller.restoreSelection(before)
+      }
+      view.window?.makeFirstResponder(grid)
+      refresh()
+      return true
+    } catch {
+      isEditingCell = true
+      status.stringValue = String(describing: error)
+      return false
+    }
+  }
+  private func restoreSelection(_ target: TableCellPosition) {
+    let previous = position
+    refresh()
+    select(target)
+    editor.documentUndoManager.registerUndo(withTarget: self) { $0.restoreSelection(previous) }
+  }
+  package func cancelEditing() {
+    isEditingCell = false
+    editOrigin = nil
+    formula.abortEditing()
+    formula.stringValue = projection.map { $0.source(at: position) } ?? ""
+    view.window?.makeFirstResponder(grid)
+  }
+
 
   package func refresh() {
     let next = TableEditingSnapshot(TableSourceDocument(editor.sheet), id: tableID)
@@ -105,6 +193,9 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
       ])
     }
     let label = cell.textField!
+    cell.wantsLayer = true
+    let selected = index > 0 && rectangle.rows.contains(row) && rectangle.columns.contains(index - 1)
+    cell.layer?.backgroundColor = selected ? VisualStyle.Color.selectionBackground.withAlphaComponent(0.2).cgColor : NSColor.clear.cgColor
     label.textColor = VisualStyle.Color.primary
     if index == 0 {
       label.stringValue = String(row + 2)
