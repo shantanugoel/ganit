@@ -280,6 +280,9 @@ public enum MainMenu {
                 "e"),
             ]
           ),
+          item(localized("table.insert", "Insert Table…"), #selector(SheetEditorViewController.insertCalculationTable(_:))),
+          item(localized("table.open", "Open Table"), #selector(SheetEditorViewController.openCalculationTable(_:)), "t", [.command, .shift]),
+          item(localized("table.return", "Return to Sheet"), #selector(SheetEditorViewController.returnFromTable(_:))),
           item(
             localized("menu.goToLine", "Go to Line…"), #selector(SheetCommands.goToLine(_:)), "l"),
           .separator(),

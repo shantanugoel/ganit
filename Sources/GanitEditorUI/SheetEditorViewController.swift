@@ -68,7 +68,11 @@ public final class SheetEditorViewController: NSViewController {
   }
 
   private var context: EvaluationContext
-  private let scrollView = NSScrollView()
+  let scrollView = NSScrollView()
+  package private(set) var expandedTable: ExpandedTableViewController?
+  private var tableViewStates: [TableID: (TableCellPosition, TableCellPosition, NSPoint)] = [:]
+  private var proseScroll = NSPoint.zero
+  private let permitsTableEditing: Bool
   let summaryBar = SelectionSummaryBar()
   private let sheetTextView = SheetTextView(usingTextLayoutManager: true)
   private let storageObserver = StorageObserver()
@@ -145,6 +149,7 @@ public final class SheetEditorViewController: NSViewController {
     display: DisplayOptions = .standard,
     surface: SheetSurface = .workspace
   ) {
+    permitsTableEditing = surface == .workspace
     self.context = context.with(
       dollarCurrency: display.dollarCurrency, isMarkdownMode: display.writesAnswersInline,
       ambiguousSuffixes: display.ambiguousSuffixes)
@@ -301,7 +306,7 @@ public final class SheetEditorViewController: NSViewController {
 
   public override func viewDidAppear() {
     super.viewDidAppear()
-    view.window?.makeFirstResponder(textView)
+    view.window?.makeFirstResponder(expandedTable?.grid ?? textView)
   }
 
   private func configureTextView(text: String) {
@@ -1632,5 +1637,94 @@ extension CalculationResult {
       return false
     }
     return true
+  }
+}
+
+
+extension SheetEditorViewController {
+  @objc public func insertCalculationTable(_ sender: Any?) {
+    guard permitsTableEditing, textView.isEditable, let window = view.window else { return }
+    let alert = NSAlert()
+    alert.messageText = localized("table.insert", "Insert Table")
+    let field = NSTextField(string: "Items")
+    field.frame = NSRect(x: 0, y: 0, width: 280, height: 24)
+    field.setAccessibilityLabel(localized("table.name", "Table name"))
+    alert.accessoryView = field
+    alert.addButton(withTitle: localized("table.insert", "Insert Table"))
+    alert.addButton(withTitle: localized("table.cancel", "Cancel"))
+    alert.window.initialFirstResponder = field
+    alert.beginSheetModal(for: window) { [weak self] response in
+      guard let self, response == .alertFirstButtonReturn else { return }
+      let text = textView.string as NSString
+      let start = text.lineRange(for: textView.selectedRange()).location
+      let prefix = text.substring(to: start)
+      do {
+        if let id = try createTable(named: field.stringValue,
+          headers: [("Item", .text), ("Qty", .value), ("Amount", .value)], rowCount: 3, atUTF8: prefix.utf8.count) {
+          openTable(id)
+        }
+      } catch { window.presentError(error) }
+    }
+  }
+  @objc public func openCalculationTable(_ sender: Any?) {
+    guard permitsTableEditing else { return }
+    let ids = TableSourceDocument(sheet).editingTableIDs
+    if let id = latestEvaluation?.tableResult(atLine: lineIndex(atUTF16: textView.selectedRange().location))?.id, ids.contains(id) { openTable(id); return }
+    if ids.count == 1 { openTable(ids[0]); return }
+    let menu = NSMenu()
+    for id in ids {
+      let item = NSMenuItem(title: TableEditingSnapshot(TableSourceDocument(sheet), id: id)?.name ?? "Table", action: #selector(openNamedTable(_:)), keyEquivalent: "")
+      item.target = self
+      item.representedObject = id
+      menu.addItem(item)
+    }
+    menu.popUp(positioning: nil, at: NSPoint(x: 12, y: view.bounds.maxY - 12), in: view)
+  }
+  @objc private func openNamedTable(_ sender: NSMenuItem) {
+    if let id = sender.representedObject as? TableID { openTable(id) }
+  }
+  public func openTable(_ id: TableID) {
+    guard permitsTableEditing, TableEditingSnapshot(TableSourceDocument(sheet), id: id) != nil else { return }
+    loadViewIfNeeded()
+    if expandedTable != nil { returnFromTable(nil) }
+    proseScroll = scrollView.contentView.bounds.origin
+    if textView.hasMarkedText() { textView.unmarkText() }
+    let controller = ExpandedTableViewController(editor: self, table: id)
+    expandedTable = controller
+    controller.returnToSheet = { [weak self] in self?.returnFromTable(nil) }
+    controller.navigateFailure = { [weak self] origin in self?.navigateToTableFailure(origin) }
+    addChild(controller)
+    controller.view.frame = view.bounds
+    controller.view.autoresizingMask = [.width, .height]
+    scrollView.isHidden = true
+    summaryBar.isHidden = true
+    view.addSubview(controller.view)
+    if let saved = tableViewStates[id] {
+      controller.select(saved.0)
+      controller.anchor = saved.1
+      controller.scroll.contentView.scroll(to: saved.2)
+    } else { controller.select(.init(row: 0, column: 0)) }
+    view.window?.makeFirstResponder(controller.grid)
+  }
+  @objc public func returnFromTable(_ sender: Any?) {
+    guard let controller = expandedTable, controller.commitCellEditing() else { return }
+    tableViewStates[controller.tableID] = (controller.position, controller.anchor, controller.scroll.contentView.bounds.origin)
+    tableProjectionObservers[controller.observerID] = nil
+    controller.view.removeFromSuperview()
+    controller.removeFromParent()
+    expandedTable = nil
+    scrollView.isHidden = false
+    scrollView.contentView.scroll(to: proseScroll)
+    scrollView.reflectScrolledClipView(scrollView.contentView)
+    summarizeSelection()
+    view.window?.makeFirstResponder(textView)
+  }
+  private func navigateToTableFailure(_ origin: TableCellFailureOrigin) {
+    guard expandedTable?.commitCellEditing() != false else { return }
+    openTable(origin.table)
+    guard let grid = expandedTable, let projection = grid.projection,
+      let row = origin.row.flatMap({ projection.rows.firstIndex(of: $0) }),
+      let column = origin.column.flatMap({ id in projection.columns.firstIndex { $0.id == id } }) else { return }
+    grid.select(.init(row: row, column: column))
   }
 }

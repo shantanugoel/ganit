@@ -783,3 +783,12 @@ Work started on 2026-10-03 on branch `tables`.
 - Task 5: Add interpretation, full-precision copy, broken-reference repair and
   original-failure navigation. Source edits invalidate displayed results until
   the matching evaluation commits. Projection observers do not own source.
+
+- Task 6: Add Insert Table, Open Table and Return to Sheet commands. Keep prose
+  selection and scroll position. Keep table selection and scroll position when
+  the table is opened again. The existing workspace keeps one editor per
+  document and moves that editor between windows. Projection observers share
+  that editor source and document Undo.
+
+All six task implementations are committed in order. Phase review and native
+app tests follow. VoiceOver checks are basic, as requested by the user.
