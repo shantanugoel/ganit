@@ -808,3 +808,7 @@ Work started on 2026-10-04 on branch `tables`.
 - Task 2: Add header and input type controls to Insert Table. Add the explicit
   Paste as Table command. It validates the rectangle and applies creation and
   data entry as one document edit. Ordinary paste is unchanged.
+
+- Task 3: Show calculated values, totals, Pending and errors in the preview.
+  A cell action shows its input or formula. Open Table selects that cell.
+  The preview has labelled native controls and horizontal scrolling.
