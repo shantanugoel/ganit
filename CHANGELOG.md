@@ -5,6 +5,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+## 0.5.7
+
 - Toggle Comment and Toggle Heading preserve references to the toggled lines
   and handle LF, CRLF, and CR line endings. Commented targets have no result
   while commented; uncommenting restores their references without repair.
