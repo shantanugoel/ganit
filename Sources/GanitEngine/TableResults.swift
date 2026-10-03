@@ -104,18 +104,34 @@ public struct TableResultSnapshot: Sendable {
     }
   }
 
+  package func cellError(row: RowID, column: ColumnID) -> EngineError? {
+    guard let id,
+      case .failure(let failure) = block.calculation?.result(
+        at: TableCellAddress(table: id, row: row, column: column))
+    else { return nil }
+    return failure.engineError
+  }
   package func interpretation(row: RowID, column: ColumnID) -> [(String, String)] {
     guard let id, let snapshot = block.calculation else { return [] }
     let address = TableCellAddress(table: id, row: row, column: column)
     var details: [(String, String)] = []
     if let source = snapshot.sources[address] { details.append(("Source", source)) }
     if case .failure(let failure) = snapshot.result(at: address) {
-      details.append(("Problem", failure.referenceDiagnostic?.code.rawValue ?? failure.engineError?.code.rawValue ?? failure.code.rawValue))
+      details.append(
+        (
+          "Problem",
+          failure.referenceDiagnostic?.code.rawValue ?? failure.engineError?.code.rawValue
+            ?? failure.code.rawValue
+        ))
     }
     if let provenance = snapshot.provenance[address] {
       if let clock = provenance.clock { details.append(("Clock", String(describing: clock))) }
-      for rate in provenance.rateUses { details.append(("Currency rate", String(describing: rate))) }
-      for finance in provenance.financeUses { details.append(("Finance assumption", finance.rawValue)) }
+      for rate in provenance.rateUses {
+        details.append(("Currency rate", String(describing: rate)))
+      }
+      for finance in provenance.financeUses {
+        details.append(("Finance assumption", finance.rawValue))
+      }
     }
     return details
   }
@@ -123,17 +139,25 @@ public struct TableResultSnapshot: Sendable {
     guard let snapshot = block.calculation,
       rectangle.rows.lowerBound >= 0, rectangle.rows.upperBound <= rows.count,
       rectangle.columns.lowerBound >= 0, rectangle.columns.upperBound <= columns.count,
-      let operation = TableRangeFunction(name: function.rawValue) else { return nil }
+      let operation = TableRangeFunction(name: function.rawValue)
+    else { return nil }
     var values: [EngineValue] = []
-    for row in rectangle.rows { for column in rectangle.columns {
-      switch value(row: rows[row], column: columns[column].id) {
-      case .value(let scalar): values.append(scalar)
-      case .text, .blank: break
-      default: return nil
+    for row in rectangle.rows {
+      for column in rectangle.columns {
+        switch snapshot.result(
+          at: TableCellAddress(table: snapshot.table.id, row: rows[row], column: columns[column].id)
+        ) {
+        case .scalar(let scalar): values.append(scalar)
+        case .text, .blank: break
+        default: return nil
+        }
       }
-    } }
-    let reduced = TableRangeReducer(context: snapshot.context, limits: .default).reduce(operation, values) {
-      tableTypedZero(snapshot.table, axes: snapshot.axes, columns: rectangle.columns.map { columns[$0].id },
+    }
+    let reduced = TableRangeReducer(context: snapshot.context, limits: .default).reduce(
+      operation, values
+    ) {
+      tableTypedZero(
+        snapshot.table, axes: snapshot.axes, columns: rectangle.columns.map { columns[$0].id },
         engine: CalculationEngine(), context: snapshot.context, scalarBudget: nil)
     }
     if case .success(let value) = reduced { return value }

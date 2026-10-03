@@ -298,6 +298,9 @@ extension SheetEditorViewController {
 extension SheetEditorViewController {
   package func replaceTableSource(before: String, after: String, action: String) throws {
     guard before == sheet.text else { throw SheetSourceCoordinator.Failure.staleEdit }
-    try sourceCoordinator.apply([TableSourcePatch(utf8Range: 0..<before.utf8.count, expected: before, replacement: after)], actionName: action)
+    guard !before.utf8.elementsEqual(after.utf8) else { return }
+    try sourceCoordinator.apply(
+      [TableSourcePatch(utf8Range: 0..<before.utf8.count, expected: before, replacement: after)],
+      actionName: action)
   }
 }
