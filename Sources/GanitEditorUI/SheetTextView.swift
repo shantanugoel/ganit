@@ -17,16 +17,40 @@ import GanitFormatting
 /// no answer is selected.
 @MainActor
 final class SheetTextView: NSTextView {
-  private(set) var isPerformingFind = false
+  var isPerformingFind = false
+  private(set) var isCopyingSource = false
+  private lazy var mappedFinder = MappedTableFinder(textView: self)
   var findTableHit: () -> Void = {}
   override func performTextFinderAction(_ sender: Any?) {
-    isPerformingFind = true
-    defer { isPerformingFind = false }
-    super.performTextFinderAction(sender)
-    let tag = (sender as? NSMenuItem)?.tag ?? (sender as? NSButton)?.tag
-    if tag == NSTextFinder.Action.nextMatch.rawValue || tag == NSTextFinder.Action.previousMatch.rawValue {
-      findTableHit()
+    guard !inlineRanges().isEmpty else {
+      super.performTextFinderAction(sender)
+      return
     }
+    let tag = (sender as? NSMenuItem)?.tag ?? (sender as? NSButton)?.tag ?? 0
+    guard let action = NSTextFinder.Action(rawValue: tag) else { return }
+    if mappedFinder.findBarContainer !== enclosingScrollView {
+      mappedFinder.findBarContainer = enclosingScrollView
+    }
+    mappedFinder.performAction(action)
+  }
+  override func writeSelection(to pasteboard: NSPasteboard, types: [NSPasteboard.PasteboardType])
+    -> Bool
+  {
+    let original = selectedRanges
+    let mapped = original.map { value -> NSValue in
+      var range = value.rangeValue
+      for block in inlineRanges() where NSIntersectionRange(range, block).length > 0 {
+        range = NSUnionRange(range, block)
+      }
+      return NSValue(range: range)
+    }
+    isCopyingSource = true
+    defer {
+      selectedRanges = original
+      isCopyingSource = false
+    }
+    selectedRanges = mapped
+    return super.writeSelection(to: pasteboard, types: types)
   }
   var inlineLayout: () -> Void = {}
   var inlineRefresh: () -> Void = {}
@@ -462,6 +486,7 @@ final class SheetTextView: NSTextView {
 
   override func didChangeText() {
     super.didChangeText()
+    mappedFinder.noteClientStringWillChange()
     // Edits move lines, so answers must be redrawn in their new positions.
     answerOverlay().needsDisplay = true
     completionDismissed = false
@@ -608,7 +633,13 @@ final class SheetTextView: NSTextView {
       element.setAccessibilityValue(cell.text)
       return element
     }
-    return (super.accessibilityChildren() ?? []) + answerElements
+    let previews = subviews.compactMap { $0 as? InlineTablePreview }.sorted {
+      $0.frame.minY < $1.frame.minY
+    }
+    let controls = previews.flatMap { preview -> [Any] in
+      [preview.title, preview.open, preview.scroll, preview.totals, preview.inspection]
+    }
+    return (super.accessibilityChildren() ?? []) + answerElements + controls
   }
 
   /// Rotors that move VoiceOver between lines with problems or results.
@@ -1708,6 +1739,7 @@ final class SheetTextView: NSTextView {
     setSelectedRange(range)
     scrollRangeToVisible(range)
     window?.makeFirstResponder(self)
+    findTableHit()
   }
 
   @objc func askAssistant(_ sender: Any?) {
@@ -2093,7 +2125,9 @@ final class SheetTextView: NSTextView {
       VisualStyle.Typography.source(scale: textScale).ascender - (numberFont?.ascender ?? 0)
     let width = gutterWidth - VisualStyle.Spacing.standard / 2
     return visibleLines(in: rect).compactMap { line in
-      guard !isTableLine(lineStarts().first(where: { $0.id == line.id })?.start ?? 0) else { return nil }
+      guard !isTableLine(lineStarts().first(where: { $0.id == line.id })?.start ?? 0) else {
+        return nil
+      }
       return lineNumber(line.id).map {
         (
           $0,
@@ -2257,12 +2291,18 @@ private final class AnswerOverlayView: NSView {
     if let x = textView.answerSeparatorX {
       VisualStyle.Color.separator.setFill()
       var start = dirtyRect.minY
-      let blocks = textView.subviews.compactMap { $0 as? InlineTablePreview }.map(\.frame).sorted { $0.minY < $1.minY }
+      let blocks = textView.subviews.compactMap { $0 as? InlineTablePreview }.map(\.frame).sorted {
+        $0.minY < $1.minY
+      }
       for block in blocks where block.maxY > start && block.minY < dirtyRect.maxY {
-        if block.minY > start { NSRect(x: x, y: start, width: 1, height: block.minY - start).fill() }
+        if block.minY > start {
+          NSRect(x: x, y: start, width: 1, height: block.minY - start).fill()
+        }
         start = max(start, block.maxY)
       }
-      if start < dirtyRect.maxY { NSRect(x: x, y: start, width: 1, height: dirtyRect.maxY - start).fill() }
+      if start < dirtyRect.maxY {
+        NSRect(x: x, y: start, width: 1, height: dirtyRect.maxY - start).fill()
+      }
     }
     for (rect, color) in textView.underlineLayout(in: dirtyRect) {
       let path = NSBezierPath()

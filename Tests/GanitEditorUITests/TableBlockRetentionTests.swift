@@ -423,6 +423,8 @@ struct TableBlockRetentionTests {
     var display = DisplayOptions.standard
     display.writesAnswersInline = markdown
     let editor = SheetEditorViewController(text: text, context: try testContext(), display: display)
+    // These tests modify and inspect raw canonical block source.
+    editor.inspectTableSource(nil)
     editor.documentUndoManager.groupsByEvent = groupsUndoByEvent
     let window = NSWindow(
       contentRect: NSRect(x: 0, y: 0, width: 600, height: 400),

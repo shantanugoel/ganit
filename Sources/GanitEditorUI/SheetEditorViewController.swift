@@ -181,7 +181,9 @@ public final class SheetEditorViewController: NSViewController {
     sheetTextView.findTableHit = { [weak self] in self?.openTableAtFindSelection() }
     sheetTextView.inlineLayout = { [weak self] in self?.layoutInlineTables() }
     sheetTextView.inlineRefresh = { [weak self] in self?.refreshInlineTables() }
-    sheetTextView.inlineRanges = { [weak self] in Array(self?.inlineTableRanges.values ?? [:].values) }
+    sheetTextView.inlineRanges = { [weak self] in
+      Array(self?.inlineTableRanges.values ?? [:].values)
+    }
     sheetTextView.lexingConfiguration = context.lexingConfiguration
     storageObserver.controller = self
     textView.textStorage?.delegate = storageObserver
@@ -510,17 +512,18 @@ public final class SheetEditorViewController: NSViewController {
   }
 
   fileprivate func selectionDidChange() {
-    guard !normalizingInlineSelection else { return }
+    guard !normalizingInlineSelection, !sheetTextView.isCopyingSource else { return }
     let selected = textView.selectedRange()
     if permitsInlineTables, !textView.hasMarkedText(), !sheetTextView.isPerformingFind,
-      !scrollView.isFindBarVisible, !sourceCoordinator.isApplying {
+      !scrollView.isFindBarVisible, !sourceCoordinator.isApplying
+    {
       var mapped = selected
       for block in inlineTableRanges.values {
-        if mapped.length == 0, mapped.location > block.location, mapped.location < block.upperBound {
-          let edge = previousProseSelection.location <= mapped.location ? block.upperBound : block.location
+        if mapped.length == 0, mapped.location > block.location, mapped.location < block.upperBound
+        {
+          let edge =
+            previousProseSelection.location <= mapped.location ? block.upperBound : block.location
           mapped = NSRange(location: edge, length: 0)
-        } else if mapped.length > 0, NSIntersectionRange(mapped, block).length > 0 {
-          mapped = NSUnionRange(mapped, block)
         }
       }
       if mapped != selected {
@@ -1649,7 +1652,10 @@ private final class StorageObserver: NSObject, @preconcurrency NSTextStorageDele
     _ textView: NSTextView, shouldChangeTextInRanges ranges: [NSValue],
     replacementStrings: [String]?
   ) -> Bool {
-    guard controller?.permitsInlineEdit(ranges.map(\.rangeValue), replacements: replacementStrings) != false else { return false }
+    guard
+      controller?.permitsInlineEdit(ranges.map(\.rangeValue), replacements: replacementStrings)
+        != false
+    else { return false }
     controller?.noteLineShift(replacing: ranges.map(\.rangeValue), with: replacementStrings)
     return true
   }
@@ -1683,15 +1689,25 @@ extension CalculationResult {
 
 extension SheetEditorViewController {
   fileprivate func permitsInlineEdit(_ ranges: [NSRange], replacements: [String]?) -> Bool {
-    guard permitsInlineTables, !sourceCoordinator.isApplying else { return true }
+    guard permitsInlineTables, !sourceCoordinator.isApplying, !isRewritingReferences else {
+      return true
+    }
     for (index, range) in ranges.enumerated() {
       for block in inlineTableRanges.values {
         if range.length == 0 {
           if range.location > block.location && range.location < block.upperBound { return false }
-          if range.location == block.location, let replacements, replacements.indices.contains(index),
-            !replacements[index].isEmpty, !replacements[index].hasSuffix("\n"), !replacements[index].hasSuffix("\r") { return false }
+          if range.location == block.location, let replacements,
+            replacements.indices.contains(index),
+            !replacements[index].isEmpty, !replacements[index].hasSuffix("\n"),
+            !replacements[index].hasSuffix("\r")
+          {
+            return false
+          }
         } else if NSIntersectionRange(range, block).length > 0,
-          !(range.location <= block.location && range.upperBound >= block.upperBound) { return false }
+          !(range.location <= block.location && range.upperBound >= block.upperBound)
+        {
+          return false
+        }
       }
     }
     return true
@@ -1706,10 +1722,11 @@ extension SheetEditorViewController {
   }
   package func resetInlineLayout() {
     guard let storage = textView.textStorage else { return }
-    storage.addAttributes([
-      .font: VisualStyle.Typography.source(scale: sheetTextView.textScale),
-      .foregroundColor: NSColor.textColor, .paragraphStyle: NSParagraphStyle.default,
-    ], range: NSRange(location: 0, length: storage.length))
+    storage.addAttributes(
+      [
+        .font: VisualStyle.Typography.source(scale: sheetTextView.textScale),
+        .foregroundColor: NSColor.textColor, .paragraphStyle: NSParagraphStyle.default,
+      ], range: NSRange(location: 0, length: storage.length))
     inlineTableViews.values.forEach { $0.removeFromSuperview() }
     inlineTableViews = [:]
     inlineTableRanges = [:]
@@ -1724,13 +1741,15 @@ extension SheetEditorViewController {
     guard !showsTableSource, !textView.hasMarkedText() else { return }
     let selection = textView.selectedRange()
     let document = TableSourceDocument(sheet)
-    for (id, range) in inlineTableRanges where selection.length > 0
-      && selection.location >= range.location && selection.upperBound <= range.upperBound {
+    for (id, range) in inlineTableRanges
+    where selection.length > 0
+      && selection.location >= range.location && selection.upperBound <= range.upperBound
+    {
       guard let projection = TableEditingSnapshot(document, id: id) else { continue }
       let prefix = (sheet.text as NSString).substring(to: selection.location)
       let position = projection.cell(atUTF8: prefix.utf8.count, in: document)
-      openTable(id)
-      if let position { expandedTable?.select(position) }
+      if expandedTable?.tableID != id { openTable(id) }
+      if let position, expandedTable?.isEditingCell != true { expandedTable?.select(position) }
       return
     }
   }
@@ -1741,7 +1760,8 @@ extension SheetEditorViewController {
     var blocks: [(Range<Int>, [ExportedLine])] = []
     for id in document.editingTableIDs {
       guard let projection = TableEditingSnapshot(document, id: id),
-        let result = latestEvaluation?.tableResult(id) else { continue }
+        let result = latestEvaluation?.tableResult(id)
+      else { continue }
       func line(_ text: String) -> ExportedLine { .init(source: text, answer: nil, status: .none) }
       func display(_ value: TableCellValue?) -> String {
         switch value {
@@ -1752,15 +1772,23 @@ extension SheetEditorViewController {
         case nil: return "Pending"
         }
       }
-      var rendered = [line(projection.name), line(projection.columns.map(\.header).joined(separator: " | "))]
+      var rendered = [
+        line(projection.name), line(projection.columns.map(\.header).joined(separator: " | ")),
+      ]
       if let error = result.calculationFailure { rendered.append(line(formatTableError(error))) }
       rendered += projection.rows.map { row in
-        line(projection.columns.map { display(result.value(row: row, column: $0.id)) }.joined(separator: " | "))
+        line(
+          projection.columns.map { display(result.value(row: row, column: $0.id)) }.joined(
+            separator: " | "))
       }
       for (index, column) in projection.columns.enumerated() {
         guard let total = column.total else { continue }
-        let value = result.aggregate(total, rectangle: .init(rows: 0..<projection.rows.count, columns: index..<(index + 1)))
-        rendered.append(line(column.header + " " + total.rawValue + ": " + (value.flatMap { formatTableValue($0)?.display } ?? "Error")))
+        let value = result.aggregate(
+          total, rectangle: .init(rows: 0..<projection.rows.count, columns: index..<(index + 1)))
+        rendered.append(
+          line(
+            column.header + " " + total.rawValue + ": "
+              + (value.flatMap { formatTableValue($0)?.display } ?? "Error")))
       }
       blocks.append((result.physicalLines, rendered))
     }
@@ -1781,15 +1809,21 @@ extension SheetEditorViewController {
     showTableCreation(pasted: nil)
   }
   @objc public func pasteAsCalculationTable(_ sender: Any?) {
-    guard let text = resultPasteboard.string(forType: .string) else { NSSound.beep(); return }
+    guard let text = resultPasteboard.string(forType: .string) else {
+      NSSound.beep()
+      return
+    }
     showTableCreation(pasted: text)
   }
   private func showTableCreation(pasted: String?) {
     guard permitsTableEditing, textView.isEditable, expandedTable == nil,
-      !textView.hasMarkedText(), let window = view.window else { return }
+      !textView.hasMarkedText(), let window = view.window
+    else { return }
     let grid = pasted.map(TableSourceDocument.tabSeparated)
-    if let grid, (grid.isEmpty || grid[0].isEmpty || grid.count * grid[0].count > 4000
-      || grid[0].count > 32 || !grid.allSatisfy({ $0.count == grid[0].count })) {
+    if let grid,
+      grid.isEmpty || grid[0].isEmpty || grid.count * grid[0].count > 4000
+        || grid[0].count > 32 || !grid.allSatisfy({ $0.count == grid[0].count })
+    {
       let alert = NSAlert()
       alert.messageText = "Use a rectangle with at most 32 columns and 4,000 cells."
       alert.beginSheetModal(for: window)
@@ -1798,15 +1832,19 @@ extension SheetEditorViewController {
     let before = sheet.text
     let start = (before as NSString).lineRange(for: textView.selectedRange()).location
     let offset = (before as NSString).substring(to: start).utf8.count
-    guard !inlineTableRanges.values.contains(where: { NSLocationInRange(start, $0) }) else { return }
+    guard !inlineTableRanges.values.contains(where: { NSLocationInRange(start, $0) }) else {
+      return
+    }
     let alert = NSAlert()
     alert.messageText = pasted == nil ? "Insert Table" : "Paste as Table"
     alert.informativeText = "Set each column to Text or Value. Formulas require the formula option."
     let name = NSTextField(string: "Items")
     name.setAccessibilityLabel("Table name")
-    let headerRow = NSButton(checkboxWithTitle: "First pasted row contains headers", target: nil, action: nil)
+    let headerRow = NSButton(
+      checkboxWithTitle: "First pasted row contains headers", target: nil, action: nil)
     headerRow.state = .on
-    let formulas = NSButton(checkboxWithTitle: "Interpret = inputs as formulas", target: nil, action: nil)
+    let formulas = NSButton(
+      checkboxWithTitle: "Interpret = inputs as formulas", target: nil, action: nil)
     let count = grid?.first?.count ?? 3
     var headers: [NSTextField] = []
     var policies: [NSPopUpButton] = []
@@ -1830,7 +1868,8 @@ extension SheetEditorViewController {
     stack.spacing = 8
     stack.frame = NSRect(x: 0, y: 0, width: 380, height: CGFloat(views.count) * 32)
     for row in views { row.widthAnchor.constraint(equalToConstant: 380).isActive = true }
-    let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 400, height: min(400, stack.frame.height)))
+    let scroll = NSScrollView(
+      frame: NSRect(x: 0, y: 0, width: 400, height: min(400, stack.frame.height)))
     scroll.hasVerticalScroller = true
     scroll.documentView = stack
     alert.accessoryView = scroll
@@ -1842,7 +1881,8 @@ extension SheetEditorViewController {
       do {
         let data = grid.map { headerRow.state == .on ? Array($0.dropFirst()) : $0 }
         let id = try insertTableRectangle(
-          named: name.stringValue, headers: zip(headers, policies).map {
+          named: name.stringValue,
+          headers: zip(headers, policies).map {
             ($0.stringValue, $1.indexOfSelectedItem == 0 ? .text : .value)
           }, rows: data, formulas: formulas.state == .on, atUTF8: offset, expectedSource: before)
         if let id { openTable(id) }
@@ -1860,7 +1900,8 @@ extension SheetEditorViewController {
       name: name, headers: headers, rowCount: rows?.count ?? 3, atUTF8: offset)
     var after = try create.applying(to: expectedSource)
     if let rows, !rows.isEmpty, let id = create.createdTable {
-      guard rows.allSatisfy({ $0.count == headers.count }), rows.count * headers.count <= 4000 else {
+      guard rows.allSatisfy({ $0.count == headers.count }), rows.count * headers.count <= 4000
+      else {
         throw TableTransformError.invalidSelection
       }
       func quoted(_ input: String) -> String {
@@ -1902,7 +1943,8 @@ extension SheetEditorViewController {
     if let id = sender.representedObject as? TableID { openTable(id) }
   }
   public func openTable(_ id: TableID) {
-    guard !textView.hasMarkedText(), permitsTableEditing, TableEditingSnapshot(TableSourceDocument(sheet), id: id) != nil
+    guard !textView.hasMarkedText(), permitsTableEditing,
+      TableEditingSnapshot(TableSourceDocument(sheet), id: id) != nil
     else { return }
     loadViewIfNeeded()
     if expandedTable != nil {

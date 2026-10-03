@@ -16,6 +16,8 @@ final class InlineTablePreview: NSView {
   private var positions: [Int: TableCellPosition] = [:]
   private var details: [Int: String] = [:]
   private(set) var selectedCell: TableCellPosition?
+  private var columnCount = 0
+  private var columnScale: CGFloat = 1
   private var rowHeight: CGFloat = 24
   var reservedHeight: CGFloat = 220
   override var isFlipped: Bool { true }
@@ -35,6 +37,12 @@ final class InlineTablePreview: NSView {
     inspection.setAccessibilityLabel("Cell input or formula")
     totals.lineBreakMode = .byTruncatingTail
     totals.setAccessibilityLabel("Table totals")
+    for label in [title, totals, inspection] {
+      label.setAccessibilityElement(true)
+      label.setAccessibilityRole(.staticText)
+    }
+    open.setAccessibilityElement(true)
+    open.setAccessibilityRole(.button)
     setAccessibilityElement(false)
   }
   @available(*, unavailable)
@@ -45,7 +53,11 @@ final class InlineTablePreview: NSView {
     inspection.stringValue = details[button.tag] ?? ""
     inspection.toolTip = inspection.stringValue
   }
-  func update(_ projection: TableEditingSnapshot, result: TableResultSnapshot?, editor: SheetEditorViewController, scale: CGFloat) {
+  func update(
+    _ projection: TableEditingSnapshot, result: TableResultSnapshot?,
+    editor: SheetEditorViewController, scale: CGFloat
+  ) {
+    columnScale = scale
     rowHeight = 24 * scale
     reservedHeight = 114 + CGFloat(min(5, projection.rows.count) + 1) * rowHeight
     title.stringValue = projection.name + " · " + String(projection.rows.count) + " rows"
@@ -57,17 +69,25 @@ final class InlineTablePreview: NSView {
     details = [:]
     let columnWidth = 140 * scale
     let columns = Array(projection.columns.prefix(8))
+    columnCount = columns.count
     let width = CGFloat(columns.count) * columnWidth
-    cells.frame = NSRect(x: 0, y: 0, width: width, height: CGFloat(min(5, projection.rows.count) + 1) * rowHeight)
+    cells.frame = NSRect(
+      x: 0, y: 0, width: width, height: CGFloat(min(5, projection.rows.count) + 1) * rowHeight)
     for (column, item) in columns.enumerated() {
       let label = NSTextField(labelWithString: item.header)
+      label.identifier = NSUserInterfaceItemIdentifier(String(column))
+      label.lineBreakMode = .byTruncatingTail
       label.font = .systemFont(ofSize: 14 * scale, weight: .semibold)
-      label.frame = NSRect(x: CGFloat(column) * columnWidth + 6, y: 0, width: columnWidth - 12, height: rowHeight)
+      label.frame = NSRect(
+        x: CGFloat(column) * columnWidth + 6, y: 0, width: columnWidth - 12, height: rowHeight)
       cells.addSubview(label)
       for row in 0..<min(5, projection.rows.count) {
         let position = TableCellPosition(row: row, column: column)
         let address = TableSourceDocument.letters(column) + String(row + 2)
-        let input = result?.interpretation(row: projection.rows[row], column: item.id).first(where: { $0.0 == "Source" })?.1 ?? projection.source(at: position)
+        let input =
+          result?.interpretation(row: projection.rows[row], column: item.id).first(where: {
+            $0.0 == "Source"
+          })?.1 ?? projection.source(at: position)
         let value = result?.value(row: projection.rows[row], column: item.id)
         let display: String
         switch value {
@@ -77,8 +97,11 @@ final class InlineTablePreview: NSView {
         case .failure: display = "Error"
         case nil: display = "Pending…"
         }
-        let problem = result?.cellError(row: projection.rows[row], column: item.id).map(editor.formatTableError) ?? ""
-        let detail = address + " · " + item.header + ": " + input + (problem.isEmpty ? "" : " · " + problem)
+        let problem =
+          result?.cellError(row: projection.rows[row], column: item.id).map(editor.formatTableError)
+          ?? ""
+        let detail =
+          address + " · " + item.header + ": " + input + (problem.isEmpty ? "" : " · " + problem)
         let button = NSButton(title: display, target: self, action: #selector(inspectCell(_:)))
         button.isBordered = false
         button.alignment = item.input == .value ? .right : .left
@@ -87,7 +110,9 @@ final class InlineTablePreview: NSView {
         button.toolTip = detail
         button.setAccessibilityLabel(address + " " + item.header + " " + display)
         button.setAccessibilityHelp(detail)
-        button.frame = NSRect(x: CGFloat(column) * columnWidth + 6, y: CGFloat(row + 1) * rowHeight, width: columnWidth - 12, height: rowHeight)
+        button.frame = NSRect(
+          x: CGFloat(column) * columnWidth + 6, y: CGFloat(row + 1) * rowHeight,
+          width: columnWidth - 12, height: rowHeight)
         cells.addSubview(button)
         positions[button.tag] = position
         details[button.tag] = detail
@@ -96,18 +121,24 @@ final class InlineTablePreview: NSView {
     var footer: [String] = []
     for (index, column) in projection.columns.enumerated() {
       guard let total = column.total else { continue }
-      let value = result?.aggregate(total, rectangle: .init(rows: 0..<projection.rows.count, columns: index..<(index + 1)))
-      footer.append(column.header + " " + total.rawValue + ": " + (value.flatMap { editor.formatTableValue($0)?.display } ?? (result == nil ? "Pending…" : "Error")))
+      let value = result?.aggregate(
+        total, rectangle: .init(rows: 0..<projection.rows.count, columns: index..<(index + 1)))
+      footer.append(
+        column.header + " " + total.rawValue + ": "
+          + (value.flatMap { editor.formatTableValue($0)?.display }
+            ?? (result == nil ? "Pending…" : "Error")))
     }
     totals.stringValue = footer.joined(separator: "   |   ")
     totals.toolTip = totals.stringValue
     if let error = result?.calculationFailure {
       inspection.stringValue = editor.formatTableError(error)
-    } else if let selectedCell, let tag = positions.first(where: { $0.value == selectedCell })?.key {
+    } else if let selectedCell, let tag = positions.first(where: { $0.value == selectedCell })?.key
+    {
       inspection.stringValue = details[tag] ?? ""
     } else {
       selectedCell = nil
-      inspection.stringValue = projection.rows.count > 5 || projection.columns.count > 8
+      inspection.stringValue =
+        projection.rows.count > 5 || projection.columns.count > 8
         ? "Preview: first 5 rows and 8 columns. Open Table to see all cells."
         : "Select a cell to inspect its input or formula."
     }
@@ -118,9 +149,26 @@ final class InlineTablePreview: NSView {
     let buttonWidth = min(110, bounds.width / 2)
     open.frame = NSRect(x: bounds.width - buttonWidth - 8, y: 6, width: buttonWidth, height: 28)
     title.frame = NSRect(x: 10, y: 8, width: max(0, bounds.width - buttonWidth - 24), height: 24)
-    scroll.frame = NSRect(x: 4, y: 40, width: max(0, bounds.width - 8), height: max(0, bounds.height - 114))
-    totals.frame = NSRect(x: 10, y: bounds.height - 68, width: max(0, bounds.width - 20), height: 24)
-    inspection.frame = NSRect(x: 10, y: bounds.height - 42, width: max(0, bounds.width - 20), height: 36)
+    scroll.frame = NSRect(
+      x: 4, y: 40, width: max(0, bounds.width - 8), height: max(0, bounds.height - 114))
+    let columnWidth = max(100 * columnScale, scroll.bounds.width / CGFloat(max(1, columnCount)))
+    cells.frame.size.width = CGFloat(columnCount) * columnWidth
+    for control in cells.subviews {
+      if let button = control as? NSButton {
+        button.frame = NSRect(
+          x: CGFloat(button.tag % 8) * columnWidth + 6,
+          y: CGFloat(button.tag / 8 + 1) * rowHeight, width: columnWidth - 12, height: rowHeight)
+      } else if let label = control as? NSTextField,
+        let column = Int(label.identifier?.rawValue ?? "")
+      {
+        label.frame = NSRect(
+          x: CGFloat(column) * columnWidth + 6, y: 0, width: columnWidth - 12, height: rowHeight)
+      }
+    }
+    totals.frame = NSRect(
+      x: 10, y: bounds.height - 68, width: max(0, bounds.width - 20), height: 24)
+    inspection.frame = NSRect(
+      x: 10, y: bounds.height - 42, width: max(0, bounds.width - 20), height: 36)
   }
 }
 
@@ -132,7 +180,9 @@ final class FlippedTableContent: NSView {
 extension SheetEditorViewController {
   /// Layout attributes do not change source bytes or calculation offsets.
   package func refreshInlineTables() {
-    guard permitsInlineTables, !textView.hasMarkedText(), let storage = textView.textStorage else { return }
+    guard permitsInlineTables, !textView.hasMarkedText(), let storage = textView.textStorage else {
+      return
+    }
     let document = TableSourceDocument(sheet)
     let ids = Set(document.editingTableIDs)
     if #available(macOS 15.0, *) {
@@ -143,10 +193,11 @@ extension SheetEditorViewController {
     }
     inlineTableRanges = [:]
     storage.beginEditing()
-    storage.addAttributes([
-      .font: VisualStyle.Typography.source(scale: (textView as? SheetTextView)?.textScale ?? 1),
-      .foregroundColor: NSColor.textColor, .paragraphStyle: NSParagraphStyle.default,
-    ], range: NSRange(location: 0, length: storage.length))
+    storage.addAttributes(
+      [
+        .font: VisualStyle.Typography.source(scale: (textView as? SheetTextView)?.textScale ?? 1),
+        .foregroundColor: NSColor.textColor, .paragraphStyle: NSParagraphStyle.default,
+      ], range: NSRange(location: 0, length: storage.length))
     for id in document.editingTableIDs {
       guard let projection = TableEditingSnapshot(document, id: id) else { continue }
       let bytes = sheet.text.utf8
@@ -164,34 +215,48 @@ extension SheetEditorViewController {
         }
       }
       let scale = (textView as? SheetTextView)?.textScale ?? 1
-      let result = tableEvaluationSource?.utf8.elementsEqual(sheet.text.utf8) == true
+      let result =
+        tableEvaluationSource?.utf8.elementsEqual(sheet.text.utf8) == true
         ? latestEvaluation?.tableResult(id) : nil
       preview.update(projection, result: result, editor: self, scale: scale)
       let height = preview.reservedHeight
       let paragraph = NSMutableParagraphStyle()
       paragraph.minimumLineHeight = 0.1
       paragraph.maximumLineHeight = 0.1
-      storage.addAttributes([
-        .font: NSFont.systemFont(ofSize: 0.1), .foregroundColor: NSColor.clear,
-        .paragraphStyle: paragraph,
-      ], range: range)
-      let last = (storage.string as NSString).lineRange(for: NSRange(location: range.upperBound - 1, length: 0))
+      storage.addAttributes(
+        [
+          .font: NSFont.systemFont(ofSize: 0.1), .foregroundColor: NSColor.clear,
+          .paragraphStyle: paragraph,
+        ], range: range)
+      let last = (storage.string as NSString).lineRange(
+        for: NSRange(location: range.upperBound - 1, length: 0))
       let reserved = paragraph.mutableCopy() as! NSMutableParagraphStyle
       reserved.paragraphSpacing = height
       storage.addAttribute(.paragraphStyle, value: reserved, range: last)
     }
     storage.endEditing()
+    textView.typingAttributes = [
+      .font: VisualStyle.Typography.source(scale: (textView as? SheetTextView)?.textScale ?? 1),
+      .foregroundColor: NSColor.textColor, .paragraphStyle: NSParagraphStyle.default,
+    ]
     (textView as? SheetTextView)?.needsLayout = true
   }
   package func layoutInlineTables() {
-    guard let manager = textView.textLayoutManager, let content = manager.textContentManager else { return }
+    guard let manager = textView.textLayoutManager, let content = manager.textContentManager else {
+      return
+    }
     for (id, range) in inlineTableRanges {
       guard let preview = inlineTableViews[id],
         let location = content.location(content.documentRange.location, offsetBy: range.location),
-        let fragment = manager.textLayoutFragment(for: location) else { continue }
+        let fragment = manager.textLayoutFragment(for: location)
+      else { continue }
       preview.frame = NSRect(
-        x: textView.textContainerOrigin.x, y: fragment.layoutFragmentFrame.minY + textView.textContainerOrigin.y,
-        width: max(0, textView.bounds.width - textView.textContainerOrigin.x - textView.textContainerInset.width),
+        x: textView.textContainerOrigin.x,
+        y: fragment.layoutFragmentFrame.minY + textView.textContainerOrigin.y,
+        width: max(
+          0,
+          textView.bounds.width - textView.textContainerOrigin.x - textView.textContainerInset.width
+        ),
         height: preview.reservedHeight)
       preview.needsLayout = true
     }

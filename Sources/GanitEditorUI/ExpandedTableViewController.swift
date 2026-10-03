@@ -155,6 +155,9 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     referencedCells = projection.referencedCells(in: formula.stringValue, row: position.row)
   }
   package func controlTextDidBeginEditing(_ obj: Notification) {
+    if #available(macOS 15.0, *), let field = formula.currentEditor() as? NSTextView {
+      field.writingToolsBehavior = .none
+    }
     if !isEditingCell, let projection, projection.rows.indices.contains(position.row),
       projection.columns.indices.contains(position.column)
     {

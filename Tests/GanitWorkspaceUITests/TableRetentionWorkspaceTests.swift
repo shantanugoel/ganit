@@ -57,6 +57,8 @@ struct TableRetentionWorkspaceTests {
     try await expectRetained(editor, expected)
     let edited = [expected]
 
+    // Source inspection permits deliberate raw block edits.
+    editor.inspectTableSource(nil)
     // Typing inside the first block saves exactly what was typed.
     let blocks = TableSourceDocument.blockLineRanges(in: editor.sheet)
     let line = try #require(blocks.first).lowerBound + 1
