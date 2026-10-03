@@ -143,6 +143,21 @@ struct InlineTableTests {
     #expect(printed.contains("2 | 6"))
     #expect(printed.contains("Amount sum: 6"))
     #expect(!printed.contains("@ganit-table"))
+    let blocks = await editor.renderedBlocks()
+    guard
+      case .table(let rendered)? = blocks.first(where: {
+        if case .table = $0 { return true }
+        return false
+      })
+    else {
+      Issue.record("No rendered table block")
+      return
+    }
+    #expect(rendered.headers == ["Qty", "Amount"])
+    #expect(rendered.rows.map { $0.map(\.text) } == [["2", "6"], ["", ""], ["", ""]])
+    #expect(rendered.totals.map(\.text) == ["6"])
+    #expect(rendered.totals.map(\.label) == ["Amount sum"])
+    #expect(rendered.name == "Items")
     #expect(
       await editor.exportedLines().map(\.source).contains(where: { $0.contains("@ganit-table") }))
   }

@@ -1759,53 +1759,110 @@ extension SheetEditorViewController {
     }
   }
   /// Printing shows values. Source inspection and source copy keep the block.
-  public func printableLines() async -> [ExportedLine] {
+  /// Every table is its own block, with displayed values, units and failure
+  /// messages exactly as the editor shows them.
+  public func renderedBlocks() async -> [RenderedBlock] {
     let lines = await exportedLines()
-    let document = TableSourceDocument(sheet)
-    var blocks: [(Range<Int>, [ExportedLine])] = []
-    for id in document.editingTableIDs {
-      guard let projection = TableEditingSnapshot(document, id: id),
-        let result = latestEvaluation?.tableResult(id)
-      else { continue }
-      func line(_ text: String) -> ExportedLine { .init(source: text, answer: nil, status: .none) }
-      func display(_ value: TableCellValue?) -> String {
-        switch value {
-        case .value(let scalar): return formatTableValue(scalar)?.display ?? ""
-        case .text(let text): return text
-        case .blank: return ""
-        case .failure: return "Error"
-        case nil: return "Pending"
-        }
-      }
-      var rendered = [
-        line(projection.name), line(projection.columns.map(\.header).joined(separator: " | ")),
-      ]
-      if let error = result.calculationFailure { rendered.append(line(formatTableError(error))) }
-      rendered += projection.rows.map { row in
-        line(
-          projection.columns.map { display(result.value(row: row, column: $0.id)) }.joined(
-            separator: " | "))
-      }
-      for (index, column) in projection.columns.enumerated() {
-        guard let total = column.total else { continue }
-        let value = result.aggregate(
-          total, rectangle: .init(rows: 0..<projection.rows.count, columns: index..<(index + 1)))
-        rendered.append(
-          line(
-            column.header + " " + total.rawValue + ": "
-              + (value.flatMap { formatTableValue($0)?.display } ?? "Error")))
-      }
-      blocks.append((result.physicalLines, rendered))
-    }
-    var output: [ExportedLine] = []
+    var output: [RenderedBlock] = []
+    var prose: [ExportedLine] = []
     var index = 0
+    let tables = latestEvaluation?.tableResults ?? []
     while index < lines.count {
-      if let block = blocks.first(where: { $0.0.lowerBound == index }) {
-        output += block.1
-        index = block.0.upperBound
+      if let result = tables.first(where: { $0.physicalLines.lowerBound == index }) {
+        if !prose.isEmpty {
+          output.append(.lines(prose))
+          prose = []
+        }
+        output.append(.table(renderedTable(result)))
+        index = result.physicalLines.upperBound
       } else {
-        output.append(lines[index])
+        prose.append(lines[index])
         index += 1
+      }
+    }
+    if !prose.isEmpty {
+      output.append(.lines(prose))
+    }
+    return output
+  }
+
+  /// One table as a renderer shows it: a quarantined block reports its
+  /// diagnostics; a calculated table shows its values, totals and failures.
+  private func renderedTable(_ result: TableResultSnapshot) -> RenderedTable {
+    guard let id = result.id,
+      let projection = TableEditingSnapshot(TableSourceDocument(sheet), id: id)
+    else {
+      return RenderedTable(
+        name: nil, headers: [], rows: [], totals: [],
+        failures: result.diagnostics.map { diagnosticFormatter.format($0).message })
+    }
+    let rows: [[RenderedTableCell]] = projection.rows.map { row in
+      projection.columns.map { column in
+        renderedCell(
+          result.value(row: row, column: column.id), result: result, row: row,
+          column: column.id)
+      }
+    }
+    let totals: [RenderedTotal] = projection.columns.enumerated().compactMap {
+      index, column in
+      guard let total = column.total else { return nil }
+      let value = result.aggregate(
+        total, rectangle: .init(rows: 0..<projection.rows.count, columns: index..<(index + 1)))
+      return RenderedTotal(
+        columnIndex: index,
+        label: column.header + " " + total.rawValue,
+        text: value.flatMap { formatTableValue($0)?.display }
+          ?? localized(
+            "table.failure", "Error"))
+    }
+    return RenderedTable(
+      name: projection.name, headers: projection.columns.map(\.header), rows: rows,
+      totals: totals,
+      failures: result.calculationFailure.map { [formatTableError($0)] } ?? [])
+  }
+
+  /// A cell as the renderer shows it: the display text, or the message that
+  /// names the problem.
+  private func renderedCell(
+    _ value: TableCellValue?, result: TableResultSnapshot, row: RowID, column: ColumnID
+  ) -> RenderedTableCell {
+    switch value {
+    case .value(let scalar):
+      return RenderedTableCell(text: formatTableValue(scalar)?.display ?? "")
+    case .text(let text): return RenderedTableCell(text: text)
+    case .blank: return RenderedTableCell(text: "")
+    case .failure:
+      return RenderedTableCell(
+        text: result.cellError(row: row, column: column).map { formatTableError($0) }
+          ?? localized("table.failure", "Error"), isFailure: true)
+    case nil:
+      if let failure = result.calculationFailure {
+        return RenderedTableCell(text: formatTableError(failure), isFailure: true)
+      }
+      return RenderedTableCell(text: localized("table.pending", "Pending…"))
+    }
+  }
+
+  /// The sheet as flat lines for a reader that shows one line per row: a
+  /// table becomes its name, headers, rows and spelled totals.
+  public func printableLines() async -> [ExportedLine] {
+    func line(_ text: String) -> ExportedLine { .init(source: text, answer: nil, status: .none) }
+    var output: [ExportedLine] = []
+    for block in await renderedBlocks() {
+      switch block {
+      case .lines(let lines):
+        output += lines
+      case .table(let table):
+        if let name = table.name { output.append(line(name)) }
+        output += table.failures.map(line)
+        guard !table.headers.isEmpty else { continue }
+        output.append(line(table.headers.joined(separator: " | ")))
+        output += table.rows.map { row in
+          line(row.map(\.text).joined(separator: " | "))
+        }
+        for total in table.totals {
+          output.append(line(total.label + ": " + total.text))
+        }
       }
     }
     return output

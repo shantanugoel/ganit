@@ -343,29 +343,34 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
       }
       let type = types[formats.indexOfSelectedItem]
       Task { @MainActor in
-        let lines = await editor.exportedLines()
+        let blocks = await editor.renderedBlocks()
+        let lines = type == .commaSeparatedText ? await editor.exportedLines() : []
         self?.perform {
-          try self?.export(sheetID, lines: lines, as: type, to: url)
+          if type == .commaSeparatedText {
+            // CSV keeps every physical line, so table source stays in it.
+            try self?.export(sheetID, lines: lines, as: type, to: url)
+          } else {
+            try self?.export(sheetID, blocks: blocks, as: type, to: url)
+          }
         }
       }
     }
   }
 
   /// Writes an export once its destination is chosen. A Ganit Sheet or plain
-  /// text holds the sheet's stored source bytes exactly; PDF, CSV and HTML
-  /// show `lines`, its source beside its answers.
-  func export(_ sheetID: UUID, lines: [ExportedLine], as type: UTType, to url: URL) throws {
+  /// text holds the sheet's stored source bytes exactly; PDF, HTML and the
+  /// Quick Look preview show `blocks`, its prose beside its answers and its
+  /// tables as grids. CSV shows `lines`, one row per physical line.
+  func export(_ sheetID: UUID, blocks: [RenderedBlock], as type: UTType, to url: URL) throws {
     let name = url.deletingPathExtension().lastPathComponent
     switch type {
     case .pdf:
-      try SheetDocumentRenderer.pdf(lines, title: name).write(to: url, options: .atomic)
-    case .commaSeparatedText:
-      try Data(SheetDocumentRenderer.csv(lines).utf8).write(to: url, options: .atomic)
+      try SheetDocumentRenderer.pdf(blocks, title: name).write(to: url, options: .atomic)
     case .html:
-      try Data(SheetDocumentRenderer.html(lines, title: name).utf8).write(
+      try Data(SheetDocumentRenderer.html(blocks, title: name).utf8).write(
         to: url, options: .atomic)
     case .ganitSheet:
-      let pdf = try SheetDocumentRenderer.pdf(lines, title: name)
+      let pdf = try SheetDocumentRenderer.pdf(blocks, title: name)
       let quickLook = SheetDocumentRenderer.thumbnail(ofPDF: pdf).map {
         QuickLookPreview(pdf: pdf, thumbnailPNG: $0)
       }
@@ -375,7 +380,15 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     }
   }
 
-  /// Prints the sheet's source beside its answers.
+  /// Writes the line-per-row CSV export.
+  func export(_ sheetID: UUID, lines: [ExportedLine], as type: UTType, to url: URL) throws {
+    guard type == .commaSeparatedText else {
+      return try export(sheetID, blocks: [], as: type, to: url)
+    }
+    try Data(SheetDocumentRenderer.csv(lines).utf8).write(to: url, options: .atomic)
+  }
+
+  /// Prints the sheet's prose beside its answers and its tables as grids.
   @objc public func printSheet(_ sender: Any?) {
     guard let window, let editor else {
       return
@@ -383,7 +396,7 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     Task { @MainActor in
       let printInfo = SheetDocumentRenderer.printInfo()
       let view = SheetDocumentRenderer.printableView(
-        await editor.printableLines(), printInfo: printInfo)
+        await editor.renderedBlocks(), printInfo: printInfo)
       let operation = NSPrintOperation(view: view, printInfo: printInfo)
       operation.jobTitle = window.title
       operation.runModal(for: window, delegate: nil, didRun: nil, contextInfo: nil)

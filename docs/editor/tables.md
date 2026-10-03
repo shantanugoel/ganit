@@ -52,6 +52,12 @@ a semicolon. A field that a spreadsheet would run as a formula starts with
 an apostrophe, which keeps `-`, `+`, `=`, and `@` text safe to open in
 another app. Remove the apostrophe to run that formula.
 
+Print, PDF, HTML, and the Quick Look preview of an exported package show
+each table as a grid with its headers, its values with their units, and
+error messages in place. A header row repeats when a table continues on the
+next printed page. The block's source stays in plain-text export and in
+Inspect Table Source.
+
 ## Results and errors
 
 The grid uses the sheet number format. Pending means that the edited source

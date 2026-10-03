@@ -38,16 +38,21 @@ struct SheetDocumentRendererTests {
   func retainsAIProvenanceInEveryRenderedFormat() throws {
     let lines = [ExportedLine(source: "1,5 + 2,5", answer: "4", status: .aiUnverified)]
     #expect(SheetDocumentRenderer.csv(lines).contains("\"1,5 + 2,5\",4,,ai-unverified"))
-    #expect(SheetDocumentRenderer.html(lines, title: "AI").contains("4 [AI; unverified]"))
-    #expect(
+    #expect(SheetDocumentRenderer.html([.lines(lines)], title: "AI").contains("4 [AI; unverified]"))
+    let view =
       SheetDocumentRenderer.printableView(
-        lines, printInfo: SheetDocumentRenderer.printInfo()
-      ).string.contains("4 [AI; unverified]"))
+        [.lines(lines)], printInfo: SheetDocumentRenderer.printInfo()) as! MixedSheetPrintView
+    view.layoutPages()
+    let printed = view.pages.flatMap { $0 }.compactMap { item -> String? in
+      if case .line(let text) = item.content { return text.string }
+      return nil
+    }.joined(separator: "\n")
+    #expect(printed.contains("4 [AI; unverified]"))
   }
 
   @Test
   func writesEscapedStandaloneHTML() {
-    let html = SheetDocumentRenderer.html(lines, title: "<Trip>")
+    let html = SheetDocumentRenderer.html([.lines(lines)], title: "<Trip>")
     #expect(html.contains("<title>&lt;Trip&gt;</title>"))
     #expect(html.contains("<td dir=\"auto\">&lt;b&gt;&amp;</td>"))
     #expect(
@@ -61,7 +66,7 @@ struct SheetDocumentRendererTests {
     let long = (1...200).map {
       ExportedLine(source: "\($0) * 2", answer: "\($0 * 2)", status: .calculated)
     }
-    let pdf = try SheetDocumentRenderer.pdf(long, title: "Long")
+    let pdf = try SheetDocumentRenderer.pdf([.lines(long)], title: "Long")
     #expect(pdf.starts(with: Data("%PDF".utf8)))
     let pages = try #require(NSPDFImageRep(data: pdf)).pageCount
     #expect(pages > 1)

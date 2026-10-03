@@ -32,9 +32,68 @@ public struct ExportedLine: Equatable, Sendable {
   }
 }
 
-/// Renders a sheet's source beside its answers as CSV, HTML, printable text,
-/// PDF, and a Quick Look thumbnail. Every format shows the same answers the
-/// editor displays.
+/// One cell of a rendered table: the display text, with its failure state,
+/// so a renderer can mark the problem instead of guessing from the text.
+public struct RenderedTableCell: Equatable, Sendable {
+  public let text: String
+  public let isFailure: Bool
+
+  public init(text: String, isFailure: Bool = false) {
+    self.text = text
+    self.isFailure = isFailure
+  }
+}
+
+/// One column's totals footer: which column it belongs to, its label, and
+/// the formatted value or the failure it reports.
+public struct RenderedTotal: Equatable, Sendable {
+  public let columnIndex: Int
+  /// The spelled summary, such as "Amount sum".
+  public let label: String
+  public let text: String
+
+  public init(columnIndex: Int, label: String, text: String) {
+    self.columnIndex = columnIndex
+    self.label = label
+    self.text = text
+  }
+}
+
+/// One table block as a renderer shows it: the name, headers, cell display
+/// text, the totals footer, and the whole-table failures.
+public struct RenderedTable: Equatable, Sendable {
+  /// The table's display name, or `nil` for a block Ganit cannot read.
+  public let name: String?
+  public let headers: [String]
+  /// One row of cells per data row, in grid order.
+  public let rows: [[RenderedTableCell]]
+  public let totals: [RenderedTotal]
+  /// Why the table shows no values, in order. Empty for a calculated table.
+  public let failures: [String]
+
+  public init(
+    name: String?, headers: [String], rows: [[RenderedTableCell]], totals: [RenderedTotal],
+    failures: [String]
+  ) {
+    self.name = name
+    self.headers = headers
+    self.rows = rows
+    self.totals = totals
+    self.failures = failures
+  }
+}
+
+/// A sheet as a renderer shows it: groups of prose lines beside their
+/// answers, and each table block as its own grid.
+public enum RenderedBlock: Equatable, Sendable {
+  case lines([ExportedLine])
+  case table(RenderedTable)
+}
+
+/// Renders a sheet's prose beside its answers and its tables as grids, as
+/// CSV, HTML, printable text, PDF, and a Quick Look thumbnail. Every format
+/// shows the same values the editor displays, with units as written and
+/// failures named instead of hidden.
 @MainActor
 public enum SheetDocumentRenderer {
   /// `Line,Source,Answer,Full Precision,Status` rows quoted per RFC 4180. A cell that a spreadsheet
@@ -61,14 +120,23 @@ public enum SheetDocumentRenderer {
     return "\"" + guarded.replacingOccurrences(of: "\"", with: "\"\"") + "\""
   }
 
-  /// A standalone page with one table row per line. All text is escaped and
-  /// the page loads nothing.
-  public static func html(_ lines: [ExportedLine], title: String) -> String {
-    let rows = lines.map { line in
-      let answerClass = line.isFailure ? " class=\"failure\"" : ""
-      return "<tr><td dir=\"auto\">\(escape(line.source))</td>"
-        + "<td\(answerClass) dir=\"auto\">\(escape(line.annotatedAnswer ?? ""))</td></tr>"
-    }
+  /// A standalone page with one prose table per prose group and one real
+  /// table per calculation table. All text is escaped and the page loads
+  /// nothing. `thead` repeats on page breaks when a reader prints the page.
+  public static func html(_ blocks: [RenderedBlock], title: String) -> String {
+    let body = blocks.map { block -> String in
+      switch block {
+      case .lines(let lines):
+        let rows = lines.map { line -> String in
+          let answerClass = line.isFailure ? " class=\"failure\"" : ""
+          return "<tr><td dir=\"auto\">\(escape(line.source))</td>"
+            + "<td\(answerClass) dir=\"auto\">\(escape(line.annotatedAnswer ?? ""))</td></tr>"
+        }
+        return "<table>\n\(rows.joined(separator: "\n"))\n</table>"
+      case .table(let table):
+        return html(table: table)
+      }
+    }.joined(separator: "\n")
     return """
       <!doctype html>
       <html>
@@ -77,21 +145,55 @@ public enum SheetDocumentRenderer {
       <title>\(escape(title))</title>
       <style>
       body { font: 14px -apple-system, system-ui, sans-serif; margin: 2em; }
-      table { border-collapse: collapse; width: 100%; }
-      td { padding: 2px 8px; vertical-align: top; white-space: pre-wrap; }
-      td + td { text-align: end; font-variant-numeric: tabular-nums; }
-      .failure { color: #b3261e; }
+      table { border-collapse: collapse; width: 100%; margin-bottom: 1em; }
+      td, th { padding: 2px 8px; vertical-align: top; white-space: pre-wrap; }
+      td + td, th + th { text-align: end; font-variant-numeric: tabular-nums; }
+      th { text-align: start; border-bottom: 1px solid #888; }
+      tfoot td { border-top: 1px solid #888; }
+      td.failure, p.failure { color: #b3261e; }
+      .table-name { font-size: 1em; margin: 1em 0 0.2em; }
       </style>
       </head>
       <body>
       <h1>\(escape(title))</h1>
-      <table>
-      \(rows.joined(separator: "\n"))
-      </table>
+      \(body)
       </body>
       </html>
 
       """
+  }
+
+  private static func html(table: RenderedTable) -> String {
+    var parts: [String] = []
+    if let name = table.name {
+      parts.append("<h2 class=\"table-name\">\(escape(name))</h2>")
+    }
+    parts += table.failures.map { "<p class=\"failure\">\(escape($0))</p>" }
+    if table.headers.isEmpty {
+      return parts.joined(separator: "\n")
+    }
+    let head = table.headers.map {
+      "<th scope=\"col\" dir=\"auto\">\(escape($0))</th>"
+    }.joined()
+    let body = table.rows.map { row -> String in
+      row.map { cell -> String in
+        let failureClass = cell.isFailure ? " class=\"failure\"" : ""
+        return "<td\(failureClass) dir=\"auto\">\(escape(cell.text))</td>"
+      }.joined()
+    }.map { "<tr>\($0)</tr>" }.joined(separator: "\n")
+    var sections = "<thead><tr>\(head)</tr></thead>"
+    if !body.isEmpty {
+      sections += "\n<tbody>\n\(body)\n</tbody>"
+    }
+    if !table.totals.isEmpty {
+      var cells = Array(repeating: "<td></td>", count: table.headers.count)
+      for total in table.totals where table.headers.indices.contains(total.columnIndex) {
+        cells[total.columnIndex] = "<td dir=\"auto\">\(escape(total.text))</td>"
+      }
+      sections += "\n<tfoot><tr>\(cells.joined())</tr></tfoot>"
+    }
+    parts.append("<table>\n\(sections)\n</table>")
+    return parts.joined(separator: "\n")
   }
 
   private static func escape(_ text: String) -> String {
@@ -101,37 +203,11 @@ public enum SheetDocumentRenderer {
       .replacingOccurrences(of: "\"", with: "&quot;")
   }
 
-  /// A text view laid out for `printInfo`'s page, with each answer at a right
-  /// tab stop after its source, for printing and PDF.
-  public static func printableView(_ lines: [ExportedLine], printInfo: NSPrintInfo) -> NSTextView {
-    let width = printInfo.paperSize.width - printInfo.leftMargin - printInfo.rightMargin
-    let paragraph = NSMutableParagraphStyle()
-    paragraph.tabStops = [NSTextTab(textAlignment: .right, location: width - 1)]
-    let text = NSMutableAttributedString()
-    for line in lines {
-      text.append(
-        NSAttributedString(
-          string: line.source,
-          attributes: [.font: VisualStyle.Typography.source(scale: 1), .paragraphStyle: paragraph]))
-      if let answer = line.annotatedAnswer {
-        text.append(
-          NSAttributedString(
-            string: "\t" + answer,
-            attributes: [
-              .font: VisualStyle.Typography.answer(scale: 1), .paragraphStyle: paragraph,
-              .foregroundColor: line.isFailure ? VisualStyle.Color.failure : NSColor.black,
-            ]))
-      }
-      text.append(NSAttributedString(string: "\n"))
-    }
-    let view = NSTextView(frame: NSRect(x: 0, y: 0, width: width, height: 1))
-    view.textContainerInset = .zero
-    view.textContainer?.lineFragmentPadding = 0
-    view.textStorage?.setAttributedString(text)
-    view.isVerticallyResizable = true
-    view.maxSize = NSSize(width: width, height: .greatestFiniteMagnitude)
-    view.sizeToFit()
-    return view
+  /// A view laid out for `printInfo`'s page: prose lines with each answer at
+  /// a right tab stop, and each table as a grid whose headers repeat when a
+  /// table continues on the next page. Used for printing and PDF.
+  public static func printableView(_ blocks: [RenderedBlock], printInfo: NSPrintInfo) -> NSView {
+    MixedSheetPrintView(blocks: blocks, printInfo: printInfo)
   }
 
   /// Page setup for sheets: the shared paper and margins, scaled to the page
@@ -144,14 +220,14 @@ public enum SheetDocumentRenderer {
   }
 
   /// A paginated PDF of the printable view, laid out as printing would.
-  public static func pdf(_ lines: [ExportedLine], title: String) throws -> Data {
+  public static func pdf(_ blocks: [RenderedBlock], title: String) throws -> Data {
     let url = FileManager.default.temporaryDirectory.appending(path: "\(UUID().uuidString).pdf")
     defer { try? FileManager.default.removeItem(at: url) }
     let printInfo = printInfo()
     printInfo.jobDisposition = .save
     printInfo.dictionary()[NSPrintInfo.AttributeKey.jobSavingURL] = url
     let operation = NSPrintOperation(
-      view: printableView(lines, printInfo: printInfo), printInfo: printInfo)
+      view: printableView(blocks, printInfo: printInfo), printInfo: printInfo)
     operation.showsPrintPanel = false
     operation.showsProgressPanel = false
     operation.jobTitle = title
