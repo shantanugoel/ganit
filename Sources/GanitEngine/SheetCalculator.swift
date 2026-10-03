@@ -578,17 +578,7 @@ private final class LineEvaluation: Sendable {
     rateUses = trace.rateUses
     financeUses = trace.financeUses
     assistantPrompts = trace.assistantPrompts
-    clockInterval = trace.clock.map { resolution in
-      switch resolution {
-      case .day:
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = context.timeZone
-        return calendar.dateInterval(of: .day, for: context.now)!
-      case .second:
-        let start = context.now.timeIntervalSinceReferenceDate.rounded(.down)
-        return DateInterval(start: Date(timeIntervalSinceReferenceDate: start), duration: 1)
-      }
-    }
+    clockInterval = trace.clock?.interval(in: context)
   }
 
   /// The unit a definition line defines. A value that cannot define a unit,

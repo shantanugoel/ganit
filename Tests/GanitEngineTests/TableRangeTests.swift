@@ -262,12 +262,18 @@ import Testing
       ["1", "2"],
       [
         "=B2:B3", "=B2:B3 + 1", "=abs(B2:B3)", "=sum(B2:B3, 1)", "=sum(B2:B3, B2:B3)",
-        "=nosuch(B2:B3)", "=sum(B2:B3 * 2)",
+        "=sum(B2:B3 * 2)", "=nosuch(B2:B3)",
       ])
     let snapshot = try calculate(model)
-    for row in 0..<7 {
+    for row in 0..<6 {
       #expect(code(snapshot, address(model, row, 0)) == .unsupportedRangeOperation, "row \(row)")
     }
+    // A call nothing answers is the more basic error than its range argument.
+    guard case .failure(let unknown) = snapshot.result(at: address(model, 6, 0)) else {
+      Issue.record("nosuch must fail")
+      return
+    }
+    #expect(unknown.engineError?.code == .unknownFunction)
   }
 
   @Test func uppercaseBareKeywordsAreDiagnosedButInheritedNamesAreNot() throws {
@@ -394,20 +400,20 @@ import Testing
   // MARK: - Custom functions and inherited names
 
   @Test func visibleCustomFunctionNamesAreNeverHijacked() throws {
-    let model = readers(["1", "2"], ["=SUM(B:B)", "=MAX(1, 2)", "=Abs(-3)"])
-    var calculator = TableCalculator()
-    calculator.visibleCustomFunctionNames = ["sum", "max"]
-    let snapshot = try calculator.calculate(
-      model, scope: TableFormulaScope(current: model, visible: [], inherited: [:]),
+    let model = readers(["1", "2"], ["=SUM(B:B)", "=SUM(2)", "=Abs(-3)", "=sum(B:B)"])
+    var sheet = SheetCalculator()
+    let functions = try sheet.evaluate(SheetSource("Sum(x) = x * 3"), context: sheetContext())
+      .definitions.functions
+    let snapshot = try TableCalculator().calculate(
+      model,
+      scope: TableFormulaScope(current: model, visible: [], inherited: [:], functions: functions),
       context: sheetContext())
-    // A custom `sum` takes no range; `MAX` keeps its custom spelling.
+    // A custom `sum` takes no range; `SUM` keeps its custom spelling.
     #expect(code(snapshot, address(model, 0, 0)) == .unsupportedRangeOperation)
-    guard case .failure(let failure) = snapshot.result(at: address(model, 1, 0)) else {
-      Issue.record("MAX must not dispatch to the built-in")
-      return
-    }
-    #expect(failure.engineError?.code == .unknownFunction)
+    #expect(snapshot.result(at: address(model, 1, 0)) == number(6))
     #expect(snapshot.result(at: address(model, 2, 0)) == number(3))
+    // Exact `sum` is the built-in, as ordinary dispatch resolves it.
+    #expect(snapshot.result(at: address(model, 3, 0)) == number(3))
   }
 
   @Test func failedInheritedKeywordNameIsInheritedFailure() throws {

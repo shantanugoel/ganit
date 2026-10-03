@@ -400,7 +400,7 @@ No older-format reader, upgrade/downgrade or migration rollback is required.
       propagation, cycle paths and original-cause source ranges.
 - [x] Implement range aggregates, empty/type/error rules, whole-row/column
       bounds and data-only named membership; audit typed min/max explicitly.
-- [ ] Reuse exact arithmetic, conversions, functions, rate/clock context and
+- [x] Reuse exact arithmetic, conversions, functions, rate/clock context and
       provenance. Diagnose unsupported/bare table functions explicitly.
 - [ ] Add dependency invalidation, range-membership invalidation and resource
       limits. Start with M0's provisional per-sheet 4,000 populated cells,
@@ -626,8 +626,27 @@ execution; do not begin M3 until all M2 exit criteria have recorded evidence.
   pass, strict lint pass; `TableRangeContractTests` 32 + `TableRangeTests` 29.
   Carried forward to task 4: `TableCalculator.visibleCustomFunctionNames` hook
   must receive inherited custom functions (and pass them to evaluation).
-- Task 4 (reuse arithmetic/conversions/functions/rate-clock context and
-  provenance; diagnose unsupported table functions): next. Task 5 not started.
+- Task 4 (context reuse): implement → review (3 rounds) → test complete,
+  approved; committed (git log "inherited sheet context"). `TableFormulaScope`
+  captures functions (+ `functionProvenance`; exact per-definition helper for
+  the M3 fold, linear batch helper), `@N` line outcomes, manual rates,
+  `TableScopeUnits`, `tableLines: IndexSet` (all table source lines at/above),
+  variable/line provenance. One context per generation (`isCurrent(in:)`,
+  stale earlier snapshot → `.staleTable`; inherited scope NOT covered — M3
+  must fingerprint it). `TableCellProvenance` (clock/rates/finance) flows
+  through cells, ranges, earlier tables, inherited vars, `@N` and closures;
+  `nextRecalculation`. Tables never convert currencies implicitly
+  (`convertsMixedCurrencies: false`). `.unsupported` for comparisons,
+  deferred/non-deterministic functions, assistant prompts (never evaluated);
+  `tableLineReference`/`laterLineReference`; unknown functions and custom vs
+  built-in dispatch match ordinary sheets. Evidence: full suite 862 passed
+  (`/tmp/ganit-m2-task4-full.log`), CI ASan + Table ASan pass, lint pass,
+  `TableContextContractTests` 29 + `TableContextTests` 22.
+  M3 carry-over: fold fills scope fields in definition order, wires
+  `nextRecalculation`/`isCurrent` and an inherited-scope fingerprint.
+- Task 5 (dependency/range-membership invalidation, resource limits incl.
+  per-generation scalar-op budget; running-range O(rows²) edges from task 2
+  m5): next.
 - Read plan, accepted ADRs 0016/0017 and amendments, frozen v1 source/storage
   contract and M0 evidence. Preserve current schemas, quarantine and byte fidelity.
 - Native acceptance remains mandatory in M4/M5 and M6: real IME, VoiceOver,

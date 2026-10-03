@@ -15,6 +15,10 @@ struct TableCalculationFailure: Hashable, Sendable {
     /// A range aggregate this kind cannot form: min/max of rates, or an empty
     /// sum whose columns declare different typed defaults.
     case unsupportedAggregation
+    /// Syntax tables diagnose rather than approximate: comparisons, deferred
+    /// spreadsheet functions and assistant prompts. `referenceDiagnostic`
+    /// says which.
+    case unsupported
   }
   let code: Code
   /// The failing read or expression in the current cell's exact source.
@@ -24,6 +28,8 @@ struct TableCalculationFailure: Hashable, Sendable {
   var cyclePath: [TableDependencyNode] = []
   var engineError: EngineError?
   var syntaxDiagnostics: [SyntaxDiagnostic] = []
+  /// The binding or formula diagnostic of a `reference` or `unsupported`
+  /// failure.
   var referenceDiagnostic: TableFormulaDiagnostic?
 
   /// Flattened once per shared cause set, then returned without copying.
@@ -252,6 +258,29 @@ struct TableCalculationSnapshot: Sendable {
   /// range node is reduced at most once per aggregate function, however
   /// many readers it has.
   var rangeCellVisits = 0
+  /// The one context, and so one clock and currency-rate snapshot, every
+  /// cell and reduction of this generation used.
+  let context: EvaluationContext
+  /// Each cell's clock, rate and finance provenance, when it has any: its
+  /// own evaluation's and everything its inputs carried, through cells,
+  /// ranges, earlier tables, inherited variables and `@N` lines.
+  let provenance: [TableCellAddress: TableCellProvenance]
+  /// The union of every cell's provenance.
+  let combinedProvenance: TableCellProvenance
+
+  /// The earliest moment a result that read the clock can change, or `nil`.
+  var nextRecalculation: Date? { combinedProvenance.clock?.interval(in: context).end }
+
+  /// Whether these results hold in a generation calculated with `context`:
+  /// the same rates, locale, precision and answers, and for results that
+  /// read the clock, a moment they stay correct for. It does not cover the
+  /// inherited scope (variables, functions, rates, units, lines): a caller
+  /// reusing a snapshot must compare that scope separately.
+  func isCurrent(in context: EvaluationContext) -> Bool {
+    guard self.context.at(context.now) == context else { return false }
+    guard let interval = combinedProvenance.clock?.interval(in: self.context) else { return true }
+    return interval.start <= context.now && context.now < interval.end
+  }
 
   /// A bounded cell without a record is an implicit blank. Sparse grids do
   /// not need a rows×columns dictionary merely to expose these blanks.
@@ -283,9 +312,6 @@ struct TableCalculationOptions: Sendable {
 struct TableCalculator: Sendable {
   let engine: CalculationEngine
   let options: TableCalculationOptions
-  /// Task-4 hook for inherited custom functions: their lowercased names. A
-  /// listed name is never lowercased into a built-in or range aggregate.
-  var visibleCustomFunctionNames: Set<String> = []
 
   init(
     engine: CalculationEngine = CalculationEngine(), options: TableCalculationOptions = .production
@@ -304,20 +330,32 @@ struct TableCalculator: Sendable {
       throw EngineError(code: .resourceLimitExceeded)
     }
     try table.validate()
+    // One generation reads one clock and rate snapshot: an earlier table
+    // calculated with another context is not this generation's, and reads
+    // of it fail explicitly as stale.
+    let stale = Set(earlier.filter { !$0.value.isCurrent(in: context) }.keys)
+    let earlier = earlier.filter { !stale.contains($0.key) }
     // A calculated earlier table is authoritative: binding, membership and
     // values all read the model its snapshot was calculated from.
-    let visible = scope.visible.map { model -> TableModel in
+    var captured = scope
+    captured.current = table
+    captured.visible = scope.visible.map { model -> TableModel in
       guard var calculated = earlier[model.id]?.table else { return model }
       calculated.name = model.name
       return calculated
     }
     var worker = TableCalculationWorker(
-      table: table,
-      scope: TableFormulaScope(current: table, visible: visible, inherited: scope.inherited),
-      context: context, earlier: earlier, engine: engine,
-      staticCheckParses: options.maximumStaticCheckParses,
-      customFunctionNames: visibleCustomFunctionNames, cancelled: cancelled)
+      table: table, scope: captured, context: context, earlier: earlier,
+      engine: resolvedEngine(scope.units), staleTables: stale,
+      staticCheckParses: options.maximumStaticCheckParses, cancelled: cancelled)
     return try worker.calculate()
+  }
+
+  private func resolvedEngine(_ units: TableScopeUnits) -> CalculationEngine {
+    switch units {
+    case .engineCatalog: return engine
+    case .resolving(let custom): return engine.resolving(custom)
+    }
   }
 }
 
@@ -337,6 +375,8 @@ private typealias TableFormulaTemplate = Result<
 private enum TableStaticFailure {
   case syntax([SyntaxDiagnostic])
   case reference(TableFormulaDiagnostic)
+  /// An error the ordinary evaluator would report, such as an unknown call.
+  case engine(EngineError)
 }
 
 /// Static checks depend on the template and on the operand kinds that are
@@ -380,18 +420,29 @@ private struct TableCalculationWorker {
     [TableRangeReductionKey: Result<EngineValue, TableRangeReductionFailure>] = [:]
   private var rangeMembers: [Int: [EngineValue]?] = [:]
   private var rangeCellVisits = 0
-  /// Task-4 hook: lowercased names of visible custom functions. They keep
-  /// their own dispatch and are never treated as built-ins or aggregates.
+  /// Lowercased names of the inherited custom functions. They keep their
+  /// own dispatch and are never treated as built-ins or aggregates.
   private let customFunctionNames: Set<String>
+  /// Kinds for inherited names; a failed line keeps its name visible, as in
+  /// ordinary sheets, so it is never mistaken for a bare keyword.
+  private let inheritedKinds: [String: EngineValueKind]
+  /// Visible earlier tables whose snapshots belong to another context.
+  private let staleTables: Set<TableID>
+  /// Provenance of this table's cells, by address.
+  private var provenance: [TableCellAddress: TableCellProvenance] = [:]
+  /// Provenance of each range node's members, gathered with their values.
+  private var rangeProvenance: [Int: TableCellProvenance] = [:]
 
   init(
     table: TableModel, scope: TableFormulaScope, context: EvaluationContext,
     earlier: [TableID: TableCalculationSnapshot], engine: CalculationEngine,
-    staticCheckParses: Int, customFunctionNames: Set<String>,
+    staleTables: Set<TableID>, staticCheckParses: Int,
     cancelled: @escaping @Sendable () -> Bool
   ) {
     self.staticCheckParses = staticCheckParses
-    self.customFunctionNames = customFunctionNames
+    self.staleTables = staleTables
+    customFunctionNames = Set(scope.functions.keys.map { $0.lowercased() })
+    inheritedKinds = scope.inherited.mapValues { $0?.kind ?? .number }
     self.table = table
     self.scope = scope
     self.context = context
@@ -455,7 +506,7 @@ private struct TableCalculationWorker {
       let path = try graph.cyclePath(in: component, cancelled: cancelled)
       for node in component {
         let range: SourceRange
-        if case .cell(let address) = nodes[node] {
+        if case .cell = nodes[node] {
           range = failingReadRange(node, failed: cycleNodes)
         } else {
           range = emptyRange
@@ -515,11 +566,14 @@ private struct TableCalculationWorker {
         outcomes[address] = result
       }
     }
+    var combined = TableCellProvenance()
+    for cell in provenance.values { combined.formUnion(cell) }
     return TableCalculationSnapshot(
       table: table, outcomes: outcomes, sources: sources,
       nodes: nodes, dependencies: graph.dependencies,
       reverseDependencies: graph.reverseDependencies,
-      traces: traces, axes: axes[table.id]!, rangeCellVisits: rangeCellVisits)
+      traces: traces, axes: axes[table.id]!, rangeCellVisits: rangeCellVisits,
+      context: context, provenance: provenance, combinedProvenance: combined)
   }
 
   private mutating func add(_ node: TableDependencyNode, plan: TableNodePlan) -> Int {
@@ -594,7 +648,9 @@ private struct TableCalculationWorker {
         if let targetTable = binding.target?.table, targetTable != table.id,
           earlier[targetTable] == nil, !binding.deleted
         {
-          throw TableFormulaDiagnostic(code: .missingTable, range: binding.occurrence.range)
+          throw TableFormulaDiagnostic(
+            code: staleTables.contains(targetTable) ? .staleTable : .missingTable,
+            range: binding.occurrence.range)
         }
       }
       templates += 1
@@ -704,6 +760,8 @@ private struct TableCalculationWorker {
     var kinds: [String: EngineValueKind] = [:]
     var variables = scope.inherited
     var ranges: [String: TableRangeSlot] = [:]
+    // What every input carried; the cell's own evaluation adds its trace.
+    var carried = TableCellProvenance()
     for binding in bindings {
       try checkCancellation(cancelled)
       let value: TableOperand
@@ -723,8 +781,14 @@ private struct TableCalculationWorker {
                 code: .inheritedFailure, range: binding.occurrence.range)))
         }
         value = .scalar(inheritedValue)
+        if let inheritedProvenance = scope.variableProvenance[inherited] {
+          carried.formUnion(inheritedProvenance)
+        }
       } else if let target = binding.target {
         let input = try node(for: target, owner: address)
+        if case .cell(let inputAddress) = nodes[input] {
+          carried.formUnion(cellProvenance(inputAddress))
+        }
         if case .range(let range) = plans[input] {
           value = .range(range)
           ranges[binding.occurrence.slot] = TableRangeSlot(
@@ -763,6 +827,7 @@ private struct TableCalculationWorker {
       case .success(let value):
         variables[call.slot] = value
         kinds[call.slot] = value.kind
+        if let members = rangeProvenance[slot.node] { carried.formUnion(members) }
       case .failure(let reason):
         kinds[call.slot] = .number
         failedSlots.append(call.slot)
@@ -776,10 +841,10 @@ private struct TableCalculationWorker {
     let parsing: ParsingResult
     do {
       parsing = try engine.parse(
-        collapsed, context: context, operandKinds: kinds, inheritedKinds: inheritedKinds)
+        collapsed, context: context, operandKinds: kinds, inheritedKinds: inheritedKinds,
+        customFunctions: customFunctionNames)
     } catch let diagnostic as TableFormulaDiagnostic {
-      return .failure(
-        failure(.reference, at: address, range: diagnostic.range, reference: diagnostic))
+      return .failure(failure(.reference(diagnostic), at: address))
     }
     if parsing.expression == nil, let reductionFailure,
       try parsesWithSomeKind(collapsed, slots: failedSlots, known: kinds)
@@ -794,9 +859,11 @@ private struct TableCalculationWorker {
       failure.syntaxDiagnostics = parsing.diagnostics
       return .failure(failure)
     }
+    if let own = scopeFailure(expression) { return .failure(failure(own, at: address)) }
     var direct = expression
     while case .grouped(let nested, _) = direct { direct = nested }
     if case .identifier(let slot, _) = direct, let operand = operands[slot] {
+      if !carried.isEmpty { provenance[address] = carried }
       switch operand {
       case .scalar(let value): return .scalar(value)
       case .text(let text): return .text(text)
@@ -821,9 +888,18 @@ private struct TableCalculationWorker {
             failure(
               .reference, at: address, range: range,
               reference: TableFormulaDiagnostic(code: .inheritedFailure, range: range)))
+        } else if let inherited = scope.variableProvenance[name.lowercased()] {
+          carried.formUnion(inherited)
         }
+      case .reference(.line(let number), _):
+        if let line = scope.lineProvenance[number] { carried.formUnion(line) }
       case .call(let name, _, _, _):
         rewrite = rewrite || dispatchedName(name) != name
+        if let custom = customFunction(called: name),
+          let captured = scope.functionProvenance[custom]
+        {
+          carried.formUnion(captured)
+        }
       default: break
       }
       pending.append(contentsOf: next.tableChildren)
@@ -848,11 +924,82 @@ private struct TableCalculationWorker {
       default: break
       }
     }
+    // The ordinary evaluator with the captured scope, except that mixed
+    // currencies need an explicit `in` conversion here.
     let evaluation = engine.evaluate(
-      expression, context: context, variables: variables, lines: LineOutcomes())
+      expression, context: context, variables: variables, lines: scope.lines,
+      manualRates: scope.rates, functions: scope.functions, convertsMixedCurrencies: false)
     try checkCancellation(cancelled)
     traces[address] = evaluation.trace
+    carried.formUnion(TableCellProvenance(evaluation.trace))
+    if !carried.isEmpty { provenance[address] = carried }
     return result(evaluation.result, at: address)
+  }
+
+  /// A cell's provenance, from this generation or the earlier table's.
+  private func cellProvenance(_ address: TableCellAddress) -> TableCellProvenance {
+    let known =
+      address.table == table.id
+      ? provenance[address] : earlier[address.table]?.provenance[address]
+    return known ?? TableCellProvenance()
+  }
+
+  /// A parsed formula's own errors that need the captured scope: a call no
+  /// built-in or visible custom function answers, and a line reference to
+  /// this table's own or a later line or to a failed line. They outrank
+  /// blocked inputs and reduction failures, as syntax errors do. The
+  /// earliest in source wins. (Assistant prompts never reach the parse.)
+  @inline(never)
+  private func scopeFailure(_ expression: Expression) -> TableStaticFailure? {
+    var found: (range: SourceRange, failure: TableStaticFailure)?
+    func consider(_ range: SourceRange, _ failure: TableStaticFailure) {
+      if found.map({ range.lowerBound < $0.range.lowerBound }) ?? true {
+        found = (range, failure)
+      }
+    }
+    var pending = [expression]
+    while let next = pending.popLast() {
+      switch next {
+      case .call(let name, let nameRange, _, _):
+        let dispatched = dispatchedName(name)
+        if FinanceFunction(rawValue: dispatched) == nil,
+          StatisticsFunction(rawValue: dispatched) == nil,
+          BuiltInFunction(rawValue: dispatched) == nil, customFunction(called: name) == nil
+        {
+          consider(nameRange, .engine(EngineError(code: .unknownFunction, ranges: [nameRange])))
+        }
+      case .reference(.line(let number), let range):
+        if let code = lineProblem(number) {
+          consider(range, .reference(TableFormulaDiagnostic(code: code, range: range)))
+        }
+      default: break
+      }
+      pending.append(contentsOf: next.tableChildren)
+    }
+    return found?.failure
+  }
+
+  /// The lowercased custom function a call dispatches to, as the evaluator
+  /// resolves it: built-ins of the dispatched spelling come first.
+  private func customFunction(called name: String) -> String? {
+    let dispatched = dispatchedName(name)
+    guard FinanceFunction(rawValue: dispatched) == nil,
+      StatisticsFunction(rawValue: dispatched) == nil,
+      BuiltInFunction(rawValue: dispatched) == nil
+    else { return nil }
+    let lowered = name.lowercased()
+    return customFunctionNames.contains(lowered) ? lowered : nil
+  }
+
+  /// Why a table formula cannot read physical line `number`, if it cannot.
+  /// Only lines above the opener are visible; one with no answer is the
+  /// ordinary evaluator's invalid reference.
+  private func lineProblem(_ number: Int) -> TableFormulaDiagnostic.Code? {
+    guard number >= 1 else { return nil }
+    if scope.tableLines.contains(number - 1) { return .tableLineReference }
+    if number >= scope.lines.nextLine { return .laterLineReference }
+    if case .failure? = scope.lines.inputs(for: .line(number))?.first { return .inheritedFailure }
+    return nil
   }
 
   /// Whether a formula parses for some kinds of the given failed slots, as
@@ -875,19 +1022,14 @@ private struct TableCalculationWorker {
         digits /= operandKinds.count
       }
       if (try? engine.parse(
-        syntax, context: context, operandKinds: kinds, inheritedKinds: inheritedKinds))?
+        syntax, context: context, operandKinds: kinds, inheritedKinds: inheritedKinds,
+        customFunctions: customFunctionNames))?
         .expression != nil
       {
         return true
       }
     }
     return false
-  }
-
-  /// Kinds for inherited names; a failed line keeps its name visible, as in
-  /// ordinary sheets, so it is never mistaken for a bare keyword.
-  private var inheritedKinds: [String: EngineValueKind] {
-    scope.inherited.mapValues { $0?.kind ?? .number }
   }
 
   /// Built-in names dispatch case-insensitively in table formulas, unless a
@@ -949,19 +1091,23 @@ private struct TableCalculationWorker {
   ) throws -> [EngineValue]? {
     if let known = rangeMembers[node] { return known }
     var values: [EngineValue]? = []
+    var carried = TableCellProvenance()
     for row in membership.rows {
       try checkCancellation(cancelled)
       for column in membership.columns {
         rangeCellVisits += 1
         let member = TableCellAddress(table: membership.table, row: row, column: column)
         switch index[.cell(member)].flatMap({ results[$0] }) {
-        case .scalar(let value): values?.append(value)
+        case .scalar(let value):
+          values?.append(value)
+          carried.formUnion(cellProvenance(member))
         case .text, .blank: break
         case .failure, nil: values = nil
         }
       }
     }
     rangeMembers[node] = .some(values)
+    if !carried.isEmpty { rangeProvenance[node] = carried }
     return values
   }
 
@@ -1025,6 +1171,9 @@ private struct TableCalculationWorker {
     let evaluated = engine.evaluate(
       expression, context: context, variables: [:], lines: LineOutcomes())
     traces[address] = evaluated.trace
+    // `March 3` reads the clock for its year, like a sheet line.
+    let own = TableCellProvenance(evaluated.trace)
+    provenance[address] = own.isEmpty ? nil : own
     if case .value(.number) = evaluated.result, let defaultSuffix = column.unit ?? column.currency {
       let defaultSyntax = engine.parse("1 " + defaultSuffix, context: context)
       guard let defaultExpression = defaultSyntax.expression else {
@@ -1045,6 +1194,8 @@ private struct TableCalculationWorker {
         interpreted, context: context, variables: [:], lines: LineOutcomes())
       if case .value = evaluation.result {
         traces[address] = evaluation.trace
+        let own = TableCellProvenance(evaluation.trace)
+        provenance[address] = own.isEmpty ? nil : own
         return result(evaluation.result, at: address)
       }
       return .failure(failure(.invalidLiteral, at: address, range: fullRange(source)))
@@ -1209,9 +1360,10 @@ private struct TableCalculationWorker {
       }
       do {
         let parsing = try engine.parse(
-          syntax, context: context, operandKinds: kinds, inheritedKinds: inheritedKinds)
-        if parsing.expression != nil {
-          found = nil
+          syntax, context: context, operandKinds: kinds, inheritedKinds: inheritedKinds,
+          customFunctions: customFunctionNames)
+        if let expression = parsing.expression {
+          found = scopeFailure(expression)
           break
         }
         found = found ?? .syntax(parsing.diagnostics)
@@ -1233,7 +1385,16 @@ private struct TableCalculationWorker {
       error.syntaxDiagnostics = diagnostics
       return error
     case .reference(let diagnostic):
-      return failure(.reference, at: address, range: diagnostic.range, reference: diagnostic)
+      let code: TableCalculationFailure.Code
+      switch diagnostic.code {
+      case .unsupportedFunction, .unsupportedComparison, .assistantPrompt: code = .unsupported
+      default: code = .reference
+      }
+      return failure(code, at: address, range: diagnostic.range, reference: diagnostic)
+    case .engine(let error):
+      var failed = failure(.evaluation, at: address, range: error.ranges.first ?? emptyRange)
+      failed.engineError = error
+      return failed
     }
   }
 

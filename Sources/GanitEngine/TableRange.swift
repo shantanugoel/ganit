@@ -176,7 +176,9 @@ struct TableAggregateCall: Hashable, Sendable {
 
 extension TableFormulaSyntax {
   /// `name ( … slot … )` with only parentheses around one range slot, where
-  /// the lowercased name is a range aggregate no custom function claims.
+  /// the lowercased name is a range aggregate. A visible custom function of
+  /// that name claims every other spelling, so `SUM(B:B)` is never the
+  /// built-in then; exact `sum`, as ordinary dispatch resolves it, still is.
   /// Anything else stays ordinary syntax and is diagnosed after parsing.
   func aggregateCalls(rangeSlots: Set<String>, customFunctions: Set<String>)
     -> [TableAggregateCall]
@@ -190,7 +192,8 @@ extension TableFormulaSyntax {
         tokens[index + 1].kind == .leftParenthesis
       else { continue }
       let lowered = name.lowercased()
-      guard !customFunctions.contains(lowered), let function = TableRangeFunction(name: lowered)
+      guard name == lowered || !customFunctions.contains(lowered),
+        let function = TableRangeFunction(name: lowered)
       else { continue }
       var cursor = index + 1
       var depth = 0

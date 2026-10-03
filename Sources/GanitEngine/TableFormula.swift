@@ -28,6 +28,22 @@ struct TableFormulaDiagnostic: Error, Hashable, Sendable {
     case malformedReference, missingTable, invisibleTable, missingColumn
     case outOfBounds, mixedTableRange, staleBinding, brokenReference
     case missingInheritedVariable, inheritedFailure, bareAggregate, scalarRequired
+    /// A spreadsheet function the first release defers (lazy `if`, logical,
+    /// conditional aggregate, lookup and text functions) or that cannot be
+    /// computed locally and deterministically (random numbers).
+    case unsupportedFunction
+    /// `=`, `<`, `>`, `<>`, `<=`, `>=`, `!=` and their symbols.
+    case unsupportedComparison
+    /// `ask_assistant(…)`: table formulas never ask the assistant.
+    case assistantPrompt
+    /// `@N`/`line N` naming a table block's source line, this block's or an
+    /// earlier one's: table lines have no scalar answer.
+    case tableLineReference
+    /// `@N`/`line N` naming a line below the table's opener, or none at all.
+    case laterLineReference
+    /// A visible earlier table whose snapshot was calculated with another
+    /// context, so it is not this generation's.
+    case staleTable
   }
   let code: Code
   let range: SourceRange
@@ -68,13 +84,173 @@ struct TableBoundReference: Hashable, Sendable {
   let deleted: Bool
 }
 
-/// Visibility is captured at the table entry by the mixed-sheet fold. The
-/// binder may resolve the current table or visible earlier tables only.
+/// What an ordinary line at the table's opener would see, captured at the
+/// table entry by the mixed-sheet fold. The binder may resolve the current
+/// table or visible earlier tables only; formulas read the inherited
+/// variables, functions, rates and units exactly as such a line would.
 struct TableFormulaScope: Sendable {
-  let current: TableModel?
-  let visible: [TableModel]
-  let inherited: [String: EngineValue?]
+  var current: TableModel?
+  var visible: [TableModel]
+  /// Visible variables by lowercased name; `nil` for a failed declaration.
+  var inherited: [String: EngineValue?]
+  /// Custom functions defined above, by lowercased name, each with its own
+  /// captured variables and functions as in ordinary sheets.
+  var functions: [String: CustomFunction] = [:]
+  /// Outcomes of the physical lines above the opener, for deliberate `@N`.
+  var lines = LineOutcomes()
+  /// Manual exchange rates declared above.
+  var rates: [CurrencyPair: NumericValue] = [:]
+  /// The custom units formulas and literals resolve.
+  var units: TableScopeUnits = .engineCatalog
+  /// Zero-based physical source lines of every table block at or above this
+  /// one, this block included, as `TableBlockResult` numbers them. `@N` into
+  /// any of them is a `tableLineReference`.
+  var tableLines = IndexSet()
+  /// Clock, rate and finance provenance of inherited variables' values, by
+  /// lowercased name, carried to every cell that reads them.
+  var variableProvenance: [String: TableCellProvenance] = [:]
+  /// The same provenance for the one-based lines `lines` holds.
+  var lineProvenance: [Int: TableCellProvenance] = [:]
+  /// Provenance of the values each custom function's closure captured, by
+  /// lowercased name, carried to every cell that calls it. A body's own
+  /// clock and rate reads are in the call's trace already. Compute it with
+  /// `functionProvenance(of:variableProvenance:functionProvenance:)`.
+  var functionProvenance: [String: TableCellProvenance] = [:]
+
+  /// The provenance of what `function`'s closure captured: its captured
+  /// variables' (from `variableProvenance`) and, transitively, its captured
+  /// functions' (from `functionProvenance`). Exact when called as the
+  /// sheet fold reaches the function's definition, with the maps visible
+  /// there, since a closure keeps those values whatever is redeclared later.
+  static func functionProvenance(
+    of function: CustomFunction, variableProvenance: [String: TableCellProvenance],
+    functionProvenance: [String: TableCellProvenance]
+  ) -> TableCellProvenance {
+    var result = TableCellProvenance()
+    for (name, value) in function.variables where value != nil {
+      if let captured = variableProvenance[name] { result.formUnion(captured) }
+    }
+    for name in function.functions.keys {
+      if let captured = functionProvenance[name] { result.formUnion(captured) }
+    }
+    return result
+  }
+
+  /// `functionProvenance` for functions defined together, such as a
+  /// definitions sheet's, when only the variables' final provenance is
+  /// known. Prefer `functionProvenance(of:variableProvenance:functionProvenance:)`
+  /// in definition order, which is exact.
+  ///
+  /// Approximations: a captured variable's provenance is its final one
+  /// (`a = now`, `f(x) = x + a`, `a = 5` loses the clock), and a captured
+  /// function is represented by the visible function of its name. Each name
+  /// is resolved once, iteratively and without hashing closures, so the
+  /// work is linear in the functions and their captures.
+  static func functionProvenance(
+    _ functions: [String: CustomFunction], variableProvenance: [String: TableCellProvenance]
+  ) -> [String: TableCellProvenance] {
+    func own(_ function: CustomFunction) -> TableCellProvenance {
+      var provenance = TableCellProvenance()
+      for (variable, value) in function.variables where value != nil {
+        if let captured = variableProvenance[variable] { provenance.formUnion(captured) }
+      }
+      return provenance
+    }
+    var resolved: [String: TableCellProvenance] = [:]
+    var inProgress = Set<String>()
+    for root in functions.keys.sorted() {
+      var pending: [(name: String, function: CustomFunction, expanded: Bool)] = [
+        (root.lowercased(), functions[root]!, false)
+      ]
+      while let (name, function, expanded) = pending.popLast() {
+        if expanded {
+          var provenance = own(function)
+          for (captured, value) in function.functions {
+            // A capture still in progress is a redefinition reading its
+            // older namesake: use that closure's own variables.
+            provenance.formUnion(resolved[captured.lowercased()] ?? own(value))
+          }
+          resolved[name] = provenance
+          inProgress.remove(name)
+          continue
+        }
+        guard resolved[name] == nil, inProgress.insert(name).inserted else { continue }
+        pending.append((name, function, true))
+        for (captured, value) in function.functions {
+          let key = captured.lowercased()
+          if resolved[key] == nil, !inProgress.contains(key) {
+            pending.append((key, functions[key] ?? value, false))
+          }
+        }
+      }
+    }
+    return resolved.filter { !$0.value.isEmpty }
+  }
 }
+
+/// Which custom units a table resolves, stated explicitly.
+enum TableScopeUnits: Hashable, Sendable {
+  /// The calculator engine's catalog as constructed, including any custom
+  /// units it already resolves.
+  case engineCatalog
+  /// Exactly these custom units, replacing any the engine resolved, as the
+  /// sheet fold's engine resolves the units visible at the opener.
+  case resolving([CustomUnit])
+}
+
+/// What a value depends on besides its operands' values: the clock, exchange
+/// rates and finance assumptions. Approximation and explicit rounding live
+/// in `EngineValue` itself, so they travel with every read value already.
+struct TableCellProvenance: Hashable, Sendable {
+  var clock: ClockResolution?
+  var rateUses: Set<CurrencyRateUse> = []
+  var financeUses: Set<FinanceFunction> = []
+
+  init(
+    clock: ClockResolution? = nil, rateUses: Set<CurrencyRateUse> = [],
+    financeUses: Set<FinanceFunction> = []
+  ) {
+    self.clock = clock
+    self.rateUses = rateUses
+    self.financeUses = financeUses
+  }
+
+  init(_ trace: EvaluationTrace) {
+    self.init(clock: trace.clock, rateUses: trace.rateUses, financeUses: trace.financeUses)
+  }
+
+  var isEmpty: Bool { clock == nil && rateUses.isEmpty && financeUses.isEmpty }
+
+  mutating func formUnion(_ other: Self) {
+    if let resolution = other.clock { clock = max(clock ?? resolution, resolution) }
+    rateUses.formUnion(other.rateUses)
+    financeUses.formUnion(other.financeUses)
+  }
+}
+
+/// Deferred or non-local spreadsheet functions, diagnosed explicitly in
+/// table formulas rather than approximated by a near equivalent. A visible
+/// custom function of the same name keeps its own meaning.
+let tableUnsupportedFunctionNames: Set<String> = [
+  // Lazy and logical functions follow comparisons in a later increment.
+  "if", "ifs", "iferror", "ifna", "switch", "choose", "and", "or", "not",
+  "isblank", "iserror", "isnumber", "istext",
+  // Conditional aggregates.
+  "sumif", "sumifs", "countif", "countifs", "averageif", "averageifs", "minifs", "maxifs",
+  "counta", "countblank", "sumproduct",
+  // Lookup and reference.
+  "lookup", "vlookup", "hlookup", "xlookup", "index", "match", "xmatch", "offset", "indirect",
+  "filter", "sort", "unique", "sequence",
+  // Text.
+  "concat", "concatenate", "textjoin", "text", "left", "right", "mid", "len", "upper", "lower",
+  "proper", "trim", "find", "search", "substitute", "replace", "rept", "exact", "value",
+  // Not deterministic.
+  "rand", "randbetween", "randarray",
+]
+
+private let comparisonCharacters: Set<Substring> = [
+  "=", "<", ">", "≤", "≥", "≠", "⩽", "⩾", "＜", "＞", "＝",
+]
 
 struct TableFormulaSyntax: Sendable {
   let source: String
@@ -201,9 +377,12 @@ struct TableFormulaSyntax: Sendable {
   /// evaluation supplies their outcomes later. No second arithmetic parser.
   func parse(
     context: EvaluationContext, operandKinds: [String: EngineValueKind] = [:],
-    inheritedKinds: [String: EngineValueKind] = [:], catalog: UnitCatalog? = nil,
-    limits: SyntaxLimits = .default
+    inheritedKinds: [String: EngineValueKind] = [:], customFunctions: Set<String> = [],
+    catalog: UnitCatalog? = nil, limits: SyntaxLimits = .default
   ) throws -> ParsingResult {
+    if tableFormula, let unsupported = unsupportedSyntax(customFunctions: customFunctions) {
+      throw unsupported
+    }
     var kinds = inheritedKinds
     // Collapsed aggregate operands are slots too, outside `references`.
     for (slot, kind) in operandKinds where slot.hasPrefix("\u{1f}") { kinds[slot] = kind }
@@ -233,6 +412,65 @@ struct TableFormulaSyntax: Sendable {
       }
     }
     return parsing
+  }
+
+  /// Syntax a table formula diagnoses before the kind-directed parse, so it
+  /// is never reported as the ordinary parser's first syntax error, nor
+  /// evaluated through a substitute: comparisons, deferred functions and
+  /// assistant prompts. The earliest in source wins; an earlier unrelated
+  /// lexing error stays the ordinary parser's syntax error.
+  @inline(never)
+  func unsupportedSyntax(customFunctions: Set<String>) -> TableFormulaDiagnostic? {
+    var found: TableFormulaDiagnostic?
+    func consider(_ code: TableFormulaDiagnostic.Code, _ range: SourceRange) {
+      if found.map({ range.lowerBound < $0.range.lowerBound }) ?? true {
+        found = TableFormulaDiagnostic(code: code, range: range)
+      }
+    }
+    var lexing: SourceRange?
+    for diagnostic in diagnostics where diagnostic.severity == .error {
+      let comparing =
+        diagnostic.code == .unexpectedCharacter
+        && diagnostic.range.text(in: source).map(comparisonCharacters.contains) == true
+      if !comparing, lexing.map({ diagnostic.range.lowerBound < $0.lowerBound }) ?? true {
+        lexing = diagnostic.range
+      }
+    }
+    // Lone `=`, `<` and `>` are lexing errors; adjacent ones form one operator.
+    var comparison: SourceRange?
+    for diagnostic in diagnostics where diagnostic.code == .unexpectedCharacter {
+      guard let text = diagnostic.range.text(in: source), comparisonCharacters.contains(text)
+      else { continue }
+      if let current = comparison {
+        guard diagnostic.range.lowerBound == current.upperBound else { break }
+        comparison = current.union(diagnostic.range)
+      } else {
+        comparison = diagnostic.range
+      }
+    }
+    if var comparison {
+      // `!=` lexes its `!` as a factorial.
+      if let bang = tokens.first(where: {
+        $0.kind == .factorial && $0.range.upperBound == comparison.lowerBound
+      }) {
+        comparison = bang.range.union(comparison)
+      }
+      consider(.unsupportedComparison, comparison)
+    }
+    for (index, token) in tokens.enumerated() {
+      guard case .identifier(let name) = token.kind else { continue }
+      let lowered = name.lowercased()
+      if lowered == assistantFunctionName {
+        consider(.assistantPrompt, token.range)
+      } else if tableUnsupportedFunctionNames.contains(lowered),
+        !customFunctions.contains(lowered), index + 1 < tokens.count,
+        tokens[index + 1].kind == .leftParenthesis
+      {
+        consider(.unsupportedFunction, token.range)
+      }
+    }
+    if let found, let lexing, lexing.lowerBound < found.range.lowerBound { return nil }
+    return found
   }
 
   private func resolve(_ occurrence: TableReferenceOccurrence, scope: TableFormulaScope) throws

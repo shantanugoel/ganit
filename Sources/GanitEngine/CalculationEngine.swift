@@ -69,7 +69,8 @@ public struct CalculationEngine: Sendable {
     variables: [String: EngineValue?],
     lines: LineOutcomes,
     manualRates: [CurrencyPair: NumericValue] = [:],
-    functions: [String: CustomFunction] = [:]
+    functions: [String: CustomFunction] = [:],
+    convertsMixedCurrencies: Bool = true
   ) -> (result: CalculationResult, trace: EvaluationTrace) {
     let (result, trace) = Evaluator(
       context: context,
@@ -77,7 +78,8 @@ public struct CalculationEngine: Sendable {
       variables: variables,
       lines: lines,
       manualRates: manualRates,
-      functions: functions
+      functions: functions,
+      convertsMixedCurrencies: convertsMixedCurrencies
     ).evaluateTracing(expression)
     switch result {
     case .success(let value):
@@ -218,11 +220,12 @@ extension CalculationEngine {
   /// same kind-directed parser used by ordinary calculations.
   func parse(
     _ syntax: TableFormulaSyntax, context: EvaluationContext,
-    operandKinds: [String: EngineValueKind], inheritedKinds: [String: EngineValueKind]
+    operandKinds: [String: EngineValueKind], inheritedKinds: [String: EngineValueKind],
+    customFunctions: Set<String> = []
   ) throws -> ParsingResult {
     try syntax.parse(
       context: context, operandKinds: operandKinds, inheritedKinds: inheritedKinds,
-      catalog: unitCatalog, limits: syntaxLimits)
+      customFunctions: customFunctions, catalog: unitCatalog, limits: syntaxLimits)
   }
 
   /// Range reductions reuse the ordinary aggregate arithmetic and this
