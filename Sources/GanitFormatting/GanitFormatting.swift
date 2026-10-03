@@ -1091,6 +1091,8 @@ public struct DiagnosticFormatter: Sendable {
         "error.evaluation.invalidReference",
         defaultValue: "Refer to a result on a line above."
       )
+    case .tableReference:
+      return tableReferenceMessage(for: error.context)
     case .unknownFunction:
       return localized(
         "error.evaluation.unknownFunction",
@@ -1285,6 +1287,85 @@ public struct DiagnosticFormatter: Sendable {
       return localized(
         "error.evaluation.resourceLimit.unitFactors",
         defaultValue: "The compound unit has too many factors."
+      )
+    }
+  }
+
+  private func tableReferenceMessage(for context: EngineErrorContext) -> String {
+    guard case .tableReference(let problem) = context else {
+      return localized(
+        "error.evaluation.tableReference",
+        defaultValue: "This table reference cannot be read."
+      )
+    }
+    switch problem {
+    case .tableLine:
+      return localized(
+        "error.evaluation.tableReference.tableLine",
+        defaultValue:
+          "This line is part of a table, which has no line answer. Refer to the table by name, such as Items[Amount]."
+      )
+    case .unknownTable:
+      return localized(
+        "error.evaluation.tableReference.unknownTable",
+        defaultValue: "No table with this name is visible above this line."
+      )
+    case .unknownColumn:
+      return localized(
+        "error.evaluation.tableReference.unknownColumn",
+        defaultValue: "The table has no column with this name."
+      )
+    case .outOfBounds:
+      return localized(
+        "error.evaluation.tableReference.outOfBounds",
+        defaultValue: "This address is outside the table."
+      )
+    case .malformed:
+      return localized(
+        "error.evaluation.tableReference.malformed",
+        defaultValue: "This table reference is not valid."
+      )
+    case .notScalar:
+      return localized(
+        "error.evaluation.tableReference.notScalar",
+        defaultValue: "This table reference is text, blank or a range, not a value."
+      )
+    case .failedCell:
+      return localized(
+        "error.evaluation.tableReference.failedCell",
+        defaultValue: "The referenced table cell has an error, so this cannot use it."
+      )
+    case .unavailableTable:
+      return localized(
+        "error.evaluation.tableReference.unavailableTable",
+        defaultValue: "The table could not be calculated, so this cannot use it."
+      )
+    case .emptyRange:
+      return localized(
+        "error.evaluation.tableReference.emptyRange",
+        defaultValue: "The range has no values."
+      )
+    case .unsupportedAggregation:
+      return localized(
+        "error.evaluation.tableReference.unsupportedAggregation",
+        defaultValue: "This aggregate does not apply to the range's values."
+      )
+    case .definitions:
+      return localized(
+        "error.evaluation.tableReference.definitions",
+        defaultValue:
+          "Definitions don't calculate tables, so no sheet reads this table. Move it to a sheet."
+      )
+    case .quickGanit:
+      return localized(
+        "error.evaluation.tableReference.quickGanit",
+        defaultValue:
+          "Quick Ganit doesn't calculate tables. Choose Keep as Sheet to work with this table in a sheet."
+      )
+    case .expression:
+      return localized(
+        "error.evaluation.tableReference.expression",
+        defaultValue: "A table can't be answered as one expression. Open it in a Ganit sheet."
       )
     }
   }

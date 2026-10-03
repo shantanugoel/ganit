@@ -86,4 +86,52 @@ struct ExpressionCalculationTests {
       try calculation.answer(for: tooLong)
     }
   }
+
+  /// A table block is not one expression: services, Shortcuts and URL
+  /// actions explain that instead of reading its lines as one expression.
+  @Test
+  func explainsThatATableIsNotOneExpression() throws {
+    let block =
+      "@ganit-table 1\n{\"ids\":[\"abcdef00-0000-4000-8000-000000000001\","
+      + "\"abcdef00-0000-4000-8000-000000000011\"],\"t\":0,\"n\":\"Items\","
+      + "\"c\":[{\"i\":1,\"h\":\"Qty\",\"p\":\"value\"}],\"r\":[],\"x\":[],\"b\":[]}\n"
+      + "@end-ganit-table\n"
+    let calculation = ExpressionCalculation()
+    for source in [
+      block, block + "2 + 2", "2 + 2\n" + block, "@ganit-table 1", "@ganit-table 2\n{}",
+    ] {
+      let failure = #expect(throws: UnevaluableExpression.self) {
+        try calculation.answer(for: source)
+      }
+      #expect(failure?.diagnostics.first?.code == "evaluation.tableReference", "\(source)")
+      #expect(failure?.errorDescription?.contains("one expression") == true)
+    }
+    // Text that only looks like a table stays an expression.
+    let prose = #expect(throws: UnevaluableExpression.self) {
+      try calculation.answer(for: " @ganit-table 1")
+    }
+    #expect(prose?.diagnostics.first?.code != "evaluation.tableReference")
+  }
+
+  /// A sheet's table lines never answer as ordinary lines; prose reads the
+  /// table by name.
+  @Test
+  func sheetAnswersNeverFlattenTableRows() throws {
+    let block =
+      "@ganit-table 1\n{\"ids\":[\"abcdef00-0000-4000-8000-000000000001\","
+      + "\"abcdef00-0000-4000-8000-000000000011\",\"abcdef00-0000-4000-8000-000000000021\"],"
+      + "\"t\":0,\"n\":\"Items\",\"c\":[{\"i\":1,\"h\":\"Qty\",\"p\":\"value\"}],"
+      + "\"r\":[2],\"x\":[{\"a\":[2,1],\"s\":\"5\"}],\"b\":[]}\n@end-ganit-table\n"
+    let answers = try ExpressionCalculation().answers(
+      forSheet: "1\n" + block + "sum(Items[Qty]) * 2\nsum")
+    #expect(
+      answers == [
+        SheetAnswer(text: "1", isFailure: false),
+        SheetAnswer(text: nil, isFailure: false),
+        SheetAnswer(text: nil, isFailure: false),
+        SheetAnswer(text: nil, isFailure: false),
+        SheetAnswer(text: "10", isFailure: false),
+        SheetAnswer(text: "10", isFailure: false),
+      ])
+  }
 }

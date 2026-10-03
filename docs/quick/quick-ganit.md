@@ -38,6 +38,12 @@ opens Quick Ganit instead of a sheet.
 - **Keep as Sheet** (⌘S, or the title-bar button) saves the buffer as a new
   library sheet, opens it in a workspace window, and activates Ganit. The
   buffer is then emptied and the panel hides.
+- Tables require a workspace sheet. Quick Ganit preserves a pasted
+  [table block](../storage/table-blocks.md) byte for byte, including malformed
+  source. It does not calculate table cells or include them in aggregates.
+  The first block line shows an explanation and identifies Keep as Sheet.
+  A line that reads the table also fails with this explanation. Keep as Sheet
+  preserves the complete source.
 
 ## Keeping the buffer
 

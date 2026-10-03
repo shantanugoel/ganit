@@ -185,11 +185,12 @@ extension TableSourceDocument {
   /// `lineEnding`. Keys use a fixed order and identities are interned in
   /// first-use order, so equal models always produce equal bytes.
   static func canonicalBlock(
-    for table: TableModel, lineEnding: LineTerminator = .lineFeed
+    for table: TableModel, lineEnding: LineTerminator = .lineFeed, identityOrder: [UUID] = []
   ) throws -> String {
     try table.validate()
-    var ids: [UUID] = []
-    var pointers: [UUID: Int] = [:]
+    guard Set(identityOrder).count == identityOrder.count else { throw TableCodecError.stalePatch }
+    var ids = identityOrder
+    var pointers = Dictionary(uniqueKeysWithValues: ids.enumerated().map { ($1, $0) })
     func pointer(_ uuid: UUID) -> String {
       if let index = pointers[uuid] { return String(index) }
       pointers[uuid] = ids.count
@@ -279,7 +280,8 @@ extension TableSourceDocument {
     }
     // Every pointer above is assigned before the dictionary is spelled.
     let payload =
-      "{\"ids\":" + list(ids.map { TableJSON.quoted(TableID($0).string) }) + ",\"t\":0,\"n\":"
+      "{\"ids\":" + list(ids.map { TableJSON.quoted(TableID($0).string) }) + ",\"t\":"
+      + pointer(table.id.uuid) + ",\"n\":"
       + TableJSON.quoted(table.name) + ",\"c\":" + list(columns) + ",\"r\":"
       + list(table.rows.map { pointer($0.uuid) }) + ",\"x\":" + list(cells) + ",\"b\":"
       + list(ledger) + "}"

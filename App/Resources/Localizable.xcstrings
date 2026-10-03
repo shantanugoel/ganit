@@ -2080,6 +2080,91 @@
           }
         }
       }
+    },
+    "interpretation.errorTable" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Table" } }
+      }
+    },
+    "table.undo.insertTable" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Insert Table" } }
+      }
+    },
+    "table.undo.deleteTable" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete Table" } }
+      }
+    },
+    "table.undo.duplicateTable" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Duplicate Table" } }
+      }
+    },
+    "table.undo.insertRows" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Insert Rows" } }
+      }
+    },
+    "table.undo.deleteRows" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete Rows" } }
+      }
+    },
+    "table.undo.insertColumn" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Insert Column" } }
+      }
+    },
+    "table.undo.deleteColumns" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete Columns" } }
+      }
+    },
+    "table.undo.renameTable" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Rename Table" } }
+      }
+    },
+    "table.undo.renameColumn" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Rename Column" } }
+      }
+    },
+    "table.undo.editCell" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Edit Cell" } }
+      }
+    },
+    "table.undo.columnRule" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Change Column Formula" } }
+      }
+    },
+    "table.undo.columnTotal" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Change Total" } }
+      }
+    },
+    "table.undo.columnInput" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Change Column Input" } }
+      }
+    },
+    "table.undo.paste" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Paste" } }
+      }
+    },
+    "table.undo.fill" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Fill" } }
+      }
+    },
+    "table.undo.moveCells" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Move Cells" } }
+      }
     }
   },
   "version" : "1.0"

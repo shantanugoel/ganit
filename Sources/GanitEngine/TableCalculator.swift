@@ -464,9 +464,11 @@ private struct TableEarlierInputs: Equatable, Sendable {
   let provenance: [TableCellAddress: TableCellProvenance]
 }
 
-/// Compare captured closures iteratively, with a work cap. A very large
-/// closure graph simply disables reuse instead of recursively hashing it.
-private func sameScalarScope(_ lhs: TableFormulaScope, _ rhs: TableFormulaScope) -> Bool {
+/// Whether two captured inherited scopes are the same: variables, `@N`
+/// lines, rates, units, table lines, provenance and functions. Captured
+/// closures compare iteratively, with a work cap; a very large closure graph
+/// simply disables reuse instead of recursively hashing it.
+func sameScalarScope(_ lhs: TableFormulaScope, _ rhs: TableFormulaScope) -> Bool {
   guard lhs.inherited == rhs.inherited, lhs.lines == rhs.lines, lhs.rates == rhs.rates,
     lhs.units == rhs.units, lhs.tableLines == rhs.tableLines,
     lhs.variableProvenance == rhs.variableProvenance,
@@ -956,40 +958,7 @@ private struct TableCalculationWorker {
     guard let tableID = target.table, let model = models[tableID], let axes = axes[tableID] else {
       return nil
     }
-    // An unresolvable bound is a reference failure, never an empty range.
-    func interval<ID>(_ membership: TableMembership<ID>, positions: [ID: Int], ids: [ID]) -> [ID]? {
-      if case .interval(let first, let last) = membership,
-        let start = positions[first], let end = positions[last], start <= end
-      {
-        return Array(ids[start...end])
-      }
-      return nil
-    }
-    let rows: [RowID]
-    let columns: [ColumnID]
-    let allColumns = model.columns.map(\.id)
-    switch target {
-    case .rectangle(_, let r, let c):
-      guard let r = interval(r, positions: axes.rows, ids: model.rows),
-        let c = interval(c, positions: axes.columns, ids: allColumns)
-      else { return nil }
-      rows = r
-      columns = c
-    case .columns(_, let c):
-      guard let c = interval(c, positions: axes.columns, ids: allColumns) else { return nil }
-      rows = model.rows
-      columns = c
-    case .rows(_, let r):
-      guard let r = interval(r, positions: axes.rows, ids: model.rows) else { return nil }
-      rows = r
-      columns = allColumns
-    case .namedColumn(_, let c):
-      guard axes.columns[c] != nil else { return nil }
-      rows = model.rows
-      columns = [c]
-    default: return nil
-    }
-    return (tableID, rows, columns)
+    return tableMembership(of: target, in: model, axes: axes)
   }
 
   private mutating func evaluate(
@@ -1356,44 +1325,11 @@ private struct TableCalculationWorker {
     return values
   }
 
-  /// An empty `sum` is `0` unless its value columns declare a typed default:
-  /// then the shared default's additive zero (`0 USD`, `0 m`), or none when
-  /// the defaults disagree or the unit has no additive zero (a temperature).
   private func typedZero(table: TableID, columns: [ColumnID]) -> EngineValue? {
     guard let model = models[table], let axes = axes[table] else { return nil }
-    // A unit default takes precedence over a currency, as for literals.
-    struct Default: Hashable {
-      let suffix: String
-      let unit: Bool
-    }
-    var defaults = Set<Default?>()
-    for column in columns {
-      guard let position = axes.columns[column] else { return nil }
-      let declared = model.columns[position]
-      // Text columns never contribute a scalar, so they declare no zero.
-      guard declared.input == .value else { continue }
-      defaults.insert(
-        declared.unit.map { Default(suffix: $0, unit: true) }
-          ?? declared.currency.map { Default(suffix: $0, unit: false) })
-    }
-    guard defaults.count <= 1 else { return nil }
-    guard let only = defaults.first else { return .number(.integer(IntegerValue(0))) }
-    guard let declared = only else { return .number(.integer(IntegerValue(0))) }
-    let (suffix, unit) = (declared.suffix, declared.unit)
-    let source = "0 " + suffix
-    guard let expression = engine.parse(source, context: context).expression else { return nil }
-    switch (unit, expression) {
-    case (true, .quantity), (true, .period), (false, .money): break
-    default: return nil
-    }
-    let evaluation = engine.evaluate(
-      expression, context: context, variables: [:], lines: LineOutcomes(),
+    return tableTypedZero(
+      model, axes: axes, columns: columns, engine: engine, context: context,
       scalarBudget: scalarBudget)
-    switch evaluation.result {
-    case .value(.quantity(let quantity)) where quantity.kind == .absolute: return nil
-    case .value(let value): return value
-    default: return nil
-    }
   }
 
   private mutating func literal(_ source: String, column: TableColumn, address: TableCellAddress)
@@ -1743,5 +1679,89 @@ extension Expression {
       return range.text(in: source)?.first != "(" && value.isTableLiteral(in: source)
     default: return false
     }
+  }
+}
+
+/// The data rows and columns a range target covers in `model`, in order, or
+/// `nil` when a bound no longer resolves: never an empty range.
+func tableMembership(of target: TableReferenceTarget, in model: TableModel, axes: TableAxes)
+  -> (table: TableID, rows: [RowID], columns: [ColumnID])?
+{
+  let tableID = model.id
+  // An unresolvable bound is a reference failure, never an empty range.
+  func interval<ID>(_ membership: TableMembership<ID>, positions: [ID: Int], ids: [ID]) -> [ID]? {
+    if case .interval(let first, let last) = membership,
+      let start = positions[first], let end = positions[last], start <= end
+    {
+      return Array(ids[start...end])
+    }
+    return nil
+  }
+  let rows: [RowID]
+  let columns: [ColumnID]
+  let allColumns = model.columns.map(\.id)
+  switch target {
+  case .rectangle(_, let r, let c):
+    guard let r = interval(r, positions: axes.rows, ids: model.rows),
+      let c = interval(c, positions: axes.columns, ids: allColumns)
+    else { return nil }
+    rows = r
+    columns = c
+  case .columns(_, let c):
+    guard let c = interval(c, positions: axes.columns, ids: allColumns) else { return nil }
+    rows = model.rows
+    columns = c
+  case .rows(_, let r):
+    guard let r = interval(r, positions: axes.rows, ids: model.rows) else { return nil }
+    rows = r
+    columns = allColumns
+  case .namedColumn(_, let c):
+    guard axes.columns[c] != nil else { return nil }
+    rows = model.rows
+    columns = [c]
+  default: return nil
+  }
+  return (tableID, rows, columns)
+}
+
+/// An empty `sum` is `0` unless its value columns declare a typed default:
+/// then the shared default's additive zero (`0 USD`, `0 m`), or none when
+/// the defaults disagree or the unit has no additive zero (a temperature).
+func tableTypedZero(
+  _ model: TableModel, axes: TableAxes, columns: [ColumnID], engine: CalculationEngine,
+  context: EvaluationContext, scalarBudget: TableScalarBudget?
+) -> EngineValue? {
+  // A unit default takes precedence over a currency, as for literals.
+  struct Default: Hashable {
+    let suffix: String
+    let unit: Bool
+  }
+  var defaults = Set<Default?>()
+  for column in columns {
+    guard let position = axes.columns[column] else { return nil }
+    let declared = model.columns[position]
+    // Text columns never contribute a scalar, so they declare no zero.
+    guard declared.input == .value else { continue }
+    defaults.insert(
+      declared.unit.map { Default(suffix: $0, unit: true) }
+        ?? declared.currency.map { Default(suffix: $0, unit: false) })
+  }
+  guard defaults.count <= 1 else { return nil }
+  guard let only = defaults.first else { return .number(.integer(IntegerValue(0))) }
+  guard let declared = only else { return .number(.integer(IntegerValue(0))) }
+  let (suffix, unit) = (declared.suffix, declared.unit)
+  let source = "0 " + suffix
+  guard let expression = engine.parse(source, context: context).expression else { return nil }
+  switch (unit, expression) {
+  case (true, .quantity), (true, .period), (false, .money): break
+  default: return nil
+  }
+  let evaluation = engine.evaluate(
+    expression, context: context, variables: [:], lines: LineOutcomes(),
+    scalarBudget: scalarBudget)
+  switch evaluation.result {
+  case .value(.quantity(let quantity)) where quantity.kind == .absolute: return nil
+  case .value(let value): return value
+  default: return nil
   }
 }

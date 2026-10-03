@@ -145,9 +145,11 @@ public final class Workspace {
       return
     }
     if definitionsWindow == nil {
+      // Definitions declare names; a table there is diagnosed, not shared.
       let editor = SheetEditorViewController(
         text: store.load(),
-        context: try SheetPreferences.standard.evaluationContext(currencyRates: currencyRates)
+        context: try SheetPreferences.standard.evaluationContext(currencyRates: currencyRates),
+        surface: .definitions
       )
       editor.definitionsDidChange = { [weak self] definitions in
         self?.definitions = definitions

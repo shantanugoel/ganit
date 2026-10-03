@@ -1666,7 +1666,8 @@ final class SheetTextView: NSTextView {
       details: interpretation(target.line), fullPrecision: target.cell.fullPrecision,
       availableSize: window?.screen?.visibleFrame.size ?? NSScreen.main?.visibleFrame.size
         ?? NSSize(width: 800, height: 600), pasteboard: pasteboard,
-      onSelectLine: { [weak self] number in self?.selectErrorOrigin(line: number) }
+      onSelectLine: { [weak self] number in self?.selectErrorOrigin(line: number) },
+      onSelectRange: { [weak self] range in self?.selectErrorOrigin(range: range) }
     )
     popover.show(relativeTo: rect, of: self, preferredEdge: .maxY)
     interpretationPopover = popover
@@ -1676,10 +1677,17 @@ final class SheetTextView: NSTextView {
     let lines = lineStarts()
     guard lines.indices.contains(number - 1) else { return }
     let origin = lines[number - 1]
+    selectErrorOrigin(range: NSRange(location: origin.1, length: origin.2))
+  }
+
+  /// Selects an original failure's source, such as a table cell's record
+  /// inside its block, and shows it.
+  func selectErrorOrigin(range: NSRange) {
+    guard range.upperBound <= (string as NSString).length else { return }
     interpretationPopover?.close()
     selectedAnswer = nil
-    setSelectedRange(NSRange(location: origin.1, length: origin.2))
-    scrollRangeToVisible(selectedRange())
+    setSelectedRange(range)
+    scrollRangeToVisible(range)
     window?.makeFirstResponder(self)
   }
 

@@ -6,7 +6,7 @@ time) and source. Sheet files remain the only authority: the index can be
 deleted at any time without losing content.
 
 It uses the system SQLite library directly through a small adapter; there is no
-ORM. The table schema version is stored in `PRAGMA user_version` (currently 3).
+ORM. The table schema version is stored in `PRAGMA user_version` (currently 4).
 
 ## Health and rebuild
 
@@ -27,6 +27,11 @@ in the report's `unreadable`; their files are never modified by indexing.
 
 Search scans indexed rows rather than using SQLite full-text search, which is
 added only if profiling at the target library size shows the scan is too slow.
-Text is stored and read by byte length, so source containing any character,
-including NUL, is indexed intact. Sheets with [table blocks](table-blocks.md)
-are indexed as their exact source text, including the block payloads.
+The index uses byte lengths to store and read text, including NUL characters.
+The `source` column contains search text. Sheets without
+[table blocks](table-blocks.md) retain their exact source. In sheets with
+tables, prose lines remain exact. Each readable table contributes its name,
+headers, column formulas and cell sources. This text excludes identities,
+pointers, JSON keys and binding ledgers. Blocks with no readable table retain
+their raw source for search. Schema 4 introduced this search text. An index
+with another schema is rebuilt from the sheet files.

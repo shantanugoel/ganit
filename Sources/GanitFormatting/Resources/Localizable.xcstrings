@@ -327,6 +327,76 @@
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Refer to a result on a line above." } }
       }
     },
+    "error.evaluation.tableReference" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This table reference cannot be read." } }
+      }
+    },
+    "error.evaluation.tableReference.tableLine" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This line is part of a table, which has no line answer. Refer to the table by name, such as Items[Amount]." } }
+      }
+    },
+    "error.evaluation.tableReference.unknownTable" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "No table with this name is visible above this line." } }
+      }
+    },
+    "error.evaluation.tableReference.unknownColumn" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The table has no column with this name." } }
+      }
+    },
+    "error.evaluation.tableReference.outOfBounds" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This address is outside the table." } }
+      }
+    },
+    "error.evaluation.tableReference.malformed" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This table reference is not valid." } }
+      }
+    },
+    "error.evaluation.tableReference.notScalar" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This table reference is text, blank or a range, not a value." } }
+      }
+    },
+    "error.evaluation.tableReference.failedCell" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The referenced table cell has an error, so this cannot use it." } }
+      }
+    },
+    "error.evaluation.tableReference.unavailableTable" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The table could not be calculated, so this cannot use it." } }
+      }
+    },
+    "error.evaluation.tableReference.emptyRange" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The range has no values." } }
+      }
+    },
+    "error.evaluation.tableReference.definitions" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Definitions don't calculate tables, so no sheet reads this table. Move it to a sheet." } }
+      }
+    },
+    "error.evaluation.tableReference.expression" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "A table can't be answered as one expression. Open it in a Ganit sheet." } }
+      }
+    },
+    "error.evaluation.tableReference.quickGanit" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Quick Ganit doesn't calculate tables. Choose Keep as Sheet to work with this table in a sheet." } }
+      }
+    },
+    "error.evaluation.tableReference.unsupportedAggregation" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This aggregate does not apply to the range's values." } }
+      }
+    },
     "error.evaluation.unavailableReference" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "This refers to a result that has an error." } }

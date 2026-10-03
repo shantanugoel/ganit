@@ -396,7 +396,8 @@ struct QuickBufferTests {
 }
 
 /// Quick Ganit keeps pasted table blocks, valid or not, byte for byte in its
-/// buffer and when kept as a sheet, and never calculates their lines.
+/// buffer and when kept as a sheet, and never calculates them: each block's
+/// first line says so and points to Keep as Sheet, the way to a table.
 @MainActor
 @Suite
 struct QuickTableBlockTests {
@@ -432,7 +433,13 @@ struct QuickTableBlockTests {
     let lines = await controller.editor.exportedLines()
     let blocks = TableSourceDocument.blockLineRanges(in: SheetSource(text))
     #expect(blocks.count == 4)
-    #expect(blocks.joined().allSatisfy { lines[$0].answer == nil })
+    for block in blocks {
+      #expect(lines[block.lowerBound].status == .failure)
+      #expect(lines[block.lowerBound].answer?.contains("Keep as Sheet") == true)
+      #expect(block.dropFirst().allSatisfy { lines[$0].answer == nil })
+    }
+    #expect(
+      controller.editor.latestEvaluation?.tableResults.allSatisfy { !$0.isCalculated } == true)
     // Prose outside the blocks still calculates.
     #expect(lines[4].answer == "2")
     #expect(controller.editor.latestEvaluation?.tableDiagnostics.count == 3)

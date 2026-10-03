@@ -223,11 +223,12 @@ extension CalculationEngine {
   func parse(
     _ syntax: TableFormulaSyntax, context: EvaluationContext,
     operandKinds: [String: EngineValueKind], inheritedKinds: [String: EngineValueKind],
-    customFunctions: Set<String> = []
+    customFunctions: Set<String> = [], origin: SourceLocation = .start
   ) throws -> ParsingResult {
     try syntax.parse(
       context: context, operandKinds: operandKinds, inheritedKinds: inheritedKinds,
-      customFunctions: customFunctions, catalog: unitCatalog, limits: syntaxLimits)
+      customFunctions: customFunctions, catalog: unitCatalog, limits: syntaxLimits,
+      origin: origin)
   }
 
   /// Range reductions reuse the ordinary aggregate arithmetic and this

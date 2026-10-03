@@ -1,15 +1,15 @@
 import Foundation
 
-enum TableIdentityKind: Sendable {}
-enum RowIdentityKind: Sendable {}
-enum ColumnIdentityKind: Sendable {}
-enum BindingIdentityKind: Sendable {}
+public enum TableIdentityKind: Sendable {}
+public enum RowIdentityKind: Sendable {}
+public enum ColumnIdentityKind: Sendable {}
+public enum BindingIdentityKind: Sendable {}
 
 /// A durable identity. It is a UUID, never a dictionary position, physical
 /// row index or session `LineID`, and is minted only by deliberate creation,
 /// duplication or repair, never while parsing.
-struct TableIdentity<Kind: Sendable>: Hashable, Sendable {
-  let uuid: UUID
+public struct TableIdentity<Kind: Sendable>: Hashable, Sendable {
+  public let uuid: UUID
   init(_ uuid: UUID) { self.uuid = uuid }
   static func mint() -> Self { Self(UUID()) }
 
@@ -32,14 +32,14 @@ struct TableIdentity<Kind: Sendable>: Hashable, Sendable {
   /// The canonical lowercase spelling.
   var string: String { uuid.uuidString.lowercased() }
 }
-typealias TableID = TableIdentity<TableIdentityKind>
-typealias RowID = TableIdentity<RowIdentityKind>
-typealias ColumnID = TableIdentity<ColumnIdentityKind>
+public typealias TableID = TableIdentity<TableIdentityKind>
+public typealias RowID = TableIdentity<RowIdentityKind>
+public typealias ColumnID = TableIdentity<ColumnIdentityKind>
 typealias TableBindingID = TableIdentity<BindingIdentityKind>
 
 /// How a column reads literal (non-formula) input. A leading `=` always
 /// marks a formula, whatever the policy.
-enum TableInputPolicy: String, Hashable, Sendable {
+package enum TableInputPolicy: String, Hashable, Sendable {
   /// Complete supported literals: numbers, percentages, money, quantities
   /// and temporal values.
   case value
@@ -48,7 +48,7 @@ enum TableInputPolicy: String, Hashable, Sendable {
 }
 
 /// The totals-footer summary for one column. The footer reads data rows only.
-enum TableTotal: String, Hashable, Sendable, CaseIterable {
+package enum TableTotal: String, Hashable, Sendable, CaseIterable {
   case sum, average, median, min, max, count
 }
 

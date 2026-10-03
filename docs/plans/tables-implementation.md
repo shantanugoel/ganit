@@ -4,10 +4,11 @@ Date: 2026-10-01; updated 2026-10-03. Status: M0 feasibility complete with
 inline preview/Open Table selected; architectural decisions resolved in ADRs
 0016/0017. M1 (source model, identity and safe storage) is complete on branch
 `tables`: table block format v1 and metadata/manifest schema 2 are frozen with
-fixtures, and its exit evidence passes. M2 is complete (see durable status and
-[engine evidence](../design/tables/m2-engine-evidence.md)). The standalone table
-calculator is implemented; workspace blocks remain quarantined until M3 fold
-integration. This plan refines the [investigation](../design/tables-investigation.md)
+fixtures, and its exit evidence passes. M2 is complete (see the execution record and
+[engine evidence](../design/tables/m2-engine-evidence.md)). M3 is complete. It implements structural
+source edits and table calculation in workspace sheets. The M3 acceptance report
+records the [review and test results](../design/tables/m3-integration-evidence.md).
+Expanded table editing remains M4 work. This plan refines the [investigation](../design/tables-investigation.md)
 and governs its unresolved details for this feature. It does not replace
 accepted ADRs; M0 decisions and evidence are linked below.
 
@@ -419,19 +420,19 @@ an edit invalidates the necessary dependents without reparsing unrelated cells.
 
 ### M3 — Structural edits and mixed-sheet evaluation
 
-- [ ] Implement pure source transformations for creation, insertion/deletion,
+- [x] Implement pure source transformations for creation, insertion/deletion,
       rename, formula copy/fill/move, table/sheet duplication and column rules.
       Persist automatic rewrites and broken markers in the triggering edit.
-- [ ] Apply every operation in the structural-edit contract, including range
+- [x] Apply every operation in the structural-edit contract, including range
       endpoint deletion and copy-lock behavior. Reject ambiguous partial moves
       rather than guessing; basic contiguous rectangular moves are sufficient.
-- [ ] Integrate table evaluation into the existing fold/cache, keeping inherited
+- [x] Integrate table evaluation into the existing fold/cache, keeping inherited
       definitions, dividers, physical line references and aggregate boundaries.
-- [ ] Extend result snapshots/scheduler and failure navigation; check ordinary
+- [x] Extend result snapshots/scheduler and failure navigation; check ordinary
       line-reference renumbering never scans table formula or identity text as
       prose. Table formulas' deliberate `@N` reads of earlier prose still follow
       their targets through the unified transformation path.
-- [ ] Verify definitions/Quick boundaries, assistant suppression, title
+- [x] Verify definitions/Quick boundaries, assistant suppression, title
       derivation and search. A table-first sheet should be titled from its
       display name, not an identity/codec record.
 
@@ -574,7 +575,7 @@ unverified acceptance result has been converted into a pass.
 
 Updated 2026-10-03. Worktree `/Users/shantanugoel/.codex/worktrees/tables-m0/ganit`,
 branch `tables`; clean starting HEAD `4a1e765`. This execution completed M2
-only; M3 has not begun. All M2 exit criteria have recorded
+only. The M3 execution record below gives the current status. All M2 exit criteria have recorded
 [engine acceptance evidence](../design/tables/m2-engine-evidence.md).
 
 - Task 1 (scoped grammar/bindings/operands): implement → independent review →
@@ -677,30 +678,83 @@ only; M3 has not begun. All M2 exit criteria have recorded
   review and verification use separate subagents. Resolve findings and rerun
   affected checks before each task's commit. No compatibility implementation.
 
-## Next implementation task and agent handoff
+## Next implementation task and handoff
 
 Use branch `tables` in `/Users/shantanugoel/.codex/worktrees/tables-m0/ganit`.
-M1 is complete (commits 5dc34c3..ac67993 plus the exit record). Start
-**M3 — Structural edits and mixed-sheet evaluation** on the next execution,
-then M4–M6 in order. M2 is complete; its
-[acceptance report](../design/tables/m2-engine-evidence.md) records the calculator
-reuse, full-sheet population and scheduler integration requirements. Read this plan, accepted ADRs [0016](../adr/0016-table-semantics-and-editor-ownership.md)
-and [0017](../adr/0017-table-source-and-storage.md) with their amendments,
-[table blocks](../storage/table-blocks.md) (frozen v1: consume
-`TableSourceDocument`/`TableModel`, patch spans with `TableSourcePatch`, never
-re-encode untouched blocks or mint IDs outside explicit creation, duplication or
-repair), [fault tolerance](../storage/fault-tolerance.md), and the linked
-[M0 evidence](../../Spikes/TablesM0/evidence.md). The prototypes are disposable
-proof, not shipping implementation. Keep work in this worktree, preserve
-milestone boundaries and enforce the native M4/M5 and M6 release gates.
-Defaults are resolved: inline preview/Open Table; shared canonical source/Undo;
-persistent identity and source-validated ledger; current metadata/manifest
-schema 2 with atomic storage and no backward compatibility; provisional
-4,000-cell ceiling plus the existing 1 MiB source limit.
+M1, M2 and M3 are complete. Start **M4 — Expanded native table editing** next.
+Then implement M5 and M6 in order.
 
-Carried forward: reference visibility and operand/coordinate agreement belong
-to the M2 calculator; table-aware titles and ID reminting on table or sheet copy
-belong to M3; the Writing Tools policy for calculation source belongs to M5.
-Schema 2 and block quarantine are not behind a development flag, so merging
-this branch makes schema-1 libraries unsupported; decide the flag policy before
-merging to main or releasing.
+Read this plan, accepted ADRs [0016](../adr/0016-table-semantics-and-editor-ownership.md)
+and [0017](../adr/0017-table-source-and-storage.md), the frozen
+[table block format](../storage/table-blocks.md),
+[storage fault tolerance](../storage/fault-tolerance.md), and the
+[M3 acceptance report](../design/tables/m3-integration-evidence.md).
+Use `TableResultSnapshot` for result views. Use `SheetSourceCoordinator` for
+source edits and document Undo. Do not save a grid projection.
+
+The selected interface is an inline preview with Open Table. M4 must add
+expanded editing and a callback for committed evaluation results. M5 must add
+the inline preview, Find navigation, copy, state restoration, and the Writing
+Tools policy. Real IME, VoiceOver, layout and release checks remain required in
+M4, M5 and M6. M3 automated tests do not complete these checks.
+
+The current limits are 4,000 populated cells per sheet and 1 MiB of source.
+Keep metadata and manifest schema 2. Do not add support for previous schemas.
+Resolve the development flag policy before merge to `main` or release.
+
+## M3 execution record
+
+Updated 2026-10-03. Worktree:
+`/Users/shantanugoel/.codex/worktrees/tables-m0/ganit`; branch: `tables`.
+Starting commit: `4087b12`. The previous execution implemented all five tasks.
+It stopped before phase review, final tests, commit and push.
+
+- Task 1: pure source transformations are implemented. They support table
+  creation, row and column insertion and deletion, rename, copy, fill, move,
+  duplication, and column rules. Source patches preserve persistent bindings,
+  unknown fields, record order and unchanged bytes. Deleted targets remain
+  broken after coordinate reuse and reload.
+- Task 2: structural contract tests and storage tests are implemented. They
+  cover range boundaries, locking, empty tables, rule rebasing, overrides,
+  clipboard policy, TSV paste, Undo, redo, save and reload. The edit corpus
+  includes 12 seeded runs of 40 edits each.
+- Task 3: table calculation is integrated into the sheet evaluation pass.
+  Tables capture preceding definitions and visible tables. Dividers reset
+  table visibility. Table source lines have no scalar answer and separate
+  aggregate blocks. Qualified prose operands read exact table values.
+- Task 4: immutable table results, failure navigation and the source
+  coordinator are implemented. Table formulas follow deliberate `@N` reads
+  of prose through source patches. Each structural edit uses one document
+  Undo step. Tests cover selection restoration, automatic save, shared window
+  ownership, cancellation and clock recalculation.
+- Task 5: Definitions and Quick Ganit reject table calculation. Table errors
+  cannot cause assistant requests or kept answers. Titles use table names.
+  Search uses display text. Table deletion writes persistent broken markers
+  in dependent tables and prose.
+
+The takeover review found and corrected three integration defects:
+
+1. Duplicate Sheet did not call the source duplication operation. It now
+   creates new table, row, column and binding IDs, preserves internal
+   references, and transfers column widths to the new IDs. The original sheet
+   and malformed blocks remain unchanged.
+2. Table dependencies lost clock and exchange-rate provenance through
+   intermediate prose variables and functions. The evaluation pass now carries
+   provenance through variables, line references, aggregates and captured
+   functions before it captures the table scope.
+3. Table deletion did not persist fresh references without a saved binding
+   ledger. Deletion now binds these references in the preceding scope and
+   writes broken markers. It preserves unrelated source and ledger records.
+   Tests cover Delete Table, direct block deletion, reload and name reuse.
+
+The initial full suite passed 1,037 tests. Regression tests cover all three
+review corrections. The corruption drill now checks new copy IDs and exact
+preservation of the original source and malformed blocks. Frozen fixtures
+remain unchanged. See the acceptance report for final verification results.
+
+M3 exit: complete. Final verification passed 1,040 full-suite tests,
+54 affected and calculator-corpus sanitizer tests, and 420 optimized table
+tests. An earlier broad sanitizer run passed 427 tests. Formatting, package
+validation, release app build, bundle validation, command-line checks,
+document links and whitespace checks passed. The acceptance report records
+the log paths. M4, M5 and M6 native acceptance remains incomplete.

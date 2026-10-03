@@ -36,9 +36,12 @@ public final class QuickPanelController: NSWindowController, NSWindowDelegate {
     if startsEmpty {
       try? store?.clear()
     }
+    // A pasted table is kept but not calculated; its first line points to
+    // Keep as Sheet, which opens the buffer as a sheet.
     editor = SheetEditorViewController(
       text: startsEmpty ? "" : store?.load() ?? "",
-      context: context
+      context: context,
+      surface: .quickGanit
     )
     let panel = QuickPanel(
       contentRect: NSRect(x: 0, y: 0, width: 520, height: 220),

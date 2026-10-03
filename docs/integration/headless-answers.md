@@ -18,6 +18,11 @@ both answer exactly as a sheet displays it.
   instead of returning a guess or nothing.
 - Nothing is read or written outside the request, so no sheet, history, or
   clipboard is touched.
+- A request with a [table block](../storage/table-blocks.md) is not one
+  expression. Valid and malformed blocks produce a `tableReference` error.
+  The message directs the user to a sheet. The command line can calculate
+  tables from sheet input (`ganit < sheet`). It prints an empty line for each
+  table source line. Structured table output remains future work.
 
 Currency needs exchange rates. `ExpressionCalculation.usingStoredRates()` reads
 the snapshot the app last accepted from `RateSnapshotStore`, so a headless

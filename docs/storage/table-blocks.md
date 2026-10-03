@@ -60,15 +60,32 @@ limits) run on every evaluation, so an edit elsewhere can withhold or restore
 a projection. The editor commits only the newest evaluation, so a superseded
 generation never shows an older valid table after a newer invalid one.
 
-No automatic rewrite changes bytes inside a block. Line-reference renumbering
-skips lines that are in a block before or after the edit, and editor
-conveniences (completion, scrubbing, inserted lines and references, prefix
-toggles, reinterpretation) do not act on block lines; see the
-[text view](../editor/text-view.md#table-blocks). Explicit user edits, such
-as typing, pasting, deleting or Find and Replace, change exactly the bytes
-edited, and Undo restores them exactly.
-Deleting a closer extends the block to the next closer, or quarantines it
-through the end of the sheet; restoring the closer is the repair.
+Automatic rewrites do not read table source as prose. Editor conveniences
+also exclude block lines. See the [text view](../editor/text-view.md#table-blocks).
+Explicit user edits can change these bytes. Undo restores the earlier bytes.
+Ganit does not automatically format or repair malformed blocks.
+
+If the closer is deleted, the block extends to the next closer or the end of
+the sheet. Restore the closer to repair the block.
+
+Two automatic changes use source patches for valid tables:
+
+1. A formula's deliberate `@N` or `line N` read follows a moved prose target.
+   A deleted or ambiguous target becomes `@deleted` or `@split`. The owner's
+   `s` or `f`, the ledger fingerprint and subsequent binding spans change
+   together. The triggering edit and these patches share one Undo step.
+2. Delete Table (`TableSourceDocument.deleteTable`) removes the complete block.
+   Deletion of the block text has the same effect if the replacement does not
+   contain the table ID. References in other valid, unchanged tables become
+   deleted bindings. Their source operands become persistent broken markers.
+   Deleted ranges retain their original members. Prose references also become
+   broken markers. All changes share one Undo step.
+
+These changes exclude malformed blocks, edited blocks, text cells and headers.
+References to a deleted table cannot resolve to a new table with the same
+name. Deletion of only the closer or part of the payload does not delete the
+table identity. Dependent blocks have an `orphanTarget` diagnostic until repair
+or Undo restores the target.
 
 ## Payload JSON
 

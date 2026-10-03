@@ -90,7 +90,7 @@ struct LineReferenceRenumberingTests {
     for (range, replacement) in zip(ranges, replacements).reversed() {
       text.replaceCharacters(in: range, with: replacement)
     }
-    for edit in edits.reversed() { text.replaceCharacters(in: edit.range, with: edit.number) }
+    for edit in edits.reversed() { text.replaceCharacters(in: edit.range, with: edit.replacement) }
     return text as String
   }
 
@@ -153,7 +153,7 @@ struct LineReferenceRenumberingTests {
       replacing: range, in: source, with: replacement, configuration: .englishUnitedStates)
     let text = NSMutableString(string: source)
     text.replaceCharacters(in: range, with: replacement)
-    for edit in edits.reversed() { text.replaceCharacters(in: edit.range, with: edit.number) }
+    for edit in edits.reversed() { text.replaceCharacters(in: edit.range, with: edit.replacement) }
     return text as String
   }
 }

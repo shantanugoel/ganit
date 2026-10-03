@@ -5,6 +5,13 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Named calculation tables now calculate in workspace sheets. Formulas use
+  preceding definitions, and subsequent prose can read qualified table values.
+- Structural table edits preserve references through Undo, redo, save and
+  reload. Duplicate Sheet creates new table IDs and preserves column widths.
+  Definitions and Quick Ganit show an explicit message for table blocks.
+  Expanded editing and the inline preview remain in development.
+
 - Repeated and nested custom-function calls now share the caller’s expression
   operation limit, so calling a function cannot restart that limit.
 

@@ -14,7 +14,13 @@ collection's sheets, most recently modified first, with each title and a
 relative modification time, rewritten every minute while the window is open so
 it never says "1 second ago" an hour later. An empty list says why it is empty,
 such as `No sheets match “rent”`. Toolbar search narrows it to sheets whose title or
-source contains the text, ignoring case and diacritics.
+source contains the text, ignoring case and diacritics. A
+[table block](../storage/table-blocks.md) is searched as its table's name,
+headers, column formulas and cell text, never its identities or JSON; a block
+without a readable table is searched as its raw lines, which is how it is
+shown. A sheet not renamed is titled by its first non-blank line, where a
+table block counts as its table's name and a block without a readable table
+is skipped, so a title is never block syntax.
 
 All Sheets, Recent, Favorites, and folders list only active sheets; Archive and
 Trash list archived and trashed sheets. Selecting a sheet saves the open sheet
@@ -52,6 +58,11 @@ selected sheet, and appear in both the File menu and context menus.
 | Delete Immediately…, Empty Trash… | After confirmation, deletes trashed sheets with their backups |
 | Rename Folder…, Delete Folder | Deleting a folder moves its sheets out of it |
 | Search Sheets ⇧⌘F | Focuses the toolbar search field |
+
+Duplicate creates new IDs for each valid table, row, column and reference
+binding. Internal references point to the copied tables. Column widths use the
+new table and column IDs. The original sheet does not change. Malformed table
+blocks keep their exact source bytes.
 
 Organizing a sheet changes only its metadata; its source and modification time
 are unchanged. Renaming sets `hasCustomTitle`, so saves keep the name.

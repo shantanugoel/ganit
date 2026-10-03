@@ -325,9 +325,17 @@ public final class SheetLibrary {
   /// The title of a sheet not named by the user: its first non-blank line,
   /// without a leading U+FEFF or a heading's `#`, cut at a character
   /// boundary to at most 200 characters and 1,024 UTF-8 bytes, without
-  /// trailing spaces.
+  /// trailing spaces. A table block counts as its table's name; a block
+  /// without a readable table is skipped, so no title is block syntax.
   private func derivedTitle(of source: String) -> String {
-    let line = SheetSource(source).lines.lazy.compactMap(title(of:)).first ?? ""
+    let line =
+      TableSourceDocument.displayLines(of: SheetSource(source)).lazy.compactMap { line in
+        switch line {
+        case .prose(let text): return self.title(of: text)
+        case .table(let name, _): return name
+        case .quarantined: return nil
+        }
+      }.first ?? ""
     var title = ""
     var bytes = 0
     for character in line.prefix(Self.maximumDerivedTitleCharacters) {
@@ -428,8 +436,22 @@ public final class SheetLibrary {
       preferences: sheet.metadata.preferences
     )
     copy.hasCustomTitle = sheet.metadata.hasCustomTitle
-    copy.tables = sheet.metadata.tables
-    return try save(source: sheet.source, metadata: copy)
+    let edit = try TableSourceDocument(sheet.source).duplicateSheet()
+    let source = try edit.applying(to: sheet.source)
+    // Widths follow the reminted tables and columns. Quarantined blocks
+    // remain byte for byte and retain their presentation identities.
+    for (table, presentation) in sheet.metadata.tables.byTableID {
+      let copiedTable =
+        UUID(uuidString: table).flatMap { edit.copiedIdentities[$0] }
+        .map { $0.uuidString.lowercased() } ?? table
+      for (column, width) in presentation.columnWidths {
+        let copiedColumn =
+          UUID(uuidString: column).flatMap { edit.copiedIdentities[$0] }
+          .map { $0.uuidString.lowercased() } ?? column
+        copy.tables.setWidth(width, column: copiedColumn, table: copiedTable)
+      }
+    }
+    return try save(source: source, metadata: copy)
   }
 
   /// Deletes a sheet's files, index entry, and backups. This cannot be undone,
@@ -533,11 +555,11 @@ public final class SheetLibrary {
       .sorted()
   }
 
-  private func title(of line: SheetLine) -> String? {
+  private func title(of text: String) -> String? {
     // A leading U+FEFF is invisible; it hides neither a heading nor a blank.
     let line =
-      line.text.unicodeScalars.first == "\u{FEFF}"
-      ? String(line.text.unicodeScalars.dropFirst()) : line.text
+      text.unicodeScalars.first == "\u{FEFF}"
+      ? String(text.unicodeScalars.dropFirst()) : text
     let text: Substring?
     switch LineSyntax(line) {
     case .blank:

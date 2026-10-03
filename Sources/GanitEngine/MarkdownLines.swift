@@ -1,12 +1,15 @@
 /// How a markdown sheet decides whether a line is a calculation or a paragraph.
 enum MarkdownLines {
   /// Turns a line that is only words into a paragraph, and skips leading
-  /// words so `The cost is 100 + 50` still calculates.
+  /// words so `The cost is 100 + 50` still calculates. In a sheet with
+  /// tables, a well-formed expression with a qualified table operand, such
+  /// as `sum(Items[Amount])`, calculates as it does in a regular sheet.
   static func adjusted(
     _ syntax: LineSyntax,
     text: String,
     engine: CalculationEngine,
-    context: EvaluationContext
+    context: EvaluationContext,
+    tableOperands: Bool = false
   ) -> LineSyntax {
     guard
       case .calculation(let label, let name, let expression?, let comment) = syntax
@@ -27,6 +30,11 @@ enum MarkdownLines {
       engine: engine,
       context: context
     ) {
+      return .calculation(label: label, name: name, expression: kept, comment: comment)
+    }
+    if tableOperands,
+      let kept = tableCalculationRange(in: slice, origin: origin, engine: engine, context: context)
+    {
       return .calculation(label: label, name: name, expression: kept, comment: comment)
     }
     // A spaced operator is arithmetic, not prose, so a mistyped calculation
@@ -94,6 +102,25 @@ enum MarkdownLines {
       }
     }
     return nil
+  }
+
+  /// The range of an expression that parses once its qualified table
+  /// operands are read as values, or `nil`.
+  private static func tableCalculationRange(
+    in source: String,
+    origin: SourceLocation,
+    engine: CalculationEngine,
+    context: EvaluationContext
+  ) -> SourceRange? {
+    guard source.utf8.contains(where: { $0 == UInt8(ascii: "[") || $0 == UInt8(ascii: "!") }),
+      case .success(let syntax)? = TableProseOperands.discover(source, context: context),
+      let parsing = try? engine.parse(
+        syntax, context: context, operandKinds: [:], inheritedKinds: [:], origin: origin),
+      parsing.diagnostics.isEmpty
+    else {
+      return nil
+    }
+    return parsing.expression?.range
   }
 
   private static func isBareProse(_ expression: Expression) -> Bool {

@@ -76,9 +76,20 @@ public struct ExpressionCalculation: Sendable {
     }
   }
 
-  /// The answer to `source`, formatted as a sheet would display it.
+  /// The answer to `source`, formatted as a sheet would display it. Source
+  /// holding a table block, valid or not, is not one expression: it fails
+  /// with an explanation instead of reading the block's lines as one.
   public func answer(for source: String, now: Date = Date()) throws -> String {
     let context = try preferences.evaluationContext(now: now, currencyRates: rates)
+    if source.utf8.count <= Self.maximumSourceUTF8Length,
+      TableSourceDocument.containsBlock(in: SheetSource(source))
+    {
+      throw UnevaluableExpression(
+        diagnostics: [
+          DiagnosticFormatter(context: context).format(
+            EngineError(code: .tableReference, context: .tableReference(.expression)))
+        ])
+    }
     let engine = CalculationEngine(
       syntaxLimits: SyntaxLimits(
         maximumSourceUTF8Length: Self.maximumSourceUTF8Length

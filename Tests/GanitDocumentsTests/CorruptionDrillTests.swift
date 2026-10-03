@@ -95,9 +95,9 @@ final class CorruptionDrillTests {
   /// Sheets whose metadata is quarantined and rebuilt, with their titles.
   static let rebuilt: [UUID: String] = [
     missing: "Missing metadata drill",
-    // Titles follow the first non-blank line, here a table opener; table-
-    // aware titles are M3 work.
-    truncated: "@ganit-table 1",
+    // Titles follow the first non-blank line; a table block counts as its
+    // table's name, never its opener or payload.
+    truncated: "Rates",
     garbage: "Garbage metadata drill",
     invalidTables: "Invalid tables drill",
     copied: "Copied metadata drill",
@@ -269,7 +269,20 @@ final class CorruptionDrillTests {
     let favorite = try library.update(Self.garbage) { $0.isFavorite = true }
     #expect(favorite.isFavorite && favorite.title == "Garbage metadata drill")
     let duplicate = try library.duplicate(Self.copied)
-    #expect(try library.store.load(id: duplicate.id).source == Self.source(Self.copied))
+    let duplicateSource = try library.store.load(id: duplicate.id).source
+    let originalDocument = TableSourceDocument(try Self.source(Self.copied))
+    let duplicateDocument = TableSourceDocument(duplicateSource)
+    #expect(duplicateDocument.blocks.count == originalDocument.blocks.count)
+    for (original, copy) in zip(originalDocument.blocks, duplicateDocument.blocks) {
+      if let table = original.table {
+        let copiedTable = try #require(copy.table)
+        #expect(copiedTable.id != table.id && copiedTable.name == table.name)
+      } else {
+        #expect(Array(copy.rawSource.utf8) == Array(original.rawSource.utf8))
+      }
+    }
+    // Duplication remints valid tables; recovery leaves the original intact.
+    #expect(try library.store.load(id: Self.copied).source == Self.source(Self.copied))
     let package = root.appending(path: "Truncated.ganit")
     try library.exportSheet(Self.truncated, to: package, quickLook: nil)
     let exported = try SheetExchange.read(from: package)

@@ -111,6 +111,16 @@ struct TableSourceBlock: Equatable, Sendable {
 /// Segmentation runs before ordinary or Markdown classification. Every block,
 /// valid or not, occupies physical lines with no scalar answers. A sheet in
 /// which no line starts with `@ganit-table` does no further table work.
+/// A sheet line, or a whole table block, as a reader sees it.
+package enum SheetDisplayLine: Equatable, Sendable {
+  case prose(String)
+  /// A table's name, then its headers, column formulas and populated cell
+  /// sources, in grid order.
+  case table(name: String, text: [String])
+  /// A block with no decodable table, shown as its raw lines.
+  case quarantined([String])
+}
+
 public struct TableSourceDocument: Sendable {
   /// The only supported block version. Other versions are diagnosed and
   /// quarantined; no earlier version is read.
@@ -135,13 +145,17 @@ public struct TableSourceDocument: Sendable {
   /// The source text, rebuilt on demand.
   var source: String { lines.map { $0.text + ($0.terminator?.rawValue ?? "") }.joined() }
 
-  init(_ text: String) {
+  package init(_ text: String) {
     self.init(SheetSource(text))
+  }
+
+  package init(_ sheet: SheetSource) {
+    self.init(sheet, reusing: [])
   }
 
   /// Segments `sheet`. A block whose bytes equal one of `previous` reuses
   /// its parse; byte comparison needs no copy of the block.
-  init(_ sheet: SheetSource, reusing previous: [TableSourceBlock] = []) {
+  init(_ sheet: SheetSource, reusing previous: [TableSourceBlock]) {
     let lines = sheet.lines
     self.lines = lines
     let spans = Self.blockLines(in: lines)
@@ -186,6 +200,50 @@ public struct TableSourceDocument: Sendable {
   /// source cheaply. An unterminated block runs to the last line.
   package static func blockLineRanges(in sheet: SheetSource) -> [Range<Int>] {
     blockLines(in: sheet.lines).map(\.lines)
+  }
+
+  /// Whether `sheet` holds a table block, valid or not, by scanning line
+  /// starts only.
+  public static func containsBlock(in sheet: SheetSource) -> Bool {
+    sheet.lines.contains { isOpener($0.text) }
+  }
+
+  /// `sheet` as a reader sees it, line by line, for titles and search: prose
+  /// as written, a block with a decodable table as its display text, and any
+  /// other block as its raw lines, which is how the editor shows it. Table
+  /// identities, pointers, JSON keys and the reference ledger are never
+  /// display text. A table-free sheet only has its line starts scanned.
+  package static func displayLines(of sheet: SheetSource) -> [SheetDisplayLine] {
+    let lines = sheet.lines
+    let spans = blockLines(in: lines)
+    guard !spans.isEmpty else { return lines.map { .prose($0.text) } }
+    let blocks = TableSourceDocument(sheet).blocks
+    var result: [SheetDisplayLine] = []
+    var index = 0
+    for block in blocks {
+      result += lines[index..<block.physicalLines.lowerBound].map { .prose($0.text) }
+      if let table = block.candidate {
+        // Cells in row-major order, as a grid reads.
+        let order = Dictionary(
+          table.rows.enumerated().map { ($1, $0) }, uniquingKeysWith: { first, _ in first })
+        let columns = Dictionary(
+          table.columns.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
+        let cells = table.cells.filter { !$0.source.isEmpty }.sorted {
+          (order[$0.row] ?? 0, columns[$0.column] ?? 0) < (
+            order[$1.row] ?? 0, columns[$1.column] ?? 0
+          )
+        }
+        result.append(
+          .table(
+            name: table.name,
+            text: table.columns.map(\.header) + table.columns.compactMap(\.rule)
+              + cells.map(\.source)))
+      } else {
+        result.append(.quarantined(lines[block.physicalLines].map(\.text)))
+      }
+      index = block.physicalLines.upperBound
+    }
+    return result + lines[index...].map { .prose($0.text) }
   }
 
   /// The physical lines of every block, valid or not, by scanning line starts

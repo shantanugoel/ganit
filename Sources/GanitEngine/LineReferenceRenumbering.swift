@@ -3,6 +3,14 @@ import Foundation
 /// Rewrites references to surviving lines and marks removed or ambiguous targets.
 /// The returned ranges are in the text after the user's edit. Only references
 /// surviving from the old source are rewritten; pasted references stay as written.
+///
+/// Deliberate `@N`/`line N` reads in a table's formulas follow their targets
+/// the same way, through the table transformation path, when the edit leaves
+/// the table's block untouched; the replacement is then a block patch rather
+/// than a number. An edit that removes a valid table's whole block deletes
+/// the table: references to it from other untouched tables and prose become
+/// broken markers, as `TableSourceDocument.deleteTable` writes them. Edits
+/// are in ascending, nonoverlapping order.
 public enum LineReferenceRenumbering {
   private enum Target {
     case line(Int)
@@ -12,7 +20,7 @@ public enum LineReferenceRenumbering {
   public static func edits(
     replacing range: NSRange, in old: String, with replacement: String,
     configuration: LexingConfiguration
-  ) -> [(range: NSRange, number: String)] {
+  ) -> [(range: NSRange, replacement: String)] {
     edits(replacing: [range], in: old, with: [replacement], configuration: configuration)
   }
 
@@ -21,7 +29,7 @@ public enum LineReferenceRenumbering {
   public static func edits(
     replacing ranges: [NSRange], in old: String, with replacements: [String],
     configuration: LexingConfiguration
-  ) -> [(range: NSRange, number: String)] {
+  ) -> [(range: NSRange, replacement: String)] {
     precondition(ranges.count == replacements.count)
     let changes = zip(ranges, replacements).sorted { $0.0.location < $1.0.location }
     let oldText = old as NSString
@@ -134,15 +142,17 @@ public enum LineReferenceRenumbering {
     // ends up in one after it. Text leaving a block (as when its opener is
     // deleted) is therefore not rewritten retroactively either; it keeps the
     // numbers it had while quarantined.
+    let oldBlocks = TableSourceDocument.blockLines(in: oldLines)
+    let newBlocks = TableSourceDocument.blockLines(in: newLines)
     var oldTableLines = IndexSet()
-    for span in TableSourceDocument.blockLines(in: oldLines) {
+    for span in oldBlocks {
       oldTableLines.insert(integersIn: span.lines)
     }
     var newTableLines = IndexSet()
-    for span in TableSourceDocument.blockLines(in: newLines) {
+    for span in newBlocks {
       newTableLines.insert(integersIn: span.lines)
     }
-    var edits: [(range: NSRange, number: String)] = []
+    var edits: [(range: NSRange, replacement: String)] = []
     for (index, line) in oldLines.enumerated() where !oldTableLines.contains(index) {
       guard case .calculation(_, _, let expression?, _) = LineSyntax(line.text),
         let expressionText = expression.text(in: line.text)
@@ -180,7 +190,137 @@ public enum LineReferenceRenumbering {
         }
       }
     }
+    guard !oldBlocks.isEmpty else { return edits }
+    // Prose lines no change touches and that stay prose may have operands
+    // rewritten.
+    func untouched(_ index: Int) -> Bool {
+      let start = oldStarts[index]
+      let end = start + oldLines[index].text.utf16.count
+      return changes.allSatisfy { range, _ in
+        range.length > 0
+          ? range.upperBound <= start || range.location >= end
+          : range.location < start || range.location > end
+      } && !newTableLines.contains(lineNumber(at: moved(start)) - 1)
+    }
+    edits += tableFormulaEdits(
+      old: old, lines: oldLines, starts: oldStarts, blocks: oldBlocks, newBlocks: newBlocks,
+      newStarts: newStarts, changes: changes, moved: moved, configuration: configuration,
+      untouchedProse: untouched
+    ) { number in
+      guard number >= 1, number <= targets.count else { return nil }
+      switch targets[number - 1] {
+      case .line(let updated) where updated != number: return .number(updated)
+      case .broken(let reason): return .marker("@" + reason.rawValue)
+      default: return nil
+      }
+    }
+    return edits.sorted { $0.range.location < $1.range.location }
+  }
+
+  /// Formula rewrites in every valid block the edit leaves byte for byte:
+  /// no change touches it and the same block starts at its moved position.
+  /// A cheap scan skips blocks without line reads when no table was deleted.
+  /// Deletion checks every untouched block, including fresh formulas without
+  /// saved bindings. A valid table whose whole block one
+  /// change removes, without writing its identity back, is deleted: its
+  /// readers in untouched blocks and untouched prose lines break.
+  private static func tableFormulaEdits(
+    old: String, lines: [SheetLine], starts: [Int],
+    blocks: [(lines: Range<Int>, terminated: Bool)],
+    newBlocks: [(lines: Range<Int>, terminated: Bool)], newStarts: [Int],
+    changes: [(NSRange, String)], moved: (Int) -> Int, configuration: LexingConfiguration,
+    untouchedProse: (Int) -> Bool, rewrite: (Int) -> LineReferenceRewrite?
+  ) -> [(range: NSRange, replacement: String)] {
+    func utf16Range(_ span: Range<Int>) -> NSRange {
+      let last = lines[span.upperBound - 1]
+      let end =
+        starts[span.upperBound - 1] + last.text.utf16.count
+        + (last.terminator?.rawValue.utf16.count ?? 0)
+      return NSRange(location: starts[span.lowerBound], length: end - starts[span.lowerBound])
+    }
+    // Blocks whose opener through closer text one change replaces.
+    var removing: [Int: String] = [:]
+    for (index, span) in blocks.enumerated() where span.terminated {
+      let start = starts[span.lines.lowerBound]
+      let end =
+        starts[span.lines.upperBound - 1] + lines[span.lines.upperBound - 1].text.utf16.count
+      if let change = changes.first(where: { $0.0.location <= start && $0.0.upperBound >= end }) {
+        removing[index] = change.1
+      }
+    }
+    var document: TableSourceDocument?
+    var removed: [TableID: TableModel] = [:]
+    if !removing.isEmpty {
+      let decoded = TableSourceDocument(old)
+      document = decoded
+      if decoded.blocks.count == blocks.count {
+        for (index, replacement) in removing {
+          // Text that writes the identity back, such as the same block
+          // pasted over itself, keeps the table.
+          guard let table = decoded.blocks[index].table,
+            !replacement.contains(table.id.string)
+          else { continue }
+          removed[table.id] = table
+        }
+      }
+    }
+    let newSpans = Set(newBlocks.map { [newStarts[$0.lines.lowerBound], $0.lines.count] })
+    var candidates = Set<Int>()
+    for (index, span) in blocks.enumerated() where span.terminated {
+      let range = utf16Range(span.lines)
+      guard
+        changes.allSatisfy({ change, _ in
+          change.length > 0
+            ? change.upperBound <= range.location || change.location >= range.upperBound
+            : change.location <= range.location || change.location >= range.upperBound
+        }), newSpans.contains([moved(range.location), span.lines.count]),
+        !removed.isEmpty || lines[span.lines.dropFirst()].contains(where: { mayReadLines($0.text) })
+      else { continue }
+      candidates.insert(index)
+    }
+    var edits: [(range: NSRange, replacement: String)] = []
+    if !removed.isEmpty, let document {
+      for (line, range, marker) in document.proseBreaks(
+        removed: removed, configuration: configuration, skips: { !untouchedProse($0) })
+      {
+        let text = lines[line].text
+        let lower = starts[line] + utf16Offset(range.lowerBound, in: text)
+        let upper = starts[line] + utf16Offset(range.upperBound, in: text)
+        edits.append((NSRange(location: moved(lower), length: upper - lower), marker))
+      }
+    }
+    guard !candidates.isEmpty else { return edits }
+    let decoded = document ?? TableSourceDocument(old)
+    guard decoded.blocks.count == blocks.count else { return edits }
+    for (index, patches) in decoded.followingLineReferences(
+      configuration: configuration, includes: candidates.contains, removed: removed,
+      rewrite: rewrite)
+    {
+      let block = decoded.blocks[index]
+      let start = utf16Range(blocks[index].lines).location
+      let shift = moved(start) - start
+      let raw = block.rawSource.utf8
+      func utf16Offset(_ utf8: Int) -> Int {
+        String(decoding: raw.prefix(utf8 - block.utf8Range.lowerBound), as: UTF8.self).utf16.count
+      }
+      for patch in patches {
+        let lower = utf16Offset(patch.utf8Range.lowerBound)
+        let upper = utf16Offset(patch.utf8Range.upperBound)
+        edits.append(
+          (NSRange(location: start + shift + lower, length: upper - lower), patch.replacement))
+      }
+    }
     return edits
+  }
+
+  /// Whether a block line could hold `@N` or `line N`.
+  private static func mayReadLines(_ text: String) -> Bool {
+    var previous: UInt8 = 0
+    for byte in text.utf8 {
+      if previous == UInt8(ascii: "@"), (48...57).contains(byte) { return true }
+      previous = byte
+    }
+    return text.contains("line")
   }
 
   private static func hasNewline(_ text: String) -> Bool {

@@ -66,7 +66,13 @@ public final class SheetEditorViewController: NSViewController {
   let summaryBar = SelectionSummaryBar()
   private let sheetTextView = SheetTextView(usingTextLayoutManager: true)
   private let storageObserver = StorageObserver()
+  /// Applies edits that are not typed, such as structural table edits,
+  /// through the same source, Undo, rewrite, autosave and evaluation path.
+  private(set) lazy var sourceCoordinator = SheetSourceCoordinator(
+    textView: sheetTextView, undoManager: documentUndoManager)
   private(set) var scheduler: SheetEvaluationScheduler?
+  /// How this sheet reads numbers, which line references are lexed with.
+  var lexingConfiguration: LexingConfiguration { context.lexingConfiguration }
   private var resultFormatter: ResultFormatter
   /// Writes values to fewer digits for an answer column too narrow for them.
   private var compactFormatter: ResultFormatter
@@ -123,10 +129,14 @@ public final class SheetEditorViewController: NSViewController {
   /// answer's format, so they can be saved with the sheet.
   public var displayOptionsDidChange: ((DisplayOptions) -> Void)?
 
+  /// `surface` is where the sheet is shown: off the workspace, as in the
+  /// definitions sheet and Quick Ganit, its tables are kept but never
+  /// calculated, and each block's first line says why.
   public init(
     text: String = "",
     context: EvaluationContext,
-    display: DisplayOptions = .standard
+    display: DisplayOptions = .standard,
+    surface: SheetSurface = .workspace
   ) {
     self.context = context.with(
       dollarCurrency: display.dollarCurrency, isMarkdownMode: display.writesAnswersInline,
@@ -250,7 +260,7 @@ public final class SheetEditorViewController: NSViewController {
       pendingAnswerDraw = nil
       editToAnswerHandler?(interval.end())
     }
-    scheduler = SheetEvaluationScheduler(context: context) {
+    scheduler = SheetEvaluationScheduler(context: context, surface: surface) {
       [weak self] snapshot, evaluation, editToAnswer in
       guard let self else {
         return editToAnswer.cancel()
@@ -360,7 +370,7 @@ public final class SheetEditorViewController: NSViewController {
     textDidChange()
   }
 
-  private var pendingReferenceEdits: [(range: NSRange, number: String)] = []
+  private var pendingReferenceEdits: [(range: NSRange, replacement: String)] = []
   private var isRewritingReferences = false
 
   fileprivate func noteLineShift(replacing ranges: [NSRange], with replacements: [String]?) {
@@ -387,8 +397,8 @@ public final class SheetEditorViewController: NSViewController {
       documentUndoManager.endUndoGrouping()
     }
     for edit in edits.reversed()
-    where textView.shouldChangeText(in: edit.range, replacementString: edit.number) {
-      textView.textStorage?.replaceCharacters(in: edit.range, with: edit.number)
+    where textView.shouldChangeText(in: edit.range, replacementString: edit.replacement) {
+      textView.textStorage?.replaceCharacters(in: edit.range, with: edit.replacement)
       textView.didChangeText()
     }
   }
@@ -986,6 +996,8 @@ public final class SheetEditorViewController: NSViewController {
         || error.code == .unusableAssistantAnswer
         || error.code == .brokenReference
         || error.code == .unavailableReference
+        // Tables are calculated locally; no table error is sent to a model.
+        || error.code == .tableReference
         || error.code == .typeMismatch
         || error.code == .incompatibleDimensions
         || error.code == .missingCurrencyRate
@@ -1118,7 +1130,7 @@ public final class SheetEditorViewController: NSViewController {
     if case .evaluationFailure(let error) = result {
       return ![
         .unresolvedAssistantPrompt, .unusableAssistantAnswer, .unavailableReference,
-        .brokenReference,
+        .brokenReference, .tableReference,
         .typeMismatch, .incompatibleDimensions, .missingCurrencyRate,
         .currencyRatesUnavailable,
       ].contains(error.code)
@@ -1363,6 +1375,8 @@ public final class SheetEditorViewController: NSViewController {
         AnswerCell.Detail(
           label: localized("interpretation.problem", "Problem"), value: diagnostic.message)
       ]
+      // A table cell is where a failure that came from a table started.
+      details += tableFailureOrigins(shown.result.failureOriginTableCells)
       for number in shown.result.failureOriginLineNumbers
       where sheet.lines.indices.contains(number - 1) && sheet.lines[number - 1].id != id {
         details.append(
@@ -1386,6 +1400,36 @@ public final class SheetEditorViewController: NSViewController {
       }
     }
     return details
+  }
+
+  /// "Fix first" rows that select each original failing table cell's source
+  /// in the current text: its record, inherited rule or header, or the whole
+  /// block for a table that could not be calculated. Origins whose table is
+  /// gone are left out.
+  private func tableFailureOrigins(_ origins: [TableCellFailureOrigin]) -> [AnswerCell.Detail] {
+    origins.compactMap { origin in
+      guard let utf8 = TableSourceDocument.sourceRange(of: origin, in: sheet),
+        let range = utf16Range(forUTF8: utf8)
+      else { return nil }
+      let table = latestEvaluation?.tableResult(origin.table)
+      let name =
+        origin.column.flatMap { table?.address(row: origin.row, column: $0) } ?? table?.name
+      return AnswerCell.Detail(
+        label: localized("interpretation.errorOrigin", "Fix first"),
+        value: name ?? localized("interpretation.errorTable", "Table"), sourceRange: range)
+    }
+  }
+
+  /// A UTF-8 range of the current source as text view UTF-16 offsets.
+  private func utf16Range(forUTF8 range: Range<Int>) -> NSRange? {
+    let text = textView.string
+    let utf8 = text.utf8
+    guard
+      let lower = utf8.index(utf8.startIndex, offsetBy: range.lowerBound, limitedBy: utf8.endIndex),
+      let upper = utf8.index(lower, offsetBy: range.count, limitedBy: utf8.endIndex)
+    else { return nil }
+    let start = text.utf16.distance(from: text.utf16.startIndex, to: lower)
+    return NSRange(location: start, length: text.utf16.distance(from: lower, to: upper))
   }
 
   /// What a finance function took for granted, which its answer depends on.

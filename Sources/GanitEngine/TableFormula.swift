@@ -378,7 +378,7 @@ struct TableFormulaSyntax: Sendable {
   func parse(
     context: EvaluationContext, operandKinds: [String: EngineValueKind] = [:],
     inheritedKinds: [String: EngineValueKind] = [:], customFunctions: Set<String> = [],
-    catalog: UnitCatalog? = nil, limits: SyntaxLimits = .default
+    catalog: UnitCatalog? = nil, limits: SyntaxLimits = .default, origin: SourceLocation = .start
   ) throws -> ParsingResult {
     if tableFormula, let unsupported = unsupportedSyntax(customFunctions: customFunctions) {
       throw unsupported
@@ -387,11 +387,21 @@ struct TableFormulaSyntax: Sendable {
     // Collapsed aggregate operands are slots too, outside `references`.
     for (slot, kind) in operandKinds where slot.hasPrefix("\u{1f}") { kinds[slot] = kind }
     for reference in references { kinds[reference.slot] = operandKinds[reference.slot] ?? .number }
+    // A sheet line's expression is a slice of the line; `origin` places the
+    // AST and diagnostics in line coordinates, as ordinary parses do.
+    let shift = { (range: SourceRange) in range.shifted(by: origin) }
     let parsing = Parser(
       source: source, configuration: context.lexingConfiguration, limits: limits,
-      catalog: catalog, variables: kinds, dollarCurrency: context.dollarCurrency,
+      catalog: catalog, origin: origin, variables: kinds, dollarCurrency: context.dollarCurrency,
       ambiguousSuffixes: context.ambiguousSuffixes
-    ).parse(tokens: tokens, diagnostics: diagnostics)
+    ).parse(
+      tokens: origin == .start
+        ? tokens : tokens.map { Token(kind: $0.kind, range: shift($0.range)) },
+      diagnostics: origin == .start
+        ? diagnostics
+        : diagnostics.map {
+          SyntaxDiagnostic(code: $0.code, severity: $0.severity, range: shift($0.range))
+        })
     if tableFormula, let expression = parsing.expression {
       var pending = [expression]
       while let next = pending.popLast() {
