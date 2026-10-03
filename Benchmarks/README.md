@@ -38,6 +38,13 @@ swift run --configuration release GanitBenchmarks --editor mixed-sheet 200
 swift run --configuration release GanitBenchmarks --editor chained-dependency-sheet 200
 ```
 
+Run the table edit benchmark, which alternates one table cell source edit and
+one prose edit of a table reader through the incremental calculator, with:
+
+```sh
+swift run --configuration release GanitBenchmarks --table 200
+```
+
 Measure Quick Ganit's cold launch, idle memory, and resident show path with:
 
 ```sh
@@ -48,10 +55,11 @@ swift run --configuration release GanitBenchmarks --quick 200
 The sheet fixtures live in `Fixtures/`; `SheetFixtureTests` uses the same files
 to assert which lines each edit re-evaluates.
 
-The `launch-expressions` target is available in Phase 1 and the three sheet
-targets in Phase 3. The other three targets remain unavailable, not passing;
-their corpus population and assertions belong to the phases that implement the
-corresponding semantics.
+The `launch-expressions` target is available in Phase 1, the three sheet
+targets in Phase 3, and the `table-sheet` target since M6 of the tables plan.
+The remaining targets stay unavailable, not passing; their corpus population
+and assertions belong to the phases that implement the corresponding
+semantics.
 
 Recorded measurements:
 
