@@ -25,7 +25,6 @@ existing answer. See the [release train](docs/release/release-train.md).
 - Structural table edits preserve references through Undo, redo, save and
   reload. Duplicate Sheet creates new table IDs and preserves column widths.
   Definitions and Quick Ganit show an explicit message for table blocks.
-  The inline preview remains in development.
 - Expanded table editing now supports native cell input, formula reference
   picking, column rules, copy, paste, fill and totals. Table edits use document
   Undo. Open Table and Return to Sheet restore the previous selection.

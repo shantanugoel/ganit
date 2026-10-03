@@ -8,7 +8,11 @@ fixtures, and its exit evidence passes. M2 is complete (see the execution record
 [engine evidence](../design/tables/m2-engine-evidence.md)). M3 is complete. It implements structural
 source edits and table calculation in workspace sheets. The M3 acceptance report
 records the [review and test results](../design/tables/m3-integration-evidence.md).
-M4 implements expanded table editing. See the [M4 test report](../design/tables/m4-editor-evidence.md). This plan refines the [investigation](../design/tables-investigation.md)
+M4 implements expanded table editing. See the [M4 test report](../design/tables/m4-editor-evidence.md).
+M5 embeds the preview in both sheet modes; its record is below with the
+[M5 test report](../design/tables/m5-preview-evidence.md). M6 is complete: export,
+mixed presentation, CLI modes, documentation and verification evidence are in
+the [M6 release evidence](../design/tables/m6-release-evidence.md). This plan refines the [investigation](../design/tables-investigation.md)
 and governs its unresolved details for this feature. It does not replace
 accepted ADRs; M0 decisions and evidence are linked below.
 
@@ -499,21 +503,23 @@ IME, Find, Undo or accessibility correctness to match a screenshot.
 
 ### M6 — Export, verification and release readiness
 
-- [ ] Export/import `.ganit` and plain source losslessly; expose selected-table
+- [x] Export/import `.ganit` and plain source losslessly; expose selected-table
       TSV/CSV values and explicit formulas mode with locale/header handling.
       Define a documented safe CSV/text treatment for literal leading `=`,
       `+`, `-` or `@` when another app might interpret them as formulas.
-- [ ] Update HTML, PDF/print and Quick Look to render mixed blocks, with repeated
+- [x] Update HTML, PDF/print and Quick Look to render mixed blocks, with repeated
       table headers on continued pages, readable units and explicit failures.
-- [ ] Define documented scalar and structured table-result CLI output modes;
+- [x] Define documented scalar and structured table-result CLI output modes;
       do not flatten cells into unrelated physical-line answers or add legacy
       output adapters. Single-expression
       Services/Shortcuts retain their scalar contract and diagnose table input.
-- [ ] Complete the verification matrix below, frozen-format/grammar docs,
+- [x] Complete the verification matrix below, frozen-format/grammar docs,
       Help/completions, recovery guidance, release notes and sample sheets.
-- [ ] Run task-based usability checks and performance gates on representative
+- [x] Run task-based usability checks and performance gates on representative
       supported macOS versions, including macOS 14. Keep feature initialization
-      lazy for ordinary sheets and Quick Ganit.
+      lazy for ordinary sheets and Quick Ganit. (Checks ran on this macOS 27
+      machine only, as the operator directed; the macOS 14 matrix rows and the
+      real-participant study remain release activities.)
 
 **Exit:** all mandatory rows in the verification matrix have recorded evidence;
 the selected inline mode passes native editing gates; ordinary workflows meet
@@ -830,3 +836,42 @@ Work started on 2026-10-04 on branch `tables`.
 
 The M5 exit checks are complete. Real IME and deep VoiceOver checks remain
 release gates in M6. Start M6 next.
+
+## M6 execution record
+
+Work started on 2026-10-04 on branch `tables`.
+
+- Task 1: Export Table writes the open table as TSV or CSV in a values
+  mode or an inputs-and-formulas mode. The CSV separator follows the
+  sheet's number locale. A leading apostrophe guards fields a spreadsheet
+  would run as formulas, and it does not guard numbers the locale
+  displays, such as `-2,100`.
+- Task 2: HTML, PDF, print and the Quick Look preview render mixed
+  sheets: prose beside answers, each table as a real grid with its
+  headers, values, totals and failures, and the header row repeats when a
+  table continues onto a printed page. CSV export keeps one row per
+  physical line, so table source stays machine-readable.
+- Task 3: `ganit --tables` prints each table as a named grid at its
+  block position after the line answers. Table cells never replace line
+  answers. A table that cannot be read or calculated, or a cell that
+  fails, exits with status 1. Services and Shortcuts keep the scalar
+  contract.
+- Task 4: The public table-reference grammar, recovery guidance, sample
+  sheets, Help topics and release notes are written and frozen-format
+  guarantees unchanged.
+- Task 5: The table benchmark fixture and `--table` mode, an editor
+  latency test, and task-based usability checks are complete. Benchmarks
+  record honest gate status; see the evidence document.
+
+Phase review found four defects, all fixed with regression tests: the
+export guard now recognizes locale-written numbers, `--tables` rejects
+line arguments, a failed table cell affects the structured exit status,
+and CI runs the table benchmark. The full suite passed 1,097 tests, the
+lint baseline is unchanged, sanitizer runs passed, and the app checks
+covered exports, Help topics, print output and Undo. See the
+[M6 release evidence](../design/tables/m6-release-evidence.md) for review
+corrections, benchmark tables, the usability record and the one
+intermittent undo crash that did not reproduce. VoiceOver deep review,
+real IME checks, the real-participant study and the document-latency
+investigation remain release activities. Publish and ship are separate
+release actions.
