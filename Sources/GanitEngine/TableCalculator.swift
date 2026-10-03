@@ -246,6 +246,13 @@ enum TableCellResult: Hashable, Sendable {
 }
 
 struct TableCalculationSnapshot: Sendable {
+  /// Syntax discoveries and actual evaluated data cells in this generation.
+  var parsedFormulas = 0
+  var evaluatedCells = 0
+  var reusedCells = 0
+  var dependencyLinks = 0
+  var scalarOperations = 0
+  fileprivate var cache: TableCalculationCache? = nil
   let table: TableModel
   let outcomes: [TableCellAddress: TableCellResult]
   let sources: [TableCellAddress: String]
@@ -298,7 +305,21 @@ struct TableCalculationOptions: Sendable {
   /// further such formulas deterministically report `blocked`.
   let maximumStaticCheckParses: Int
 
-  init(maximumPopulatedCells: Int, maximumStaticCheckParses: Int? = nil) {
+  let maximumDependencyLinks: Int
+  let maximumRangeCellVisits: Int
+  let maximumScalarOperations: Int
+
+  init(
+    maximumPopulatedCells: Int, maximumStaticCheckParses: Int? = nil,
+    maximumDependencyLinks: Int = 100_000, maximumRangeCellVisits: Int = 1_000_000,
+    maximumScalarOperations: Int = 1_000_000
+  ) {
+    precondition(
+      maximumPopulatedCells >= 0 && maximumDependencyLinks >= 0
+        && maximumRangeCellVisits >= 0 && maximumScalarOperations >= 0)
+    self.maximumDependencyLinks = maximumDependencyLinks
+    self.maximumRangeCellVisits = maximumRangeCellVisits
+    self.maximumScalarOperations = maximumScalarOperations
     self.maximumPopulatedCells = maximumPopulatedCells
     self.maximumStaticCheckParses = maximumStaticCheckParses ?? 4 * maximumPopulatedCells
   }
@@ -312,6 +333,9 @@ struct TableCalculationOptions: Sendable {
 struct TableCalculator: Sendable {
   let engine: CalculationEngine
   let options: TableCalculationOptions
+  /// Previous-generation reuse is confined to this calculator (or a copy),
+  /// since its engine catalog and limits are part of calculation semantics.
+  private let cacheIdentity = UUID()
 
   init(
     engine: CalculationEngine = CalculationEngine(), options: TableCalculationOptions = .production
@@ -323,10 +347,34 @@ struct TableCalculator: Sendable {
   func calculate(
     _ table: TableModel, scope: TableFormulaScope, context: EvaluationContext,
     earlier: [TableID: TableCalculationSnapshot] = [:],
+    previous: TableCalculationSnapshot? = nil,
+    /// The M3 fold passes the entire sheet population, including tables
+    /// hidden by dividers. Source admission independently enforces it.
+    sheetPopulatedCells: Int? = nil,
     cancelled: @escaping @Sendable () -> Bool = { false }
   ) throws -> TableCalculationSnapshot {
     try checkCancellation(cancelled)
-    guard table.populatedCellCount <= options.maximumPopulatedCells else {
+    // Visibility is the fold's bounded sheet population so far. The source
+    // admission gate also counts tables separated by scope dividers.
+    var populations = Dictionary(
+      scope.visible.map { ($0.id, $0.populatedCellCount) },
+      uniquingKeysWith: { first, _ in first })
+    populations[table.id] = table.populatedCellCount
+    var population = 0
+    for count in populations.values {
+      guard count <= options.maximumPopulatedCells - population else {
+        throw EngineError(code: .resourceLimitExceeded)
+      }
+      population += count
+    }
+    if let sheetPopulatedCells {
+      guard sheetPopulatedCells >= population,
+        sheetPopulatedCells <= options.maximumPopulatedCells
+      else {
+        throw EngineError(code: .resourceLimitExceeded)
+      }
+    }
+    guard population <= options.maximumPopulatedCells else {
       throw EngineError(code: .resourceLimitExceeded)
     }
     try table.validate()
@@ -347,7 +395,10 @@ struct TableCalculator: Sendable {
     var worker = TableCalculationWorker(
       table: table, scope: captured, context: context, earlier: earlier,
       engine: resolvedEngine(scope.units), staleTables: stale,
-      staticCheckParses: options.maximumStaticCheckParses, cancelled: cancelled)
+      staticCheckParses: options.maximumStaticCheckParses, options: options,
+      previous: previous?.cache?.identity == cacheIdentity && previous?.table.id == table.id
+        ? previous : nil,
+      cacheIdentity: cacheIdentity, cancelled: cancelled)
     return try worker.calculate()
   }
 
@@ -359,7 +410,8 @@ struct TableCalculator: Sendable {
   }
 }
 
-private enum TableNodePlan {
+private enum TableNodePlan: Sendable {
+  case literal(String, TableColumn, TableCellAddress)
   case terminal(TableCellResult)
   /// `template` identifies the formula text shared by every row of a rule.
   case formula(TableFormulaSyntax, [TableBoundReference], template: Int)
@@ -394,6 +446,60 @@ private let operandKinds: [EngineValueKind] = [
   .number, .percentage, .quantity, .rate, .date, .time, .instant, .period, .money,
 ]
 
+/// Immutable generation state. It never retains a previous snapshot, so long
+/// editing sessions cannot accumulate a chain of cached generations.
+private struct TableCalculationCache: Sendable {
+  let identity: UUID
+  let performedStaticChecks: Bool
+  let scope: TableFormulaScope
+  let plans: [TableDependencyNode: TableNodePlan]
+  let results: [TableDependencyNode: TableCellResult]
+  let syntaxes: [String: TableFormulaSyntax]
+  let earlier: [TableID: TableEarlierInputs]
+}
+
+private struct TableEarlierInputs: Equatable, Sendable {
+  let table: TableModel
+  let outcomes: [TableCellAddress: TableCellResult]
+  let provenance: [TableCellAddress: TableCellProvenance]
+}
+
+/// Compare captured closures iteratively, with a work cap. A very large
+/// closure graph simply disables reuse instead of recursively hashing it.
+private func sameScalarScope(_ lhs: TableFormulaScope, _ rhs: TableFormulaScope) -> Bool {
+  guard lhs.inherited == rhs.inherited, lhs.lines == rhs.lines, lhs.rates == rhs.rates,
+    lhs.units == rhs.units, lhs.tableLines == rhs.tableLines,
+    lhs.variableProvenance == rhs.variableProvenance,
+    lhs.lineProvenance == rhs.lineProvenance,
+    lhs.functionProvenance == rhs.functionProvenance,
+    lhs.functions.keys.sorted() == rhs.functions.keys.sorted()
+  else { return false }
+  var pending = lhs.functions.map { ($0.value, rhs.functions[$0.key]!) }
+  var visits = 0
+  while let (left, right) = pending.popLast() {
+    visits += 1
+    guard visits <= 100_000, left.name == right.name,
+      left.parameters == right.parameters, left.body == right.body,
+      left.variables == right.variables,
+      left.functions.keys.sorted() == right.functions.keys.sorted()
+    else { return false }
+    for (name, child) in left.functions { pending.append((child, right.functions[name]!)) }
+  }
+  return true
+}
+
+private func samePlan(_ lhs: TableNodePlan, _ rhs: TableNodePlan) -> Bool {
+  switch (lhs, rhs) {
+  case (.literal(let ls, let lc, _), .literal(let rs, let rc, _)):
+    return ls == rs && lc == rc
+  case (.terminal(let left), .terminal(let right)): return left == right
+  case (.formula(let ls, let lb, _), .formula(let rs, let rb, _)):
+    return ls.source == rs.source && lb == rb
+  case (.range(let left), .range(let right)): return left == right
+  default: return false
+  }
+}
+
 private struct TableCalculationWorker {
   let table: TableModel
   let scope: TableFormulaScope
@@ -401,6 +507,16 @@ private struct TableCalculationWorker {
   let earlier: [TableID: TableCalculationSnapshot]
   let engine: CalculationEngine
   let cancelled: @Sendable () -> Bool
+  private let options: TableCalculationOptions
+  private let previous: TableCalculationSnapshot?
+  private let cacheIdentity: UUID
+  private let scalarBudget: TableScalarBudget
+  private var syntaxes: [String: TableFormulaSyntax] = [:]
+  private var parsedFormulas = 0
+  private var evaluatedCells = 0
+  private var reusedCells = 0
+  private var dependencyLinks = 0
+  private var performedStaticChecks = false
   private var staticCheckParses: Int
   private var models: [TableID: TableModel] = [:]
   private var axes: [TableID: TableAxes] = [:]
@@ -437,8 +553,14 @@ private struct TableCalculationWorker {
     table: TableModel, scope: TableFormulaScope, context: EvaluationContext,
     earlier: [TableID: TableCalculationSnapshot], engine: CalculationEngine,
     staleTables: Set<TableID>, staticCheckParses: Int,
+    options: TableCalculationOptions, previous: TableCalculationSnapshot?, cacheIdentity: UUID,
     cancelled: @escaping @Sendable () -> Bool
   ) {
+    self.options = options
+    self.previous = previous
+    self.cacheIdentity = cacheIdentity
+    let budget = TableScalarBudget(maximum: options.maximumScalarOperations, cancelled: cancelled)
+    scalarBudget = budget
     self.staticCheckParses = staticCheckParses
     self.staleTables = staleTables
     customFunctionNames = Set(scope.functions.keys.map { $0.lowercased() })
@@ -449,7 +571,7 @@ private struct TableCalculationWorker {
     self.earlier = earlier
     self.engine = engine
     self.cancelled = cancelled
-    reducer = engine.tableRangeReducer(context: context)
+    reducer = engine.tableRangeReducer(context: context, scalarBudget: budget)
     for (rank, model) in (scope.visible + [table]).enumerated() {
       models[model.id] = model
       axes[model.id] = TableAxes(model)
@@ -468,16 +590,23 @@ private struct TableCalculationWorker {
           try checkCancellation(cancelled)
           if let target = binding.target {
             let dependency = try node(for: target, owner: address)
-            dependencies[cursor].insert(dependency)
+            try link(cursor, dependency)
           }
         }
       } else if case .range(let range) = plans[cursor] {
         if let membership = membership(of: range.target) {
+          // A range has one distinct edge per member. Reject a dense or
+          // running range before creating any of its cell nodes/edges.
+          let (count, overflow) = membership.rows.count.multipliedReportingOverflow(
+            by: membership.columns.count)
+          guard !overflow, count <= options.maximumDependencyLinks - dependencyLinks else {
+            throw EngineError(code: .resourceLimitExceeded)
+          }
           for row in membership.rows {
             for column in membership.columns {
               try checkCancellation(cancelled)
               let address = TableCellAddress(table: membership.table, row: row, column: column)
-              dependencies[cursor].insert(cellNode(address))
+              try link(cursor, cellNode(address))
             }
           }
         }
@@ -485,6 +614,7 @@ private struct TableCalculationWorker {
       cursor += 1
     }
     let graph = TableDependencyGraph(nodes: nodes, dependencies: dependencies)
+    try reuseCleanNodes(graph)
     let components = try graph.components(cancelled: cancelled)
     for component in components.components where graph.isCycle(component) {
       try checkCancellation(cancelled)
@@ -519,6 +649,9 @@ private struct TableCalculationWorker {
     for node in components.finishOrder {
       try checkCancellation(cancelled)
       if results[node] != nil { continue }
+      if case .cell(let address) = nodes[node], address.table == table.id, address.row != nil {
+        evaluatedCells += 1
+      }
       let failures = graph.dependencies[node].compactMap { input -> TableCalculationFailure? in
         if case .failure(let failure) = results[input] { return failure }
         return nil
@@ -553,6 +686,8 @@ private struct TableCalculationWorker {
       }
       switch plans[node] {
       case .terminal(let outcome): results[node] = outcome
+      case .literal(let source, let column, let address):
+        results[node] = try literal(source, column: column, address: address)
       case .range: break  // Symbolic membership; readers reduce it on demand.
       case .formula(let syntax, let bindings, _):
         if case .cell(let address) = nodes[node] {
@@ -568,12 +703,105 @@ private struct TableCalculationWorker {
     }
     var combined = TableCellProvenance()
     for cell in provenance.values { combined.formUnion(cell) }
-    return TableCalculationSnapshot(
+    var snapshot = TableCalculationSnapshot(
       table: table, outcomes: outcomes, sources: sources,
       nodes: nodes, dependencies: graph.dependencies,
       reverseDependencies: graph.reverseDependencies,
       traces: traces, axes: axes[table.id]!, rangeCellVisits: rangeCellVisits,
       context: context, provenance: provenance, combinedProvenance: combined)
+    try scalarBudget.check()
+    snapshot.parsedFormulas = parsedFormulas
+    snapshot.evaluatedCells = evaluatedCells
+    snapshot.reusedCells = reusedCells
+    snapshot.dependencyLinks = dependencyLinks
+    snapshot.scalarOperations = scalarBudget.operations
+    var capturedScope = scope
+    capturedScope.current = nil
+    snapshot.cache = TableCalculationCache(
+      identity: cacheIdentity, performedStaticChecks: performedStaticChecks, scope: capturedScope,
+      plans: Dictionary(uniqueKeysWithValues: zip(nodes, plans)),
+      results: Dictionary(uniqueKeysWithValues: results.map { (nodes[$0.key], $0.value) }),
+      syntaxes: syntaxes,
+      earlier: earlier.mapValues {
+        TableEarlierInputs(table: $0.table, outcomes: $0.outcomes, provenance: $0.provenance)
+      })
+    return snapshot
+  }
+
+  private mutating func link(_ owner: Int, _ dependency: Int) throws {
+    if dependencies[owner].contains(dependency) { return }
+    guard dependencyLinks < options.maximumDependencyLinks else {
+      throw EngineError(code: .resourceLimitExceeded)
+    }
+    dependencyLinks += 1
+    dependencies[owner].insert(dependency)
+  }
+
+  private mutating func reuseCleanNodes(_ graph: TableDependencyGraph) throws {
+    guard let previous, let cache = previous.cache, previous.isCurrent(in: context),
+      !cache.performedStaticChecks, sameScalarScope(cache.scope, scope)
+    else { return }
+    let columnSemanticsChanged = previous.table.columns != table.columns
+    let causeOrderChanged = cache.scope.visible.map(\.id) != scope.visible.map(\.id)
+    let oldIndex = Dictionary(
+      uniqueKeysWithValues: previous.nodes.enumerated().map { ($0.element, $0.offset) })
+    let currentEarlier = earlier.mapValues {
+      TableEarlierInputs(table: $0.table, outcomes: $0.outcomes, provenance: $0.provenance)
+    }
+    let changedEarlier = Set(
+      Set(cache.earlier.keys).union(currentEarlier.keys).filter {
+        cache.earlier[$0] != currentEarlier[$0]
+      })
+    var dirty = Set<Int>()
+    var pending: [Int] = []
+    for (node, identity) in nodes.enumerated() {
+      try checkCancellation(cancelled)
+      guard let old = oldIndex[identity], let oldPlan = cache.plans[identity],
+        samePlan(plans[node], oldPlan),
+        Set(graph.dependencies[node].map { nodes[$0] })
+          == Set(previous.dependencies[old].map { previous.nodes[$0] })
+      else {
+        dirty.insert(node)
+        pending.append(node)
+        continue
+      }
+      if causeOrderChanged, case .failure = cache.results[identity] {
+        dirty.insert(node)
+        pending.append(node)
+      }
+      switch identity {
+      case .cell(let address) where address.table != table.id:
+        if changedEarlier.contains(address.table) {
+          dirty.insert(node)
+          pending.append(node)
+        }
+      case .range(let operand):
+        // Empty/blank ranges still read their columns' declared additive
+        // zero. Those semantics are not represented by membership edges.
+        if let target = operand.target.table,
+          (target == table.id && columnSemanticsChanged)
+            || (target != table.id && changedEarlier.contains(target))
+        {
+          dirty.insert(node)
+          pending.append(node)
+        }
+      default: break
+      }
+    }
+    while let changed = pending.popLast() {
+      try checkCancellation(cancelled)
+      for reader in graph.reverseDependencies[changed] where dirty.insert(reader).inserted {
+        pending.append(reader)
+      }
+    }
+    for (node, identity) in nodes.enumerated() where !dirty.contains(node) {
+      if let outcome = cache.results[identity] { results[node] = outcome }
+      if case .cell(let address) = identity, address.table == table.id {
+        traces[address] = previous.traces[address]
+        provenance[address] = previous.provenance[address]
+        if address.row != nil { reusedCells += 1 }
+      }
+    }
   }
 
   private mutating func add(_ node: TableDependencyNode, plan: TableNodePlan) -> Int {
@@ -616,7 +844,7 @@ private struct TableCalculationWorker {
         let template = try self.template(cell.source, ledger: ledgers[owner])
         plan = try instantiate(template, at: address, rowOffset: 0)
       } else {
-        plan = .terminal(try literal(cell.source, column: column, address: address))
+        plan = .literal(cell.source, column, address)
       }
       _ = add(.cell(address), plan: plan)
     }
@@ -641,8 +869,19 @@ private struct TableCalculationWorker {
     -> TableFormulaTemplate
   {
     do {
-      let syntax = try TableFormulaSyntax.discover(
-        source, configuration: context.lexingConfiguration)
+      let syntax: TableFormulaSyntax
+      if let known = syntaxes[source] {
+        syntax = known
+      } else if previous?.context.lexingConfiguration == context.lexingConfiguration,
+        let known = previous?.cache?.syntaxes[source]
+      {
+        syntax = known
+        syntaxes[source] = known
+      } else {
+        syntax = try TableFormulaSyntax.discover(source, configuration: context.lexingConfiguration)
+        syntaxes[source] = syntax
+        parsedFormulas += 1
+      }
       let bindings = try syntax.bind(scope: scope, ledger: ledger)
       for binding in bindings {
         if let targetTable = binding.target?.table, targetTable != table.id,
@@ -928,8 +1167,9 @@ private struct TableCalculationWorker {
     // currencies need an explicit `in` conversion here.
     let evaluation = engine.evaluate(
       expression, context: context, variables: variables, lines: scope.lines,
-      manualRates: scope.rates, functions: scope.functions, convertsMixedCurrencies: false)
-    try checkCancellation(cancelled)
+      manualRates: scope.rates, functions: scope.functions, convertsMixedCurrencies: false,
+      scalarBudget: scalarBudget)
+    try scalarBudget.check()
     traces[address] = evaluation.trace
     carried.formUnion(TableCellProvenance(evaluation.trace))
     if !carried.isEmpty { provenance[address] = carried }
@@ -1008,6 +1248,7 @@ private struct TableCalculationWorker {
   private mutating func parsesWithSomeKind(
     _ syntax: TableFormulaSyntax, slots: [String], known: [String: EngineValueKind]
   ) throws -> Bool {
+    performedStaticChecks = true
     guard slots.count <= maximumUnknownOperands else { return false }
     var combinations = 1
     for _ in slots { combinations *= operandKinds.count }
@@ -1080,6 +1321,7 @@ private struct TableCalculationWorker {
         typedZero(table: membership.table, columns: membership.columns)
       }
     }
+    try scalarBudget.check()
     rangeReductions[key] = outcome
     return outcome
   }
@@ -1095,6 +1337,9 @@ private struct TableCalculationWorker {
     for row in membership.rows {
       try checkCancellation(cancelled)
       for column in membership.columns {
+        guard rangeCellVisits < options.maximumRangeCellVisits else {
+          throw EngineError(code: .resourceLimitExceeded)
+        }
         rangeCellVisits += 1
         let member = TableCellAddress(table: membership.table, row: row, column: column)
         switch index[.cell(member)].flatMap({ results[$0] }) {
@@ -1142,7 +1387,8 @@ private struct TableCalculationWorker {
     default: return nil
     }
     let evaluation = engine.evaluate(
-      expression, context: context, variables: [:], lines: LineOutcomes())
+      expression, context: context, variables: [:], lines: LineOutcomes(),
+      scalarBudget: scalarBudget)
     switch evaluation.result {
     case .value(.quantity(let quantity)) where quantity.kind == .absolute: return nil
     case .value(let value): return value
@@ -1169,7 +1415,9 @@ private struct TableCalculationWorker {
       return .failure(failure(code, at: address, range: fullRange(source)))
     }
     let evaluated = engine.evaluate(
-      expression, context: context, variables: [:], lines: LineOutcomes())
+      expression, context: context, variables: [:], lines: LineOutcomes(),
+      scalarBudget: scalarBudget)
+    try scalarBudget.check()
     traces[address] = evaluated.trace
     // `March 3` reads the clock for its year, like a sheet line.
     let own = TableCellProvenance(evaluated.trace)
@@ -1191,11 +1439,14 @@ private struct TableCalculationWorker {
         return .failure(failure(.invalidLiteral, at: address, range: fullRange(source)))
       }
       let evaluation = engine.evaluate(
-        interpreted, context: context, variables: [:], lines: LineOutcomes())
+        interpreted, context: context, variables: [:], lines: LineOutcomes(),
+        scalarBudget: scalarBudget)
+      try scalarBudget.check()
       if case .value = evaluation.result {
         traces[address] = evaluation.trace
         let own = TableCellProvenance(evaluation.trace)
         provenance[address] = own.isEmpty ? nil : own
+        try scalarBudget.check()
         return result(evaluation.result, at: address)
       }
       return .failure(failure(.invalidLiteral, at: address, range: fullRange(source)))
@@ -1295,6 +1546,10 @@ private struct TableCalculationWorker {
     _ syntax: TableFormulaSyntax, bindings: [TableBoundReference], template: Int,
     address: TableCellAddress
   ) throws -> TableStaticFailure? {
+    // Own-error classification shares a finite kind-enumeration budget. A
+    // generation that spends it must replay that classification next time,
+    // rather than let cached failures silently alter the budget's ordering.
+    performedStaticChecks = true
     var known: [String: EngineValueKind] = [:]
     var unknown: [Int: [String]] = [:]
     var ranges: [String: Int] = [:]

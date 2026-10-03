@@ -1,3 +1,5 @@
+import Foundation
+
 public enum EvaluationResource: String, Hashable, Sendable {
   case operations
   case integerBits
@@ -102,3 +104,43 @@ public enum BuiltInFunction: String, CaseIterable, Hashable, Sendable {
 /// not an expression. `{…}` inside it holds an expression whose value is
 /// written into the prompt.
 public let assistantFunctionName = "ask_assistant"
+
+/// A generation's scalar work, shared by every evaluator, custom-function
+/// body and range reduction. Per-expression limits remain independent.
+/// Only one worker uses this budget; its snapshot stores the final count.
+final class TableScalarBudget: @unchecked Sendable {
+  let maximum: Int
+  private(set) var operations = 0
+  private(set) var exceeded = false
+  private var cancellationDetected = false
+  let cancelled: @Sendable () -> Bool
+
+  init(maximum: Int, cancelled: @escaping @Sendable () -> Bool) {
+    self.maximum = maximum
+    self.cancelled = cancelled
+  }
+
+  private func checkCancellation() throws {
+    if cancellationDetected { throw CancellationError() }
+    if cancelled() {
+      cancellationDetected = true
+      throw CancellationError()
+    }
+  }
+
+  func consume() throws {
+    try checkCancellation()
+    guard operations < maximum else {
+      exceeded = true
+      throw EngineError(code: .resourceLimitExceeded, context: .resourceLimit(.operations))
+    }
+    operations += 1
+  }
+
+  func check() throws {
+    try checkCancellation()
+    if exceeded {
+      throw EngineError(code: .resourceLimitExceeded, context: .resourceLimit(.operations))
+    }
+  }
+}

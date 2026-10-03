@@ -4,7 +4,7 @@
 /// A block ends at a blank line, heading, or divider. Aggregates read the
 /// current block and skip lines that contain an aggregate themselves;
 /// `subtotal` starts after the previous subtotal line in the block.
-struct LineOutcomes: Sendable {
+struct LineOutcomes: Equatable, Sendable {
   enum Outcome: Hashable, Sendable {
     case none
     case value(EngineValue)

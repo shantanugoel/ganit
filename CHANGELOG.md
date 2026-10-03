@@ -5,6 +5,9 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Repeated and nested custom-function calls now share the caller’s expression
+  operation limit, so calling a function cannot restart that limit.
+
 ## 0.5.7
 
 - Toggle Comment and Toggle Heading preserve references to the toggled lines

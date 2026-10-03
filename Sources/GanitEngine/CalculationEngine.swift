@@ -70,7 +70,8 @@ public struct CalculationEngine: Sendable {
     lines: LineOutcomes,
     manualRates: [CurrencyPair: NumericValue] = [:],
     functions: [String: CustomFunction] = [:],
-    convertsMixedCurrencies: Bool = true
+    convertsMixedCurrencies: Bool = true,
+    scalarBudget: TableScalarBudget? = nil
   ) -> (result: CalculationResult, trace: EvaluationTrace) {
     let (result, trace) = Evaluator(
       context: context,
@@ -79,7 +80,8 @@ public struct CalculationEngine: Sendable {
       lines: lines,
       manualRates: manualRates,
       functions: functions,
-      convertsMixedCurrencies: convertsMixedCurrencies
+      convertsMixedCurrencies: convertsMixedCurrencies,
+      scalarBudget: scalarBudget
     ).evaluateTracing(expression)
     switch result {
     case .success(let value):
@@ -230,7 +232,9 @@ extension CalculationEngine {
 
   /// Range reductions reuse the ordinary aggregate arithmetic and this
   /// engine's limits, so exactness, dimensions and currencies match `total`.
-  func tableRangeReducer(context: EvaluationContext) -> TableRangeReducer {
-    TableRangeReducer(context: context, limits: evaluationLimits)
+  func tableRangeReducer(context: EvaluationContext, scalarBudget: TableScalarBudget? = nil)
+    -> TableRangeReducer
+  {
+    TableRangeReducer(context: context, limits: evaluationLimits, scalarBudget: scalarBudget)
   }
 }

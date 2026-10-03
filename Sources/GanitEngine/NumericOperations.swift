@@ -4,12 +4,14 @@ import Foundation
 struct NumericOperations {
   let context: EvaluationContext
   let limits: EvaluationLimits
+  var scalarBudget: TableScalarBudget? = nil
 
   func applying(
     _ binaryOperator: BinaryOperator,
     left: NumericValue,
     right: NumericValue
   ) throws -> NumericValue {
+    try scalarBudget?.consume()
     if binaryOperator == .power {
       return try power(left, right)
     }
@@ -40,6 +42,7 @@ struct NumericOperations {
     _ unaryOperator: UnaryOperator,
     to value: NumericValue
   ) throws -> NumericValue {
+    try scalarBudget?.consume()
     guard unaryOperator == .minus else {
       return value
     }
@@ -72,6 +75,7 @@ struct NumericOperations {
   }
 
   func absoluteValue(_ value: NumericValue) throws -> NumericValue {
+    try scalarBudget?.consume()
     switch value {
     case .integer(let integer):
       return try checkedInteger(BigInt(integer.storage.magnitude))
@@ -107,6 +111,7 @@ struct NumericOperations {
     fractionDigits: Int = 0,
     rule: FloatingPointRoundingRule
   ) throws -> NumericValue {
+    try scalarBudget?.consume()
     if fractionDigits == 0 {
       if case .approximate(let approximate) = value {
         return .approximate(
@@ -146,6 +151,7 @@ struct NumericOperations {
   }
 
   func sign(_ value: NumericValue) throws -> NumericValue {
+    try scalarBudget?.consume()
     if value.isZero {
       return .integer(IntegerValue(0))
     }
@@ -153,6 +159,7 @@ struct NumericOperations {
   }
 
   func hypot(_ x: NumericValue, _ y: NumericValue) throws -> NumericValue {
+    try scalarBudget?.consume()
     if case .approximate = x {
       return try approximateHypot(x, y)
     }
@@ -172,6 +179,7 @@ struct NumericOperations {
     lower: NumericValue,
     upper: NumericValue
   ) throws -> NumericValue {
+    try scalarBudget?.consume()
     guard try compare(lower, upper) <= 0 else {
       throw EngineError(code: .invalidDomain)
     }
@@ -182,6 +190,7 @@ struct NumericOperations {
   }
 
   func remainder(_ left: NumericValue, _ right: NumericValue) throws -> NumericValue {
+    try scalarBudget?.consume()
     if right.isZero {
       throw EngineError(code: .divisionByZero)
     }
@@ -203,6 +212,7 @@ struct NumericOperations {
   }
 
   func factorial(_ value: NumericValue) throws -> NumericValue {
+    try scalarBudget?.consume()
     guard let n = exactInteger(value), n >= 0 else {
       throw EngineError(code: .invalidDomain)
     }
@@ -214,6 +224,7 @@ struct NumericOperations {
     }
     var result = BigInt(1)
     for k in 2...n {
+      try scalarBudget?.consume()
       result *= BigInt(k)
       try validateInteger(result)
     }
@@ -224,6 +235,7 @@ struct NumericOperations {
   func bitwise(
     _ binaryOperator: BinaryOperator, _ left: NumericValue, _ right: NumericValue
   ) throws -> NumericValue {
+    try scalarBudget?.consume()
     guard let a = exactInteger(left), let b = exactInteger(right) else {
       throw EngineError(code: .invalidDomain)
     }
@@ -248,6 +260,7 @@ struct NumericOperations {
 
   /// `xor(x, y)`, the bits set in one of the two but not both.
   func exclusiveOr(_ left: NumericValue, _ right: NumericValue) throws -> NumericValue {
+    try scalarBudget?.consume()
     guard let a = exactInteger(left), let b = exactInteger(right) else {
       throw EngineError(code: .invalidDomain)
     }
@@ -256,9 +269,11 @@ struct NumericOperations {
 
   /// The greatest common divisor of two whole numbers, never negative.
   func greatestCommonDivisor(_ left: NumericValue, _ right: NumericValue) throws -> NumericValue {
+    try scalarBudget?.consume()
     let (a, b) = try wholePair(left, right)
     var (x, y) = (a.magnitude, b.magnitude)
     while y != 0 {
+      try scalarBudget?.consume()
       (x, y) = (y, x % y)
     }
     return try checkedInteger(BigInt(x))
@@ -267,6 +282,7 @@ struct NumericOperations {
   /// The least common multiple of two whole numbers, never negative. Zero
   /// with anything is zero, as no smaller multiple exists.
   func leastCommonMultiple(_ left: NumericValue, _ right: NumericValue) throws -> NumericValue {
+    try scalarBudget?.consume()
     let (a, b) = try wholePair(left, right)
     guard !a.isZero, !b.isZero else {
       return .integer(IntegerValue(0))
@@ -282,6 +298,7 @@ struct NumericOperations {
   /// `ncr(n, k)`, the number of ways to choose `k` of `n`, and `npr(n, k)`,
   /// the number of ordered ways.
   func choose(_ n: NumericValue, _ k: NumericValue, ordered: Bool) throws -> NumericValue {
+    try scalarBudget?.consume()
     let (total, taken) = try wholePair(n, k)
     guard let count = Int(exactly: total), let chosen = Int(exactly: taken), count >= 0,
       chosen >= 0, chosen <= count
@@ -293,6 +310,7 @@ struct NumericOperations {
     }
     var result = BigInt(1)
     for step in 0..<chosen {
+      try scalarBudget?.consume()
       result *= BigInt(count - step)
       try validateInteger(result)
       if !ordered {
@@ -305,6 +323,7 @@ struct NumericOperations {
   /// The standard deviation of the values, over `count - 1` for a sample and
   /// `count` for a whole population.
   func standardDeviation(_ values: [NumericValue], isSample: Bool) throws -> NumericValue {
+    try scalarBudget?.consume()
     let count = values.count
     guard count >= 2 else {
       throw EngineError(code: .invalidDomain)
@@ -330,6 +349,7 @@ struct NumericOperations {
   /// `npv(rate, …)`, each amount discounted by one more period than the last,
   /// with the first amount at period zero as spreadsheets' XNPV-free form.
   func netPresentValue(rate: NumericValue, amounts: [NumericValue]) throws -> NumericValue {
+    try scalarBudget?.consume()
     let one = NumericValue.integer(IntegerValue(1))
     let growth = try applying(.add, left: one, right: rate)
     guard !growth.isZero else {
@@ -345,6 +365,7 @@ struct NumericOperations {
   }
 
   private func wholePair(_ left: NumericValue, _ right: NumericValue) throws -> (BigInt, BigInt) {
+    try scalarBudget?.consume()
     guard let a = exactInteger(left), let b = exactInteger(right) else {
       throw EngineError(code: .invalidDomain)
     }
@@ -352,6 +373,7 @@ struct NumericOperations {
   }
 
   func arcTangent2(y: NumericValue, x: NumericValue) throws -> NumericValue {
+    try scalarBudget?.consume()
     let dy = try approximateEstimate(y)
     let dx = try approximateEstimate(x)
     guard dy != 0 || dx != 0 else {
@@ -370,6 +392,7 @@ struct NumericOperations {
 
   /// Indices of `values` in ascending numeric order.
   func ascendingIndices(_ values: [NumericValue]) throws -> [Int] {
+    try scalarBudget?.consume()
     if values.contains(where: {
       if case .approximate = $0 { return true }
       return false
@@ -383,6 +406,7 @@ struct NumericOperations {
   /// The sign of `left - right`. Exact values compare exactly; when either is
   /// approximate both compare by estimate, as `ascendingIndices` orders them.
   func ordering(_ left: NumericValue, _ right: NumericValue) throws -> Int {
+    try scalarBudget?.consume()
     switch (left, right) {
     case (.approximate, _), (_, .approximate):
       let lhs = try approximateEstimate(left)
@@ -397,6 +421,7 @@ struct NumericOperations {
     _ values: [NumericValue],
     selectMinimum: Bool
   ) throws -> NumericValue {
+    try scalarBudget?.consume()
     if values.contains(where: {
       if case .approximate = $0 { return true }
       return false
@@ -428,6 +453,7 @@ struct NumericOperations {
   }
 
   func root(_ value: NumericValue, degree: NumericValue) throws -> NumericValue {
+    try scalarBudget?.consume()
     let degreeFraction: Fraction
     do {
       degreeFraction = try exactFraction(degree)
@@ -462,11 +488,11 @@ struct NumericOperations {
       throw EngineError(code: .invalidDomain, context: .rootRadicand)
     }
 
-    let numeratorRoot = integerRoot(
+    let numeratorRoot = try integerRoot(
       fraction.numerator.magnitude,
       degree: integerDegree
     )
-    let denominatorRoot = integerRoot(
+    let denominatorRoot = try integerRoot(
       fraction.denominator.magnitude,
       degree: integerDegree
     )
@@ -489,6 +515,7 @@ struct NumericOperations {
     _ function: BuiltInFunction,
     value: NumericValue
   ) throws -> NumericValue {
+    try scalarBudget?.consume()
     let result: Double
 
     switch function {
@@ -544,6 +571,7 @@ struct NumericOperations {
   }
 
   private func logarithm(of value: NumericValue) throws -> Double {
+    try scalarBudget?.consume()
     let representation = logarithmicRepresentation(value)
     guard !representation.isZero, !representation.isNegative else {
       throw EngineError(code: .invalidDomain)
@@ -552,6 +580,7 @@ struct NumericOperations {
   }
 
   private func arcTangent(_ value: NumericValue) throws -> Double {
+    try scalarBudget?.consume()
     let representation = logarithmicRepresentation(value)
     guard !representation.isZero else {
       return 0
@@ -575,6 +604,7 @@ struct NumericOperations {
   private func validateInverseTrigonometricDomain(
     _ value: NumericValue
   ) throws {
+    try scalarBudget?.consume()
     guard case .approximate = value else {
       guard
         try compare(value, .integer(IntegerValue(-1))) >= 0,
@@ -590,6 +620,7 @@ struct NumericOperations {
     _ value: NumericValue,
     forTangent: Bool = false
   ) throws -> Double {
+    try scalarBudget?.consume()
     switch context.angleMode {
     case .radians:
       let input = try approximateEstimate(value)
@@ -642,6 +673,7 @@ struct NumericOperations {
     _ left: NumericValue,
     _ right: NumericValue
   ) throws -> NumericValue {
+    try scalarBudget?.consume()
     if hasRational(left, right) {
       let lhs = try exactFraction(left)
       let rhs = try exactFraction(right)
@@ -659,6 +691,7 @@ struct NumericOperations {
     _ left: NumericValue,
     _ right: NumericValue
   ) throws -> NumericValue {
+    try scalarBudget?.consume()
     if hasRational(left, right) {
       let lhs = try exactFraction(left)
       let rhs = try exactFraction(right)
@@ -676,6 +709,7 @@ struct NumericOperations {
     _ left: NumericValue,
     _ right: NumericValue
   ) throws -> NumericValue {
+    try scalarBudget?.consume()
     if hasRational(left, right) {
       let lhs = try exactFraction(left)
       let rhs = try exactFraction(right)
@@ -708,6 +742,7 @@ struct NumericOperations {
     _ left: NumericValue,
     _ right: NumericValue
   ) throws -> NumericValue {
+    try scalarBudget?.consume()
     let rhs = try exactFraction(right)
     guard !rhs.numerator.isZero else {
       throw EngineError(code: .divisionByZero)
@@ -728,6 +763,7 @@ struct NumericOperations {
     _ base: NumericValue,
     _ exponent: NumericValue
   ) throws -> NumericValue {
+    try scalarBudget?.consume()
     if case .approximate(let approximateExponent) = exponent {
       if try approximateEstimate(base) < 0 {
         throw EngineError(code: .invalidDomain)
@@ -829,6 +865,7 @@ struct NumericOperations {
     _ left: NumericValue,
     _ right: NumericValue
   ) throws -> NumericValue {
+    try scalarBudget?.consume()
     let lhs = try approximateEstimate(left)
     let rhs = try approximateEstimate(right)
     let result: Double
@@ -871,6 +908,7 @@ struct NumericOperations {
     _ value: NumericValue,
     degree: Int
   ) throws -> NumericValue {
+    try scalarBudget?.consume()
     let representation = logarithmicRepresentation(value)
     guard !representation.isZero else {
       return .approximate(
@@ -904,6 +942,7 @@ struct NumericOperations {
     inputs: [Double],
     rejectUnexpectedZero: Bool
   ) throws -> NumericValue {
+    try scalarBudget?.consume()
     guard result.isFinite else {
       throw EngineError(code: .approximationOutOfRange)
     }
@@ -923,6 +962,7 @@ struct NumericOperations {
   }
 
   private func approximateHypot(_ x: NumericValue, _ y: NumericValue) throws -> NumericValue {
+    try scalarBudget?.consume()
     let result = Foundation.hypot(try approximateEstimate(x), try approximateEstimate(y))
     guard result.isFinite else {
       throw EngineError(code: .approximationOutOfRange)
@@ -939,6 +979,7 @@ struct NumericOperations {
   private func approximateRemainder(_ left: NumericValue, _ right: NumericValue) throws
     -> NumericValue
   {
+    try scalarBudget?.consume()
     let divisor = try approximateEstimate(right)
     guard divisor != 0 else {
       throw EngineError(code: .divisionByZero)
@@ -957,6 +998,7 @@ struct NumericOperations {
   }
 
   private func approximateEstimate(_ value: NumericValue) throws -> Double {
+    try scalarBudget?.consume()
     let representation = logarithmicRepresentation(value)
     guard !representation.isZero else {
       return 0
@@ -1047,6 +1089,7 @@ struct NumericOperations {
     logarithmOfMagnitude: Double,
     negative: Bool
   ) throws -> Double {
+    try scalarBudget?.consume()
     let magnitude = Foundation.exp(logarithmOfMagnitude)
     guard magnitude.isFinite, magnitude != 0 else {
       throw EngineError(code: .approximationOutOfRange)
@@ -1059,6 +1102,7 @@ struct NumericOperations {
     _ right: Fraction,
     subtracting: Bool
   ) throws -> NumericValue {
+    try scalarBudget?.consume()
     let commonDivisor = left.denominator.greatestCommonDivisor(
       with: right.denominator
     )
@@ -1086,13 +1130,15 @@ struct NumericOperations {
     _ left: Fraction,
     _ right: Fraction
   ) throws -> NumericValue {
-    try fractionValue(multipliedFraction(left, right))
+    try scalarBudget?.consume()
+    return try fractionValue(multipliedFraction(left, right))
   }
 
   private func multipliedFraction(
     _ left: Fraction,
     _ right: Fraction
   ) throws -> Fraction {
+    try scalarBudget?.consume()
     let leftCancellation = left.numerator.greatestCommonDivisor(
       with: right.denominator
     )
@@ -1116,6 +1162,7 @@ struct NumericOperations {
     _ right: NumericValue,
     subtracting: Bool
   ) throws -> NumericValue {
+    try scalarBudget?.consume()
     let lhs = try decimal(left)
     let rhs = try decimal(right)
     let scale = max(lhs.scale, rhs.scale)
@@ -1140,11 +1187,13 @@ struct NumericOperations {
   }
 
   private func exactDecimal(_ fraction: Fraction) throws -> DecimalValue? {
+    try scalarBudget?.consume()
     var denominator = fraction.denominator.magnitude
     let twos = denominator.trailingZeroBitCount
     var fives = 0
     denominator >>= twos
     while denominator % 5 == 0 {
+      try scalarBudget?.consume()
       denominator /= 5
       fives += 1
     }
@@ -1176,6 +1225,7 @@ struct NumericOperations {
     _ left: NumericValue,
     _ right: NumericValue
   ) throws -> Int {
+    try scalarBudget?.consume()
     let lhs = try exactFraction(left)
     let rhs = try exactFraction(right)
     try preflightMultiplication(lhs.numerator, rhs.denominator)
@@ -1195,6 +1245,7 @@ struct NumericOperations {
 
   /// The value as a `Double`, rounding exact values to the nearest one.
   func double(_ value: NumericValue) throws -> Double {
+    try scalarBudget?.consume()
     if case .approximate = value {
       return try approximateEstimate(value)
     }
@@ -1207,6 +1258,7 @@ struct NumericOperations {
   }
 
   private func exactFraction(_ value: NumericValue) throws -> Fraction {
+    try scalarBudget?.consume()
     switch value {
     case .integer(let integer):
       return Fraction(numerator: integer.storage, denominator: 1)
@@ -1235,6 +1287,7 @@ struct NumericOperations {
   }
 
   private func decimal(_ value: NumericValue) throws -> DecimalValue {
+    try scalarBudget?.consume()
     switch value {
     case .decimal(let decimal):
       try validateScale(decimal.scale)
@@ -1247,6 +1300,7 @@ struct NumericOperations {
   }
 
   private func integer(_ value: NumericValue) throws -> IntegerValue {
+    try scalarBudget?.consume()
     guard case .integer(let integer) = value else {
       throw EngineError(code: .invalidDomain)
     }
@@ -1254,6 +1308,7 @@ struct NumericOperations {
   }
 
   private func fractionValue(_ fraction: Fraction) throws -> NumericValue {
+    try scalarBudget?.consume()
     try validateInteger(fraction.numerator)
     try validateInteger(fraction.denominator)
     if fraction.denominator == 1 {
@@ -1268,17 +1323,20 @@ struct NumericOperations {
   }
 
   private func checkedInteger(_ value: BigInt) throws -> NumericValue {
+    try scalarBudget?.consume()
     try validateInteger(value)
     return .integer(IntegerValue(storage: value))
   }
 
   private func validateInteger(_ value: BigInt) throws {
+    try scalarBudget?.consume()
     guard value.magnitude.bitWidth <= limits.maximumIntegerBits else {
       throw limitError(.integerBits)
     }
   }
 
   private func validateScale(_ scale: Int) throws {
+    try scalarBudget?.consume()
     guard
       scale != .min,
       Swift.abs(scale) <= limits.maximumDecimalScaleMagnitude
@@ -1288,6 +1346,7 @@ struct NumericOperations {
   }
 
   private func checkedScale(_ left: Int, plus right: Int) throws -> Int {
+    try scalarBudget?.consume()
     let (result, overflow) = left.addingReportingOverflow(right)
     guard !overflow else {
       throw limitError(.decimalScale)
@@ -1297,6 +1356,7 @@ struct NumericOperations {
   }
 
   private func checkedScale(_ scale: Int, multipliedBy value: Int) throws -> Int {
+    try scalarBudget?.consume()
     let (result, overflow) = scale.multipliedReportingOverflow(by: value)
     guard !overflow else {
       throw limitError(.decimalScale)
@@ -1306,6 +1366,7 @@ struct NumericOperations {
   }
 
   private func powerOfTen(_ exponent: Int) throws -> BigInt {
+    try scalarBudget?.consume()
     try validateScale(exponent)
     guard
       exponent >= 0,
@@ -1320,6 +1381,7 @@ struct NumericOperations {
   }
 
   private func preflightMultiplication(_ left: BigInt, _ right: BigInt) throws {
+    try scalarBudget?.consume()
     let leftBits = left.magnitude.bitWidth
     let rightBits = right.magnitude.bitWidth
     guard !left.isZero, !right.isZero else {
@@ -1332,6 +1394,7 @@ struct NumericOperations {
   }
 
   private func preflightPower(_ base: BigInt, exponent: Int) throws {
+    try scalarBudget?.consume()
     guard exponent >= 0 else {
       throw EngineError(code: .invalidDomain)
     }
@@ -1365,7 +1428,7 @@ struct NumericOperations {
   private func integerRoot(
     _ value: BigUInt,
     degree: Int
-  ) -> (value: BigUInt, exact: Bool) {
+  ) throws -> (value: BigUInt, exact: Bool) {
     if value <= 1 || degree == 1 {
       return (value, true)
     }
@@ -1373,6 +1436,7 @@ struct NumericOperations {
     let rootBitWidth = (value.bitWidth - 1) / degree + 1
     var high = BigUInt(1) << (rootBitWidth + 1)
     while low + 1 < high {
+      try scalarBudget?.consume()
       let midpoint = (low + high) >> 1
       let powered = midpoint.power(degree)
       if powered <= value {

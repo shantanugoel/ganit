@@ -4,8 +4,10 @@ Date: 2026-10-01; updated 2026-10-03. Status: M0 feasibility complete with
 inline preview/Open Table selected; architectural decisions resolved in ADRs
 0016/0017. M1 (source model, identity and safe storage) is complete on branch
 `tables`: table block format v1 and metadata/manifest schema 2 are frozen with
-fixtures, and its exit evidence passes. M2 is in progress (see durable status below). Table formulas do not
-yet calculate; blocks are retained and quarantined. This plan refines the [investigation](../design/tables-investigation.md)
+fixtures, and its exit evidence passes. M2 is complete (see durable status and
+[engine evidence](../design/tables/m2-engine-evidence.md)). The standalone table
+calculator is implemented; workspace blocks remain quarantined until M3 fold
+integration. This plan refines the [investigation](../design/tables-investigation.md)
 and governs its unresolved details for this feature. It does not replace
 accepted ADRs; M0 decisions and evidence are linked below.
 
@@ -402,7 +404,7 @@ No older-format reader, upgrade/downgrade or migration rollback is required.
       bounds and data-only named membership; audit typed min/max explicitly.
 - [x] Reuse exact arithmetic, conversions, functions, rate/clock context and
       provenance. Diagnose unsupported/bare table functions explicitly.
-- [ ] Add dependency invalidation, range-membership invalidation and resource
+- [x] Add dependency invalidation, range-membership invalidation and resource
       limits. Start with M0's provisional per-sheet 4,000 populated cells,
       100,000 dependency links and 1,000,000 range-cell visits per generation;
       validate/tune these in M0/M6. Keep the existing 1 MB source limit and
@@ -571,8 +573,9 @@ unverified acceptance result has been converted into a pass.
 ## M2 durable execution status
 
 Updated 2026-10-03. Worktree `/Users/shantanugoel/.codex/worktrees/tables-m0/ganit`,
-branch `tables`; clean starting HEAD `4a1e765`. M2 only is authorized in this
-execution; do not begin M3 until all M2 exit criteria have recorded evidence.
+branch `tables`; clean starting HEAD `4a1e765`. This execution completed M2
+only; M3 has not begun. All M2 exit criteria have recorded
+[engine acceptance evidence](../design/tables/m2-engine-evidence.md).
 
 - Task 1 (scoped grammar/bindings/operands): implement → independent review →
   test complete, approved; committed `990e601`. Push required reconciliation
@@ -644,9 +647,28 @@ execution; do not begin M3 until all M2 exit criteria have recorded evidence.
   `TableContextContractTests` 29 + `TableContextTests` 22.
   M3 carry-over: fold fills scope fields in definition order, wires
   `nextRecalculation`/`isCurrent` and an inherited-scope fingerprint.
-- Task 5 (dependency/range-membership invalidation, resource limits incl.
-  per-generation scalar-op budget; running-range O(rows²) edges from task 2
-  m5): next.
+- Task 5 (dependency/range-membership invalidation and resource limits):
+  understand → delegated implementation → independent review → independent test
+  complete, approved. Immutable previous-snapshot reuse (same calculator or copy),
+  reverse-dependent invalidation, bounded current syntax/outcome cache, refreshed
+  bindings/membership; generation limits 100,000 links / 1,000,000 range visits /
+  1,000,000 scalar work units, plus existing 4,000-cell and source admission.
+  Scalar accounting includes nested custom calls, numeric loops, conversions and
+  reductions; custom bodies now also share the caller's per-expression limit.
+  Review fixes cover empty typed-zero defaults, earlier-table comparison cost,
+  shared static-probe budget replay, conversions/trig and sticky cancellation.
+  33 independent contracts + 4 implementation regressions. Final verification:
+  **900 full-suite tests passed**, ASan 288, TSan 59 (concurrent generations),
+  release Table 190 including 10,000-cell small-stack chains; package dump,
+  all-products build, strict lint, release app build/verification, CLI smoke and
+  whitespace passed. Final evidence review strengthened the million-visit test
+  to isolate it from scalar/link limits; affected debug/release reruns passed
+  (production unchanged). Logs `/tmp/ganit-m2-task5-*.log`; focused log
+  `/tmp/ganit-task5-focused-final.log`. Full evidence and M3 integration notes are
+  in the linked engine acceptance report. No native acceptance is claimed.
+- M2 exit: complete, with grammar/directionality, typed exact ranges and empty
+  inputs, dynamic membership, cycles/independent results, stack safety and
+  necessary-dependent invalidation recorded in the acceptance report.
 - Read plan, accepted ADRs 0016/0017 and amendments, frozen v1 source/storage
   contract and M0 evidence. Preserve current schemas, quarantine and byte fidelity.
 - Native acceptance remains mandatory in M4/M5 and M6: real IME, VoiceOver,
@@ -659,8 +681,10 @@ execution; do not begin M3 until all M2 exit criteria have recorded evidence.
 
 Use branch `tables` in `/Users/shantanugoel/.codex/worktrees/tables-m0/ganit`.
 M1 is complete (commits 5dc34c3..ac67993 plus the exit record). Start
-**M2 — Formula grammar, graph and typed range operations**, then M3–M6 in
-order. Read this plan, accepted ADRs [0016](../adr/0016-table-semantics-and-editor-ownership.md)
+**M3 — Structural edits and mixed-sheet evaluation** on the next execution,
+then M4–M6 in order. M2 is complete; its
+[acceptance report](../design/tables/m2-engine-evidence.md) records the calculator
+reuse, full-sheet population and scheduler integration requirements. Read this plan, accepted ADRs [0016](../adr/0016-table-semantics-and-editor-ownership.md)
 and [0017](../adr/0017-table-source-and-storage.md) with their amendments,
 [table blocks](../storage/table-blocks.md) (frozen v1: consume
 `TableSourceDocument`/`TableModel`, patch spans with `TableSourcePatch`, never

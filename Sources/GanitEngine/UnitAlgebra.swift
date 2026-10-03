@@ -5,7 +5,11 @@ public struct UnitAlgebra: Sendable {
     context: EvaluationContext,
     limits: EvaluationLimits = .default
   ) {
-    operations = NumericOperations(context: context, limits: limits)
+    self.init(context: context, limits: limits, scalarBudget: nil)
+  }
+
+  init(context: EvaluationContext, limits: EvaluationLimits, scalarBudget: TableScalarBudget?) {
+    operations = NumericOperations(context: context, limits: limits, scalarBudget: scalarBudget)
   }
 
   public func unit(_ definition: UnitDefinition) throws -> UnitExpression {

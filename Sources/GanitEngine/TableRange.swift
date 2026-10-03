@@ -51,14 +51,17 @@ enum TableRangeReductionFailure: Error, Hashable, Sendable {
 struct TableRangeReducer {
   let context: EvaluationContext
   let limits: EvaluationLimits
+  private let scalarBudget: TableScalarBudget?
   private let operations: NumericOperations
   private let unitAlgebra: UnitAlgebra
 
-  init(context: EvaluationContext, limits: EvaluationLimits) {
+  init(context: EvaluationContext, limits: EvaluationLimits, scalarBudget: TableScalarBudget? = nil)
+  {
+    self.scalarBudget = scalarBudget
     self.context = context
     self.limits = limits
-    operations = NumericOperations(context: context, limits: limits)
-    unitAlgebra = UnitAlgebra(context: context, limits: limits)
+    operations = NumericOperations(context: context, limits: limits, scalarBudget: scalarBudget)
+    unitAlgebra = UnitAlgebra(context: context, limits: limits, scalarBudget: scalarBudget)
   }
 
   /// `typedZero` is the empty `sum`: `0`, a declared typed zero, or `nil`
@@ -67,6 +70,7 @@ struct TableRangeReducer {
     _ function: TableRangeFunction, _ values: [EngineValue], typedZero: () -> EngineValue?
   ) -> Result<EngineValue, TableRangeReductionFailure> {
     do {
+      try scalarBudget?.consume()
       switch function {
       case .count:
         return .success(.number(.integer(IntegerValue(values.count))))
@@ -92,7 +96,10 @@ struct TableRangeReducer {
   /// The ordinary `total`/`average`/`median` arithmetic: one kind, exact
   /// values, dimension checks and no implicit currency conversion.
   private func aggregate(_ aggregate: Aggregate, _ values: [EngineValue]) throws -> EngineValue {
-    try Evaluator(context: context, limits: limits).aggregating(aggregate, of: values)
+    try Evaluator(
+      context: context, limits: limits, variables: [:], lines: LineOutcomes(),
+      scalarBudget: scalarBudget
+    ).aggregating(aggregate, of: values)
   }
 
   /// Typed min/max select a member unchanged (exactness and approximation
@@ -117,6 +124,7 @@ struct TableRangeReducer {
   /// The sign of `left - right` for two values of one kind.
   func ordering(_ left: EngineValue, _ right: EngineValue) throws -> Int {
     func sign<T: Comparable>(_ lhs: T, _ rhs: T) -> Int { lhs < rhs ? -1 : (lhs > rhs ? 1 : 0) }
+    try scalarBudget?.consume()
     switch (left, right) {
     case (.number(let lhs), .number(let rhs)):
       return try operations.ordering(lhs, rhs)
