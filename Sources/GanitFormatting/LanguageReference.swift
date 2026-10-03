@@ -207,6 +207,36 @@ extension LanguageReference {
       keywords: ["custom unit", "shared"]
     ),
     topic(
+      id: "grammar.tables",
+      category: .grammar,
+      title: text("help.grammar.tables.title", "Calculation tables"),
+      summary: text(
+        "help.grammar.tables.summary",
+        "A named grid of rows and columns with formulas, totals, and typed cells."
+      ),
+      body: text(
+        "help.grammar.tables.body",
+        "Edit ▸ Insert Table puts a table in a sheet. A cell holds a literal value or a formula that starts with =. Definitions above the table are available to its formulas. Set Column Formula gives one rule to a whole column, and a dot marks a cell that overrides it. Column Total adds a typed total below the column. Table Actions copies, pastes, fills, repairs, and exports the table. The table keeps its identity through Undo, redo, save, and reload."
+      ),
+      examples: ["=[@Qty] * rate", "=sum(B2:B6)"],
+      keywords: ["table", "grid", "column rule", "total", "rows"]
+    ),
+    topic(
+      id: "grammar.tableReferences",
+      category: .grammar,
+      title: text("help.grammar.tableReferences.title", "Table references"),
+      summary: text(
+        "help.grammar.tableReferences.summary",
+        "Addresses, ranges, named columns, and qualified references to other tables."
+      ),
+      body: text(
+        "help.grammar.tableReferences.body",
+        "The header row is 1 and the first data row is 2. B2 is one cell, B2:D6 is a rectangle, C:C is the whole data column, and [@Qty] is the current row's column. Items[Amount] reads one named column as data, and Rates!B2 names another table above. sheet[B2] reads an ordinary variable named B2. A header returns text. Range functions skip blank and text cells, and a failed cell fails the result. sum of an empty range is 0; average, median, min, and max of an empty range are errors. Prose below the table reads values with a qualified reference, such as cost = sum(Items[Amount])."
+      ),
+      examples: ["=[@Qty] * [@[Unit price]]", "=sum(Items[Amount])", "=Rates!B2 * 2"],
+      keywords: ["address", "range", "qualified", "A1", "lock", "fill"]
+    ),
+    topic(
       id: "grammar.dates",
       category: .grammar,
       title: text("help.grammar.dates.title", "Dates and times"),

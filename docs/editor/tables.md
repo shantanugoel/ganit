@@ -69,6 +69,11 @@ target, then commit. Go to Original Failure opens the source of a blocked
 result. Undo can restore the previous input after an error.
 
 The expanded grid uses the sheet source and document Undo. It does not have
-a separate editable store. The inline preview is planned in M5. See the
+a separate editable store. See the
 [M4 test report](../design/tables/m4-editor-evidence.md) for verified behavior
 and remaining release checks.
+
+## Try it
+
+Paste a ready sheet from the [sample sheets](../samples/tables.md) into a new
+sheet, then open its table and edit cells.

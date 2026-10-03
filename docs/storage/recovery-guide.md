@@ -74,3 +74,20 @@ Nothing to do. If the current rate snapshot is damaged, Ganit falls back to
 the newest intact one of the eight it keeps, and a rejected download never
 replaces good rates. With no usable snapshot, conversions ask for a manual
 rate such as `1 USD = 83 INR`.
+
+## A table that Ganit cannot read
+
+Nothing to do. A table block that fails its checks, such as a damaged payload
+or a version Ganit does not read, is kept byte for byte in the sheet. Ganit
+does not calculate it, and lines that read it say so. The block prints with
+its failure in PDF and HTML output. Repair is an explicit edit: fix the block
+in the sheet source, or delete it and insert a new table.
+
+## A broken table reference
+
+A reference in a table formula that lost its target stays broken in source as
+`#REF!{...}`. It stays broken after save and reload, even when another cell
+later takes the same address. Select the cell, choose Repair Broken Reference
+in Table Actions, pick the new target, and commit. The repair is part of the
+same undoable edit as the change that caused it. See
+[table references](../grammar/table-references.md) for the repair rules.

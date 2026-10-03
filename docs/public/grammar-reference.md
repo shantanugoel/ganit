@@ -12,6 +12,7 @@ inside the app.
 | Units | `12 km in miles`, `75 MB/s * 2 s`, `0 °C as °F` | [Units](../grammar/unit-syntax.md) |
 | Variables | `monthly rent = 2,100`, `monthly rent * 12` | [Variables](../grammar/variables.md) |
 | References and totals | `@2 * 3`, `line 2 * 3`, `previous`, `sum`, `subtotal` | [References](../grammar/references.md) |
+| Table references | `=[@Qty] * rate`, `=sum(Items[Amount])`, `=Rates!B2` | [Table references](../grammar/table-references.md) |
 | Shared definitions | `hourly rate = 90`, `1 bag = 25 kg` | [Definitions](../grammar/definitions.md) |
 | Dates and times | `today + 3 months`, `2024-03-09T12:00 Europe/London`, `now in Tokyo` | [Dates and time](../grammar/date-syntax.md) |
 | Money and exchange rates | `12.50 EUR`, `€5`, `100 USD in INR`, `1 USD = 83 INR` | [Money](../grammar/money-syntax.md) |

@@ -5,6 +5,17 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Calculation tables are complete. Table Actions now exports the open table
+  as TSV or CSV in a values mode or an inputs-and-formulas mode, with a
+  locale-aware CSV separator, an optional header row, the totals footer, and
+  a leading apostrophe on fields a spreadsheet would run as formulas.
+- Print, PDF, HTML, and the Quick Look preview of an exported package now
+  show each table as a grid with its headers, its values with their units,
+  and error messages in place. A header row repeats when a table continues on
+  the next printed page. CSV export keeps one row per physical source line.
+- `ganit --tables` prints each table as a named grid at its block position
+  after the usual line answers. Table cells never replace line answers, and
+  a table with a failure exits with status 1.
 - Named calculation tables now calculate in workspace sheets. Formulas use
   preceding definitions, and subsequent prose can read qualified table values.
 - Structural table edits preserve references through Undo, redo, save and
