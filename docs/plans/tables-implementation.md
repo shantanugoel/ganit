@@ -796,3 +796,11 @@ All six task implementations were committed in order. Phase review and native
 app tests are complete. VoiceOver checks are basic, as requested by the user.
 See the [M4 test report](../design/tables/m4-editor-evidence.md) for task commits,
 review corrections, test results and remaining release checks.
+
+## M5 execution record
+
+Work started on 2026-10-04 on branch `tables`.
+
+- Task 1: Add a mapped, read-only inline preview. Layout attributes reserve
+  block space. The text storage keeps the complete source. The answer divider
+  skips each preview. Basic build checks precede the task commit.

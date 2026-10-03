@@ -17,6 +17,13 @@ import GanitFormatting
 /// no answer is selected.
 @MainActor
 final class SheetTextView: NSTextView {
+  var inlineLayout: () -> Void = {}
+  var inlineRefresh: () -> Void = {}
+  var inlineRanges: () -> [NSRange] = { [] }
+  override func layout() {
+    super.layout()
+    inlineLayout()
+  }
   private static let interpretationUnits = try? UnitCatalog.minimal()
   /// The answer column shares the width with source up to these bounds.
   static let answerColumnFraction: CGFloat = 0.35
@@ -33,6 +40,7 @@ final class SheetTextView: NSTextView {
   private(set) var textScale: CGFloat = 1 {
     didSet {
       font = VisualStyle.Typography.source(scale: textScale)
+      inlineRefresh()
       setFrameSize(frame.size)
       openAnswerGaps()
     }
@@ -2074,7 +2082,8 @@ final class SheetTextView: NSTextView {
       VisualStyle.Typography.source(scale: textScale).ascender - (numberFont?.ascender ?? 0)
     let width = gutterWidth - VisualStyle.Spacing.standard / 2
     return visibleLines(in: rect).compactMap { line in
-      lineNumber(line.id).map {
+      guard !isTableLine(lineStarts().first(where: { $0.id == line.id })?.start ?? 0) else { return nil }
+      return lineNumber(line.id).map {
         (
           $0,
           NSRect(
@@ -2236,7 +2245,13 @@ private final class AnswerOverlayView: NSView {
     }
     if let x = textView.answerSeparatorX {
       VisualStyle.Color.separator.setFill()
-      NSRect(x: x, y: dirtyRect.minY, width: 1, height: dirtyRect.height).fill()
+      var start = dirtyRect.minY
+      let blocks = textView.subviews.compactMap { $0 as? InlineTablePreview }.map(\.frame).sorted { $0.minY < $1.minY }
+      for block in blocks where block.maxY > start && block.minY < dirtyRect.maxY {
+        if block.minY > start { NSRect(x: x, y: start, width: 1, height: block.minY - start).fill() }
+        start = max(start, block.maxY)
+      }
+      if start < dirtyRect.maxY { NSRect(x: x, y: start, width: 1, height: dirtyRect.maxY - start).fill() }
     }
     for (rect, color) in textView.underlineLayout(in: dirtyRect) {
       let path = NSBezierPath()

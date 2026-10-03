@@ -9,15 +9,17 @@ package struct TableEditingSnapshot: Sendable {
     package let input: TableInputPolicy
     package let total: TableTotal?
   }
+  package let utf8Range: Range<Int>
   package let id: TableID
   package let name: String
   package let rows: [RowID]
   package let columns: [Column]
   private let cells: [TableCellPosition: String]
   package init?(_ document: TableSourceDocument, id: TableID) {
-    guard let table = document.blocks.compactMap(\.table).first(where: { $0.id == id }) else {
+    guard let block = document.blocks.first(where: { $0.table?.id == id }), let table = block.table else {
       return nil
     }
+    utf8Range = block.utf8Range
     self.id = id
     name = table.name
     rows = table.rows

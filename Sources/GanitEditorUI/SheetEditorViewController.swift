@@ -25,6 +25,7 @@ public final class SheetEditorViewController: NSViewController {
   public var evaluationDidCommit: ((SheetEvaluation) -> Void)?
   private func refreshTableProjections() {
     for observer in tableProjectionObservers.values { observer() }
+    refreshInlineTables()
   }
   /// Undo belongs to the document, not the window, so each sheet has its own
   /// history.
@@ -73,6 +74,9 @@ public final class SheetEditorViewController: NSViewController {
   private var tableViewStates: [TableID: (TableCellPosition, TableCellPosition, NSPoint)] = [:]
   private var proseScroll = NSPoint.zero
   private let permitsTableEditing: Bool
+  package var permitsInlineTables: Bool { permitsTableEditing }
+  var inlineTableViews: [TableID: InlineTablePreview] = [:]
+  package var inlineTableRanges: [TableID: NSRange] = [:]
   let summaryBar = SelectionSummaryBar()
   private let sheetTextView = SheetTextView(usingTextLayoutManager: true)
   private let storageObserver = StorageObserver()
@@ -171,6 +175,9 @@ public final class SheetEditorViewController: NSViewController {
 
     configureTextView(text: text)
     placeAnswers(display)
+    sheetTextView.inlineLayout = { [weak self] in self?.layoutInlineTables() }
+    sheetTextView.inlineRefresh = { [weak self] in self?.refreshInlineTables() }
+    sheetTextView.inlineRanges = { [weak self] in Array(self?.inlineTableRanges.values ?? [:].values) }
     sheetTextView.lexingConfiguration = context.lexingConfiguration
     storageObserver.controller = self
     textView.textStorage?.delegate = storageObserver
@@ -289,6 +296,7 @@ public final class SheetEditorViewController: NSViewController {
       pendingAnswerDraw = editToAnswer
       show(evaluation, of: snapshot)
     }
+    refreshInlineTables()
     scheduler?.schedule(sheet)
   }
 
