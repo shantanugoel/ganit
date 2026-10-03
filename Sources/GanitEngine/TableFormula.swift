@@ -27,7 +27,7 @@ struct TableFormulaDiagnostic: Error, Hashable, Sendable {
   enum Code: String, Hashable, Sendable {
     case malformedReference, missingTable, invisibleTable, missingColumn
     case outOfBounds, mixedTableRange, staleBinding, brokenReference
-    case missingInheritedVariable, bareAggregate, scalarRequired
+    case missingInheritedVariable, inheritedFailure, bareAggregate, scalarRequired
   }
   let code: Code
   let range: SourceRange

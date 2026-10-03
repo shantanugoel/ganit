@@ -212,3 +212,16 @@ public struct CalculationEngine: Sendable {
     return words.isEmpty ? (nil, nil) : (words.joined(separator: " "), nil)
   }
 }
+
+extension CalculationEngine {
+  /// Table formulas use this engine's catalog and limits, preserving the
+  /// same kind-directed parser used by ordinary calculations.
+  func parse(
+    _ syntax: TableFormulaSyntax, context: EvaluationContext,
+    operandKinds: [String: EngineValueKind], inheritedKinds: [String: EngineValueKind]
+  ) throws -> ParsingResult {
+    try syntax.parse(
+      context: context, operandKinds: operandKinds, inheritedKinds: inheritedKinds,
+      catalog: unitCatalog, limits: syntaxLimits)
+  }
+}

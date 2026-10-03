@@ -396,7 +396,7 @@ No older-format reader, upgrade/downgrade or migration rollback is required.
 - [x] Add scoped AST/reference forms, bindings, inherited-scope reads and
       typed cell/range operands. Verify supported ordinary syntax and arithmetic
       alongside table formulas; no separate legacy parser or evaluator path.
-- [ ] Implement iterative graph evaluation, SCC diagnostics, blocked-result
+- [x] Implement iterative graph evaluation, SCC diagnostics, blocked-result
       propagation, cycle paths and original-cause source ranges.
 - [ ] Implement range aggregates, empty/type/error rules, whole-row/column
       bounds and data-only named membership; audit typed min/max explicitly.
@@ -579,7 +579,7 @@ execution; do not begin M3 until all M2 exit criteria have recorded evidence.
   with remote `b21c184` (pre-existing rebased M0/M1 history). Independent
   range-diff and exact-tree review verified all remote work preserved; merge
   source tree equals `990e601`. Both conflict sides backed up under
-  `/tmp/ganit-m2-reconciliation-backup`. Merge commit/push in progress.
+  `/tmp/ganit-m2-reconciliation-backup`. Merge `8afef34` pushed successfully.
   Shared Parser token hook,
   scoped binding/typed operand foundation; no IDs minted or source re-encoded.
   Ordinary syntax/collision/visibility/ledger corpus includes time precedence:
@@ -593,8 +593,24 @@ execution; do not begin M3 until all M2 exit criteria have recorded evidence.
   `/tmp/ganit-m2-task1-full-final.log`,
   `/tmp/ganit-m2-task1-affected-final.log`,
   `/tmp/ganit-m2-task1-build-final.log`.
-- Tasks 2–5: not started. Next is iterative graph/SCC evaluation, only after
-  task 1 commit/push succeeds. Full app build/verification at M2 exit.
+- Task 2 (iterative graph/SCC): implement → review (3 rounds) → test complete,
+  approved; committed (see git log "iterative table graph"). Lazy stable-identity
+  cell nodes plus shared symbolic range-membership nodes; iterative Kosaraju SCC,
+  closed directed cycle witnesses, blocked readers distinct from participants,
+  independent components calculate. Original causes are an interned
+  `TableCauseSet` DAG (O(inputs) per reader, cached flatten, structural
+  provenance equality/hash, iterative deinit). Earlier snapshot model is
+  authoritative; own static errors outrank blocked inputs (`staticFailure`,
+  budgeted by `maximumStaticCheckParses`); `inheritedFailure` code; rule
+  templates bound once. Range readers stay `unsupportedRangeOperation` until
+  task 3. Evidence: full suite 751 passed (`/tmp/ganit-m2-task2-full-r3.log`),
+  CI ASan + TableGraph ASan/TSan pass, strict lint pass, release TableGraph
+  pass; 41 TableGraph tests incl. 10,000-cell up/down chains on 512 KiB
+  threads and ratio-based linearity checks at 4,000 cells.
+  Carried forward: m5 running-range O(rows²) edges → task 5 link budget;
+  `originCount`/`origins(prefix:)` still flatten fully → M4 UI should query
+  visible/selected cells only (or add a cheap prefix).
+- Task 3 (range aggregates): next. Tasks 4–5: not started. Full app build/verification at M2 exit.
 - Read plan, accepted ADRs 0016/0017 and amendments, frozen v1 source/storage
   contract and M0 evidence. Preserve current schemas, quarantine and byte fidelity.
 - Native acceptance remains mandatory in M4/M5 and M6: real IME, VoiceOver,
