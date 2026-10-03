@@ -283,6 +283,7 @@ public enum MainMenu {
           item(
             localized("table.insert", "Insert Table…"),
             #selector(SheetEditorViewController.insertCalculationTable(_:))),
+          item("Paste as Table…", #selector(SheetEditorViewController.pasteAsCalculationTable(_:))),
           item(
             localized("table.open", "Open Table"),
             #selector(SheetEditorViewController.openCalculationTable(_:)), "t", [.command, .shift]),

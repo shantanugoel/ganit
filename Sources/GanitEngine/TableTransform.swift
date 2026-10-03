@@ -364,7 +364,7 @@ extension TableSourceDocument {
 
   /// Splits TSV into rows of fields. One final line break ends the last row
   /// rather than adding an empty one; CRLF, CR and LF all end rows.
-  static func tabSeparated(_ text: String) -> [[String]] {
+  package static func tabSeparated(_ text: String) -> [[String]] {
     var rows: [[String]] = []
     var fields: [String] = []
     var field = ""

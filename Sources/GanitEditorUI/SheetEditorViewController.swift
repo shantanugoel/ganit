@@ -1658,31 +1658,101 @@ extension CalculationResult {
 
 extension SheetEditorViewController {
   @objc public func insertCalculationTable(_ sender: Any?) {
-    guard permitsTableEditing, textView.isEditable, let window = view.window else { return }
+    showTableCreation(pasted: nil)
+  }
+  @objc public func pasteAsCalculationTable(_ sender: Any?) {
+    guard let text = resultPasteboard.string(forType: .string) else { NSSound.beep(); return }
+    showTableCreation(pasted: text)
+  }
+  private func showTableCreation(pasted: String?) {
+    guard permitsTableEditing, textView.isEditable, expandedTable == nil,
+      !textView.hasMarkedText(), let window = view.window else { return }
+    let grid = pasted.map(TableSourceDocument.tabSeparated)
+    if let grid, (grid.isEmpty || grid[0].isEmpty || grid.count * grid[0].count > 4000
+      || grid[0].count > 32 || !grid.allSatisfy({ $0.count == grid[0].count })) {
+      let alert = NSAlert()
+      alert.messageText = "Use a rectangle with at most 32 columns and 4,000 cells."
+      alert.beginSheetModal(for: window)
+      return
+    }
+    let before = sheet.text
+    let start = (before as NSString).lineRange(for: textView.selectedRange()).location
+    let offset = (before as NSString).substring(to: start).utf8.count
+    guard !inlineTableRanges.values.contains(where: { NSLocationInRange(start, $0) }) else { return }
     let alert = NSAlert()
-    alert.messageText = localized("table.insert", "Insert Table")
-    let field = NSTextField(string: "Items")
-    field.frame = NSRect(x: 0, y: 0, width: 280, height: 24)
-    field.setAccessibilityLabel(localized("table.name", "Table name"))
-    alert.accessoryView = field
-    alert.addButton(withTitle: localized("table.insert", "Insert Table"))
-    alert.addButton(withTitle: localized("table.cancel", "Cancel"))
-    alert.window.initialFirstResponder = field
+    alert.messageText = pasted == nil ? "Insert Table" : "Paste as Table"
+    alert.informativeText = "Set each column to Text or Value. Formulas require the formula option."
+    let name = NSTextField(string: "Items")
+    name.setAccessibilityLabel("Table name")
+    let headerRow = NSButton(checkboxWithTitle: "First pasted row contains headers", target: nil, action: nil)
+    headerRow.state = .on
+    let formulas = NSButton(checkboxWithTitle: "Interpret = inputs as formulas", target: nil, action: nil)
+    let count = grid?.first?.count ?? 3
+    var headers: [NSTextField] = []
+    var policies: [NSPopUpButton] = []
+    var views: [NSView] = [NSTextField(labelWithString: "Table name"), name]
+    if pasted != nil { views.append(headerRow) }
+    for index in 0..<count {
+      let header = NSTextField(string: grid?[0][index] ?? ["Item", "Qty", "Amount"][index])
+      header.setAccessibilityLabel("Column \(index + 1) header")
+      let policy = NSPopUpButton()
+      policy.addItems(withTitles: ["Text", "Value"])
+      if pasted == nil && index > 0 { policy.selectItem(at: 1) }
+      policy.setAccessibilityLabel("Column \(index + 1) input type")
+      headers.append(header)
+      policies.append(policy)
+      views.append(NSStackView(views: [header, policy]))
+    }
+    if pasted != nil { views.append(formulas) }
+    let stack = NSStackView(views: views)
+    stack.orientation = .vertical
+    stack.alignment = .leading
+    stack.spacing = 8
+    stack.frame = NSRect(x: 0, y: 0, width: 380, height: CGFloat(views.count) * 32)
+    for row in views { row.widthAnchor.constraint(equalToConstant: 380).isActive = true }
+    let scroll = NSScrollView(frame: NSRect(x: 0, y: 0, width: 400, height: min(400, stack.frame.height)))
+    scroll.hasVerticalScroller = true
+    scroll.documentView = stack
+    alert.accessoryView = scroll
+    alert.addButton(withTitle: pasted == nil ? "Insert" : "Paste as Table")
+    alert.addButton(withTitle: "Cancel")
+    alert.window.initialFirstResponder = name
     alert.beginSheetModal(for: window) { [weak self] response in
       guard let self, response == .alertFirstButtonReturn else { return }
-      let text = textView.string as NSString
-      let start = text.lineRange(for: textView.selectedRange()).location
-      let prefix = text.substring(to: start)
       do {
-        if let id = try createTable(
-          named: field.stringValue,
-          headers: [("Item", .text), ("Qty", .value), ("Amount", .value)], rowCount: 3,
-          atUTF8: prefix.utf8.count)
-        {
-          openTable(id)
-        }
+        let data = grid.map { headerRow.state == .on ? Array($0.dropFirst()) : $0 }
+        let id = try insertTableRectangle(
+          named: name.stringValue, headers: zip(headers, policies).map {
+            ($0.stringValue, $1.indexOfSelectedItem == 0 ? .text : .value)
+          }, rows: data, formulas: formulas.state == .on, atUTF8: offset, expectedSource: before)
+        if let id { openTable(id) }
       } catch { window.presentError(error) }
     }
+  }
+  /// Build the complete insert and paste before applying one document edit.
+  @discardableResult
+  package func insertTableRectangle(
+    named name: String, headers: [(String, TableInputPolicy)], rows: [[String]]?,
+    formulas: Bool, atUTF8 offset: Int, expectedSource: String
+  ) throws -> TableID? {
+    guard expectedSource == sheet.text else { throw SheetSourceCoordinator.Failure.staleEdit }
+    let create = try TableSourceDocument(sheet).createTable(
+      name: name, headers: headers, rowCount: rows?.count ?? 3, atUTF8: offset)
+    var after = try create.applying(to: expectedSource)
+    if let rows, !rows.isEmpty, let id = create.createdTable {
+      guard rows.allSatisfy({ $0.count == headers.count }), rows.count * headers.count <= 4000 else {
+        throw TableTransformError.invalidSelection
+      }
+      func quoted(_ input: String) -> String {
+        "\"" + input.replacingOccurrences(of: "\"", with: "\"\"") + "\""
+      }
+      let tsv = rows.map { $0.map(quoted).joined(separator: "\t") }.joined(separator: "\n")
+      let paste = try TableSourceDocument(SheetSource(after)).pastePlainText(
+        tsv, table: id, at: .init(row: 0, column: 0), formulas: formulas)
+      after = try paste.applying(to: after)
+    }
+    try replaceTableSource(before: expectedSource, after: after, action: "Insert Table")
+    return create.createdTable
   }
   @objc public func openCalculationTable(_ sender: Any?) {
     guard permitsTableEditing else { return }

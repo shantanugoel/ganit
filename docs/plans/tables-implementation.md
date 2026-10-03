@@ -804,3 +804,7 @@ Work started on 2026-10-04 on branch `tables`.
 - Task 1: Add a mapped, read-only inline preview. Layout attributes reserve
   block space. The text storage keeps the complete source. The answer divider
   skips each preview. Basic build checks precede the task commit.
+
+- Task 2: Add header and input type controls to Insert Table. Add the explicit
+  Paste as Table command. It validates the rectangle and applies creation and
+  data entry as one document edit. Ordinary paste is unchanged.
