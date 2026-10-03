@@ -575,7 +575,12 @@ branch `tables`; clean starting HEAD `4a1e765`. M2 only is authorized in this
 execution; do not begin M3 until all M2 exit criteria have recorded evidence.
 
 - Task 1 (scoped grammar/bindings/operands): implement → independent review →
-  test complete, approved; commit/push pending below. Shared Parser token hook,
+  test complete, approved; committed `990e601`. Push required reconciliation
+  with remote `b21c184` (pre-existing rebased M0/M1 history). Independent
+  range-diff and exact-tree review verified all remote work preserved; merge
+  source tree equals `990e601`. Both conflict sides backed up under
+  `/tmp/ganit-m2-reconciliation-backup`. Merge commit/push in progress.
+  Shared Parser token hook,
   scoped binding/typed operand foundation; no IDs minted or source re-encoded.
   Ordinary syntax/collision/visibility/ledger corpus includes time precedence:
   existing lexer time tokens remain temporal; `Items!12:30` selects data rows.
