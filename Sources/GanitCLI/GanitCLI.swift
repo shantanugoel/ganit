@@ -1,6 +1,7 @@
 import Foundation
 import GanitDocuments
 import GanitEngine
+import GanitFormatting
 import GanitSystemIntegration
 
 /// `ganit`, the command-line calculator. It answers with the same engine,
@@ -9,6 +10,7 @@ import GanitSystemIntegration
 ///     ganit '20% off 85'              # one expression → 68
 ///     ganit 'rent = 3' 'rent * 12'    # each argument is a line
 ///     ganit < budget.txt              # a sheet → one answer per line
+///     ganit --tables < budget.txt     # a sheet → answers plus table grids
 ///
 /// Currency uses the exchange rates the app last accepted; the command never
 /// reaches the network.
@@ -17,15 +19,26 @@ enum GanitCLI {
   static let usage = """
     usage: ganit LINE...
            ganit < SHEET
+           ganit --tables < SHEET
 
     Answers each argument as one line of a sheet, so a line may declare a name
     that a later one uses, or reads a sheet from standard input. Prints one
     answer per line and exits with status 1 when any line fails.
 
+    With --tables, a sheet's tables are also printed where their source sits,
+    as a named grid: failure messages, the header row, the data rows and the
+    totals row, tab-separated. Table cells never replace line answers. A
+    table with a failure makes the run exit with status 1.
+
     """
 
   static func main() {
-    let arguments = Array(CommandLine.arguments.dropFirst())
+    var arguments = Array(CommandLine.arguments.dropFirst())
+    var structured = false
+    if arguments.first == "--tables" {
+      structured = true
+      arguments.removeFirst()
+    }
     if arguments == ["-h"] || arguments == ["--help"] {
       print(usage, terminator: "")
       return
@@ -58,16 +71,40 @@ enum GanitCLI {
       fail("The sheet must be UTF-8 text of at most 1 MB.")
     }
     do {
-      let answers = try calculation.answers(forSheet: source)
-      for answer in answers.dropLast(source.hasSuffix("\n") ? 1 : 0) {
-        print(answer.text ?? "")
+      // Structured mode prints a table's grid where its source sits; scalar
+      // mode prints one line per physical line, with empty lines for tables.
+      let (answers, tables) = try calculation.structuredAnswers(forSheet: source)
+      var tablesAfterLine: [Int: [TableSheetAnswer]] = [:]
+      for table in tables {
+        tablesAfterLine[table.lastPhysicalLine, default: []].append(table)
       }
-      if answers.contains(where: \.isFailure) {
+      for (index, answer) in answers.enumerated() {
+        print(answer.text ?? "")
+        if structured, let sheetTables = tablesAfterLine[index] {
+          for table in sheetTables {
+            printTable(table)
+          }
+        }
+      }
+      let tablesFailed = tables.contains { !$0.grid.failures.isEmpty }
+      if answers.contains(where: \.isFailure) || (structured && tablesFailed) {
         exit(1)
       }
     } catch {
       fail(error.localizedDescription)
     }
+  }
+
+  /// One table's structured output: the display name, then failure
+  /// messages, the header row, the data rows and the totals row, separated
+  /// by tabs. Values stay display text, without the spreadsheet guard.
+  static func printTable(_ table: TableSheetAnswer) {
+    if let name = table.grid.name {
+      print("Table " + name)
+    }
+    let text = TableGridText.text(
+      table.grid, format: .tsv, locale: Locale.current, guardsFormulas: false)
+    print(text, terminator: "")
   }
 
   /// The engine's source limit, which import also applies.

@@ -111,7 +111,7 @@ let package = Package(
     ),
     .executableTarget(
       name: "GanitCLI",
-      dependencies: ["GanitDocuments", "GanitEngine", "GanitSystemIntegration"]
+      dependencies: ["GanitDocuments", "GanitEngine", "GanitFormatting", "GanitSystemIntegration"]
     ),
     // Disposable M0 proof; never linked into the shipping app or CLI.
     .executableTarget(
@@ -178,7 +178,7 @@ let package = Package(
     ),
     .testTarget(
       name: "GanitSystemIntegrationTests",
-      dependencies: ["GanitEngine", "GanitSystemIntegration"]
+      dependencies: ["GanitEngine", "GanitFormatting", "GanitSystemIntegration"]
     ),
     .testTarget(
       name: "GanitWorkspaceUITests",

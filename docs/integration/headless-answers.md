@@ -20,9 +20,10 @@ both answer exactly as a sheet displays it.
   clipboard is touched.
 - A request with a [table block](../storage/table-blocks.md) is not one
   expression. Valid and malformed blocks produce a `tableReference` error.
-  The message directs the user to a sheet. The command line can calculate
-  tables from sheet input (`ganit < sheet`). It prints an empty line for each
-  table source line. Structured table output remains future work.
+  The message directs the user to a sheet. The command line has two output
+  modes for sheets: scalar mode prints an empty line for each table source
+  line, and `--tables` prints each table as a named grid at its block
+  position. Cells never become line answers.
 
 Currency needs exchange rates. `ExpressionCalculation.usingStoredRates()` reads
 the snapshot the app last accepted from `RateSnapshotStore`, so a headless
@@ -130,8 +131,31 @@ expression. Without arguments it reads a sheet of at most 1 MB of UTF-8 from
 standard input, ignoring one leading byte-order mark as import does (the limit
 excludes it), and prints one line per source line through
 `answers(forSheet:)`: the answer,
-a failure message, or an empty line for headings, comments, and blank lines.
-It exits with status 1 when any line fails.
+a failure message, or an empty line for headings, comments, blank lines, and
+table source lines. This is the scalar output mode. It exits with status 1
+when any line fails.
+
+`ganit --tables < sheet` is the structured output mode. It prints the same
+line answers, and after the last source line of each table block it prints
+that table as a named grid: the display name, then any failure messages, then
+the header row, the data rows, and the totals row. Fields are tab-separated
+and values are the display text the sheet shows, so a failed cell names its
+problem. Cells never replace line answers, and the grid is not flattened into
+the line stream. A table with a failure makes the run exit with status 1.
+
+```text
+$ printf 'rate = 3\n@ganit-table 1\n{...}\n@end-ganit-table\nsum(Items[Amount])\n' | ganit --tables
+3
+
+
+
+Table Items
+Qty\tAmount
+2\t6
+4\t12
+\t18
+18
+```
 
 Currency uses the last-known-good snapshot in the app's container,
 so the command never reaches the network and answers

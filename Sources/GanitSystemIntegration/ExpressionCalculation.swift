@@ -21,6 +21,22 @@ public struct SheetAnswer: Equatable, Sendable {
   public let isFailure: Bool
 }
 
+/// One table block's structured output for a headless caller: the display
+/// grid and where the block sits in the sheet's line order.
+public struct TableSheetAnswer: Equatable, Sendable {
+  /// The display grid, with failures as messages. A block Ganit cannot read
+  /// has no name, headers or rows, and carries its diagnostics.
+  public let grid: TableGrid
+  /// The zero-based physical source line where output belongs: the block's
+  /// last line. Cell values never become line answers.
+  public let lastPhysicalLine: Int
+
+  public init(grid: TableGrid, lastPhysicalLine: Int) {
+    self.grid = grid
+    self.lastPhysicalLine = lastPhysicalLine
+  }
+}
+
 /// Evaluates one expression for callers outside the app's windows.
 ///
 /// The Evaluate Expression service and the Calculate Expression intent share
@@ -55,13 +71,30 @@ public struct ExpressionCalculation: Sendable {
 
   /// One answer per line of a sheet, as the editor shows them once editing
   /// leaves each line: the display text or failure message, or `nil` for a
-  /// line without an expression.
+  /// line without an expression. This is the scalar output mode: a table
+  /// line has no answer, and its values appear only in structured mode.
   public func answers(forSheet source: String, now: Date = Date()) throws -> [SheetAnswer] {
+    try evaluate(source, now: now).lines
+  }
+
+  /// The scalar line answers and every table block's structured result, in
+  /// source order. This is the structured output mode: a table's cells are
+  /// named rows of its own grid at its block position, never line answers.
+  public func structuredAnswers(forSheet source: String, now: Date = Date()) throws -> (
+    lines: [SheetAnswer], tables: [TableSheetAnswer]
+  ) {
+    try evaluate(source, now: now)
+  }
+
+  private func evaluate(_ source: String, now: Date) throws -> (
+    lines: [SheetAnswer], tables: [TableSheetAnswer]
+  ) {
     let context = try preferences.evaluationContext(now: now, currencyRates: rates)
     var calculator = SheetCalculator()
     let formatter = ResultFormatter(context: context)
     let diagnostics = DiagnosticFormatter(context: context)
-    return try calculator.evaluate(SheetSource(source), context: context).lines.map { line in
+    let evaluation = try calculator.evaluate(SheetSource(source), context: context)
+    let lines = try evaluation.lines.map { line in
       switch line.result {
       case .value(let value):
         return SheetAnswer(text: try formatter.format(value).display, isFailure: false)
@@ -74,6 +107,13 @@ public struct ExpressionCalculation: Sendable {
         return SheetAnswer(text: nil, isFailure: false)
       }
     }
+    let tables = evaluation.tableResults.map { result in
+      TableSheetAnswer(
+        grid: TableGridText.grid(
+          result, formatter: formatter, diagnostics: diagnostics, pending: "Pending…"),
+        lastPhysicalLine: result.physicalLines.upperBound - 1)
+    }
+    return (lines, tables)
   }
 
   /// The answer to `source`, formatted as a sheet would display it. Source

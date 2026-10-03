@@ -89,9 +89,9 @@ public enum TableGridText {
     return field(text, separator: separator)
   }
 
-  static func field(_ text: String, separator: String) -> String {
+  static func field(_ text: String, separator: String, guardsFormulas: Bool = true) -> String {
     let guarded =
-      text.first.map(Self.formulaStarts.contains) == true && Double(text) == nil
+      guardsFormulas && text.first.map(Self.formulaStarts.contains) == true && Double(text) == nil
       ? "'" + text : text
     let quoted = separator != "\t" ? separator : ""
     let splitters = "\n\r\"" + separator + quoted
@@ -107,24 +107,31 @@ public enum TableGridText {
 
   /// Writes one table as text: failure lines, the header row, the data rows
   /// and the totals footer. CSV quotes per RFC 4180 and ends rows with CRLF;
-  /// TSV ends rows with LF, as copy and paste do.
+  /// TSV ends rows with LF, as copy and paste do. `guardsFormulas` controls
+  /// the leading-apostrophe treatment: exports for other apps keep it, and
+  /// machine-readable output turns it off so values read unchanged.
   public static func text(
-    _ grid: TableGrid, format: TableTextFormat, includesHeader: Bool = true, locale: Locale
+    _ grid: TableGrid, format: TableTextFormat, includesHeader: Bool = true, locale: Locale,
+    guardsFormulas: Bool = true
   ) -> String {
     let separator = format == .csv ? csvSeparator(for: locale) : "\t"
-    var lines = grid.failures.map { field($0, separator: separator) }
-    if includesHeader, !grid.headers.isEmpty {
-      lines.append(cells(grid.headers, format: format, separator: separator))
+    var lines = grid.failures.map {
+      field($0, separator: separator, guardsFormulas: guardsFormulas)
     }
-    lines += grid.rows.map { cells($0, format: format, separator: separator) }
+    if includesHeader, !grid.headers.isEmpty {
+      lines.append(cells(grid.headers, separator: separator, guardsFormulas: guardsFormulas))
+    }
+    lines += grid.rows.map { cells($0, separator: separator, guardsFormulas: guardsFormulas) }
     if grid.totals.contains(where: { $0 != nil }) {
-      lines.append(cells(grid.totals.map { $0 ?? "" }, format: format, separator: separator))
+      lines.append(
+        cells(grid.totals.map { $0 ?? "" }, separator: separator, guardsFormulas: guardsFormulas))
     }
     return lines.map { $0 + (format == .csv ? "\r\n" : "\n") }.joined()
   }
 
-  static func cells(_ values: [String], format: TableTextFormat, separator: String) -> String {
-    values.map { field($0, separator: separator) }.joined(separator: separator)
+  static func cells(_ values: [String], separator: String, guardsFormulas: Bool) -> String {
+    values.map { field($0, separator: separator, guardsFormulas: guardsFormulas) }
+      .joined(separator: separator)
   }
 
   private static func cellText(

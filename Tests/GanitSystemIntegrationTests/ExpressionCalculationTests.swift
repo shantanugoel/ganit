@@ -1,5 +1,6 @@
 import Foundation
 import GanitEngine
+import GanitFormatting
 import Testing
 
 @testable import GanitSystemIntegration
@@ -133,5 +134,74 @@ struct ExpressionCalculationTests {
         SheetAnswer(text: "10", isFailure: false),
         SheetAnswer(text: "10", isFailure: false),
       ])
+  }
+
+  /// The structured mode keeps tables out of the scalar line answers and
+  /// reports each table as a grid where its block sits.
+  @Test
+  func structuredAnswersPlaceEachTableAtItsBlockPosition() throws {
+    let block =
+      "@ganit-table 1\n{\"ids\":[\"abcdef00-0000-4000-8000-000000000001\","
+      + "\"abcdef00-0000-4000-8000-000000000011\",\"abcdef00-0000-4000-8000-000000000012\","
+      + "\"abcdef00-0000-4000-8000-000000000021\",\"abcdef00-0000-4000-8000-000000000022\"],"
+      + "\"t\":0,\"n\":\"Items\",\"c\":[{\"i\":1,\"h\":\"Qty\",\"p\":\"value\"},"
+      + "{\"i\":2,\"h\":\"Amount\",\"p\":\"value\",\"f\":\"=[@Qty] * 3\",\"z\":\"sum\"}],"
+      + "\"r\":[3,4],\"x\":[{\"a\":[3,1],\"s\":\"2\"},{\"a\":[4,1],\"s\":\"4\"}],\"b\":[]}\n"
+      + "@end-ganit-table\n"
+    let calculation = ExpressionCalculation()
+    let (lines, tables) = try calculation.structuredAnswers(
+      forSheet: "rate = 3\n" + block + "sum(Items[Amount])\n")
+    #expect(tables.count == 1)
+    let table = try #require(tables.first)
+    #expect(table.grid.name == "Items")
+    #expect(table.grid.headers == ["Qty", "Amount"])
+    #expect(table.grid.rows == [["2", "6"], ["4", "12"]])
+    #expect(table.grid.totals == [nil, "18"])
+    #expect(table.grid.failures.isEmpty)
+    // The block is physical lines 1 to 3, so its grid follows line 3's slot.
+    #expect(table.lastPhysicalLine == 3)
+    #expect(lines.count == 6)
+    #expect(lines[1].text == nil && lines[2].text == nil && lines[3].text == nil)
+    #expect(lines[4].text == "18")
+    #expect(lines[5].text == nil)
+  }
+
+  /// A block Ganit cannot read is named in the structured output and never
+  /// calculated, while the scalar mode keeps its lines empty.
+  @Test
+  func structuredAnswersDiagnoseQuarantinedBlocks() throws {
+    let calculation = ExpressionCalculation()
+    let (lines, tables) = try calculation.structuredAnswers(
+      forSheet: "rate = 3\n@ganit-table 9\n{}\n@end-ganit-table\n")
+    let table = try #require(tables.first)
+    #expect(table.grid.name == nil && table.grid.rows.isEmpty)
+    #expect(table.grid.failures.count == 1)
+    #expect(table.grid.failures[0].contains("does not read"))
+    #expect(table.lastPhysicalLine == 3)
+    #expect(lines.dropFirst(1).allSatisfy { $0.text == nil && !$0.isFailure })
+  }
+
+  /// A failed cell names its problem in the grid, and a prose reader of it
+  /// fails too.
+  @Test
+  func structuredAnswersNameFailedCells() throws {
+    let block =
+      "@ganit-table 1\n{\"ids\":[\"abcdef00-0000-4000-8000-000000000001\","
+      + "\"abcdef00-0000-4000-8000-000000000011\",\"abcdef00-0000-4000-8000-000000000012\","
+      + "\"abcdef00-0000-4000-8000-000000000021\",\"abcdef00-0000-4000-8000-000000000022\"],"
+      + "\"t\":0,\"n\":\"Items\",\"c\":[{\"i\":1,\"h\":\"Qty\",\"p\":\"value\"},"
+      + "{\"i\":2,\"h\":\"Amount\",\"p\":\"value\",\"f\":\"=[@Qty] * 3\",\"z\":\"sum\"}],"
+      + "\"r\":[3,4],\"x\":[{\"a\":[3,1],\"s\":\"2\"},{\"a\":[4,1],\"s\":\"4\"},"
+      + "{\"a\":[3,2],\"s\":\"=1/0\",\"o\":true}],\"b\":[]}\n"
+      + "@end-ganit-table\n"
+    let (lines, tables) = try ExpressionCalculation().structuredAnswers(
+      forSheet: block + "sum(Items[Amount])\n")
+    let table = try #require(tables.first)
+    #expect(table.grid.rows[0][1] == "Cannot divide by zero.")
+    #expect(table.grid.totals == [nil, "Error"])
+    #expect(table.grid.failures.isEmpty)
+    // The prose reader of the failed cell fails, and the trailing line is
+    // the sheet's last empty line.
+    #expect(try #require(lines.dropLast().last).isFailure)
   }
 }
