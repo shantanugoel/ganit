@@ -812,3 +812,8 @@ Work started on 2026-10-04 on branch `tables`.
 - Task 3: Show calculated values, totals, Pending and errors in the preview.
   A cell action shows its input or formula. Open Table selects that cell.
   The preview has labelled native controls and horizontal scrolling.
+
+- Task 4: Route Find Next and Find Previous source hits to the corresponding
+  expanded cell. Add source inspection. Cross-boundary copy uses native source
+  selection and keeps canonical blocks. Printing shows table values and totals.
+  Preview controls use natural text direction and scale with editor text.

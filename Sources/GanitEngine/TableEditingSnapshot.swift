@@ -35,6 +35,26 @@ package struct TableEditingSnapshot: Sendable {
         return (TableCellPosition(row: row, column: column), cell.source)
       })
   }
+  /// Resolve a canonical source hit to its data cell or column rule anchor.
+  package func cell(atUTF8 offset: Int, in document: TableSourceDocument) -> TableCellPosition? {
+    guard let block = document.blocks.first(where: { $0.table?.id == id }), let json = block.json,
+      let ids = json["ids"]?.array?.compactMap(\.string) else { return nil }
+    for record in json["x"]?.array ?? [] {
+      guard let source = record["s"], block.sheetRange(of: source).contains(offset),
+        let address = record["a"]?.array, address.count == 2,
+        let rowPointer = address[0].index, let columnPointer = address[1].index,
+        ids.indices.contains(rowPointer), ids.indices.contains(columnPointer),
+        let row = rows.firstIndex(where: { $0.string == ids[rowPointer] }),
+        let column = columns.firstIndex(where: { $0.id.string == ids[columnPointer] }) else { continue }
+      return .init(row: row, column: column)
+    }
+    for record in json["c"]?.array ?? [] {
+      guard block.sheetRange(of: record).contains(offset), let pointer = record["i"]?.index,
+        ids.indices.contains(pointer), let column = columns.firstIndex(where: { $0.id.string == ids[pointer] }) else { continue }
+      return .init(row: 0, column: column)
+    }
+    return nil
+  }
   package func brokenReferenceRange(in source: String) -> NSRange? {
     guard let syntax = try? TableFormulaSyntax.discover(source),
       let reference = syntax.references.first(where: {

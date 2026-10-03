@@ -74,7 +74,8 @@ public final class SheetEditorViewController: NSViewController {
   private var tableViewStates: [TableID: (TableCellPosition, TableCellPosition, NSPoint)] = [:]
   private var proseScroll = NSPoint.zero
   private let permitsTableEditing: Bool
-  package var permitsInlineTables: Bool { permitsTableEditing }
+  package var permitsInlineTables: Bool { permitsTableEditing && !showsTableSource }
+  package private(set) var showsTableSource = false
   var inlineTableViews: [TableID: InlineTablePreview] = [:]
   package var inlineTableRanges: [TableID: NSRange] = [:]
   let summaryBar = SelectionSummaryBar()
@@ -175,6 +176,7 @@ public final class SheetEditorViewController: NSViewController {
 
     configureTextView(text: text)
     placeAnswers(display)
+    sheetTextView.findTableHit = { [weak self] in self?.openTableAtFindSelection() }
     sheetTextView.inlineLayout = { [weak self] in self?.layoutInlineTables() }
     sheetTextView.inlineRefresh = { [weak self] in self?.refreshInlineTables() }
     sheetTextView.inlineRanges = { [weak self] in Array(self?.inlineTableRanges.values ?? [:].values) }
@@ -1657,6 +1659,87 @@ extension CalculationResult {
 }
 
 extension SheetEditorViewController {
+  @objc public func inspectTableSource(_ sender: Any?) {
+    returnFromTable(nil)
+    guard expandedTable == nil, !textView.hasMarkedText() else { return }
+    showsTableSource.toggle()
+    resetInlineLayout()
+    refreshInlineTables()
+    textView.scrollRangeToVisible(textView.selectedRange())
+  }
+  package func resetInlineLayout() {
+    guard let storage = textView.textStorage else { return }
+    storage.addAttributes([
+      .font: VisualStyle.Typography.source(scale: sheetTextView.textScale),
+      .foregroundColor: NSColor.textColor, .paragraphStyle: NSParagraphStyle.default,
+    ], range: NSRange(location: 0, length: storage.length))
+    inlineTableViews.values.forEach { $0.removeFromSuperview() }
+    inlineTableViews = [:]
+    inlineTableRanges = [:]
+  }
+  @objc public override func performTextFinderAction(_ sender: Any?) {
+    returnFromTable(nil)
+    guard expandedTable == nil else { return }
+    view.window?.makeFirstResponder(textView)
+    textView.performTextFinderAction(sender)
+  }
+  package func openTableAtFindSelection() {
+    guard !showsTableSource, !textView.hasMarkedText() else { return }
+    let selection = textView.selectedRange()
+    let document = TableSourceDocument(sheet)
+    for (id, range) in inlineTableRanges where selection.length > 0
+      && selection.location >= range.location && selection.upperBound <= range.upperBound {
+      guard let projection = TableEditingSnapshot(document, id: id) else { continue }
+      let prefix = (sheet.text as NSString).substring(to: selection.location)
+      let position = projection.cell(atUTF8: prefix.utf8.count, in: document)
+      openTable(id)
+      if let position { expandedTable?.select(position) }
+      return
+    }
+  }
+  /// Printing shows values. Source inspection and source copy keep the block.
+  public func printableLines() async -> [ExportedLine] {
+    let lines = await exportedLines()
+    let document = TableSourceDocument(sheet)
+    var blocks: [(Range<Int>, [ExportedLine])] = []
+    for id in document.editingTableIDs {
+      guard let projection = TableEditingSnapshot(document, id: id),
+        let result = latestEvaluation?.tableResult(id) else { continue }
+      func line(_ text: String) -> ExportedLine { .init(source: text, answer: nil, status: .none) }
+      func display(_ value: TableCellValue?) -> String {
+        switch value {
+        case .value(let scalar): return formatTableValue(scalar)?.display ?? ""
+        case .text(let text): return text
+        case .blank: return ""
+        case .failure: return "Error"
+        case nil: return "Pending"
+        }
+      }
+      var rendered = [line(projection.name), line(projection.columns.map(\.header).joined(separator: " | "))]
+      if let error = result.calculationFailure { rendered.append(line(formatTableError(error))) }
+      rendered += projection.rows.map { row in
+        line(projection.columns.map { display(result.value(row: row, column: $0.id)) }.joined(separator: " | "))
+      }
+      for (index, column) in projection.columns.enumerated() {
+        guard let total = column.total else { continue }
+        let value = result.aggregate(total, rectangle: .init(rows: 0..<projection.rows.count, columns: index..<(index + 1)))
+        rendered.append(line(column.header + " " + total.rawValue + ": " + (value.flatMap { formatTableValue($0)?.display } ?? "Error")))
+      }
+      blocks.append((result.physicalLines, rendered))
+    }
+    var output: [ExportedLine] = []
+    var index = 0
+    while index < lines.count {
+      if let block = blocks.first(where: { $0.0.lowerBound == index }) {
+        output += block.1
+        index = block.0.upperBound
+      } else {
+        output.append(lines[index])
+        index += 1
+      }
+    }
+    return output
+  }
   @objc public func insertCalculationTable(_ sender: Any?) {
     showTableCreation(pasted: nil)
   }

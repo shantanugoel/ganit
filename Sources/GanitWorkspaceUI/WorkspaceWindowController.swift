@@ -383,7 +383,7 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     Task { @MainActor in
       let printInfo = SheetDocumentRenderer.printInfo()
       let view = SheetDocumentRenderer.printableView(
-        await editor.exportedLines(), printInfo: printInfo)
+        await editor.printableLines(), printInfo: printInfo)
       let operation = NSPrintOperation(view: view, printInfo: printInfo)
       operation.jobTitle = window.title
       operation.runModal(for: window, delegate: nil, didRun: nil, contextInfo: nil)
