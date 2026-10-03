@@ -10,6 +10,11 @@ struct TableCalculationFailure: Hashable, Sendable {
   enum Code: String, Hashable, Sendable {
     case cycle, blocked, reference, syntax, evaluation, inputRequiresFormula
     case scalarRequired, unsupportedRangeOperation, invalidLiteral
+    /// average/median/min/max over a range with no scalar members.
+    case emptyRange
+    /// A range aggregate this kind cannot form: min/max of rates, or an empty
+    /// sum whose columns declare different typed defaults.
+    case unsupportedAggregation
   }
   let code: Code
   /// The failing read or expression in the current cell's exact source.
@@ -243,6 +248,10 @@ struct TableCalculationSnapshot: Sendable {
   let reverseDependencies: [[Int]]
   let traces: [TableCellAddress: EvaluationTrace]
   let axes: TableAxes
+  /// Member cells read by range reductions in this generation. Each shared
+  /// range node is reduced at most once per aggregate function, however
+  /// many readers it has.
+  var rangeCellVisits = 0
 
   /// A bounded cell without a record is an implicit blank. Sparse grids do
   /// not need a rows×columns dictionary merely to expose these blanks.
@@ -274,6 +283,9 @@ struct TableCalculationOptions: Sendable {
 struct TableCalculator: Sendable {
   let engine: CalculationEngine
   let options: TableCalculationOptions
+  /// Task-4 hook for inherited custom functions: their lowercased names. A
+  /// listed name is never lowercased into a built-in or range aggregate.
+  var visibleCustomFunctionNames: Set<String> = []
 
   init(
     engine: CalculationEngine = CalculationEngine(), options: TableCalculationOptions = .production
@@ -303,7 +315,8 @@ struct TableCalculator: Sendable {
       table: table,
       scope: TableFormulaScope(current: table, visible: visible, inherited: scope.inherited),
       context: context, earlier: earlier, engine: engine,
-      staticCheckParses: options.maximumStaticCheckParses, cancelled: cancelled)
+      staticCheckParses: options.maximumStaticCheckParses,
+      customFunctionNames: visibleCustomFunctionNames, cancelled: cancelled)
     return try worker.calculate()
   }
 }
@@ -361,19 +374,31 @@ private struct TableCalculationWorker {
   private var tableRanks: [TableID: Int] = [:]
   private var templates = 0
   private var staticFailures: [TableStaticCheck: TableStaticFailure?] = [:]
+  private let reducer: TableRangeReducer
+  /// One reduction per shared range node and function, reused by every reader.
+  private var rangeReductions:
+    [TableRangeReductionKey: Result<EngineValue, TableRangeReductionFailure>] = [:]
+  private var rangeMembers: [Int: [EngineValue]?] = [:]
+  private var rangeCellVisits = 0
+  /// Task-4 hook: lowercased names of visible custom functions. They keep
+  /// their own dispatch and are never treated as built-ins or aggregates.
+  private let customFunctionNames: Set<String>
 
   init(
     table: TableModel, scope: TableFormulaScope, context: EvaluationContext,
     earlier: [TableID: TableCalculationSnapshot], engine: CalculationEngine,
-    staticCheckParses: Int, cancelled: @escaping @Sendable () -> Bool
+    staticCheckParses: Int, customFunctionNames: Set<String>,
+    cancelled: @escaping @Sendable () -> Bool
   ) {
     self.staticCheckParses = staticCheckParses
+    self.customFunctionNames = customFunctionNames
     self.table = table
     self.scope = scope
     self.context = context
     self.earlier = earlier
     self.engine = engine
     self.cancelled = cancelled
+    reducer = engine.tableRangeReducer(context: context)
     for (rank, model) in (scope.visible + [table]).enumerated() {
       models[model.id] = model
       axes[model.id] = TableAxes(model)
@@ -477,7 +502,7 @@ private struct TableCalculationWorker {
       }
       switch plans[node] {
       case .terminal(let outcome): results[node] = outcome
-      case .range: break  // Symbolic membership; reductions are M2 task 3.
+      case .range: break  // Symbolic membership; readers reduce it on demand.
       case .formula(let syntax, let bindings, _):
         if case .cell(let address) = nodes[node] {
           results[node] = try evaluate(syntax, bindings: bindings, address: address)
@@ -494,7 +519,7 @@ private struct TableCalculationWorker {
       table: table, outcomes: outcomes, sources: sources,
       nodes: nodes, dependencies: graph.dependencies,
       reverseDependencies: graph.reverseDependencies,
-      traces: traces, axes: axes[table.id]!)
+      traces: traces, axes: axes[table.id]!, rangeCellVisits: rangeCellVisits)
   }
 
   private mutating func add(_ node: TableDependencyNode, plan: TableNodePlan) -> Int {
@@ -636,28 +661,35 @@ private struct TableCalculationWorker {
     guard let tableID = target.table, let model = models[tableID], let axes = axes[tableID] else {
       return nil
     }
-    func interval<ID>(_ membership: TableMembership<ID>, positions: [ID: Int], ids: [ID]) -> [ID] {
+    // An unresolvable bound is a reference failure, never an empty range.
+    func interval<ID>(_ membership: TableMembership<ID>, positions: [ID: Int], ids: [ID]) -> [ID]? {
       if case .interval(let first, let last) = membership,
-        let start = positions[first], let end = positions[last]
+        let start = positions[first], let end = positions[last], start <= end
       {
         return Array(ids[start...end])
       }
-      return []
+      return nil
     }
     let rows: [RowID]
     let columns: [ColumnID]
     let allColumns = model.columns.map(\.id)
     switch target {
     case .rectangle(_, let r, let c):
-      rows = interval(r, positions: axes.rows, ids: model.rows)
-      columns = interval(c, positions: axes.columns, ids: allColumns)
+      guard let r = interval(r, positions: axes.rows, ids: model.rows),
+        let c = interval(c, positions: axes.columns, ids: allColumns)
+      else { return nil }
+      rows = r
+      columns = c
     case .columns(_, let c):
+      guard let c = interval(c, positions: axes.columns, ids: allColumns) else { return nil }
       rows = model.rows
-      columns = interval(c, positions: axes.columns, ids: allColumns)
+      columns = c
     case .rows(_, let r):
-      rows = interval(r, positions: axes.rows, ids: model.rows)
+      guard let r = interval(r, positions: axes.rows, ids: model.rows) else { return nil }
+      rows = r
       columns = allColumns
     case .namedColumn(_, let c):
+      guard axes.columns[c] != nil else { return nil }
       rows = model.rows
       columns = [c]
     default: return nil
@@ -671,6 +703,7 @@ private struct TableCalculationWorker {
     var operands: [String: TableOperand] = [:]
     var kinds: [String: EngineValueKind] = [:]
     var variables = scope.inherited
+    var ranges: [String: TableRangeSlot] = [:]
     for binding in bindings {
       try checkCancellation(cancelled)
       let value: TableOperand
@@ -694,6 +727,8 @@ private struct TableCalculationWorker {
         let input = try node(for: target, owner: address)
         if case .range(let range) = plans[input] {
           value = .range(range)
+          ranges[binding.occurrence.slot] = TableRangeSlot(
+            node: input, range: binding.occurrence.range)
         } else {
           switch results[input] {
           case .scalar(let scalar): value = .scalar(scalar)
@@ -712,16 +747,48 @@ private struct TableCalculationWorker {
         variables[binding.occurrence.slot] = scalar
       }
     }
+    // Supported aggregates of one range reduce before the kind-directed
+    // parse, so `sum(B:B) of 200` parses as the reduced kind allows. Each
+    // call's token span becomes one operand; source ranges stay original.
+    let calls = syntax.aggregateCalls(
+      rangeSlots: Set(ranges.keys), customFunctions: customFunctionNames)
+    // A failed reduction is recorded, not returned: the formula's own syntax,
+    // keyword and reference diagnostics outrank it, so its slot parses as a
+    // number until those checks pass.
+    var reductionFailure: TableCalculationFailure?
+    var failedSlots: [String] = []
+    for call in calls {
+      guard let slot = ranges[call.operand] else { continue }
+      switch try reduction(call.function, node: slot.node) {
+      case .success(let value):
+        variables[call.slot] = value
+        kinds[call.slot] = value.kind
+      case .failure(let reason):
+        kinds[call.slot] = .number
+        failedSlots.append(call.slot)
+        reductionFailure =
+          reductionFailure
+          ?? rangeFailure(reason, call: call.range, operand: slot.range, at: address)
+      }
+      ranges[call.operand] = nil
+    }
+    let collapsed = calls.isEmpty ? syntax : syntax.collapsing(calls)
     let parsing: ParsingResult
     do {
       parsing = try engine.parse(
-        syntax, context: context, operandKinds: kinds,
-        inheritedKinds: scope.inherited.compactMapValues { $0?.kind })
+        collapsed, context: context, operandKinds: kinds, inheritedKinds: inheritedKinds)
     } catch let diagnostic as TableFormulaDiagnostic {
       return .failure(
         failure(.reference, at: address, range: diagnostic.range, reference: diagnostic))
     }
-    guard let expression = parsing.expression else {
+    if parsing.expression == nil, let reductionFailure,
+      try parsesWithSomeKind(collapsed, slots: failedSlots, known: kinds)
+    {
+      // `max(B:B) of 200` is well formed for some kind the failed reduction
+      // could have had; the reduction failure is then the cell's own error.
+      return .failure(reductionFailure)
+    }
+    guard var expression = parsing.expression else {
       var failure = failure(
         .syntax, at: address, range: parsing.diagnostics.first?.range ?? sourceRange(address))
       failure.syntaxDiagnostics = parsing.diagnostics
@@ -737,11 +804,45 @@ private struct TableCalculationWorker {
       default: break
       }
     }
+    // One walk finds what the ordinary evaluator cannot judge: a failed
+    // inherited name, a range left outside a supported single-range
+    // aggregate (scalar position, other functions, several arguments), and
+    // built-in names that need case-insensitive dispatch.
+    var stray: SourceRange?
+    var rewrite = false
+    var pending = [expression]
+    while let next = pending.popLast() {
+      switch next {
+      case .identifier(let name, let range):
+        if let slot = ranges[name], stray.map({ slot.range.lowerBound < $0.lowerBound }) ?? true {
+          stray = slot.range
+        } else if case .some(.none) = scope.inherited[name.lowercased()] {
+          return .failure(
+            failure(
+              .reference, at: address, range: range,
+              reference: TableFormulaDiagnostic(code: .inheritedFailure, range: range)))
+        }
+      case .call(let name, _, _, _):
+        rewrite = rewrite || dispatchedName(name) != name
+      default: break
+      }
+      pending.append(contentsOf: next.tableChildren)
+    }
+    if let reductionFailure { return .failure(reductionFailure) }
+    if let stray {
+      return .failure(failure(.unsupportedRangeOperation, at: address, range: stray))
+    }
+    if rewrite {
+      expression = expression.rewritingTableNodes { node in
+        guard case .call(let name, let nameRange, let arguments, let range) = node else {
+          return node
+        }
+        return .call(
+          name: dispatchedName(name), nameRange: nameRange, arguments: arguments, range: range)
+      }
+    }
     for binding in bindings {
       switch operands[binding.occurrence.slot] {
-      case .range:
-        return .failure(
-          failure(.unsupportedRangeOperation, at: address, range: binding.occurrence.range))
       case .blank, .text:
         return .failure(failure(.scalarRequired, at: address, range: binding.occurrence.range))
       default: break
@@ -752,6 +853,155 @@ private struct TableCalculationWorker {
     try checkCancellation(cancelled)
     traces[address] = evaluation.trace
     return result(evaluation.result, at: address)
+  }
+
+  /// Whether a formula parses for some kinds of the given failed slots, as
+  /// `staticFailure` decides for failed inputs, from the same parse budget;
+  /// too many slots or a spent budget count as no.
+  private mutating func parsesWithSomeKind(
+    _ syntax: TableFormulaSyntax, slots: [String], known: [String: EngineValueKind]
+  ) throws -> Bool {
+    guard slots.count <= maximumUnknownOperands else { return false }
+    var combinations = 1
+    for _ in slots { combinations *= operandKinds.count }
+    for combination in 0..<combinations {
+      try checkCancellation(cancelled)
+      guard staticCheckParses > 0 else { return false }
+      staticCheckParses -= 1
+      var kinds = known
+      var digits = combination
+      for slot in slots {
+        kinds[slot] = operandKinds[digits % operandKinds.count]
+        digits /= operandKinds.count
+      }
+      if (try? engine.parse(
+        syntax, context: context, operandKinds: kinds, inheritedKinds: inheritedKinds))?
+        .expression != nil
+      {
+        return true
+      }
+    }
+    return false
+  }
+
+  /// Kinds for inherited names; a failed line keeps its name visible, as in
+  /// ordinary sheets, so it is never mistaken for a bare keyword.
+  private var inheritedKinds: [String: EngineValueKind] {
+    scope.inherited.mapValues { $0?.kind ?? .number }
+  }
+
+  /// Built-in names dispatch case-insensitively in table formulas, unless a
+  /// visible custom function claims the lowercased name.
+  private func dispatchedName(_ name: String) -> String {
+    let lowered = name.lowercased()
+    guard !customFunctionNames.contains(lowered), tableBuiltInFunctionNames.contains(lowered)
+    else { return name }
+    return lowered
+  }
+
+  /// A reduction failure reported at the reader's own call.
+  private func rangeFailure(
+    _ reason: TableRangeReductionFailure, call: SourceRange, operand: SourceRange,
+    at address: TableCellAddress
+  ) -> TableCalculationFailure {
+    switch reason {
+    case .empty: return failure(.emptyRange, at: address, range: call)
+    case .unsupported: return failure(.unsupportedAggregation, at: address, range: call)
+    case .reference:
+      // Membership no longer resolves inside the table's bounds.
+      return failure(
+        .reference, at: address, range: operand,
+        reference: TableFormulaDiagnostic(code: .outOfBounds, range: operand))
+    case .engine(let error):
+      var failed = failure(.evaluation, at: address, range: call)
+      failed.engineError = EngineError(
+        code: error.code, severity: error.severity,
+        ranges: error.ranges.isEmpty ? [call] : error.ranges, fixIts: error.fixIts,
+        context: error.context)
+      return failed
+    }
+  }
+
+  /// Reduces a shared range node once per function, from member values
+  /// collected once per node. A failed member has already blocked the range
+  /// node, so readers never reach here then.
+  private mutating func reduction(_ function: TableRangeFunction, node: Int) throws
+    -> Result<EngineValue, TableRangeReductionFailure>
+  {
+    let key = TableRangeReductionKey(node: node, function: function)
+    if let cached = rangeReductions[key] { return cached }
+    var outcome: Result<EngineValue, TableRangeReductionFailure> = .failure(.reference)
+    if case .range(let range) = plans[node], let membership = membership(of: range.target),
+      let values = try members(of: node, membership)
+    {
+      outcome = reducer.reduce(function, values) {
+        typedZero(table: membership.table, columns: membership.columns)
+      }
+    }
+    rangeReductions[key] = outcome
+    return outcome
+  }
+
+  /// Scalar member values in row-major order; blank and text are skipped.
+  /// `nil` when a member has no outcome. Visits count once per range node.
+  private mutating func members(
+    of node: Int, _ membership: (table: TableID, rows: [RowID], columns: [ColumnID])
+  ) throws -> [EngineValue]? {
+    if let known = rangeMembers[node] { return known }
+    var values: [EngineValue]? = []
+    for row in membership.rows {
+      try checkCancellation(cancelled)
+      for column in membership.columns {
+        rangeCellVisits += 1
+        let member = TableCellAddress(table: membership.table, row: row, column: column)
+        switch index[.cell(member)].flatMap({ results[$0] }) {
+        case .scalar(let value): values?.append(value)
+        case .text, .blank: break
+        case .failure, nil: values = nil
+        }
+      }
+    }
+    rangeMembers[node] = .some(values)
+    return values
+  }
+
+  /// An empty `sum` is `0` unless its value columns declare a typed default:
+  /// then the shared default's additive zero (`0 USD`, `0 m`), or none when
+  /// the defaults disagree or the unit has no additive zero (a temperature).
+  private func typedZero(table: TableID, columns: [ColumnID]) -> EngineValue? {
+    guard let model = models[table], let axes = axes[table] else { return nil }
+    // A unit default takes precedence over a currency, as for literals.
+    struct Default: Hashable {
+      let suffix: String
+      let unit: Bool
+    }
+    var defaults = Set<Default?>()
+    for column in columns {
+      guard let position = axes.columns[column] else { return nil }
+      let declared = model.columns[position]
+      // Text columns never contribute a scalar, so they declare no zero.
+      guard declared.input == .value else { continue }
+      defaults.insert(
+        declared.unit.map { Default(suffix: $0, unit: true) }
+          ?? declared.currency.map { Default(suffix: $0, unit: false) })
+    }
+    guard defaults.count <= 1 else { return nil }
+    guard let only = defaults.first else { return .number(.integer(IntegerValue(0))) }
+    guard let declared = only else { return .number(.integer(IntegerValue(0))) }
+    let (suffix, unit) = (declared.suffix, declared.unit)
+    let source = "0 " + suffix
+    guard let expression = engine.parse(source, context: context).expression else { return nil }
+    switch (unit, expression) {
+    case (true, .quantity), (true, .period), (false, .money): break
+    default: return nil
+    }
+    let evaluation = engine.evaluate(
+      expression, context: context, variables: [:], lines: LineOutcomes())
+    switch evaluation.result {
+    case .value(.quantity(let quantity)) where quantity.kind == .absolute: return nil
+    case .value(let value): return value
+    default: return nil
+    }
   }
 
   private mutating func literal(_ source: String, column: TableColumn, address: TableCellAddress)
@@ -896,6 +1146,7 @@ private struct TableCalculationWorker {
   ) throws -> TableStaticFailure? {
     var known: [String: EngineValueKind] = [:]
     var unknown: [Int: [String]] = [:]
+    var ranges: [String: Int] = [:]
     for binding in bindings {
       let slot = binding.occurrence.slot
       if binding.deleted {
@@ -909,7 +1160,10 @@ private struct TableCalculationWorker {
         }
         known[slot] = value.kind
       } else if let target = binding.target, let input = inputNode(for: target, owner: address) {
-        if case .range = plans[input] { continue }
+        if case .range = plans[input] {
+          ranges[slot] = input
+          continue
+        }
         switch results[input] {
         case .scalar(let value): known[slot] = value.kind
         case .failure: unknown[input, default: []].append(slot)
@@ -917,11 +1171,26 @@ private struct TableCalculationWorker {
         }
       }
     }
+    // Aggregate calls collapse exactly as in `evaluate`; a blocked range or
+    // a failed reduction leaves the call's kind unknown.
+    let calls = syntax.aggregateCalls(
+      rangeSlots: Set(ranges.keys), customFunctions: customFunctionNames)
+    for call in calls {
+      guard let node = ranges[call.operand] else { continue }
+      if case .failure = results[node] {
+        unknown[node, default: []].append(call.slot)
+      } else if case .success(let value) = try reduction(call.function, node: node) {
+        known[call.slot] = value.kind
+      } else {
+        unknown[node, default: []].append(call.slot)
+      }
+    }
+    let syntax = calls.isEmpty ? syntax : syntax.collapsing(calls)
     guard unknown.count <= maximumUnknownOperands else { return nil }
     let groups = unknown.values.map { $0.sorted() }.sorted { $0[0] < $1[0] }
     let check = TableStaticCheck(template: template, known: known, unknown: groups)
     if let cached = staticFailures[check] { return cached }
-    let inheritedKinds = scope.inherited.compactMapValues { $0?.kind }
+    let inheritedKinds = self.inheritedKinds
     var found: TableStaticFailure?
     var combinations = 1
     for _ in groups { combinations *= operandKinds.count }
@@ -990,6 +1259,16 @@ private struct TableCalculationWorker {
         origins: [(causeKey(address), TableFailureOrigin(address: address, range: range))]),
       referenceDiagnostic: reference)
   }
+}
+
+private struct TableRangeSlot {
+  let node: Int
+  let range: SourceRange
+}
+
+private struct TableRangeReductionKey: Hashable {
+  let node: Int
+  let function: TableRangeFunction
 }
 
 private let emptyRange = SourceRange(

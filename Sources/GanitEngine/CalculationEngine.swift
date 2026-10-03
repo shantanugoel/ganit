@@ -224,4 +224,10 @@ extension CalculationEngine {
       context: context, operandKinds: operandKinds, inheritedKinds: inheritedKinds,
       catalog: unitCatalog, limits: syntaxLimits)
   }
+
+  /// Range reductions reuse the ordinary aggregate arithmetic and this
+  /// engine's limits, so exactness, dimensions and currencies match `total`.
+  func tableRangeReducer(context: EvaluationContext) -> TableRangeReducer {
+    TableRangeReducer(context: context, limits: evaluationLimits)
+  }
 }

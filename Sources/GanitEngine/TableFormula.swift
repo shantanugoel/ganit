@@ -205,6 +205,8 @@ struct TableFormulaSyntax: Sendable {
     limits: SyntaxLimits = .default
   ) throws -> ParsingResult {
     var kinds = inheritedKinds
+    // Collapsed aggregate operands are slots too, outside `references`.
+    for (slot, kind) in operandKinds where slot.hasPrefix("\u{1f}") { kinds[slot] = kind }
     for reference in references { kinds[reference.slot] = operandKinds[reference.slot] ?? .number }
     let parsing = Parser(
       source: source, configuration: context.lexingConfiguration, limits: limits,
@@ -219,6 +221,13 @@ struct TableFormulaSyntax: Sendable {
           case .previous, .aggregate: throw problem(.bareAggregate, range)
           default: break
           }
+        }
+        // Keywords are case-insensitive in table formulas (`SUM`, `Previous`);
+        // a visible inherited name keeps its variable meaning.
+        if case .identifier(let name, let range) = next,
+          referenceKeywords[name.lowercased()] != nil, kinds[name.lowercased()] == nil
+        {
+          throw problem(.bareAggregate, range)
         }
         pending.append(contentsOf: next.tableChildren)
       }

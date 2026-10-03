@@ -380,6 +380,19 @@ struct NumericOperations {
     return try values.indices.sorted { try compare(values[$0], values[$1]) < 0 }
   }
 
+  /// The sign of `left - right`. Exact values compare exactly; when either is
+  /// approximate both compare by estimate, as `ascendingIndices` orders them.
+  func ordering(_ left: NumericValue, _ right: NumericValue) throws -> Int {
+    switch (left, right) {
+    case (.approximate, _), (_, .approximate):
+      let lhs = try approximateEstimate(left)
+      let rhs = try approximateEstimate(right)
+      return lhs < rhs ? -1 : (lhs > rhs ? 1 : 0)
+    default:
+      return try compare(left, right)
+    }
+  }
+
   func extremum(
     _ values: [NumericValue],
     selectMinimum: Bool

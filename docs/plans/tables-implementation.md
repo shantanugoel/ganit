@@ -398,7 +398,7 @@ No older-format reader, upgrade/downgrade or migration rollback is required.
       alongside table formulas; no separate legacy parser or evaluator path.
 - [x] Implement iterative graph evaluation, SCC diagnostics, blocked-result
       propagation, cycle paths and original-cause source ranges.
-- [ ] Implement range aggregates, empty/type/error rules, whole-row/column
+- [x] Implement range aggregates, empty/type/error rules, whole-row/column
       bounds and data-only named membership; audit typed min/max explicitly.
 - [ ] Reuse exact arithmetic, conversions, functions, rate/clock context and
       provenance. Diagnose unsupported/bare table functions explicitly.
@@ -610,7 +610,24 @@ execution; do not begin M3 until all M2 exit criteria have recorded evidence.
   Carried forward: m5 running-range O(rows²) edges → task 5 link budget;
   `originCount`/`origins(prefix:)` still flatten fully → M4 UI should query
   visible/selected cells only (or add a cheap prefix).
-- Task 3 (range aggregates): next. Tasks 4–5: not started. Full app build/verification at M2 exit.
+- Task 3 (range aggregates): implement → review (2 rounds) → test complete,
+  approved; committed (git log "range aggregates"). Supported single-range
+  aggregate calls (sum/total/average/avg/median/min/max/count, any case) are
+  found in tokens, reduced first (members collected once per shared range
+  node, reductions cached per node+function) and collapsed into a synthetic
+  operand with the reduced kind before the kind-directed parse, so `of`/unit
+  phrases work. Typed range min/max ordering (exact numbers, %, compatible
+  units, same-currency money, temporal, unambiguous periods); explicit-list
+  min/max unchanged. Empty: count 0; average/median/min/max `.emptyRange`;
+  sum 0 or declared typed zero, else `.unsupportedAggregation`. Own syntax/
+  keyword/inherited errors outrank reduction failures. `rangeCellVisits`
+  counted for task 5. Evidence: full suite 811 passed
+  (`/tmp/ganit-m2-task3-full-final.log`), ASan/TSan/release TableRange|Graph
+  pass, strict lint pass; `TableRangeContractTests` 32 + `TableRangeTests` 29.
+  Carried forward to task 4: `TableCalculator.visibleCustomFunctionNames` hook
+  must receive inherited custom functions (and pass them to evaluation).
+- Task 4 (reuse arithmetic/conversions/functions/rate-clock context and
+  provenance; diagnose unsupported table functions): next. Task 5 not started.
 - Read plan, accepted ADRs 0016/0017 and amendments, frozen v1 source/storage
   contract and M0 evidence. Preserve current schemas, quarantine and byte fidelity.
 - Native acceptance remains mandatory in M4/M5 and M6: real IME, VoiceOver,
