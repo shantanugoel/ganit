@@ -9,7 +9,7 @@ when the focused editor or window can perform it.
 |---|---|
 | Ganit | About, Settings… ⌘,, Check for Updates…, Check for Updates Automatically, Stay in the Menu Bar, Show Sheet Titles in Spotlight, Assistant…, Hide ⌘H, Hide Others ⌥⌘H, Show All, Quit ⌘Q |
 | File | New Sheet ⌘N, Close ⌘W, Print… ⌘P |
-| Edit | Undo ⌘Z, Redo ⇧⌘Z, Cut ⌘X, Copy ⌘C, Paste ⌘V, Delete, Select All ⌘A, Find ▸ (Find… ⌘F, Find and Replace… ⌥⌘F, Find Next ⌘G, Find Previous ⇧⌘G, Use Selection for Find ⌘E), Go to Line… ⌘L, Autocomplete |
+| Edit | Undo ⌘Z, Redo ⇧⌘Z, Cut ⌘X, Copy ⌘C, Paste ⌘V, Delete, Select All ⌘A, Find ▸ (Find… ⌘F, Find and Replace… ⌥⌘F, Find Next ⌘G, Find Previous ⇧⌘G, Use Selection for Find ⌘E), Go to Line… ⌘L, Autocomplete, Insert Table…, Open Table ⇧⌘T, Return to Sheet |
 | Calculate | Copy Result ⇧⌘C, Copy with Results, Copy Full Precision ⌥⇧⌘C, Show Interpretation, Ask Assistant, Change Answer…, Cancel Request, Insert Reference ⌘\, Insert Subtotal ⌘T, Insert Answer Arrow ⌘↩, Recalculate ⌘R, Stop ⌘. |
 | Format | Heading, Comment ⌘/, Divider, Step Number Up ⌃↑, Step Number Down ⌃↓, Number Format, Group Digits, Group Digits in Lakhs, Angles in Degrees, Decimal Comma (1.234,56), Markdown Mode, Dollar Means |
 | View | Bigger ⌘+, Smaller ⌘-, Actual Size ⌘0, Show Answer Separator, Show Line Numbers, Enter Full Screen ⌃⌘F |
@@ -88,3 +88,6 @@ workspace window with an empty sheet.
 
 Return inserts a newline, as in any text view. ⌘Return copies the insertion
 point's result, the sheet counterpart of Quick Ganit's copy-and-dismiss.
+
+In an expanded table, Return starts or commits a cell edit. Escape cancels
+the draft. See [Calculation tables](tables.md) for table commands.

@@ -1,6 +1,6 @@
 # Calculation tables: implementation plan
 
-Date: 2026-10-01; updated 2026-10-03. Status: M0 feasibility complete with
+Date: 2026-10-01; updated 2026-10-04. Status: M0 feasibility complete with
 inline preview/Open Table selected; architectural decisions resolved in ADRs
 0016/0017. M1 (source model, identity and safe storage) is complete on branch
 `tables`: table block format v1 and metadata/manifest schema 2 are frozen with
@@ -8,7 +8,7 @@ fixtures, and its exit evidence passes. M2 is complete (see the execution record
 [engine evidence](../design/tables/m2-engine-evidence.md)). M3 is complete. It implements structural
 source edits and table calculation in workspace sheets. The M3 acceptance report
 records the [review and test results](../design/tables/m3-integration-evidence.md).
-Expanded table editing remains M4 work. This plan refines the [investigation](../design/tables-investigation.md)
+M4 implements expanded table editing. See the [M4 test report](../design/tables/m4-editor-evidence.md). This plan refines the [investigation](../design/tables-investigation.md)
 and governs its unresolved details for this feature. It does not replace
 accepted ADRs; M0 decisions and evidence are linked below.
 
@@ -446,24 +446,26 @@ results. Supported ordinary/Markdown/definitions calculations remain correct.
 Carry forward [M0 native acceptance tasks 1–2](../../Spikes/TablesM0/evidence.md):
 real input-method composition/commit/cancel and VoiceOver task completion.
 Automated marked-text/label checks are supporting evidence, not substitutes.
-Run these on the integrated controller; do not mark this milestone complete
-without results.
+The integrated controller has native composition and basic accessibility
+results. The user requested basic VoiceOver checks for this phase. Spoken
+VoiceOver tasks and CJK candidate-window checks remain release checks. See
+the [M4 test report](../design/tables/m4-editor-evidence.md).
 
-- [ ] Build a view-based AppKit grid using reused rows/cells and the existing
+- [x] Build a view-based AppKit grid using reused rows/cells and the existing
       visual tokens/formatters. Add virtualized rendering before large-table QA.
-- [ ] Implement cell-versus-edit selection states, rectangular selection,
+- [x] Implement cell-versus-edit selection states, rectangular selection,
       keyboard navigation, commit/cancel and document Undo. Test IME composition
       without recalculating or rewriting marked text before commit.
-- [ ] Implement editable formula field, reference picking/dragging, completion
+- [x] Implement editable formula field, reference picking/dragging, completion
       and source/target highlighting. During formula editing, picking a cell
       inserts a reference rather than unexpectedly committing or moving focus.
-- [ ] Add explicit column-rule creation, per-cell override indication/reset,
+- [x] Add explicit column-rule creation, per-cell override indication/reset,
       row/column add/delete, copy values/formulas, rectangular TSV paste/fill,
       totals and typed selection summaries.
-- [ ] Add Show Interpretation, full-precision copy, broken-reference repair and
+- [x] Add Show Interpretation, full-precision copy, broken-reference repair and
       original-failure navigation. Pending evaluation must not display an old
       answer as if it belongs to newly edited input.
-- [ ] Implement Open Table/Return to Sheet state restoration and multiwindow
+- [x] Implement Open Table/Return to Sheet state restoration and multiwindow
       projection synchronization through the source coordinator.
 
 **Exit:** keyboard and VoiceOver users can create a table, enter data, write a
@@ -681,8 +683,8 @@ only. The M3 execution record below gives the current status. All M2 exit criter
 ## Next implementation task and handoff
 
 Use branch `tables` in `/Users/shantanugoel/.codex/worktrees/tables-m0/ganit`.
-M1, M2 and M3 are complete. Start **M4 — Expanded native table editing** next.
-Then implement M5 and M6 in order.
+M1, M2, M3 and M4 implementations are complete. Start
+**M5 — Embedded presentation in both sheet modes** next. Then implement M6.
 
 Read this plan, accepted ADRs [0016](../adr/0016-table-semantics-and-editor-ownership.md)
 and [0017](../adr/0017-table-source-and-storage.md), the frozen
@@ -692,7 +694,7 @@ and [0017](../adr/0017-table-source-and-storage.md), the frozen
 Use `TableResultSnapshot` for result views. Use `SheetSourceCoordinator` for
 source edits and document Undo. Do not save a grid projection.
 
-The selected interface is an inline preview with Open Table. M4 must add
+The selected interface is an inline preview with Open Table. M4 adds
 expanded editing and a callback for committed evaluation results. M5 must add
 the inline preview, Find navigation, copy, state restoration, and the Writing
 Tools policy. Real IME, VoiceOver, layout and release checks remain required in
@@ -790,5 +792,7 @@ Work started on 2026-10-03 on branch `tables`.
   document and moves that editor between windows. Projection observers share
   that editor source and document Undo.
 
-All six task implementations are committed in order. Phase review and native
-app tests follow. VoiceOver checks are basic, as requested by the user.
+All six task implementations were committed in order. Phase review and native
+app tests are complete. VoiceOver checks are basic, as requested by the user.
+See the [M4 test report](../design/tables/m4-editor-evidence.md) for task commits,
+review corrections, test results and remaining release checks.
