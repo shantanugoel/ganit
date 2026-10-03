@@ -16,15 +16,20 @@ public struct TableGrid: Equatable, Sendable {
   /// Whole-table problems: block diagnostics, then a calculation failure,
   /// in order. Empty for a calculated table.
   public let failures: [String]
+  /// True when at least one cell failed to calculate. A table that cannot
+  /// be read has no cells and reports its problems in `failures`.
+  public let hasFailedCells: Bool
 
   public init(
-    name: String?, headers: [String], rows: [[String]], totals: [String?], failures: [String]
+    name: String?, headers: [String], rows: [[String]], totals: [String?], failures: [String],
+    hasFailedCells: Bool = false
   ) {
     self.name = name
     self.headers = headers
     self.rows = rows
     self.totals = totals
     self.failures = failures
+    self.hasFailedCells = hasFailedCells
   }
 }
 
@@ -47,10 +52,15 @@ public enum TableGridText {
     diagnostics: DiagnosticFormatter, pending: String = "Pending…"
   ) -> TableGrid {
     let columns = snapshot.columns
-    let rows = snapshot.rows.map { row in
-      columns.map { column in
-        cellText(
-          snapshot.value(row: row, column: column.id), snapshot: snapshot, row: row,
+    var hasFailedCells = false
+    let rows = snapshot.rows.map { row -> [String] in
+      columns.map { column -> String in
+        let value = snapshot.value(row: row, column: column.id)
+        if case .failure? = value {
+          hasFailedCells = true
+        }
+        return cellText(
+          value, snapshot: snapshot, row: row,
           column: column, formatter: formatter, diagnostics: diagnostics, pending: pending)
       }
     }
@@ -71,7 +81,8 @@ public enum TableGridText {
       headers: columns.map(\.header),
       rows: rows,
       totals: hasTotals ? totals : [],
-      failures: failures
+      failures: failures,
+      hasFailedCells: hasFailedCells
     )
   }
 
@@ -86,12 +97,14 @@ public enum TableGridText {
   /// field holds the separator, a quote, or a line break.
   public static func field(_ text: String, format: TableTextFormat, locale: Locale) -> String {
     let separator = format == .csv ? csvSeparator(for: locale) : "\t"
-    return field(text, separator: separator)
+    return field(text, separator: separator, locale: locale)
   }
 
-  static func field(_ text: String, separator: String, guardsFormulas: Bool = true) -> String {
+  static func field(
+    _ text: String, separator: String, locale: Locale, guardsFormulas: Bool = true
+  ) -> String {
     let guarded =
-      guardsFormulas && text.first.map(Self.formulaStarts.contains) == true && Double(text) == nil
+      guardsFormulas && startsLikeFormula(text, locale: locale)
       ? "'" + text : text
     let quoted = separator != "\t" ? separator : ""
     let splitters = "\n\r\"" + separator + quoted
@@ -105,6 +118,17 @@ public enum TableGridText {
   /// separators that paste as leading characters.
   static let formulaStarts: Set<Character> = ["=", "+", "-", "@", "\t", "\r"]
 
+  /// True when `text` reads as a plain number for `locale`: the locale's
+  /// minus sign, grouping separators and decimal separator around digits,
+  /// with nothing else. `-2,100` in an English locale and `-1,5` in a
+  /// German one are numbers, not formulas, so exports leave them alone.
+  public static func isPlainNumberDisplay(_ text: String, locale: Locale) -> Bool {
+    let formatter = NumberFormatter()
+    formatter.locale = locale
+    formatter.numberStyle = .decimal
+    return formatter.number(from: text) != nil
+  }
+
   /// Writes one table as text: failure lines, the header row, the data rows
   /// and the totals footer. CSV quotes per RFC 4180 and ends rows with CRLF;
   /// TSV ends rows with LF, as copy and paste do. `guardsFormulas` controls
@@ -116,21 +140,39 @@ public enum TableGridText {
   ) -> String {
     let separator = format == .csv ? csvSeparator(for: locale) : "\t"
     var lines = grid.failures.map {
-      field($0, separator: separator, guardsFormulas: guardsFormulas)
+      field($0, separator: separator, locale: locale, guardsFormulas: guardsFormulas)
     }
     if includesHeader, !grid.headers.isEmpty {
-      lines.append(cells(grid.headers, separator: separator, guardsFormulas: guardsFormulas))
+      lines.append(
+        cells(grid.headers, separator: separator, guardsFormulas: guardsFormulas, locale: locale))
     }
-    lines += grid.rows.map { cells($0, separator: separator, guardsFormulas: guardsFormulas) }
+    lines += grid.rows.map {
+      cells($0, separator: separator, guardsFormulas: guardsFormulas, locale: locale)
+    }
     if grid.totals.contains(where: { $0 != nil }) {
       lines.append(
-        cells(grid.totals.map { $0 ?? "" }, separator: separator, guardsFormulas: guardsFormulas))
+        cells(
+          grid.totals.map { $0 ?? "" }, separator: separator, guardsFormulas: guardsFormulas,
+          locale: locale))
     }
     return lines.map { $0 + (format == .csv ? "\r\n" : "\n") }.joined()
   }
 
-  static func cells(_ values: [String], separator: String, guardsFormulas: Bool) -> String {
-    values.map { field($0, separator: separator, guardsFormulas: guardsFormulas) }
+  /// Would a spreadsheet run `text` as a formula: it starts with a formula
+  /// character and is neither a canonical number nor a number written the
+  /// way this locale displays them. `-2,100` in an English locale and
+  /// `-1,5` in a German one are numbers, not formulas.
+  public static func startsLikeFormula(_ text: String, locale: Locale) -> Bool {
+    guard text.first.map(Self.formulaStarts.contains) == true, Double(text) == nil else {
+      return false
+    }
+    return !isPlainNumberDisplay(text, locale: locale)
+  }
+
+  static func cells(
+    _ values: [String], separator: String, guardsFormulas: Bool, locale: Locale
+  ) -> String {
+    values.map { field($0, separator: separator, locale: locale, guardsFormulas: guardsFormulas) }
       .joined(separator: separator)
   }
 

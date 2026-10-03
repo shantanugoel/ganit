@@ -112,10 +112,11 @@ recent sheet only when no window was restored.
   4180. Answer is what the sheet shows, perhaps rounded and marked `≈`; Full
   Precision is the exact value behind a calculated answer, as Copy Full
   Precision copies it. A cell that a spreadsheet would run as a formula
-  (starting with `=`, `+`, `-`, `@`, tab, or return, and not a plain number)
-  gets a leading apostrophe.
-- **HTML** — a standalone page with one escaped table row per line that loads
-  nothing.
+  (starting with `=`, `+`, `-`, `@`, tab, or return, and not a plain number
+  in the sheet's locale) gets a leading apostrophe.
+- **HTML** — a standalone page that loads nothing: prose beside its answers,
+  and each calculation table as an escaped grid with its header, its values,
+  its totals and its failure messages.
 
 **File ▸ Print…** (⌘P) prints the same layout as the PDF. Every format uses the
 answers the editor shows once evaluation settles (`exportedLines()`), including

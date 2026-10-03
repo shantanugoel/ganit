@@ -109,4 +109,30 @@ import Testing
       TableGridText.text(grid, format: .tsv, locale: Locale(identifier: "en_US"))
         == "A\n-5\n'@name\n")
   }
+
+  @Test func localeWrittenNegativeNumbersStayNumbersInExports() {
+    // Grouped and decimal-comma displays are numbers, not formulas, so the
+    // export guard leaves them for the importing app to read as numbers.
+    let english = Locale(identifier: "en_US")
+    #expect(!TableGridText.startsLikeFormula("-2,100", locale: english))
+    #expect(!TableGridText.startsLikeFormula("-1,500.25", locale: english))
+    #expect(TableGridText.startsLikeFormula("-1,5", locale: english))
+    let german = Locale(identifier: "de_DE")
+    #expect(!TableGridText.startsLikeFormula("-1,5", locale: german))
+    #expect(!TableGridText.startsLikeFormula("-1.234,56", locale: german))
+    #expect(TableGridText.startsLikeFormula("-2.1×10⁻⁵", locale: german))
+  }
+
+  @Test func csvLocaleGuardMatchesTheLocaleNumberShape() {
+    // A decimal-comma display has no separator problem under the semicolon
+    // separator, so it passes through unguarded and unquoted.
+    let grid = Self.grid([["-1,5"], ["=-cmd"]], headers: ["A"])
+    #expect(
+      TableGridText.text(grid, format: .csv, locale: Locale(identifier: "de_DE"))
+        == "A\r\n-1,5\r\n'=-cmd\r\n")
+    let english = Self.grid([["-2,100"], ["-5"]], headers: ["A"])
+    #expect(
+      TableGridText.text(english, format: .tsv, locale: Locale(identifier: "en_US"))
+        == "A\n-2,100\n-5\n")
+  }
 }

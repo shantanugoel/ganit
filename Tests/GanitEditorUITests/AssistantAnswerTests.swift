@@ -32,7 +32,9 @@ struct AssistantAnswerTests {
     #expect(answers[1].fullPrecision == nil)
     let exported = await editor.exportedLines()
     #expect(exported.map(\.status) == [.calculated, .aiUnverified])
-    #expect(SheetDocumentRenderer.csv(exported).contains("ai-unverified"))
+    #expect(
+      SheetDocumentRenderer.csv(exported, locale: Locale(identifier: "en_US")).contains(
+        "ai-unverified"))
     #expect(
       textView.linesWithResults(
         in: NSRange(

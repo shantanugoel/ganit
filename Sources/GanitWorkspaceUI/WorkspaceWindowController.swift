@@ -345,10 +345,11 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
       Task { @MainActor in
         let blocks = await editor.renderedBlocks()
         let lines = type == .commaSeparatedText ? await editor.exportedLines() : []
+        let locale = editor.tableExportLocale
         self?.perform {
           if type == .commaSeparatedText {
             // CSV keeps every physical line, so table source stays in it.
-            try self?.export(sheetID, lines: lines, as: type, to: url)
+            try self?.export(sheetID, lines: lines, locale: locale, as: type, to: url)
           } else {
             try self?.export(sheetID, blocks: blocks, as: type, to: url)
           }
@@ -380,12 +381,16 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     }
   }
 
-  /// Writes the line-per-row CSV export.
-  func export(_ sheetID: UUID, lines: [ExportedLine], as type: UTType, to url: URL) throws {
+  /// Writes the line-per-row CSV export. `locale` is the sheet's number
+  /// locale, so the formula guard reads numbers the way the sheet shows them.
+  func export(
+    _ sheetID: UUID, lines: [ExportedLine], locale: Locale, as type: UTType, to url: URL
+  ) throws {
     guard type == .commaSeparatedText else {
       return try export(sheetID, blocks: [], as: type, to: url)
     }
-    try Data(SheetDocumentRenderer.csv(lines).utf8).write(to: url, options: .atomic)
+    try Data(SheetDocumentRenderer.csv(lines, locale: locale).utf8).write(
+      to: url, options: .atomic)
   }
 
   /// Prints the sheet's prose beside its answers and its tables as grids.

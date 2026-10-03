@@ -200,8 +200,30 @@ struct ExpressionCalculationTests {
     #expect(table.grid.rows[0][1] == "Cannot divide by zero.")
     #expect(table.grid.totals == [nil, "Error"])
     #expect(table.grid.failures.isEmpty)
+    #expect(table.grid.hasFailedCells)
     // The prose reader of the failed cell fails, and the trailing line is
     // the sheet's last empty line.
     #expect(try #require(lines.dropLast().last).isFailure)
+  }
+
+  /// A calculated table without a failed cell is healthy, so structured
+  /// output does not report a failure for it.
+  func structuredAnswersMarkHealthyTables() throws {
+    let block =
+      "@ganit-table 1\n{\"ids\":[\"abcdef00-0000-4000-8000-000000000001\","
+      + "\"abcdef00-0000-4000-8000-000000000011\","
+      + "\"abcdef00-0000-4000-8000-000000000012\","
+      + "\"abcdef00-0000-4000-8000-000000000021\","
+      + "\"abcdef00-0000-4000-8000-000000000022\"],"
+      + "\"t\":0,\"n\":\"Items\",\"c\":[{\"i\":1,\"h\":\"Qty\",\"p\":\"value\"},"
+      + "{\"i\":2,\"h\":\"Amount\",\"p\":\"value\",\"f\":\"=[@Qty] * 3\",\"z\":\"sum\"}],"
+      + "\"r\":[3,4],\"x\":[{\"a\":[3,1],\"s\":\"2\"},{\"a\":[4,1],\"s\":\"4\"},"
+      + "{\"a\":[3,2],\"s\":\"6\"},{\"a\":[4,2],\"s\":\"12\"}],\"b\":[]}\n"
+      + "@end-ganit-table\n"
+    let (_, tables) = try ExpressionCalculation().structuredAnswers(
+      forSheet: block + "sum(Items[Amount])\n")
+    let table = try #require(tables.first)
+    #expect(!table.grid.hasFailedCells)
+    #expect(table.grid.failures.isEmpty)
   }
 }

@@ -1,4 +1,5 @@
 import AppKit
+import GanitFormatting
 
 /// A sheet line as exported: its source and the answer the editor shows.
 public struct ExportedLine: Equatable, Sendable {
@@ -96,9 +97,11 @@ public enum RenderedBlock: Equatable, Sendable {
 /// failures named instead of hidden.
 @MainActor
 public enum SheetDocumentRenderer {
-  /// `Line,Source,Answer,Full Precision,Status` rows quoted per RFC 4180. A cell that a spreadsheet
-  /// would run as a formula starts with an apostrophe instead.
-  public static func csv(_ lines: [ExportedLine]) -> String {
+  /// `Line,Source,Answer,Full Precision,Status` rows quoted per RFC 4180. A
+  /// cell that a spreadsheet would run as a formula starts with an
+  /// apostrophe instead. Numbers written the way the sheet's locale
+  /// displays them, such as `-2,100`, keep their value in the importing app.
+  public static func csv(_ lines: [ExportedLine], locale: Locale) -> String {
     let rows =
       [["Line", "Source", "Answer", "Full Precision", "Status"]]
       + lines.enumerated().map {
@@ -107,13 +110,13 @@ public enum SheetDocumentRenderer {
           $0.element.fullPrecision ?? "", $0.element.status.rawValue,
         ]
       }
-    return rows.map { $0.map(csvCell).joined(separator: ",") }.joined(separator: "\r\n") + "\r\n"
+    return rows.map { $0.map { csvCell($0, locale: locale) }.joined(separator: ",") }
+      .joined(separator: "\r\n") + "\r\n"
   }
 
-  private static func csvCell(_ text: String) -> String {
-    let formulaStarts: Set<Character> = ["=", "+", "-", "@", "\t", "\r"]
+  private static func csvCell(_ text: String, locale: Locale) -> String {
     let guarded =
-      text.first.map(formulaStarts.contains) == true && Double(text) == nil ? "'" + text : text
+      TableGridText.startsLikeFormula(text, locale: locale) ? "'" + text : text
     guard guarded.contains(where: { $0 == "," || $0 == "\"" || $0 == "\n" || $0 == "\r" }) else {
       return guarded
     }

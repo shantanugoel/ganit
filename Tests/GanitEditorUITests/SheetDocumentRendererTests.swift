@@ -31,13 +31,17 @@ struct SheetDocumentRendererTests {
       "5,-5,-5,-5,calculated",
       "6,<b>&,,,none",
     ]
-    #expect(SheetDocumentRenderer.csv(lines) == rows.joined(separator: "\r\n") + "\r\n")
+    #expect(
+      SheetDocumentRenderer.csv(lines, locale: Locale(identifier: "en_US")) == rows.joined(
+        separator: "\r\n") + "\r\n")
   }
 
   @Test
   func retainsAIProvenanceInEveryRenderedFormat() throws {
     let lines = [ExportedLine(source: "1,5 + 2,5", answer: "4", status: .aiUnverified)]
-    #expect(SheetDocumentRenderer.csv(lines).contains("\"1,5 + 2,5\",4,,ai-unverified"))
+    #expect(
+      SheetDocumentRenderer.csv(lines, locale: Locale(identifier: "en_US")).contains(
+        "\"1,5 + 2,5\",4,,ai-unverified"))
     #expect(SheetDocumentRenderer.html([.lines(lines)], title: "AI").contains("4 [AI; unverified]"))
     let view =
       SheetDocumentRenderer.printableView(

@@ -28,7 +28,9 @@ enum GanitCLI {
     With --tables, a sheet's tables are also printed where their source sits,
     as a named grid: failure messages, the header row, the data rows and the
     totals row, tab-separated. Table cells never replace line answers. A
-    table with a failure makes the run exit with status 1.
+    table that cannot be read or calculated, or a cell that fails to
+    calculate, makes the run exit with status 1. --tables reads a sheet from
+    standard input only.
 
     """
 
@@ -38,6 +40,13 @@ enum GanitCLI {
     if arguments.first == "--tables" {
       structured = true
       arguments.removeFirst()
+    }
+    if arguments == ["-h"] || arguments == ["--help"] {
+      print(usage, terminator: "")
+      return
+    }
+    if structured, !arguments.isEmpty {
+      fail("usage: ganit --tables < SHEET")
     }
     if arguments == ["-h"] || arguments == ["--help"] {
       print(usage, terminator: "")
@@ -86,7 +95,11 @@ enum GanitCLI {
           }
         }
       }
-      let tablesFailed = tables.contains { !$0.grid.failures.isEmpty }
+      // A failed cell is a table failure, like an unreadable block: the
+      // grid names the cell, and the status reports the sheet as broken.
+      let tablesFailed = tables.contains {
+        !$0.grid.failures.isEmpty || $0.grid.hasFailedCells
+      }
       if answers.contains(where: \.isFailure) || (structured && tablesFailed) {
         exit(1)
       }

@@ -141,7 +141,8 @@ that table as a named grid: the display name, then any failure messages, then
 the header row, the data rows, and the totals row. Fields are tab-separated
 and values are the display text the sheet shows, so a failed cell names its
 problem. Cells never replace line answers, and the grid is not flattened into
-the line stream. A table with a failure makes the run exit with status 1.
+the line stream. A table that Ganit cannot read or calculate, or a cell that
+fails to calculate, makes the run exit with status 1.
 
 ```text
 $ printf 'rate = 3\n@ganit-table 1\n{...}\n@end-ganit-table\nsum(Items[Amount])\n' | ganit --tables

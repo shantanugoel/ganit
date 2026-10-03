@@ -9,7 +9,8 @@ import Testing
 /// The app's import, open and export paths keep a table-bearing sheet's
 /// exact bytes. `Workspace.importSheet(from:)` is what File ▸ Import… and
 /// opening files from Finder call once files are chosen, and
-/// `WorkspaceWindowController.export(_:lines:as:to:)` what File ▸ Export…
+/// `WorkspaceWindowController.export(_:lines:locale:as:to:)` what
+/// File ▸ Export…
 /// calls once a destination is chosen; the panels themselves are modal.
 @MainActor
 @Suite
@@ -73,14 +74,16 @@ struct ExchangeEntryPointTests {
     let lines = await editor.exportedLines()
     #expect(lines.count == editor.sheet.lines.count)
     let package = root.appending(path: "Groceries.ganit")
-    try controller.export(id, lines: lines, as: .ganitSheet, to: package)
+    try controller.export(
+      id, lines: lines, locale: Locale(identifier: "en_US"), as: .ganitSheet, to: package)
     #expect(try Data(contentsOf: package.appending(path: "source.txt")) == bytes)
     let preview = package.appending(path: "QuickLook/Preview.pdf")
     #expect(try Data(contentsOf: preview).starts(with: Data("%PDF".utf8)))
     let thumbnail = try Data(contentsOf: package.appending(path: "QuickLook/Thumbnail.png"))
     #expect(NSBitmapImageRep(data: thumbnail) != nil)
     let text = root.appending(path: "Groceries export.txt")
-    try controller.export(id, lines: lines, as: .plainText, to: text)
+    try controller.export(
+      id, lines: lines, locale: Locale(identifier: "en_US"), as: .plainText, to: text)
     #expect(try Data(contentsOf: text) == bytes)
     #expect(Data(editor.textView.string.utf8) == bytes)
     #expect(try stored(id) == bytes)
@@ -120,7 +123,8 @@ struct ExchangeEntryPointTests {
     #expect(Data(try library.store.load(id: metadata.id).source.utf8) == bytes)
     let text = root.appending(path: "Leading.txt")
     try controller.export(
-      metadata.id, lines: await editor.exportedLines(), as: .plainText, to: text)
+      metadata.id, lines: await editor.exportedLines(), locale: Locale(identifier: "en_US"),
+      as: .plainText, to: text)
     #expect(try Data(contentsOf: text) == bytes)
   }
 }

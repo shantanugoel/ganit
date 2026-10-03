@@ -50,7 +50,9 @@ footer is the last row. The header row follows the Include header row choice.
 The CSV separator follows the sheet's number locale, so a decimal comma uses
 a semicolon. A field that a spreadsheet would run as a formula starts with
 an apostrophe, which keeps `-`, `+`, `=`, and `@` text safe to open in
-another app. Remove the apostrophe to run that formula.
+another app. Numbers are not formulas: a value the sheet displays as
+`-2,100`, or as `-1,5` in a decimal-comma locale, stays a number in the
+export. Remove the apostrophe to run that formula.
 
 Print, PDF, HTML, and the Quick Look preview of an exported package show
 each table as a grid with its headers, its values with their units, and
