@@ -16,6 +16,9 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
   package var returnToSheet: (() -> Void)?
   package var anchor = TableCellPosition(row: 0, column: 0)
   package private(set) var isEditingCell = false
+  package var referencedCells: Set<TableCellPosition> = []
+  private var pickedRange: NSRange?
+  private var pickAnchor: TableCellPosition?
   private var editOrigin: (RowID, ColumnID)?
   package var position = TableCellPosition(row: 0, column: 0)
 
@@ -32,7 +35,8 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     let back = NSButton(title: localized("table.return", "Return to Sheet"), target: self, action: #selector(goBack))
     formula.setAccessibilityLabel(localized("table.formula", "Cell input or formula"))
     status.setAccessibilityLabel(localized("table.status", "Table status"))
-    let top = NSStackView(views: [back, formula])
+    let complete = NSButton(title: localized("table.complete", "Complete"), target: self, action: #selector(showCompletions))
+    let top = NSStackView(views: [back, formula, complete])
     top.orientation = .horizontal
     top.spacing = VisualStyle.Spacing.group
     formula.delegate = self
@@ -93,9 +97,44 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     formula.stringValue = projection.source(at: position)
     view.window?.makeFirstResponder(formula)
     formula.selectText(nil)
+    pickedRange = nil
+    referencedCells = projection.referencedCells(in: formula.stringValue)
   }
   package func controlTextDidBeginEditing(_ obj: Notification) {
     if !isEditingCell { beginEditing() }
+  }
+  package func controlTextDidChange(_ obj: Notification) {
+    pickedRange = nil
+    referencedCells = projection?.referencedCells(in: formula.stringValue) ?? []
+    grid.reloadData()
+  }
+  package func pickReference(_ target: TableCellPosition, dragging: Bool = false) {
+    guard isEditingCell, formula.stringValue.hasPrefix("="),
+      let input = formula.currentEditor() as? NSTextView, !input.hasMarkedText() else { return }
+    if !dragging { pickAnchor = target; pickedRange = input.selectedRange() }
+    guard let start = pickAnchor, let range = pickedRange else { return }
+    func address(_ cell: TableCellPosition) -> String { TableSourceDocument.letters(cell.column) + String(cell.row + 2) }
+    let reference = start == target ? address(target) : address(start) + ":" + address(target)
+    input.insertText(reference, replacementRange: range)
+    pickedRange = NSRange(location: range.location, length: reference.utf16.count)
+    referencedCells = projection?.referencedCells(in: input.string) ?? []
+    grid.reloadData()
+  }
+  @objc private func showCompletions() {
+    if !isEditingCell { beginEditing() }
+    let menu = NSMenu()
+    let headers = projection?.columns.map { "[@[" + $0.header.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "]", with: "\\]") + "]]" } ?? []
+    for text in ["sum(", "average(", "median(", "min(", "max(", "count("] + headers {
+      let item = NSMenuItem(title: text, action: #selector(insertCompletion(_:)), keyEquivalent: "")
+      item.target = self
+      menu.addItem(item)
+    }
+    menu.popUp(positioning: nil, at: NSPoint(x: 0, y: formula.bounds.maxY), in: formula)
+  }
+  @objc private func insertCompletion(_ sender: NSMenuItem) {
+    guard let input = formula.currentEditor() as? NSTextView, !input.hasMarkedText() else { return }
+    if input.string.isEmpty { input.insertText("=") }
+    input.insertText(sender.title)
   }
   package func controlTextDidEndEditing(_ obj: Notification) {
     // Losing focus does not discard the draft or commit marked input.
@@ -195,6 +234,9 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     let label = cell.textField!
     cell.wantsLayer = true
     let selected = index > 0 && rectangle.rows.contains(row) && rectangle.columns.contains(index - 1)
+    let referenced = index > 0 && referencedCells.contains(.init(row: row, column: index - 1))
+    cell.layer?.borderWidth = referenced ? 1 : 0
+    cell.layer?.borderColor = VisualStyle.Color.interpretation.cgColor
     cell.layer?.backgroundColor = selected ? VisualStyle.Color.selectionBackground.withAlphaComponent(0.2).cgColor : NSColor.clear.cgColor
     label.textColor = VisualStyle.Color.primary
     if index == 0 {

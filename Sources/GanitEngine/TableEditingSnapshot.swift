@@ -26,6 +26,23 @@ package struct TableEditingSnapshot: Sendable {
       return (TableCellPosition(row: row, column: column), cell.source)
     })
   }
+  package func referencedCells(in source: String) -> Set<TableCellPosition> {
+    guard let syntax = try? TableFormulaSyntax.discover(source) else { return [] }
+    var result: Set<TableCellPosition> = []
+    for reference in syntax.references {
+      switch reference.syntax {
+      case .cell(let table, let coordinate) where table == nil || table?.lowercased() == name.lowercased():
+        let cell = TableCellPosition(row: coordinate.row - 2, column: coordinate.column - 1)
+        if rows.indices.contains(cell.row), columns.indices.contains(cell.column) { result.insert(cell) }
+      case .rectangle(let table, let first, let last) where table == nil || table?.lowercased() == name.lowercased():
+        let rowRange = max(0, min(first.row, last.row) - 2)..<min(rows.count, max(first.row, last.row) - 1)
+        let columnRange = max(0, min(first.column, last.column) - 1)..<min(columns.count, max(first.column, last.column))
+        for row in rowRange { for column in columnRange { result.insert(.init(row: row, column: column)) } }
+      default: break
+      }
+    }
+    return result
+  }
   package func source(at position: TableCellPosition) -> String {
     cells[position] ?? columns[position.column].rule ?? ""
   }

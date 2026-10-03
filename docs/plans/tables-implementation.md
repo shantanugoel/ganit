@@ -770,3 +770,7 @@ Work started on 2026-10-03 on branch `tables`.
 - Task 2: Add cell selection, rectangular selection, arrow and Tab navigation,
   and a native input field. Return commits. Escape cancels. Marked input does
   not change source. Committed cell edits use document Undo.
+
+- Task 3: Add formula reference picking and range dragging. Picking keeps the
+  formula draft open. Add a completion menu for range functions and current-row
+  column references. Mark referenced cells with the system accent color.

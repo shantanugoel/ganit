@@ -14,12 +14,16 @@ final class TableGridView: NSTableView {
   }
   override func mouseDown(with event: NSEvent) {
     guard let target = target(event), let controller else { return }
+    if controller.isEditingCell { controller.pickReference(target); return }
     window?.makeFirstResponder(self)
     controller.select(target, extending: event.modifierFlags.contains(.shift))
     if event.clickCount == 2 { controller.beginEditing() }
   }
   override func mouseDragged(with event: NSEvent) {
-    if let target = target(event) { controller?.select(target, extending: true) }
+    if let target = target(event) {
+      if controller?.isEditingCell == true { controller?.pickReference(target, dragging: true) }
+      else { controller?.select(target, extending: true) }
+    }
   }
   override func keyDown(with event: NSEvent) {
     guard let controller else { return }
