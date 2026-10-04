@@ -17,6 +17,7 @@ existing answer. See the [release train](docs/release/release-train.md).
 - Export tables as CSV or TSV with values or formulas. Print, PDF, HTML,
   and Quick Look show tables as grids. Use `ganit --tables` to read tables
   from the command line.
+- Drag the divider to change the width of the answer column.
 - Very large custom-function calculations now stop at the calculation limit.
 
 ## 0.5.7

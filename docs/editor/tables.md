@@ -24,8 +24,10 @@ between columns and then rows.
 
 Press Return or F2, double-click a cell, or type to edit at the cell. The
 formula bar shows the same input. You can also edit in the formula bar.
-Return saves the input and moves down. Tab saves and moves right. Shift-Tab
-saves and moves left. Entry at the last row can add a row. Escape cancels. Input-method
+Enter saves the input and moves down. Tab discards the draft and moves right.
+Shift-Tab discards the draft and moves left. Entry at the last row can add a
+row. Escape discards the draft and clears the selection. A click outside the
+table also clears the selection. Input-method
 composition stays in the native field until you commit. Each committed edit
 uses one document Undo step. Command-Z and Shift-Command-Z use document Undo
 and redo.
@@ -41,6 +43,14 @@ current-row column references and available note definitions. Complete
 starts a draft if necessary. Referenced cells use the accent color.
 
 ## Table Actions
+
+The common toolbar has icon buttons for Undo, Redo, Copy, and Paste. These
+buttons work in the sheet and table views. Use View > Show Toolbar to hide
+or show this toolbar. Use View > Customize Toolbar to change its buttons.
+
+Table controls appear in one row below the common toolbar. These controls
+stay visible. Use the left arrow to return to the sheet. Hold the pointer
+over an icon to see its command name.
 
 Table Actions contains table commands: rename, add at the end and export.
 Right-click a cell for cell commands. Right-click a row number or column
@@ -128,8 +138,9 @@ Broken Reference selects the full broken operand in the draft. Pick its new
 target, then commit. Go to Original Failure opens the source of a blocked
 result. Undo can restore the previous input after an error.
 
-In the sheet preview, double-click a cell to edit it. Return or Tab saves
-the input. Escape cancels. Open Table opens the selected cell in the full
+In the sheet preview, double-click a cell to edit it. Enter saves the input.
+Tab discards the draft and moves to another cell. Escape or a click outside
+the table discards the draft and clears the selection. Open Table opens the selected cell in the full
 grid. The preview has all rows and columns. Scroll it in either direction to see
 more cells. Long notes wrap. Headers keep their names. The preview height
 shows five complete rows where the sheet has enough space.
