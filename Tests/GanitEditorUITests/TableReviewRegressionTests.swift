@@ -279,4 +279,27 @@ struct TableReviewRegressionTests {
     #expect(!string.contains("@ganit-table"))
   }
 
+  @Test func previewOverrideInspectionAndRestoreShareDocumentUndo() async throws {
+    let (editor, table, _) = try await ExpandedTableTests().makeEditor()
+    try editor.setTableColumnRule(table.id, column: table.columns[1].id, formula: "=2 * 3")
+    try editor.setTableCell(table.id, at: .init(row: 0, column: 1), source: "10%")
+    editor.returnFromTable(nil)
+    await editor.scheduler?.waitUntilIdle()
+    let preview = try #require(editor.inlineTableViews[table.id])
+    let button = try #require(
+      preview.cells.subviews.compactMap { $0 as? NSButton }.first { $0.tag == 1 })
+    button.performClick(nil)
+    #expect(preview.inspection.stringValue.contains("Overrides column formula: =2 * 3"))
+    #expect(preview.inspection.stringValue.contains("Cell input: 10%"))
+    #expect(preview.inspection.stringValue.contains("Restore Column Formula"))
+    let before = editor.sheet.text
+    preview.restoreColumnFormula()
+    await editor.scheduler?.waitUntilIdle()
+    let restored = try #require(
+      TableEditingSnapshot(TableSourceDocument(editor.sheet), id: table.id))
+    #expect(!restored.isOverride(at: .init(row: 0, column: 1)))
+    editor.documentUndoManager.undo()
+    #expect(editor.sheet.text == before)
+  }
+
 }

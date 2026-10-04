@@ -1388,6 +1388,11 @@ Evidence: [column settings](../design/tables/persona-review-2026-10-04/stock-set
 
 #### R26 — P1 — The preview hides a manual rule override (observed presentation issue)
 
+Status: Done. Both views show the override mark. Preview inspection states
+the column formula and cell input. Restore Column Formula removes the
+override in one document edit. The regression check verifies restoration
+and Undo. All 16 table review regression tests passed.
+
 Replace Portfolio H2 with the literal `10%`. The grid shows `10% •`.
 Return to Sheet. The preview shows `10%`, with no dot. Its help shows the
 literal, but does not say that it overrides the column rule.
@@ -1557,5 +1562,7 @@ and actual CSV export remain the evidence for the reported failures.
 
 The existing implementation changes were checked on 2026-10-04 before
 commit. All 15 `TableReviewRegressionTests` passed. The completed findings
-above describe those changes. R26, R36 and R37 remain open for further work.
+above describe those changes. R36 and R37 remain open for further work.
 R36 requires a VoiceOver speech check before it can be closed.
+
+The full suite passed 1,126 tests before the R26 follow-up change.

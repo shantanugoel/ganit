@@ -200,9 +200,15 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
           result?.cellProblem(row: projection.rows[row], column: item.id)
           ?? result?.cellError(row: projection.rows[row], column: item.id).map(
             editor.formatTableError) ?? ""
-        let detail =
-          address + " · " + item.header + ": " + input + (problem.isEmpty ? "" : " · " + problem)
         let override = projection.isOverride(at: position)
+        let ruleDetail =
+          override
+          ? " · Overrides column formula: " + (item.rule ?? "")
+            + " · Cell input: " + input + " · Use Restore Column Formula to restore the rule."
+          : ""
+        let detail =
+          address + " · " + item.header + ": " + input
+          + (problem.isEmpty ? "" : " · " + problem) + ruleDetail
         let button = NSButton(
           title: display + (override ? " •" : ""), target: self, action: #selector(inspectCell(_:)))
         button.isBordered = false
@@ -212,10 +218,7 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
         button.cell?.lineBreakMode = .byWordWrapping
         button.font = .systemFont(ofSize: 14 * scale)
         button.tag = visible * columnCount + column
-        button.toolTip =
-          detail
-          + (override
-            ? " · Overrides column formula. Open Table and use Reset Overrides to restore it." : "")
+        button.toolTip = detail
         button.setAccessibilityLabel(address + " " + item.header + " " + display)
         button.setAccessibilityHelp(button.toolTip)
         button.frame = NSRect(
@@ -281,11 +284,26 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
         title: "Edit Cell", action: #selector(editPreviewCell), keyEquivalent: "")
       edit.target = self
       menu.addItem(edit)
+      if let selectedCell, projection?.isOverride(at: selectedCell) == true {
+        let restore = NSMenuItem(
+          title: "Restore Column Formula", action: #selector(restoreColumnFormula),
+          keyEquivalent: "")
+        restore.target = self
+        menu.addItem(restore)
+      }
     }
     let open = NSMenuItem(title: "Open Table", action: #selector(openTable), keyEquivalent: "")
     open.target = self
     menu.addItem(open)
     return menu
+  }
+  @objc func restoreColumnFormula() {
+    guard let selectedCell, let editor, commitPreviewEdit() else { return }
+    do {
+      try editor.setTableCell(tableID, at: selectedCell, source: nil)
+    } catch {
+      inspection.stringValue = "Cannot restore the column formula. " + String(describing: error)
+    }
   }
   func beginPreviewEdit() {
     guard let selectedCell, let projection, let editor,
