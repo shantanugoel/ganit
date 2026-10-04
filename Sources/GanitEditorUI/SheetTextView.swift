@@ -8,7 +8,8 @@ import GanitFormatting
 /// Answers are drawn by an overlay view, never inserted into the text
 /// storage, so source text and its offsets are unaffected. TextKit 2 renders
 /// text in its own subviews, so the overlay sits above them and passes events
-/// through. The text container is narrowed to leave the column free.
+/// through, except for divider drag events. The text container is narrowed
+/// to leave the column free.
 ///
 /// Clicking an answer selects it; Copy then copies the displayed answer.
 /// Double-clicking inserts an upward `line N` reference at the insertion
@@ -22,6 +23,10 @@ final class SheetTextView: NSTextView {
   static let answerColumnFraction: CGFloat = 0.35
   static let answerColumnWidthRange: ClosedRange<CGFloat> = 140...360
   static let columnGap: CGFloat = 16
+  /// Keep this much space for the source during a column resize.
+  static let minimumSourceWidth: CGFloat = 140
+  private var preferredAnswerColumnWidth: CGFloat?
+  private var answerColumnDrag: (anchor: CGFloat, width: CGFloat)?
   /// Source and answers together never take more than this, so a wide window
   /// keeps each answer beside its line instead of at the far edge.
   static let maximumContentWidth: CGFloat = 980
@@ -52,7 +57,10 @@ final class SheetTextView: NSTextView {
 
   /// Draws the rule at the answer column's edge.
   var showsAnswerSeparator = true {
-    didSet { answerOverlay().needsDisplay = true }
+    didSet {
+      answerOverlay().needsDisplay = true
+      window?.invalidateCursorRects(for: answerOverlay())
+    }
   }
 
   /// Numbers each line in a gutter before the source. Wrapped rows share
@@ -395,13 +403,24 @@ final class SheetTextView: NSTextView {
   }
 
   var answerColumnWidth: CGFloat {
-    min(
-      max(
-        contentWidth * Self.answerColumnFraction,
-        Self.answerColumnWidthRange.lowerBound * textScale
-      ),
-      Self.answerColumnWidthRange.upperBound * textScale
+    let maximum = min(
+      Self.answerColumnWidthRange.upperBound * textScale,
+      max(0, contentWidth - Self.minimumSourceWidth - Self.columnGap)
     )
+    return min(
+      max(
+        preferredAnswerColumnWidth.map { $0 * textScale }
+          ?? contentWidth * Self.answerColumnFraction,
+        min(Self.answerColumnWidthRange.lowerBound * textScale, maximum)
+      ),
+      maximum
+    )
+  }
+
+  /// Use an eight-point area to make the thin rule easy to drag.
+  var answerResizeRect: NSRect? {
+    guard let x = answerSeparatorX else { return nil }
+    return NSRect(x: x - 4, y: bounds.minY, width: 8, height: bounds.height)
   }
 
   /// Where the rule between source and answers belongs, or `nil` when it is
@@ -420,11 +439,12 @@ final class SheetTextView: NSTextView {
     super.setFrameSize(newSize)
     answerOverlay().frame = bounds
     answerOverlay().needsDisplay = true
+    window?.invalidateCursorRects(for: answerOverlay())
     let available = contentWidth
     let sourceWidth =
       writesAnswersInline ? available : available - answerColumnWidth - Self.columnGap
     textContainer?.size = NSSize(
-      width: max(sourceWidth, Self.answerColumnWidthRange.lowerBound),
+      width: max(sourceWidth, Self.minimumSourceWidth),
       height: CGFloat.greatestFiniteMagnitude
     )
   }
@@ -1112,6 +1132,11 @@ final class SheetTextView: NSTextView {
   override func mouseDown(with event: NSEvent) {
     completionList.hide()
     let point = convert(event.locationInWindow, from: nil)
+    if answerResizeRect?.contains(point) == true {
+      answerColumnDrag = (point.x, answerColumnWidth)
+      NSCursor.resizeLeftRight.set()
+      return
+    }
     guard let hit = answerHit(at: point) else {
       selectedAnswer = nil
       if event.modifierFlags.contains(.option), beginScrub(at: point) {
@@ -1151,6 +1176,17 @@ final class SheetTextView: NSTextView {
   private var showsScrubCursor = false
 
   override func mouseDragged(with event: NSEvent) {
+    if let drag = answerColumnDrag {
+      let point = convert(event.locationInWindow, from: nil)
+      preferredAnswerColumnWidth = min(
+        max(
+          (drag.width + drag.anchor - point.x) / textScale,
+          Self.answerColumnWidthRange.lowerBound),
+        Self.answerColumnWidthRange.upperBound)
+      setFrameSize(frame.size)
+      NSCursor.resizeLeftRight.set()
+      return
+    }
     guard scrub != nil else {
       super.mouseDragged(with: event)
       return
@@ -1159,6 +1195,11 @@ final class SheetTextView: NSTextView {
   }
 
   override func mouseUp(with event: NSEvent) {
+    if answerColumnDrag != nil {
+      answerColumnDrag = nil
+      window?.invalidateCursorRects(for: answerOverlay())
+      return
+    }
     guard scrub != nil else {
       super.mouseUp(with: event)
       return
@@ -2121,8 +2162,7 @@ private final class InterpretationAction: NSObject {
   }
 }
 
-/// Draws answers and underlines above the text view's content without
-/// taking events.
+/// Draw answers and underlines. Send divider drag events to the text view.
 @MainActor
 private final class AnswerOverlayView: NSView {
   private unowned let textView: SheetTextView
@@ -2142,7 +2182,27 @@ private final class AnswerOverlayView: NSView {
   }
 
   override func hitTest(_ point: NSPoint) -> NSView? {
-    nil
+    let local = convert(point, from: superview)
+    return textView.answerResizeRect?.contains(local) == true ? self : nil
+  }
+
+  override func resetCursorRects() {
+    super.resetCursorRects()
+    if let rect = textView.answerResizeRect {
+      addCursorRect(rect.intersection(visibleRect), cursor: .resizeLeftRight)
+    }
+  }
+
+  override func mouseDown(with event: NSEvent) {
+    textView.mouseDown(with: event)
+  }
+
+  override func mouseDragged(with event: NSEvent) {
+    textView.mouseDragged(with: event)
+  }
+
+  override func mouseUp(with event: NSEvent) {
+    textView.mouseUp(with: event)
   }
 
   override func draw(_ dirtyRect: NSRect) {

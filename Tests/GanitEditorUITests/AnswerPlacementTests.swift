@@ -116,6 +116,77 @@ struct AnswerPlacementTests {
     #expect(textView.answerSeparatorX != nil)
   }
 
+  @Test
+  func draggingTheRuleResizesBothColumnsWithoutChangingTheSheet() async throws {
+    let (editor, textView) = try await makeEditor("2 + 2\n10 * 10")
+    textView.setSelectedRange(NSRange(location: 2, length: 0))
+    let selection = textView.selectedRange()
+    let originalWidth = textView.answerColumnWidth
+    let sourceWidth = try #require(textView.textContainer?.size.width)
+    let start = NSPoint(x: try #require(textView.answerSeparatorX) + 2, y: 40)
+    let target = try #require(textView.hitTest(textView.convert(start, to: textView.superview)))
+    #expect(target !== textView)
+    target.mouseDown(with: try mouseEvent(.leftMouseDown, at: start, in: textView))
+    let end = NSPoint(x: start.x - 40, y: start.y)
+    target.mouseDragged(with: try mouseEvent(.leftMouseDragged, at: end, in: textView))
+    target.mouseUp(with: try mouseEvent(.leftMouseUp, at: end, in: textView))
+
+    #expect(abs(textView.answerColumnWidth - originalWidth - 40) < 0.01)
+    #expect(abs(try #require(textView.textContainer?.size.width) - sourceWidth + 40) < 0.01)
+    #expect(textView.selectedRange() == selection)
+    #expect(editor.sheet.text == "2 + 2\n10 * 10")
+    #expect(!editor.documentUndoManager.canUndo)
+    let answers = textView.answerLayout(in: textView.bounds)
+    #expect(answers.map(\.cell.text) == ["4", "100"])
+    #expect(answers.allSatisfy { $0.rect.width <= textView.answerColumnWidth })
+    #expect(answers.allSatisfy { $0.rect.minX > (textView.answerSeparatorX ?? 0) })
+
+    let resizedWidth = textView.answerColumnWidth
+    textView.increaseTextSize(nil)
+    #expect(abs(textView.answerColumnWidth - resizedWidth * textView.textScale) < 0.01)
+    textView.resetTextSize(nil)
+    editor.writeAnswers(DisplayOptions(writesAnswersInline: true))
+    #expect(textView.answerResizeRect == nil)
+    editor.writeAnswers(DisplayOptions())
+    #expect(abs(textView.answerColumnWidth - resizedWidth) < 0.01)
+    editor.writeAnswers(DisplayOptions(showsAnswerSeparator: false))
+    #expect(textView.answerResizeRect == nil)
+  }
+
+  @Test
+  func draggingTheRuleStopsAtTheLimitsAndPreservesSourceSpace() async throws {
+    let (_, textView) = try await makeEditor("2 + 2")
+    let window = try #require(textView.window)
+    window.setContentSize(NSSize(width: 1_200, height: 300))
+    window.layoutIfNeeded()
+    for delta: CGFloat in [-2_000, 2_000] {
+      let start = NSPoint(x: try #require(textView.answerSeparatorX), y: 40)
+      textView.mouseDown(with: try mouseEvent(.leftMouseDown, at: start, in: textView))
+      let end = NSPoint(x: start.x + delta, y: start.y)
+      textView.mouseDragged(with: try mouseEvent(.leftMouseDragged, at: end, in: textView))
+      textView.mouseUp(with: try mouseEvent(.leftMouseUp, at: end, in: textView))
+      #expect(textView.answerColumnWidth == (delta < 0 ? 360 : 140))
+    }
+
+    window.setContentSize(NSSize(width: 320, height: 300))
+    window.layoutIfNeeded()
+    #expect(try #require(textView.textContainer?.size.width) >= 140)
+    #expect(textView.answerColumnWidth + 140 + SheetTextView.columnGap <= textView.contentWidth)
+    window.setContentSize(NSSize(width: 1_200, height: 300))
+    window.layoutIfNeeded()
+    #expect(textView.answerColumnWidth == 140)
+  }
+
+  private func mouseEvent(
+    _ type: NSEvent.EventType, at point: NSPoint, in view: NSView
+  ) throws -> NSEvent {
+    try #require(
+      NSEvent.mouseEvent(
+        with: type, location: view.convert(point, to: nil), modifierFlags: [], timestamp: 0,
+        windowNumber: view.window?.windowNumber ?? 0, context: nil, eventNumber: 0,
+        clickCount: 1, pressure: 1))
+  }
+
   /// A compact window keeps a value's unit by writing fewer digits, marked
   /// `≈`, and truncates values in the middle and messages at the end.
   @Test
