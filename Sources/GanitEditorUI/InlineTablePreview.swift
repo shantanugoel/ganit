@@ -88,7 +88,9 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
     guard window != nil else { return }
     outsideClickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .keyDown]) {
       [weak self] event in
-      guard let self, event.window === self.window else { return event }
+      guard let self, event.window === self.window, self.editor?.expandedTable == nil else {
+        return event
+      }
       if event.type == .keyDown {
         if event.keyCode == 6, self.selectedCell != nil,
           event.modifierFlags.intersection([.command, .control, .option]) == .command,
