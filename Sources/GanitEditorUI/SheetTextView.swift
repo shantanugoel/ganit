@@ -624,6 +624,9 @@ final class SheetTextView: NSTextView {
     return text
   }
   override func accessibilityValue() -> String? { accessibleDocumentText() }
+  override func accessibilitySelectedText() -> String? {
+    accessibilityString(for: selectedRange())
+  }
   override func accessibilityString(for range: NSRange) -> String? {
     let text = accessibleDocumentText() as NSString
     guard range.location >= 0, range.upperBound <= text.length else { return nil }

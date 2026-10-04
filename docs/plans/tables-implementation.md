@@ -1512,6 +1512,14 @@ Offer starter tables for shopping, travel, a quote and a portfolio.
 
 #### R36 — P2 — Accessibility exposes the stored table block (observed accessibility issue)
 
+Status: Implementation complete; VoiceOver speech check open. Accessible
+text replaces the stored table block with its name, row count and headers.
+Both the modern and legacy selected-text APIs use that text. Cell selection
+follows visible row identities after sort and filter. Both views include
+the complete problem in each failed cell label. All 18 table review
+regression tests passed. The speech check requires permission to enable
+VoiceOver temporarily. Do not mark this issue Done before that check.
+
 The sheet text entry area exposes the complete `@ganit-table` block,
 including its JSON and IDs. Its preview also exposes readable cell buttons.
 The full grid accessibility record marks every cell in an active row as

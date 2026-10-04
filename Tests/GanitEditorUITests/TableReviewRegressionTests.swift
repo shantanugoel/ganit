@@ -322,4 +322,37 @@ struct TableReviewRegressionTests {
     }
   }
 
+  @Test func accessibleSelectionFollowsSortedRowsAndSpeaksFullProblems() async throws {
+    let (editor, table, controller) = try await ExpandedTableTests().makeEditor()
+    for (row, source) in ["30", "10", "20"].enumerated() {
+      try editor.setTableCell(table.id, at: .init(row: row, column: 0), source: source)
+    }
+    try editor.setTableCell(table.id, at: .init(row: 2, column: 1), source: "=1 / 0")
+    controller.select(.init(row: 0, column: 0))
+    controller.sortAscending()
+    await editor.scheduler?.waitUntilIdle()
+    controller.select(.init(row: 2, column: 1))
+    controller.select(.init(row: 0, column: 1), extending: true)
+    #expect(controller.selectionRows == [2, 0])
+    let column = controller.grid.tableColumns[2]
+    let unselected = try #require(
+      controller.tableView(controller.grid, viewFor: column, row: 0) as? TableGridCellView)
+    let failed = try #require(
+      controller.tableView(controller.grid, viewFor: column, row: 1) as? TableGridCellView)
+    #expect(!unselected.isAccessibilitySelected())
+    #expect(failed.isAccessibilitySelected())
+    let problem = try #require(controller.cellProblem(row: 2, column: 1))
+    #expect(failed.accessibilityLabel()?.contains(problem) == true)
+    editor.returnFromTable(nil)
+    await editor.scheduler?.waitUntilIdle()
+    let text = try #require(editor.textView as? SheetTextView)
+    text.setSelectedRange(.init(location: 0, length: text.string.utf16.count))
+    #expect(text.accessibilitySelectedText()?.contains("@ganit-table") == false)
+    let preview = try #require(editor.inlineTableViews[table.id])
+    #expect(
+      preview.cells.subviews.compactMap { $0 as? NSButton }.contains {
+        $0.accessibilityLabel()?.contains(problem) == true
+      })
+  }
+
 }

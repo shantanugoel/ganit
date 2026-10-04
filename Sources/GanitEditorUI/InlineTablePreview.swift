@@ -221,7 +221,10 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
         button.font = .systemFont(ofSize: 14 * scale)
         button.tag = visible * columnCount + column
         button.toolTip = detail
-        button.setAccessibilityLabel(address + " " + item.header + " " + display)
+        button.setAccessibilityLabel(
+          address + " " + item.header + " " + display
+            + (problem.isEmpty ? "" : ". " + problem)
+            + (override ? ". Overrides column formula." : ""))
         button.setAccessibilityHelp(button.toolTip)
         button.frame = NSRect(
           x: gutter + CGFloat(column) * columnWidth + 6, y: rowOffsets[visible],

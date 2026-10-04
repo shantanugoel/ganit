@@ -614,7 +614,7 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     let label = cell.textField!
     cell.wantsLayer = true
     let selected =
-      index > 0 && rectangle.rows.contains(row) && rectangle.columns.contains(index - 1)
+      index > 0 && selectionRows.contains(row) && rectangle.columns.contains(index - 1)
     let referenced = index > 0 && referencedCells.contains(.init(row: row, column: index - 1))
     let active = index > 0 && row == position.row && index - 1 == position.column
     cell.layer?.borderWidth = active ? 2 : referenced ? 1 : 0
@@ -625,10 +625,16 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
       ? VisualStyle.Color.selectionBackground.withAlphaComponent(0.2).cgColor
       : NSColor.clear.cgColor
     label.textColor = VisualStyle.Color.primary
+    cell.setAccessibilityElement(true)
+    cell.setAccessibilityRole(.cell)
+    cell.setAccessibilitySelected(selected)
+    cell.setAccessibilityHelp(nil)
+    cell.toolTip = nil
     if index == 0 {
       label.stringValue = String(row + 2)
       label.alignment = .center
       label.textColor = .secondaryLabelColor
+      cell.setAccessibilityLabel("Row " + String(row + 2))
       cell.layer?.backgroundColor = NSColor.controlBackgroundColor.cgColor
     } else {
       let column = projection.columns[index - 1]
@@ -638,10 +644,6 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
       if case .text = value { label.alignment = .left } else { label.alignment = .right }
       label.maximumNumberOfLines = 0
       label.lineBreakMode = .byWordWrapping
-      cell.setAccessibilityElement(true)
-      cell.setAccessibilityRole(.cell)
-      cell.setAccessibilitySelected(selected)
-      cell.setAccessibilityHelp(cell.toolTip)
       let source = effectiveSource(at: .init(row: row, column: index - 1))
       cell.toolTip =
         result?.cellProblem(row: projection.rows[row], column: column.id)
@@ -651,6 +653,7 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
       if case .failure = value { label.textColor = VisualStyle.Color.failure }
       let accessible =
         "\(TableSourceDocument.letters(index - 1))\(row + 2), \(column.header), \(label.stringValue)"
+        + (cellProblem(row: row, column: index - 1).map { ", " + $0 } ?? "")
       label.setAccessibilityLabel(accessible)
       cell.setAccessibilityLabel(accessible)
     }
