@@ -902,9 +902,11 @@ format. Use the checklist below for this work.
   useful error text at the cell. Keep external paste as data unless the
   user selects formula paste.
 - [x] U8: Edit at the cell after a double-click, Return or typing. Keep
-  the formula bar available. Return saves and moves down. Tab saves and
-  moves right. Shift-Tab moves left. Escape cancels. A click on another
-  cell saves ordinary input. Formula reference picking keeps the draft.
+  the formula bar available. Enter saves the value and moves down.
+  Tab discards the draft and moves right. Shift-Tab discards the draft
+  and moves left. Escape discards the draft and clears the selection.
+  A click on another cell discards ordinary input. A click outside the
+  table clears the selection. Formula reference selection keeps the draft.
 - [x] U9: Show the active address beside the formula bar. Explain how to
   enter a formula. Show column formulas as an optional rule, not an input
   type. Keep cell formulas independent of column rules.

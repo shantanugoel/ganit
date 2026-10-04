@@ -30,7 +30,17 @@ struct WorkspaceWindowControllerTests {
     #expect(sidebarItem.maximumThickness == 280)
     #expect((150...200).contains(controller.sidebar.view.frame.width))
     #expect(window.isRestorable && window.restorationClass == WorkspaceRestoration.self)
-    #expect(window.toolbar?.items.map(\.itemIdentifier).contains(.searchSheets) == true)
+    let toolbar = try #require(window.toolbar)
+    #expect(toolbar.items.map(\.itemIdentifier).contains(.searchSheets))
+    #expect(toolbar.allowsUserCustomization)
+    for identifier in [
+      NSToolbarItem.Identifier.undoEdit, .redoEdit, .copySelection, .pasteSelection,
+    ] {
+      let item = try #require(toolbar.items.first { $0.itemIdentifier == identifier })
+      #expect(item.image != nil)
+      #expect(item.target == nil)
+      #expect(item.action != nil)
+    }
     #expect(controller.editor?.view.superview != nil)
     #expect(window.title == "Untitled")
     #expect(Set(controller.sidebar.sheets.map(\.id)) == Set([SheetLibrary.scratchID] + ids))

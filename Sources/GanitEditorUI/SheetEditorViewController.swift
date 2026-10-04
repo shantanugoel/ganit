@@ -2062,7 +2062,7 @@ extension SheetEditorViewController {
       returnFromTable(nil)
       guard expandedTable == nil else { return }
     }
-    guard inlineTableViews.values.allSatisfy({ $0.commitPreviewEdit() }) else { return }
+    for preview in inlineTableViews.values { preview.cancelPreviewEdit() }
     proseScroll = scrollView.contentView.bounds.origin
     if textView.hasMarkedText() { textView.unmarkText() }
     let controller = ExpandedTableViewController(editor: self, table: id)
@@ -2091,7 +2091,8 @@ extension SheetEditorViewController {
     view.window?.makeFirstResponder(controller.grid)
   }
   @objc public func returnFromTable(_ sender: Any?) {
-    guard let controller = expandedTable, controller.commitCellEditing() else { return }
+    guard let controller = expandedTable else { return }
+    controller.cancelEditing()
     tableViewStates[controller.tableID] = (
       controller.position, controller.anchor, controller.scroll.contentView.bounds.origin
     )
@@ -2107,7 +2108,7 @@ extension SheetEditorViewController {
     view.window?.makeFirstResponder(textView)
   }
   private func navigateToTableFailure(_ origin: TableCellFailureOrigin) {
-    guard expandedTable?.commitCellEditing() != false else { return }
+    expandedTable?.cancelEditing()
     openTable(origin.table)
     guard let grid = expandedTable, let projection = grid.projection,
       let row = origin.row.flatMap({ projection.rows.firstIndex(of: $0) }),

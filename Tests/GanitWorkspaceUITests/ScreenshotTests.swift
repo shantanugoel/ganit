@@ -58,6 +58,34 @@ struct ScreenshotTests {
     for open in workspace.windows { open.window?.orderOut(nil) }
   }
 
+  @Test
+  func calculationTable() async throws {
+    let (workspace, ids) = try makeWorkspace(["# Weekend groceries\n\nbudget = 750 INR\n\n"])
+    let controller = workspace.openWindow(showing: ids[0])
+    let window = try #require(controller.window)
+    let editor = try #require(controller.editor)
+    let source = editor.sheet.text
+    let id = try #require(
+      try editor.insertTableRectangle(
+        named: "Groceries",
+        headers: [("Item", .text), ("Qty", .value), ("Price", .value), ("Amount", .value)],
+        rows: [
+          ["Rice", "2", "85 INR", ""], ["Milk", "3", "28 INR", ""],
+          ["Eggs", "6", "9 INR", ""], ["Soap", "2", "32 INR", ""],
+          ["Tea", "1", "150 INR", ""],
+        ],
+        formulas: false, atUTF8: source.utf8.count, expectedSource: source))
+    let table = try #require(TableEditingSnapshot(TableSourceDocument(editor.sheet), id: id))
+    try editor.setTableColumnRule(id, column: table.columns[3].id, formula: "=[@Qty] * [@Price]")
+    try editor.setTableColumnTotal(id, column: table.columns[3].id, total: .sum)
+    await editor.scheduler?.waitUntilIdle()
+    editor.openTable(id)
+    editor.expandedTable?.select(.init(row: 1, column: 3))
+    window.setContentSize(NSSize(width: 1_020, height: 590))
+    try await write(window, of: editor, to: "tables-dark.png")
+    for open in workspace.windows { open.window?.orderOut(nil) }
+  }
+
   /// A Calca-style article: sentences with arithmetic, answers after `=>`.
   @Test
   func markdownMode() async throws {

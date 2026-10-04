@@ -5,13 +5,15 @@ import GanitFormatting
 extension ExpandedTableViewController {
   var displayedRows: [Int] { displayOrder }
   var selectionRows: [Int] {
-    guard let start = visibleRow(anchor.row), let end = visibleRow(position.row) else { return [] }
+    guard hasCellSelection, let start = visibleRow(anchor.row), let end = visibleRow(position.row)
+    else { return [] }
     return Array(displayedRows[min(start, end)...max(start, end)])
   }
   var hasReviewProjection: Bool {
     projection?.columns.contains(where: { $0.reviewSort != nil || $0.reviewFilter != nil }) == true
   }
   func permitsRectangleEdit() -> Bool {
+    guard hasCellSelection else { return false }
     guard !hasReviewProjection else {
       status.stringValue =
         "Clear sort and filters before Fill or rectangular paste. You can edit individual cells."

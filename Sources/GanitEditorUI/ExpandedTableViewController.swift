@@ -14,6 +14,8 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
   let grid = TableGridView()
   let frozenGrid = TableGridView()
   let frozenScroll = NSScrollView()
+  private var outsideClickMonitor: Any?
+  package private(set) var hasCellSelection = true
   private var scrollObserver: NSObjectProtocol?
   var displayOrder: [Int] = []
   package let scroll = NSScrollView()
@@ -55,33 +57,35 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
 
   package override func loadView() {
     view = NSView()
-    let back = NSButton(
-      title: localized("table.return", "Return to Sheet"), target: self, action: #selector(goBack))
+    let back = actionButton("arrow.left", title: "Return to Sheet", action: #selector(goBack))
     formula.setAccessibilityLabel(localized("table.formula", "Cell input or formula"))
     status.setAccessibilityLabel(localized("table.status", "Table status"))
-    let complete = NSButton(
-      title: localized("table.complete", "Complete"), target: self,
-      action: #selector(showCompletions))
-    let reference = NSButton(
-      title: localized("table.insertReference", "Reference…"), target: self,
-      action: #selector(insertReferenceWithKeyboard))
-    let actions = NSButton(
-      title: localized("table.actions", "Add / Actions"), target: self,
-      action: #selector(showActions))
-    let addRow = NSButton(title: "+ Row", target: self, action: #selector(addRow))
-    let addColumn = NSButton(title: "+ Column", target: self, action: #selector(addColumn))
+    let complete = actionButton(
+      "text.badge.plus", title: "Complete", action: #selector(showCompletions))
+    let reference = actionButton(
+      "link", title: "Insert Reference", action: #selector(insertReferenceWithKeyboard))
+    let actions = actionButton(
+      "ellipsis.circle", title: "Table Actions", action: #selector(showActions))
+    let addRow = actionButton("rectangle.badge.plus", title: "Add Row", action: #selector(addRow))
+    let addColumn = actionButton(
+      "rectangle.split.3x1", title: "Add Column", action: #selector(addColumn))
+    let down = actionButton("arrow.down.to.line", title: "Fill Down", action: #selector(fillDown))
+    let right = actionButton(
+      "arrow.right.to.line", title: "Fill Right", action: #selector(fillRight))
     addRowButton = addRow
     addColumnButton = addColumn
     tableTitle.lineBreakMode = .byTruncatingTail
     tableTitle.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
     tableTitle.font = .systemFont(ofSize: 15, weight: .semibold)
-    let top = NSStackView(views: [back, tableTitle, addRow, addColumn, actions])
+    let top = NSStackView(views: [
+      back, tableTitle, addRow, addColumn, reference, complete, down, right, actions,
+    ])
     rowLabel.setAccessibilityLabel("Selected row label")
     rowLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
     rowLabel.lineBreakMode = .byTruncatingTail
     status.maximumNumberOfLines = 5
     status.lineBreakMode = .byWordWrapping
-    let inputRow = NSStackView(views: [address, rowLabel, reference, complete])
+    let inputRow = NSStackView(views: [address, rowLabel])
     formula.cell?.wraps = true
     formula.cell?.isScrollable = false
     formula.maximumNumberOfLines = 3
@@ -97,7 +101,7 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     address.setAccessibilityLabel("Selected cell address")
     formula.placeholderString = "Enter a value or =SUM(A2:B2)"
     formula.toolTip =
-      "Formulas work in every column. Return saves; Tab moves right; Escape cancels."
+      "Formulas work in every column. Enter saves. Tab discards the draft and moves right. Escape clears the selection."
     grid.headerView = TableGridHeaderView()
     (grid.headerView as? TableGridHeaderView)?.controller = self
     grid.controller = self
@@ -185,15 +189,15 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
       scroll.contentView.scroll(to: .init(x: 0, y: scroll.contentView.bounds.minY))
       scroll.reflectScrolledClipView(scroll.contentView)
     }
-    addRowButton?.isHidden = view.bounds.width < 520
-    addColumnButton?.isHidden = view.bounds.width < 520
   }
   func stopReviewObservers() {
     if let scrollObserver { NotificationCenter.default.removeObserver(scrollObserver) }
     scrollObserver = nil
+    if let outsideClickMonitor { NSEvent.removeMonitor(outsideClickMonitor) }
+    outsideClickMonitor = nil
   }
   @objc private func goBack() {
-    guard commitCellEditing() else { return }
+    cancelEditing()
     returnToSheet?()
   }
   package var rectangle: TableCellRectangle {
@@ -205,6 +209,8 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     guard let projection, projection.rows.indices.contains(target.row),
       projection.columns.indices.contains(target.column), !isEditingCell
     else { return }
+    hasCellSelection = true
+    formula.isEnabled = true
     position = target
     selectionIDs = (projection.rows[target.row], projection.columns[target.column].id)
     if !extending {
@@ -243,7 +249,7 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
       ?? raw
   }
   package func beginEditing(inline: Bool = false) {
-    guard let projection, projection.rows.indices.contains(position.row),
+    guard hasCellSelection, let projection, projection.rows.indices.contains(position.row),
       projection.columns.indices.contains(position.column)
     else { return }
     editsInline = inline
@@ -381,14 +387,19 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     -> Bool
   {
     if selector == #selector(NSResponder.cancelOperation(_:)) {
-      cancelEditing()
+      clearSelection()
       return true
     }
     let enter = selector == #selector(NSResponder.insertNewline(_:))
     let tab = selector == #selector(NSResponder.insertTab(_:))
     let backTab = selector == #selector(NSResponder.insertBacktab(_:))
     if enter || tab || backTab {
-      guard !textView.hasMarkedText(), commitCellEditing() else { return true }
+      guard !textView.hasMarkedText() else { return true }
+      if enter {
+        guard commitCellEditing() else { return true }
+      } else {
+        cancelEditing()
+      }
       moveAfterCommit(
         horizontal: !enter,
         backwards: backTab || (enter && NSApp.currentEvent?.modifierFlags.contains(.shift) == true))
@@ -449,10 +460,62 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     select(target)
     editor.documentUndoManager.registerUndo(withTarget: self) { $0.restoreSelection(previous) }
   }
+  private func actionButton(_ symbol: String, title: String, action: Selector) -> NSButton {
+    let button = NSButton(
+      image: NSImage(systemSymbolName: symbol, accessibilityDescription: title) ?? NSImage(),
+      target: self, action: action)
+    button.bezelStyle = .texturedRounded
+    button.imagePosition = .imageOnly
+    button.toolTip = title
+    button.setAccessibilityLabel(title)
+    button.widthAnchor.constraint(equalToConstant: 30).isActive = true
+    return button
+  }
+  @objc func undo(_ sender: Any?) {
+    cancelEditing()
+    editor.documentUndoManager.undo()
+  }
+  @objc func redo(_ sender: Any?) {
+    cancelEditing()
+    editor.documentUndoManager.redo()
+  }
+  package override func viewDidAppear() {
+    super.viewDidAppear()
+    outsideClickMonitor = NSEvent.addLocalMonitorForEvents(matching: .leftMouseDown) {
+      [weak self] event in
+      guard let self, event.window === self.view.window else { return event }
+      let hit = self.view.window?.contentView?.hitTest(event.locationInWindow)
+      if let hit,
+        hit === self.formula || hit.isDescendant(of: self.formula)
+          || hit === self.inlineInput || hit.isDescendant(of: self.inlineInput)
+          || hit === self.scroll || hit.isDescendant(of: self.scroll)
+          || hit === self.frozenScroll || hit.isDescendant(of: self.frozenScroll)
+          || hit is NSButton
+      {
+        return event
+      }
+      self.clearSelection()
+      return event
+    }
+  }
+  package func clearSelection() {
+    cancelEditing()
+    hasCellSelection = false
+    selectionIDs = nil
+    anchorIDs = nil
+    formula.stringValue = ""
+    formula.isEnabled = false
+    address.stringValue = ""
+    rowLabel.stringValue = ""
+    status.stringValue = "Select a cell to edit."
+    status.toolTip = nil
+    grid.reloadData()
+    frozenGrid.reloadData()
+  }
   package func cancelEditing() {
+    if isEditingCell { editingInput.abortEditing() }
     isEditingCell = false
     editOrigin = nil
-    editingInput.abortEditing()
     inlineInput.removeFromSuperview()
     editsInline = false
     referencedCells = []
@@ -519,7 +582,7 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     grid.deselectAll(nil)
     refreshFrozenColumn()
     fitNumericColumns()
-    if !isEditingCell, let next, next.rows.indices.contains(position.row),
+    if hasCellSelection, !isEditingCell, let next, next.rows.indices.contains(position.row),
       next.columns.indices.contains(position.column)
     {
       formula.stringValue = effectiveSource(at: position)
@@ -616,7 +679,8 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     let selected =
       index > 0 && selectionRows.contains(row) && rectangle.columns.contains(index - 1)
     let referenced = index > 0 && referencedCells.contains(.init(row: row, column: index - 1))
-    let active = index > 0 && row == position.row && index - 1 == position.column
+    let active =
+      hasCellSelection && index > 0 && row == position.row && index - 1 == position.column
     cell.layer?.borderWidth = active ? 2 : referenced ? 1 : 0
     cell.layer?.borderColor =
       (active ? NSColor.controlAccentColor : VisualStyle.Color.interpretation).cgColor

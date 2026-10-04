@@ -2,7 +2,7 @@ import AppKit
 import GanitEngine
 import GanitFormatting
 
-/// A bounded read-only view of one source block.
+/// Shows and edits the cells in one source block.
 @MainActor
 final class InlineTablePreview: NSView, NSTextFieldDelegate {
   let tableID: TableID
@@ -16,6 +16,7 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
   private weak var editor: SheetEditorViewController?
   private var projection: TableEditingSnapshot?
   let cellInput = NSTextField(string: "")
+  private var outsideClickMonitor: Any?
   private var editPosition: TableCellPosition?
   private var editSource: String?
   private var editIDs: (RowID, ColumnID)?
@@ -69,7 +70,67 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
     layer?.borderColor = NSColor.separatorColor.cgColor
     cells.needsDisplay = true
   }
-  @objc private func openTable() { if commitPreviewEdit() { onOpen?(selectedCell) } }
+  override var acceptsFirstResponder: Bool { true }
+  override var undoManager: UndoManager? { editor?.documentUndoManager }
+  @objc func undo(_ sender: Any?) {
+    cancelPreviewEdit()
+    undoManager?.undo()
+  }
+  @objc func redo(_ sender: Any?) {
+    cancelPreviewEdit()
+    undoManager?.redo()
+  }
+  override func cancelOperation(_ sender: Any?) { clearSelection() }
+  override func viewDidMoveToWindow() {
+    super.viewDidMoveToWindow()
+    if let outsideClickMonitor { NSEvent.removeMonitor(outsideClickMonitor) }
+    outsideClickMonitor = nil
+    guard window != nil else { return }
+    outsideClickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .keyDown]) {
+      [weak self] event in
+      guard let self, event.window === self.window else { return event }
+      if event.type == .keyDown {
+        if event.keyCode == 6, self.selectedCell != nil,
+          event.modifierFlags.intersection([.command, .control, .option]) == .command,
+          self.editPosition == nil || self.cellInput.stringValue == self.editSource
+        {
+          if event.modifierFlags.contains(.shift) { self.redo(nil) } else { self.undo(nil) }
+          self.window?.makeFirstResponder(self.editor?.textView)
+          return nil
+        }
+        if event.keyCode == 53, self.selectedCell != nil {
+          self.clearSelection()
+          self.window?.makeFirstResponder(self.editor?.textView)
+          return nil
+        }
+        return event
+      }
+      let point = self.convert(event.locationInWindow, from: nil)
+      if !self.bounds.contains(point) { self.clearSelection() }
+      return event
+    }
+  }
+  func cancelPreviewEdit() {
+    guard editPosition != nil else { return }
+    editPosition = nil
+    editIDs = nil
+    editSource = nil
+    cellInput.abortEditing()
+    cellInput.removeFromSuperview()
+  }
+  func clearSelection() {
+    cancelPreviewEdit()
+    selectedCell = nil
+    cells.selected = nil
+    cells.needsDisplay = true
+    inspection.stringValue = "Select a cell to inspect its input or formula."
+    inspection.toolTip = nil
+  }
+  override func mouseDown(with event: NSEvent) { clearSelection() }
+  @objc private func openTable() {
+    cancelPreviewEdit()
+    onOpen?(selectedCell)
+  }
   @objc private func inspectCell(_ button: NSButton) {
     if editPosition != nil {
       if cellInput.stringValue.hasPrefix("="), let input = cellInput.currentEditor() as? NSTextView,
@@ -78,8 +139,9 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
         input.insertText(TableSourceDocument.letters(target.column) + String(target.row + 2))
         return
       }
-      guard commitPreviewEdit() else { return }
+      cancelPreviewEdit()
     }
+    window?.makeFirstResponder(self)
     selectedCell = positions[button.tag]
     cells.selected = selectedCell.flatMap { position in
       resultRows.firstIndex(of: position.row).map { .init(row: $0, column: position.column) }
@@ -319,7 +381,8 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
     return menu
   }
   @objc func restoreColumnFormula() {
-    guard let selectedCell, let editor, commitPreviewEdit() else { return }
+    guard let selectedCell, let editor else { return }
+    cancelPreviewEdit()
     do {
       try editor.setTableCell(tableID, at: selectedCell, source: nil)
     } catch {
@@ -379,17 +442,20 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
   }
   func control(_ control: NSControl, textView: NSTextView, doCommandBy selector: Selector) -> Bool {
     if selector == #selector(NSResponder.cancelOperation(_:)) {
-      editPosition = nil
-      cellInput.abortEditing()
-      cellInput.removeFromSuperview()
-      window?.makeFirstResponder(editor?.textView)
+      clearSelection()
+      window?.makeFirstResponder(self)
       return true
     }
     let enter = selector == #selector(NSResponder.insertNewline(_:))
     let tab = selector == #selector(NSResponder.insertTab(_:))
     let back = selector == #selector(NSResponder.insertBacktab(_:))
     if enter || tab || back {
-      guard commitPreviewEdit(), var target = selectedCell, let projection else { return true }
+      if enter {
+        guard !textView.hasMarkedText(), commitPreviewEdit() else { return true }
+      } else {
+        cancelPreviewEdit()
+      }
+      guard var target = selectedCell, let projection else { return true }
       var row = resultRows.firstIndex(of: target.row) ?? 0
       if enter {
         row += 1

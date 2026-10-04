@@ -426,6 +426,8 @@ public enum MainMenu {
             "s",
             [.command, .control]
           ),
+          item("Show Toolbar", #selector(NSWindow.toggleToolbarShown(_:))),
+          item("Customize Toolbar…", #selector(NSWindow.runToolbarCustomizationPalette(_:))),
           item(
             localized("menu.showAnswerSeparator", "Show Answer Separator"),
             #selector(WorkspaceCommands.toggleAnswerSeparator(_:))),

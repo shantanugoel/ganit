@@ -8,7 +8,7 @@ import Testing
 @MainActor
 @Suite(.serialized)
 struct TableReviewRegressionTests {
-  @Test func previewUndoRestoresSourceResultsAndExportAfterTabAndEscape() async throws {
+  @Test func previewUndoRestoresSourceResultsAndExportAfterEnterAndEscape() async throws {
     let (editor, table) = try await InlineTableTests().makeEditor()
     let preview = try #require(editor.inlineTableViews[table.id])
     let cell = try #require(
@@ -20,7 +20,7 @@ struct TableReviewRegressionTests {
     let field = try #require(preview.cellInput.currentEditor() as? NSTextView)
     #expect(
       preview.control(
-        preview.cellInput, textView: field, doCommandBy: #selector(NSResponder.insertTab(_:))))
+        preview.cellInput, textView: field, doCommandBy: #selector(NSResponder.insertNewline(_:))))
     let next = try #require(preview.cellInput.currentEditor() as? NSTextView)
     #expect(
       preview.control(

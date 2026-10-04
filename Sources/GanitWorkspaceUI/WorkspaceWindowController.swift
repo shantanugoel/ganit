@@ -64,6 +64,8 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     let toolbar = NSToolbar(identifier: "workspace")
     toolbar.delegate = self
     toolbar.displayMode = .iconOnly
+    toolbar.allowsUserCustomization = true
+    toolbar.autosavesConfiguration = true
     window.toolbar = toolbar
     searchItem.searchField.target = self
     searchItem.searchField.action = #selector(searchFieldChanged(_:))
@@ -826,12 +828,20 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
 
 extension NSToolbarItem.Identifier {
   static let newSheet = NSToolbarItem.Identifier("newSheet")
+  static let undoEdit = NSToolbarItem.Identifier("undoEdit")
+  static let redoEdit = NSToolbarItem.Identifier("redoEdit")
+  static let copySelection = NSToolbarItem.Identifier("copySelection")
+  static let pasteSelection = NSToolbarItem.Identifier("pasteSelection")
   static let searchSheets = NSToolbarItem.Identifier("searchSheets")
 }
 
 extension WorkspaceWindowController: NSToolbarDelegate {
   public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-    [.toggleSidebar, .sidebarTrackingSeparator, .newSheet, .flexibleSpace, .searchSheets]
+    [
+      .toggleSidebar, .sidebarTrackingSeparator, .newSheet,
+      .undoEdit, .redoEdit, .copySelection, .pasteSelection,
+      .flexibleSpace, .searchSheets,
+    ]
   }
 
   public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -851,6 +861,23 @@ extension WorkspaceWindowController: NSToolbarDelegate {
         systemSymbolName: VisualStyle.Symbol.newSheet, accessibilityDescription: item.label)
       item.action = #selector(newSheet(_:))
       item.target = self
+      return item
+    case .undoEdit, .redoEdit, .copySelection, .pasteSelection:
+      let commands: [NSToolbarItem.Identifier: (String, String, Selector)] = [
+        .undoEdit: (localized("menu.undo", "Undo"), "arrow.uturn.backward", Selector(("undo:"))),
+        .redoEdit: (localized("menu.redo", "Redo"), "arrow.uturn.forward", Selector(("redo:"))),
+        .copySelection: (localized("menu.copy", "Copy"), "doc.on.doc", Selector(("copy:"))),
+        .pasteSelection: (
+          localized("menu.paste", "Paste"), "doc.on.clipboard", Selector(("paste:"))
+        ),
+      ]
+      guard let (title, symbol, action) = commands[identifier] else { return nil }
+      let item = NSToolbarItem(itemIdentifier: identifier)
+      item.label = title
+      item.paletteLabel = title
+      item.toolTip = title
+      item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)
+      item.action = action
       return item
     case .searchSheets:
       searchItem.label = localized("menu.searchSheets", "Search Sheets")

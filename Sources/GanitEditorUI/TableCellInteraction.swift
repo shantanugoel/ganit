@@ -57,9 +57,8 @@ extension ExpandedTableViewController {
   }
   @objc func editSelectedCell() { beginEditing(inline: true) }
   @objc func selectAllCells(_ sender: Any?) {
-    guard let projection, !projection.rows.isEmpty, !projection.columns.isEmpty,
-      commitCellEditing()
-    else { return }
+    guard let projection, !projection.rows.isEmpty, !projection.columns.isEmpty else { return }
+    cancelEditing()
     select(.init(row: displayedRows.first ?? 0, column: 0))
     select(
       .init(

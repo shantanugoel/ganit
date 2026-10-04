@@ -22,16 +22,19 @@ final class TableGridView: NSTableView {
   override func mouseDown(with event: NSEvent) {
     guard let controller else { return }
     let point = convert(event.locationInWindow, from: nil)
-    if column(at: point) == 0, let row = controller.canonicalRow(row(at: point)),
-      controller.commitCellEditing()
-    {
+    if column(at: point) == 0, let row = controller.canonicalRow(row(at: point)) {
+      controller.cancelEditing()
+      window?.makeFirstResponder(self)
       controller.select(.init(row: row, column: 0))
       if let count = controller.projection?.columns.count, count > 0 {
         controller.select(.init(row: row, column: count - 1), extending: true)
       }
       return
     }
-    guard let target = target(event) else { return }
+    guard let target = target(event) else {
+      controller.clearSelection()
+      return
+    }
     if controller.isEditingCell {
       if controller.formula.stringValue.trimmingCharacters(in: .whitespaces).hasPrefix("=")
         || controller.normalizedCellInput(controller.formula.stringValue).hasPrefix("=")
@@ -45,7 +48,7 @@ final class TableGridView: NSTableView {
         trackSelectionDrag()
         return
       }
-      guard controller.commitCellEditing() else { return }
+      controller.cancelEditing()
     }
     window?.makeFirstResponder(self)
     controller.select(target, extending: event.modifierFlags.contains(.shift))
@@ -70,7 +73,8 @@ final class TableGridView: NSTableView {
     }
   }
   override func menu(for event: NSEvent) -> NSMenu? {
-    guard let controller, controller.commitCellEditing() else { return nil }
+    guard let controller else { return nil }
+    controller.cancelEditing()
     let point = convert(event.locationInWindow, from: nil)
     guard let row = controller.canonicalRow(row(at: point)) else { return controller.actionsMenu() }
     let column = frozenColumn ?? (column(at: point) - 1)
@@ -103,11 +107,12 @@ final class TableGridView: NSTableView {
     }
     return super.performKeyEquivalent(with: event)
   }
+  override func cancelOperation(_ sender: Any?) { controller?.clearSelection() }
   @objc override func selectAll(_ sender: Any?) { controller?.selectAllCells(sender) }
   @objc func copy(_ sender: Any?) { controller?.copyFormulas() }
   @objc func paste(_ sender: Any?) { controller?.pasteCells() }
-  @objc func undo(_ sender: Any?) { undoManager?.undo() }
-  @objc func redo(_ sender: Any?) { undoManager?.redo() }
+  @objc func undo(_ sender: Any?) { controller?.undo(sender) }
+  @objc func redo(_ sender: Any?) { controller?.redo(sender) }
   override func keyDown(with event: NSEvent) {
     guard let controller else { return }
     var target = controller.position
@@ -130,7 +135,7 @@ final class TableGridView: NSTableView {
       controller.beginEditing(inline: true)
       return
     case 53:
-      controller.cancelEditing()
+      controller.clearSelection()
       return
     default:
       if event.modifierFlags.intersection([.command, .control]).isEmpty,
@@ -155,7 +160,8 @@ final class TableGridHeaderView: NSTableHeaderView {
   weak var controller: ExpandedTableViewController?
   var frozenColumn: Int?
   override func menu(for event: NSEvent) -> NSMenu? {
-    guard let controller, controller.commitCellEditing() else { return nil }
+    guard let controller else { return nil }
+    controller.cancelEditing()
     let column = frozenColumn ?? (column(at: convert(event.locationInWindow, from: nil)) - 1)
     guard column >= 0 else { return controller.actionsMenu() }
     controller.select(.init(row: controller.displayedRows.first ?? 0, column: column))
@@ -173,7 +179,11 @@ final class TableGridHeaderView: NSTableHeaderView {
       return
     }
     let column = frozenColumn ?? (column(at: convert(event.locationInWindow, from: nil)) - 1)
-    guard column >= 0, controller.commitCellEditing() else { return }
+    guard column >= 0 else {
+      controller.clearSelection()
+      return
+    }
+    controller.cancelEditing()
     controller.select(.init(row: controller.position.row, column: column))
     if event.clickCount == 2 {
       controller.renameColumn()

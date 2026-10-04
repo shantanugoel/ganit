@@ -157,7 +157,7 @@ extension ExpandedTableViewController {
     return menu
   }
   func performEdit(_ operation: () throws -> Void) {
-    guard commitCellEditing() else { return }
+    cancelEditing()
     do {
       try operation()
       refresh()
@@ -299,6 +299,7 @@ extension ExpandedTableViewController {
     }
   }
   var selectedColumn: TableEditingSnapshot.Column? {
+    guard hasCellSelection else { return nil }
     guard let projection, projection.columns.indices.contains(position.column) else { return nil }
     return projection.columns[position.column]
   }
@@ -345,7 +346,8 @@ extension ExpandedTableViewController {
   @objc func copyValues() { copyRange(formulas: false) }
   @objc func copyFormulas() { copyRange(formulas: true) }
   func copyRange(formulas: Bool) {
-    guard !isEditingCell, let projection, !projection.rows.isEmpty, !projection.columns.isEmpty,
+    guard hasCellSelection, !isEditingCell, let projection, !projection.rows.isEmpty,
+      !projection.columns.isEmpty,
       formulas || result != nil
     else { return }
     let text: String
@@ -386,6 +388,7 @@ extension ExpandedTableViewController {
     return text
   }
   @objc func pasteCells() {
+    guard hasCellSelection else { return }
     let board = editor.resultPasteboard
     if board.data(forType: Self.copyType) == nil, let text = board.string(forType: .string),
       TableSourceDocument.tabSeparated(text).joined().contains(where: { $0.hasPrefix("=") })
@@ -500,6 +503,7 @@ extension ExpandedTableViewController {
     return document
   }
   func updateSummary() {
+    guard hasCellSelection else { return }
     guard let projection else { return }
     let count =
       projection.rows.isEmpty || projection.columns.isEmpty
@@ -701,7 +705,7 @@ extension ExpandedTableViewController {
   /// file shows the same values the sheet displays, with a header row by
   /// default and the totals footer as the last row.
   @objc func exportTable(_ sender: Any?) {
-    guard !isEditingCell, let projection, let window = view.window else { return }
+    guard hasCellSelection, !isEditingCell, let projection, let window = view.window else { return }
     let panel = NSSavePanel()
     panel.allowedContentTypes = [.commaSeparatedText, .tabSeparatedText]
     panel.nameFieldStringValue = projection.name
