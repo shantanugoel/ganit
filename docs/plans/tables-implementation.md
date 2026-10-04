@@ -1092,7 +1092,12 @@ Evidence: [preview after Undo](../design/tables/persona-review-2026-10-04/previe
 
 #### R02 — P1 — Find moves focus while the user types (observed defect)
 
-Status: Done. Incremental Find keeps keyboard focus. Explicit Next and Previous open the table result.
+Status: Done. Incremental Find keeps keyboard focus. A match selects and
+scrolls to its preview cell. Inspection gives the table name, address and
+column header. Open Table opens that selected result. The menu Next and
+Previous commands can also open the mapped result. The native Find field
+retained all four letters of BETA without starting a cell draft. All 19
+review regression tests passed after the preview result change.
 
 Open Portfolio. Press Command-F. The app returns to the sheet and opens
 Find. Type `BETA`. The Find text stops at `BET`. The last `A` starts a cell

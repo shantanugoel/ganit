@@ -54,6 +54,11 @@ struct TableReviewRegressionTests {
     await Task.yield()
     #expect(editor.expandedTable == nil)
     #expect(editor.view.window?.firstResponder === responder)
+    let preview = try #require(editor.inlineTableViews[table.id])
+    #expect(preview.selectedCell == .init(row: 0, column: 0))
+    #expect(preview.inspection.stringValue.contains("Items · A2 · Qty: BETA"))
+    preview.open.performClick(nil)
+    #expect(editor.expandedTable?.position == .init(row: 0, column: 0))
   }
   @Test func automaticLabelsAndCalculatorArithmeticUseOneEntryFlow() async throws {
     let (editor, table, controller) = try await ExpandedTableTests().makeEditor()

@@ -268,6 +268,22 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
     }
     needsLayout = true
   }
+  func revealFindMatch(_ position: TableCellPosition) {
+    guard editPosition == nil, let projection,
+      let row = resultRows.firstIndex(of: position.row),
+      projection.columns.indices.contains(position.column)
+    else { return }
+    selectedCell = position
+    cells.selected = .init(row: row, column: position.column)
+    let tag = row * columnCount + position.column
+    inspection.stringValue = projection.name + " · " + (details[tag] ?? "")
+    inspection.toolTip = inspection.stringValue
+    cells.scrollToVisible(
+      .init(
+        x: cells.gutter + CGFloat(position.column) * cells.columnWidth,
+        y: rowOffsets[row], width: cells.columnWidth, height: rowSizes[row]))
+    cells.needsDisplay = true
+  }
   @objc private func editPreviewCell() { beginPreviewEdit() }
   override func menu(for event: NSEvent) -> NSMenu? {
     let point = cells.convert(event.locationInWindow, from: nil)

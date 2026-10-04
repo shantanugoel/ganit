@@ -21,6 +21,7 @@ final class SheetTextView: NSTextView {
   private(set) var isCopyingSource = false
   private lazy var mappedFinder = MappedTableFinder(textView: self)
   var findTableHit: () -> Void = {}
+  var previewTableFindHit: () -> Void = {}
   override func performTextFinderAction(_ sender: Any?) {
     guard !inlineRanges().isEmpty else {
       super.performTextFinderAction(sender)

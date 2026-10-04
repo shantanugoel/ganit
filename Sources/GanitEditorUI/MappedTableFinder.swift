@@ -43,6 +43,7 @@ final class MappedTableFindClient: NSObject, @preconcurrency NSTextFinderClient 
     // selection so Find can open the mapped table cell for it.
     if range.length > 0 { textView.setSelectedRange(range) }
     textView.scrollRangeToVisible(range)
+    textView.previewTableFindHit()
     // Incremental matches keep focus in Find. Only an explicit Next or
     // Previous action opens a table result, through performAction above.
   }

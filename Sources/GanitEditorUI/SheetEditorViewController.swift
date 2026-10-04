@@ -196,6 +196,7 @@ public final class SheetEditorViewController: NSViewController {
     configureTextView(text: text)
     placeAnswers(display)
     sheetTextView.findTableHit = { [weak self] in self?.openTableAtFindSelection() }
+    sheetTextView.previewTableFindHit = { [weak self] in self?.previewTableAtFindSelection() }
     sheetTextView.tableCreationTarget = permitsTableEditing ? self : nil
     sheetTextView.inlineLayout = { [weak self] in self?.layoutInlineTables() }
     sheetTextView.inlineRefresh = { [weak self] in self?.refreshInlineTables() }
@@ -1756,6 +1757,22 @@ extension SheetEditorViewController {
     guard expandedTable == nil else { return }
     view.window?.makeFirstResponder(textView)
     textView.performTextFinderAction(sender)
+  }
+  package func previewTableAtFindSelection() {
+    guard !showsTableSource, !textView.hasMarkedText() else { return }
+    let selection = textView.selectedRange()
+    let document = TableSourceDocument(sheet)
+    for (id, range) in inlineTableRanges
+    where selection.length > 0 && selection.location >= range.location
+      && selection.upperBound <= range.upperBound
+    {
+      let offset = (sheet.text as NSString).substring(to: selection.location).utf8.count
+      guard let projection = TableEditingSnapshot(document, id: id),
+        let position = projection.cell(atUTF8: offset, in: document)
+      else { continue }
+      inlineTableViews[id]?.revealFindMatch(position)
+      return
+    }
   }
   package func openTableAtFindSelection() {
     guard !showsTableSource, !textView.hasMarkedText() else { return }
