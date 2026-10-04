@@ -52,6 +52,7 @@ final class SheetTextView: NSTextView {
     selectedRanges = mapped
     return super.writeSelection(to: pasteboard, types: types)
   }
+  weak var tableCreationTarget: SheetEditorViewController?
   var inlineLayout: () -> Void = {}
   var inlineRefresh: () -> Void = {}
   var inlineRanges: () -> [NSRange] = { [] }
@@ -811,6 +812,17 @@ final class SheetTextView: NSTextView {
     }
     for (title, action) in answerCommands {
       menu.addItem(NSMenuItem(title: title, action: action, keyEquivalent: ""))
+    }
+    if let editor = tableCreationTarget, isEditable, !hasMarkedText() {
+      menu.addItem(.separator())
+      for (title, action) in [
+        ("Insert Table…", #selector(SheetEditorViewController.insertCalculationTable(_:))),
+        ("Paste as Table…", #selector(SheetEditorViewController.pasteAsCalculationTable(_:))),
+      ] {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        item.target = editor
+        menu.addItem(item)
+      }
     }
     menu.addItem(answerFormatMenuItem())
     menu.addItem(.separator())

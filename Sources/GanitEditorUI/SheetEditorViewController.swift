@@ -184,6 +184,7 @@ public final class SheetEditorViewController: NSViewController {
     configureTextView(text: text)
     placeAnswers(display)
     sheetTextView.findTableHit = { [weak self] in self?.openTableAtFindSelection() }
+    sheetTextView.tableCreationTarget = permitsTableEditing ? self : nil
     sheetTextView.inlineLayout = { [weak self] in self?.layoutInlineTables() }
     sheetTextView.inlineRefresh = { [weak self] in self?.refreshInlineTables() }
     sheetTextView.inlineRanges = { [weak self] in
@@ -1899,54 +1900,34 @@ extension SheetEditorViewController {
     }
     let alert = NSAlert()
     alert.messageText = pasted == nil ? "Insert Table" : "Paste as Table"
-    alert.informativeText = "Set each column to Text or Value. Formulas require the formula option."
-    let name = NSTextField(string: "Items")
-    name.setAccessibilityLabel("Table name")
-    let headerRow = NSButton(
-      checkboxWithTitle: "First pasted row contains headers", target: nil, action: nil)
-    headerRow.state = .on
-    let formulas = NSButton(
-      checkboxWithTitle: "Interpret = inputs as formulas", target: nil, action: nil)
-    let count = grid?.first?.count ?? 3
-    var headers: [NSTextField] = []
-    var policies: [NSPopUpButton] = []
-    var views: [NSView] = [NSTextField(labelWithString: "Table name"), name]
-    if pasted != nil { views.append(headerRow) }
-    for index in 0..<count {
-      let header = NSTextField(string: grid?[0][index] ?? ["Item", "Qty", "Amount"][index])
-      header.setAccessibilityLabel("Column \(index + 1) header")
-      let policy = NSPopUpButton()
-      policy.addItems(withTitles: ["Text", "Value"])
-      if pasted == nil && index > 0 { policy.selectItem(at: 1) }
-      policy.setAccessibilityLabel("Column \(index + 1) input type")
-      headers.append(header)
-      policies.append(policy)
-      views.append(NSStackView(views: [header, policy]))
+    let form = TableCreationForm(pasted: grid)
+    let names = Set(
+      TableSourceDocument(sheet).editingTableIDs.compactMap {
+        TableEditingSnapshot(TableSourceDocument(sheet), id: $0)?.name.lowercased()
+      })
+    var tableName = "Table"
+    var suffix = 2
+    while names.contains(tableName.lowercased()) {
+      tableName = "Table\(suffix)"
+      suffix += 1
     }
-    if pasted != nil { views.append(formulas) }
-    let stack = NSStackView(views: views)
-    stack.orientation = .vertical
-    stack.alignment = .leading
-    stack.spacing = 8
-    stack.frame = NSRect(x: 0, y: 0, width: 380, height: CGFloat(views.count) * 32)
-    for row in views { row.widthAnchor.constraint(equalToConstant: 380).isActive = true }
-    let scroll = NSScrollView(
-      frame: NSRect(x: 0, y: 0, width: 400, height: min(400, stack.frame.height)))
-    scroll.hasVerticalScroller = true
-    scroll.documentView = stack
-    alert.accessoryView = scroll
+    form.name.stringValue = tableName
+    alert.accessoryView = form
     alert.addButton(withTitle: pasted == nil ? "Insert" : "Paste as Table")
     alert.addButton(withTitle: "Cancel")
-    alert.window.initialFirstResponder = name
+    alert.window.initialFirstResponder = form.name
     alert.beginSheetModal(for: window) { [weak self] response in
       guard let self, response == .alertFirstButtonReturn else { return }
       do {
-        let data = grid.map { headerRow.state == .on ? Array($0.dropFirst()) : $0 }
+        let data = grid.map { form.headerRow.state == .on ? Array($0.dropFirst()) : $0 }
+        let rowCount = data?.count ?? form.rows.integerValue
+        guard rowCount > 0, rowCount * form.settings.count <= 4000 else {
+          throw TableTransformError.invalidSelection
+        }
         let id = try insertTableRectangle(
-          named: name.stringValue,
-          headers: zip(headers, policies).map {
-            ($0.stringValue, $1.indexOfSelectedItem == 0 ? .text : .value)
-          }, rows: data, formulas: formulas.state == .on, atUTF8: offset, expectedSource: before)
+          named: form.name.stringValue, headers: form.settings, rows: data,
+          formulas: form.formulas.state == .on, atUTF8: offset, expectedSource: before,
+          rowCount: rowCount)
         if let id { openTable(id) }
       } catch { window.presentError(error) }
     }
@@ -1955,11 +1936,11 @@ extension SheetEditorViewController {
   @discardableResult
   package func insertTableRectangle(
     named name: String, headers: [(String, TableInputPolicy)], rows: [[String]]?,
-    formulas: Bool, atUTF8 offset: Int, expectedSource: String
+    formulas: Bool, atUTF8 offset: Int, expectedSource: String, rowCount: Int = 3
   ) throws -> TableID? {
     guard expectedSource == sheet.text else { throw SheetSourceCoordinator.Failure.staleEdit }
     let create = try TableSourceDocument(sheet).createTable(
-      name: name, headers: headers, rowCount: rows?.count ?? 3, atUTF8: offset)
+      name: name, headers: headers, rowCount: rows?.count ?? rowCount, atUTF8: offset)
     var after = try create.applying(to: expectedSource)
     if let rows, !rows.isEmpty, let id = create.createdTable {
       guard rows.allSatisfy({ $0.count == headers.count }), rows.count * headers.count <= 4000
@@ -2013,6 +1994,7 @@ extension SheetEditorViewController {
       returnFromTable(nil)
       guard expandedTable == nil else { return }
     }
+    guard inlineTableViews.values.allSatisfy({ $0.commitPreviewEdit() }) else { return }
     proseScroll = scrollView.contentView.bounds.origin
     if textView.hasMarkedText() { textView.unmarkText() }
     let controller = ExpandedTableViewController(editor: self, table: id)

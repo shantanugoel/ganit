@@ -8,6 +8,8 @@ package struct TableEditingSnapshot: Sendable {
     package let rule: String?
     package let input: TableInputPolicy
     package let total: TableTotal?
+    package let unit: String?
+    package let currency: String?
   }
   package let utf8Range: Range<Int>
   package let id: TableID
@@ -16,7 +18,8 @@ package struct TableEditingSnapshot: Sendable {
   package let columns: [Column]
   private let cells: [TableCellPosition: String]
   package init?(_ document: TableSourceDocument, id: TableID) {
-    guard let block = document.blocks.first(where: { $0.table?.id == id }), let table = block.table else {
+    guard let block = document.blocks.first(where: { $0.table?.id == id }), let table = block.table
+    else {
       return nil
     }
     utf8Range = block.utf8Range
@@ -24,7 +27,9 @@ package struct TableEditingSnapshot: Sendable {
     name = table.name
     rows = table.rows
     columns = table.columns.map {
-      Column(id: $0.id, header: $0.header, rule: $0.rule, input: $0.input, total: $0.total)
+      Column(
+        id: $0.id, header: $0.header, rule: $0.rule, input: $0.input, total: $0.total,
+        unit: $0.unit, currency: $0.currency)
     }
     let axes = TableAxes(table)
     cells = Dictionary(
@@ -38,19 +43,23 @@ package struct TableEditingSnapshot: Sendable {
   /// Resolve a canonical source hit to its data cell or column rule anchor.
   package func cell(atUTF8 offset: Int, in document: TableSourceDocument) -> TableCellPosition? {
     guard let block = document.blocks.first(where: { $0.table?.id == id }), let json = block.json,
-      let ids = json["ids"]?.array?.compactMap(\.string) else { return nil }
+      let ids = json["ids"]?.array?.compactMap(\.string)
+    else { return nil }
     for record in json["x"]?.array ?? [] {
       guard let source = record["s"], block.sheetRange(of: source).contains(offset),
         let address = record["a"]?.array, address.count == 2,
         let rowPointer = address[0].index, let columnPointer = address[1].index,
         ids.indices.contains(rowPointer), ids.indices.contains(columnPointer),
         let row = rows.firstIndex(where: { $0.string == ids[rowPointer] }),
-        let column = columns.firstIndex(where: { $0.id.string == ids[columnPointer] }) else { continue }
+        let column = columns.firstIndex(where: { $0.id.string == ids[columnPointer] })
+      else { continue }
       return .init(row: row, column: column)
     }
     for record in json["c"]?.array ?? [] {
       guard block.sheetRange(of: record).contains(offset), let pointer = record["i"]?.index,
-        ids.indices.contains(pointer), let column = columns.firstIndex(where: { $0.id.string == ids[pointer] }) else { continue }
+        ids.indices.contains(pointer),
+        let column = columns.firstIndex(where: { $0.id.string == ids[pointer] })
+      else { continue }
       return .init(row: 0, column: column)
     }
     return nil

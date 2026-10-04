@@ -876,3 +876,140 @@ intermittent undo crash that did not reproduce. VoiceOver deep review,
 real IME checks, the real-participant study and the document-latency
 investigation remain release activities. Publish and ship are separate
 release actions.
+
+## Table usability work — 2026-10-04
+
+Users must be able to make and edit a table without knowledge of its source
+format. Use the checklist below for this work.
+
+- [x] U1: Add Insert Table and Paste as Table to the sheet context menu.
+- [x] U2: Let the user set the row count and column count before insertion.
+  Let the user set each column header and input type. Keep these settings
+  when the column count changes. Show the size limits before insertion.
+- [x] U3: Give the sheet preview clear row numbers, column letters, cell
+  borders and a selected-cell mark. Show the full table size. Make the
+  preview limit clear. Let a double-click open the cell for editing.
+- [x] U4: Separate table commands from cell, row and column commands.
+  Keep the table menu short. Put commands near their targets.
+- [x] U5: Add context menus to cells, row numbers and column headers.
+  Add rows above or below the selection. Add columns before or after the
+  selection. Let the user rename a column and change its input type,
+  default unit or default currency. Show the current settings.
+- [x] U6: Draw a border for each visible row and column. Keep the active
+  cell clear in light mode and dark mode. Keep column widths on refresh.
+- [x] U7: Accept formulas in every column. Accept a function such as
+  `sum(A2, B2)` during direct cell entry and add its leading `=`. Give
+  useful error text at the cell. Keep external paste as data unless the
+  user selects formula paste.
+- [x] U8: Edit at the cell after a double-click, Return or typing. Keep
+  the formula bar available. Return saves and moves down. Tab saves and
+  moves right. Shift-Tab moves left. Escape cancels. A click on another
+  cell saves ordinary input. Formula reference picking keeps the draft.
+- [x] U9: Show the active address beside the formula bar. Explain how to
+  enter a formula. Show column formulas as an optional rule, not an input
+  type. Keep cell formulas independent of column rules.
+- [x] U10: Add clear selected cells and Select All. Make Delete clear cell
+  contents. Keep document Undo for cell edits and structural changes.
+- [x] U11: Keep empty tables usable. Keep row and column insertion
+  available. Show an instruction when the table has no data rows.
+- [x] U12: Check creation, editing, formula entry, context commands,
+  selection, Undo and refresh. Check the native view at a small window
+  size. Record the checks and any remaining limits below.
+
+Do not change the saved table format for this work. The first data row
+keeps address 2 because the header is row 1. Text and Value are input
+policies. A Value column can hold numbers, percentages, units and money.
+A formula with a leading `=` is valid in either input policy.
+
+### Basic spreadsheet tasks
+
+Use these tasks to check the interface. Excel is the comparison for these
+basic tasks. This work does not claim full Excel function support.
+
+- [x] E1: Make a 5 × 4 table. Change a header and a type before insertion.
+  Reduce the column count, then increase it. Keep the previous settings.
+- [x] E2: Enter `1`, press Tab, enter `2`, press Tab, then enter
+  `sum(A2, B2)`. The third cell must show `3`. Repeat with `=SUM(A2:B2)`.
+- [x] E3: Enter `=A2+B2` in a Text column. The cell must calculate.
+  A column type must not prevent formula entry.
+- [x] E4: Copy a formula to the next row. Move relative references. Keep
+  `$A$2`, `$A2` and `A$2` locks. Use the same rules for Fill.
+- [x] E5: Paste a rectangle at the last row. Grow the table if necessary.
+  Apply the paste and growth as one Undo step. Keep formula paste explicit.
+- [x] E6: Use Return, Tab, Shift-Tab, arrow keys, F2, Delete and
+  Command-A. A new row must be available after entry at the last row.
+- [x] E7: Select a whole row or column from its header. Insert beside it.
+  Keep formula targets after insertion. Restore them with Undo.
+- [x] E8: Edit a cell in the sheet preview. Save with Return or Tab.
+  Cancel with Escape. Open that cell in the full table.
+- [x] E9: Resize a column. Edit its header or type. Keep the width.
+  Show a useful cell error without requiring a separate window.
+
+Remaining comparison areas include automatic mixed text and number entry,
+Excel-specific functions, sorting, filtering, drag fill, frozen columns,
+and large multi-cell editing. Record these as separate product work.
+
+### Usability work result
+
+The U1–U12 changes and E1–E9 checks are complete. The changes use the
+existing table source format and document Undo. No new input type is
+required for cell formulas. The error in direct `sum(A2, B2)` entry was
+caused by its missing leading `=`. Direct function entry now adds that
+character. The engine already supports the two cell arguments.
+
+The creation form keeps settings when the user changes the column count.
+The full grid and sheet preview show borders, addresses and selection.
+Both views support cell editing. A small full grid fits its initial
+window. User column widths survive header, type and structural edits.
+An unchanged edit does not make a column-rule override or an Undo step.
+
+Table Actions now has four table commands. Cell menus contain copy,
+paste, clear, fill and cell details. Row and column menus contain their
+structural commands. Column settings show the input type and default
+unit or currency. An external paste or an internal range paste can grow
+the table within 32 columns and 4,000 cells. Growth and paste form one
+document edit. Formula paste from another app remains an explicit choice.
+
+Native app checks used a temporary app copy with a separate test library.
+The checks covered right-click insertion, a change from three columns to
+four, retained headers, `1` and `2` entered with Tab, and direct
+`sum(A2, B2)` entry. The result was `3`. In the sheet preview, a cell edit
+changed `1` to `5`, and the formula result changed to `7`. The cell context
+menu exposed row insertion, column insertion, type settings and fill.
+
+The regression tests check relative and locked references, formulas in
+Text columns, cell editing, Cancel, Tab, Shift-Tab, row growth, paste
+growth, rejected formula paste, selection, column widths, empty tables
+and Undo. The native views were also rendered for layout review.
+
+The broader Excel comparison still has these limits. These are not
+covered by the completed basic-entry checks:
+
+- Text and Value remain explicit column input policies. Automatic mixed
+  text and number input is not available.
+- The supported Ganit functions and typed arithmetic remain in effect.
+  This change does not add Excel IF, lookup or text functions.
+- Multiple range arguments in one aggregate remain unsupported. Use one
+  range, or a list of scalar arguments, with the supported functions.
+- Sorting, filtering, drag fill and frozen columns need separate work.
+- The sheet preview shows five rows and eight columns. The full table
+  is the primary interface for a larger selection or reference operation.
+- Deep VoiceOver and real input-method checks remain release activities.
+
+### Verification record
+
+- The full test suite passed 1,111 tests after the final code changes.
+- The final table checks passed 51 tests. These include 14 new usability
+  tests and the existing editor and workspace checks.
+- The Help checks passed eight tests after the table Help text changed.
+- The changed table controls passed the strict format check.
+- The debug app build and bundle assembly succeeded.
+- A native app check confirmed that a formula still shows `7` after its
+  column input type changes to Text.
+- The final native screenshots show the
+  [sheet preview](../design/tables/usability-sheet.jpg) and the
+  [full grid](../design/tables/usability-grid.jpg). Both show all four
+  columns at the tested window size.
+
+The changes are in the requested worktree on branch `tables`. They are
+not committed or published by this work.

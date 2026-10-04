@@ -21,53 +21,125 @@ extension ExpandedTableViewController {
   /// The Table Actions menu, so tests can list the commands it offers.
   func actionsMenu() -> NSMenu {
     let menu = NSMenu()
-    let commands: [(String, Selector)] = [
-      (localized("table.interpretation", "Show Interpretation"), #selector(showInterpretation(_:))),
-      (localized("table.precision", "Copy Full Precision"), #selector(copyFullPrecision(_:))),
-      (localized("table.repair", "Repair Broken Reference"), #selector(repairReference)),
-      (localized("table.origin", "Go to Original Failure"), #selector(goToOriginalFailure)),
-      (localized("table.addRow", "Add Row"), #selector(addRow)),
-      (localized("table.deleteRows", "Delete Selected Rows"), #selector(deleteRows)),
-      (localized("table.addColumn", "Add Column…"), #selector(addColumn)),
-      (localized("table.deleteColumns", "Delete Selected Columns"), #selector(deleteColumns)),
-      (localized("table.columnFormula", "Set Column Formula…"), #selector(columnRule)),
-      (localized("table.clearRule", "Clear Column Formula"), #selector(clearRule)),
-      (localized("table.reset", "Reset Overrides"), #selector(resetOverrides)),
-      (localized("table.copyValues", "Copy Values"), #selector(copyValues)),
-      (localized("table.copyFormulas", "Copy Inputs and Formulas"), #selector(copyFormulas)),
-      (localized("table.paste", "Paste"), #selector(pasteCells)),
-      (localized("table.pasteFormulas", "Paste TSV as Formulas"), #selector(pasteFormulas)),
-      (localized("table.fill", "Fill Selection from First Cell"), #selector(fillSelection)),
-      (localized("table.export", "Export Table…"), #selector(exportTable(_:))),
-    ]
+    addCommands(
+      to: menu,
+      [
+        ("Rename Table…", #selector(renameCurrentTable)),
+        ("Add Row at End", #selector(addRow)),
+        ("Add Column at End…", #selector(addColumn)),
+        ("Export Table…", #selector(exportTable(_:))),
+      ])
+    return menu
+  }
+  func addCommands(to menu: NSMenu, _ commands: [(String, Selector)]) {
     for (title, action) in commands {
       let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
       item.target = self
       menu.addItem(item)
     }
-    let totals = NSMenuItem(
-      title: localized("table.total", "Column Total"), action: nil, keyEquivalent: "")
-    let submenu = NSMenu()
+  }
+  func addSubmenu(_ title: String, _ submenu: NSMenu, to menu: NSMenu) {
+    let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+    item.submenu = submenu
+    menu.addItem(item)
+  }
+  func rowMenu() -> NSMenu {
+    let menu = NSMenu()
+    addCommands(
+      to: menu,
+      [
+        ("Insert Rows Above", #selector(insertRowsAbove)),
+        ("Insert Rows Below", #selector(insertRowsBelow)),
+        ("Delete Selected Rows", #selector(deleteRows)),
+      ])
+    return menu
+  }
+  func columnMenu() -> NSMenu {
+    let menu = NSMenu()
+    addCommands(
+      to: menu,
+      [
+        ("Insert Column Before…", #selector(insertColumnBefore)),
+        ("Insert Column After…", #selector(insertColumnAfter)),
+        ("Delete Selected Columns", #selector(deleteColumns)),
+      ])
+    menu.addItem(.separator())
+    addCommands(
+      to: menu,
+      [
+        ("Rename Column…", #selector(renameColumn)),
+        ("Column Settings…", #selector(columnSettings)),
+      ])
+    let types = NSMenu()
+    for (title, policy) in [("Value", TableInputPolicy.value), ("Text", .text)] {
+      let item = NSMenuItem(
+        title: title, action: #selector(changeColumnType(_:)), keyEquivalent: "")
+      item.target = self
+      item.representedObject = policy.rawValue
+      item.state = selectedColumn?.input == policy ? .on : .off
+      types.addItem(item)
+    }
+    addSubmenu("Input Type", types, to: menu)
+    let totals = NSMenu()
     for total in TableTotal.allCases {
       let item = NSMenuItem(
         title: total.rawValue, action: #selector(setTotal(_:)), keyEquivalent: "")
       item.target = self
-      submenu.addItem(item)
+      item.state = selectedColumn?.total == total ? .on : .off
+      totals.addItem(item)
     }
-    let clear = NSMenuItem(
-      title: localized("table.clearTotal", "Clear Total"), action: #selector(clearTotal),
-      keyEquivalent: "")
-    clear.target = self
-    submenu.addItem(clear)
-    totals.submenu = submenu
-    menu.addItem(totals)
+    addCommands(to: totals, [("Clear Total", #selector(clearTotal))])
+    addSubmenu("Column Total", totals, to: menu)
+    let rules = NSMenu()
+    addCommands(
+      to: rules,
+      [
+        ("Set Column Formula…", #selector(columnRule)),
+        ("Clear Column Formula", #selector(clearRule)),
+        ("Reset Overrides", #selector(resetOverrides)),
+      ])
+    addSubmenu("Column Formula (Optional)", rules, to: menu)
+    return menu
+  }
+  func cellMenu() -> NSMenu {
+    let menu = NSMenu()
+    addCommands(
+      to: menu,
+      [
+        ("Edit Cell", #selector(editSelectedCell)),
+        ("Copy Values", #selector(copyValues)),
+        ("Copy Inputs and Formulas", #selector(copyFormulas)),
+        ("Paste", #selector(pasteCells)),
+        ("Paste TSV as Formulas", #selector(pasteFormulas)),
+        ("Clear Contents", #selector(clearCells)),
+        ("Fill Down", #selector(fillDown)),
+        ("Fill Right", #selector(fillRight)),
+      ])
+    menu.addItem(.separator())
+    addSubmenu("Rows", rowMenu(), to: menu)
+    addSubmenu("Columns", columnMenu(), to: menu)
+    let inspect = NSMenu()
+    addCommands(
+      to: inspect,
+      [
+        ("Show Interpretation", #selector(showInterpretation(_:))),
+        ("Copy Full Precision", #selector(copyFullPrecision(_:))),
+      ])
+    if let projection, projection.rows.indices.contains(position.row), let column = selectedColumn,
+      case .failure = result?.value(row: projection.rows[position.row], column: column.id)
+    {
+      addCommands(
+        to: inspect,
+        [
+          ("Repair Broken Reference", #selector(repairReference)),
+          ("Go to Original Failure", #selector(goToOriginalFailure)),
+        ])
+    }
+    addSubmenu("Cell Details", inspect, to: menu)
     return menu
   }
   func performEdit(_ operation: () throws -> Void) {
-    guard !isEditingCell else {
-      status.stringValue = localized("table.finishEdit", "Commit or cancel the cell input first.")
-      return
-    }
+    guard commitCellEditing() else { return }
     do {
       try operation()
       refresh()
@@ -215,27 +287,66 @@ extension ExpandedTableViewController {
         payload.rows[0] >= 0, payload.rows[1] >= payload.rows[0], payload.columns[0] >= 0,
         payload.columns[1] >= payload.columns[0]
       {
-        let document = TableSourceDocument(payload.source)
-        guard let id = document.editingTableIDs.first(where: { $0.uuid == payload.table }) else {
+        let originDocument = TableSourceDocument(payload.source)
+        guard let id = originDocument.editingTableIDs.first(where: { $0.uuid == payload.table })
+        else {
           return
         }
-        let clipboard = try document.clipboard(
+        let clipboard = try originDocument.clipboard(
           table: id,
           rectangle: .init(
             rows: payload.rows[0]..<payload.rows[1],
             columns: payload.columns[0]..<payload.columns[1]))
-        try editor.pasteTableCells(clipboard, into: tableID, at: position)
+        let before = editor.sheet.text
+        let document = try documentForPaste(
+          rows: payload.rows[1] - payload.rows[0], columns: payload.columns[1] - payload.columns[0])
+        let paste = try document.paste(clipboard, table: tableID, at: position)
+        try editor.replaceTableSource(
+          before: before, after: paste.applying(to: document.editingSource), action: "Paste")
       } else if let text = board.string(forType: .string) {
-        try editor.pasteTablePlainText(text, into: tableID, at: position, formulas: formulas)
+        let before = editor.sheet.text
+        let fields = TableSourceDocument.tabSeparated(text)
+        let document = try documentForPaste(
+          rows: fields.count, columns: fields.map(\.count).max() ?? 0)
+        let paste = try document.pastePlainText(
+          text, table: tableID, at: position, formulas: formulas)
+        try editor.replaceTableSource(
+          before: before, after: paste.applying(to: document.editingSource), action: "Paste")
       }
     }
+  }
+  private func documentForPaste(rows: Int, columns: Int) throws -> TableSourceDocument {
+    var document = TableSourceDocument(editor.sheet)
+    let rowsNeeded = position.row + rows
+    let columnsNeeded = position.column + columns
+    guard let projection, rows > 0, columns > 0, columnsNeeded <= 32,
+      max(rowsNeeded, projection.rows.count) * max(columnsNeeded, projection.columns.count) <= 4000
+    else {
+      throw TableTransformError.invalidSelection
+    }
+    if rowsNeeded > projection.rows.count {
+      let growth = try document.appendRows(
+        table: tableID, count: rowsNeeded - projection.rows.count)
+      document = TableSourceDocument(try growth.applying(to: document.editingSource))
+    }
+    var headers = Set(projection.columns.map { $0.header.lowercased() })
+    for index in projection.columns.count..<max(projection.columns.count, columnsNeeded) {
+      var number = index + 1
+      while headers.contains("column \(number)") { number += 1 }
+      let header = "Column \(number)"
+      headers.insert(header.lowercased())
+      let growth = try document.insertColumn(table: tableID, at: index, header: header)
+      document = TableSourceDocument(try growth.applying(to: document.editingSource))
+    }
+    return document
   }
   func updateSummary() {
     guard let projection else { return }
     let count =
       projection.rows.isEmpty || projection.columns.isEmpty
       ? 0 : rectangle.rows.count * rectangle.columns.count
-    var parts = [projection.name, "\(count) cells"]
+    address.stringValue = TableSourceDocument.letters(position.column) + String(position.row + 2)
+    var parts = ["\(count) cells"]
     if count > 0, let result, let value = result.aggregate(.sum, rectangle: rectangle) {
       parts.append("Sum: " + (editor.formatTableValue(value)?.display ?? ""))
     }
@@ -254,6 +365,11 @@ extension ExpandedTableViewController {
     }
     totals.stringValue = footer.joined(separator: "   |   ")
     totals.isHidden = footer.isEmpty
+    if count == 1, projection.rows.indices.contains(position.row), let column = selectedColumn,
+      let error = result?.cellError(row: projection.rows[position.row], column: column.id)
+    {
+      parts.append(editor.formatTableError(error))
+    }
     status.stringValue = parts.joined(separator: "   ")
   }
 }

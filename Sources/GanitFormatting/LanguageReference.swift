@@ -216,7 +216,7 @@ extension LanguageReference {
       ),
       body: text(
         "help.grammar.tables.body",
-        "Edit ▸ Insert Table puts a table in a sheet. A cell holds a literal value or a formula that starts with =. Definitions above the table are available to its formulas. Set Column Formula gives one rule to a whole column, and a dot marks a cell that overrides it. Column Total adds a typed total below the column. Table Actions copies, pastes, fills, repairs, and exports the table. The table keeps its identity through Undo, redo, save, and reload."
+        "Use Edit ▸ Insert Table, or right-click the sheet and select Insert Table. Set the row count, column count, headers and input types. Double-click a cell to edit it. Return saves and moves down. Tab saves and moves right. A formula with = works in every column. Direct function input such as sum(A2, B2) adds = when you save. Definitions above the table are available to its formulas. Set Column Formula gives one rule to a whole column, and a dot marks a cell that overrides it. Column Total adds a typed total below the column. Right-click a cell, row number or column header for its commands. Use Fill Down or Fill Right to copy formulas with relative references. Table Actions renames, adds rows or columns at the end, and exports the table. The table keeps its identity through Undo, redo, save, and reload."
       ),
       examples: ["=[@Qty] * rate", "=sum(B2:B6)"],
       keywords: ["table", "grid", "column rule", "total", "rows"]
