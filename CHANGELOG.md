@@ -5,32 +5,19 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
-- Calculation tables are complete. Table Actions now exports the open table
-  as TSV or CSV in a values mode or an inputs-and-formulas mode, with a
-  locale-aware CSV separator, an optional header row, the totals footer, and
-  a leading apostrophe on fields a spreadsheet would run as formulas.
-  Negative numbers keep their value: `-2,100` and `-1,5` export as numbers,
-  not as text.
-- Print, PDF, HTML, and the Quick Look preview of an exported package now
-  show each table as a grid with its headers, its values with their units,
-  and error messages in place. A header row repeats when a table continues on
-  the next printed page. CSV export keeps one row per physical source line.
-- `ganit --tables` prints each table as a named grid at its block position
-  after the usual line answers. Table cells never replace line answers. A
-  table that cannot be read or calculated, or a cell that fails to calculate,
-  exits with status 1. `--tables` reads a sheet from standard input only; it
-  rejects line arguments instead of ignoring the flag.
-- Named calculation tables now calculate in workspace sheets. Formulas use
-  preceding definitions, and subsequent prose can read qualified table values.
-- Structural table edits preserve references through Undo, redo, save and
-  reload. Duplicate Sheet creates new table IDs and preserves column widths.
-  Definitions and Quick Ganit show an explicit message for table blocks.
-- Expanded table editing now supports native cell input, formula reference
-  picking, column rules, copy, paste, fill and totals. Table edits use document
-  Undo. Open Table and Return to Sheet restore the previous selection.
-
-- Repeated and nested custom-function calls now share the caller’s expression
-  operation limit, so calling a function cannot restart that limit.
+- Add calculation tables to sheets. Use cell formulas, column formulas,
+  sheet variables, units, and currencies. Sort or filter rows and calculate
+  column totals.
+- Edit cells in the sheet or open the full table. Press Enter to save a
+  value. Escape or a click outside the table clears the selection and
+  discards the draft. Undo and redo restore saved changes.
+- Use the same icon toolbar for Undo, Redo, Copy, and Paste in both views.
+  Table controls appear in one row below it. Use the left arrow to return
+  to the sheet. Hide or customize the common toolbar from the View menu.
+- Export tables as CSV or TSV with values or formulas. Print, PDF, HTML,
+  and Quick Look show tables as grids. Use `ganit --tables` to read tables
+  from the command line.
+- Very large custom-function calculations now stop at the calculation limit.
 
 ## 0.5.7
 
