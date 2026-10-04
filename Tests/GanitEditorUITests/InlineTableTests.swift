@@ -244,13 +244,23 @@ struct InlineTableTests {
       searchField.stringValue = "7654321"
       searchField.sendAction(searchField.action, to: searchField.target)
     }
-    // The finder searches on a background queue and delivers matches on the
-    // main queue, so yield before asking for the next match.
-    try await Task.sleep(nanoseconds: 200_000_000)
+    // The finder searches in the background and delivers matches on the main
+    // queue. Wait until it selects the result before asking for the next match.
+    for _ in 0..<100 {
+      let range = editor.textView.selectedRange()
+      let selected = (editor.textView.string as NSString).substring(with: range)
+      if selected == "7654321" { break }
+      try await Task.sleep(nanoseconds: 20_000_000)
+    }
+    let selectedRange = editor.textView.selectedRange()
+    #expect((editor.textView.string as NSString).substring(with: selectedRange) == "7654321")
     menu.tag = NSTextFinder.Action.nextMatch.rawValue
     editor.textView.performTextFinderAction(menu)
     // Match selection and grid mapping arrive on a later main-queue turn.
-    try await Task.sleep(nanoseconds: 200_000_000)
+    for _ in 0..<100 {
+      if editor.expandedTable?.position == .init(row: 1, column: 1) { break }
+      try await Task.sleep(nanoseconds: 20_000_000)
+    }
     #expect(editor.expandedTable?.position == .init(row: 1, column: 1))
     #expect(editor.sheet.text == before)
   }
