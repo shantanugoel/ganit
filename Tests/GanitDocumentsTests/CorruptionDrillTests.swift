@@ -104,8 +104,8 @@ final class CorruptionDrillTests {
   ]
   static let quarantined = [truncated, garbage, invalidTables, copied]
   static let tableSheets = Array(rebuilt.keys) + [stale]
-  static let listed = Set(tableSheets + [healthy])
-  static let unreadable = [schema1, schema3, notUTF8]
+  static let listed = Set(tableSheets + [healthy, schema1])
+  static let unreadable = [schema3, notUTF8]
   static let now = Date(timeIntervalSince1970: 1_790_000_000)
   static let backupDay = "2026-09-15"
 
@@ -231,9 +231,7 @@ final class CorruptionDrillTests {
     #expect(try library.load(id: Self.stale).metadataRepair == .checksum)
     #expect(try library.load(id: Self.healthy).metadataRepair == nil)
     #expect(throws: CocoaError.self) { try library.load(id: Self.orphan) }
-    #expect(throws: DocumentStorageError.unsupportedSchemaVersion(1)) {
-      try library.load(id: Self.schema1)
-    }
+    #expect(try library.load(id: Self.schema1).metadata.schemaVersion == 2)
     #expect(throws: DocumentStorageError.unsupportedSchemaVersion(3)) {
       try library.load(id: Self.schema3)
     }
@@ -397,6 +395,12 @@ final class CorruptionDrillTests {
           == DocumentFormatFixtureTests.data(path),
         "\(relative)", sourceLocation: sourceLocation)
     }
+    #expect(try library.store.load(id: Self.schema1).metadata.schemaVersion == 2)
+    #expect(
+      try Data(
+        contentsOf: copy.appending(
+          path: "MigrationBackups/schema-1/\(Self.metadataPath(Self.schema1))"))
+        == Self.data(Self.metadataPath(Self.schema1)))
     // Metadata Ganit cannot or need not rebuild is untouched; the orphan
     // creates no sheet.
     for id in [Self.healthy, Self.orphan] + Self.unreadable {
@@ -469,6 +473,9 @@ final class CorruptionDrillTests {
   /// were before their metadata was damaged, so opening runs no recovery.
   /// Its copy of the stale sheet's source is the older, cached version.
   private func installHealthyIndex(in copy: URL) throws {
+    // Finish migration first so these tests isolate on-demand recovery.
+    try DocumentMigration.migrateLibrary(at: copy)
+    try? FileManager.default.removeItem(at: copy.appending(path: "Index/unsynchronized"))
     let url = copy.appending(path: "Index/index.sqlite")
     try FileManager.default.removeItem(at: url)
     let index = try SheetIndex(url: url)

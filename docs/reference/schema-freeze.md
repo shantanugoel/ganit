@@ -1,11 +1,11 @@
 # Frozen formats
 
-These formats are frozen for the first release. Each has one current
-version, which is the only one read or written: any other version is refused
-with a clear diagnostic and left untouched. There are no earlier-version
-readers, migrations, conversions or downgrades. Changing a format bumps its
-version, updates its specification and frozen fixtures, and needs release
-notes. `FrozenFormatTests` fails if a version changes without this file.
+These formats are frozen for the first release. Writers use the current
+version. The migration module converts schema 1 sheet metadata and package
+manifests to schema 2. Other unsupported versions cause a clear error and
+stay unchanged. Downgrade export is not available. A format change must
+update its version, specification, fixtures, and release notes.
+`FrozenFormatTests` checks the version registry.
 
 | Format | Version | Defined in |
 | --- | ---: | --- |

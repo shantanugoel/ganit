@@ -85,8 +85,10 @@ public final class SheetLibrary {
     root: URL,
     backupPolicy: BackupPolicy = .default,
     timeZone: TimeZone = .current,
-    now: @escaping () -> Date = Date.init
+    now: @escaping () -> Date = Date.init,
+    migrationProgress: ((DocumentMigration.Progress) -> Void)? = nil
   ) throws {
+    try DocumentMigration.migrateLibrary(at: root, progress: migrationProgress)
     store = SheetStore(root: root)
     index = try SheetIndex(url: root.appending(path: "Index/index.sqlite"))
     folderStore = SheetFolderStore(url: root.appending(path: "Folders.json"))

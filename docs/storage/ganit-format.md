@@ -64,10 +64,10 @@ than fail. A writer refuses to export a package whose source, or whose
 manifest without presentation, is larger than import accepts, and writes
 nothing.
 
-Schema 2 is the only manifest schema, for ordinary and table-bearing sheets
-alike. A reader rejects any other `schemaVersion`, including `1`, with
-`unsupportedSchemaVersion`. There is no migration, conversion or downgrade
-export.
+Writers use schema 2. At import, the migration module converts schema 1
+manifests in memory. The selected package stays unchanged. Other versions
+cause `unsupportedSchemaVersion`. Downgrade export is not available. See
+[data migration](data-migration.md).
 
 If `source.txt` no longer matches `sourceChecksum`, as after editing it outside
 Ganit, the source remains canonical: Ganit imports it without a warning and

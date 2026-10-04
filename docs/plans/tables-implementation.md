@@ -39,18 +39,19 @@ explicit diagnostics, not approximate substitutes.
 
 ## Compatibility scope
 
-Backward compatibility is out of scope. Implement one current source/package
-format; reject unsupported schema versions clearly. Do not add old-schema
-readers, migration/conversion paths, downgrade support, compatibility shims,
-migration-specific backups or an older-reader capability-publication barrier.
-No byte-for-byte preservation of earlier CLI output is required. This policy
-supersedes prior compatibility requirements for the table work and applies to
-all milestones and the linked ADRs.
+On 2026-10-04, the upgrade requirement changed. Convert schema 1 sheet
+metadata and package manifests to schema 2. Keep the conversion rules in
+`DocumentMigration`. Run library conversion before index recovery. Convert
+package manifests in memory at import. Keep current readers strict.
 
-Atomic writes, lossless source storage, malformed-block quarantine, current-
-format backups/recovery, and correctness of the supported ordinary calculator
-remain required. Version fields identify the current format and detect
-unsupported inputs; they do not create an obligation to support past formats.
+Keep sheet source bytes unchanged. Keep original metadata in a separate
+backup directory before replacement. Convert daily backup metadata too.
+Show a startup message only when conversion is necessary. If a write fails,
+stop startup and retry on the next launch. Do not convert unknown schemas or
+add downgrade export. See [data migration](../storage/data-migration.md).
+
+Atomic writes, source storage without data loss, malformed block isolation,
+current format recovery, and ordinary calculator correctness remain required.
 
 ## Visual references and interaction requirements
 
@@ -380,10 +381,10 @@ before proceeding.
       IDs, binding validation and malformed/unsupported-block diagnostics.
 - [x] Add frozen fixtures and readers/writers for the single current format:
       metadata/manifest schema 2, as selected in ADR 0017. Reject unsupported
-      schemas explicitly; do not add older readers or migration paths.
+      schemas explicitly. Use the central schema 1 migration module.
 - [x] Use atomic source/metadata/package writes and retain ordinary current-
-      format backups. Test interrupted writes; no migration-specific backup
-      or one-time capability barrier is required.
+      format backups. Test interrupted writes and keep original metadata
+      before migration. No older reader publication barrier is required.
 - [x] Recover missing/corrupt metadata in the current schema from canonical
       source without losing IDs, bindings or malformed blocks. Unknown table
       versions must stay quarantined from ordinary calculations.
@@ -562,7 +563,7 @@ editing/scheduler, storage/write order, recovery and headless integration on
 | A named sheet variable can look like an address | Scoped parsing and explicit `sheet[B2]`; ordinary bare B2 is a variable |
 | Blank/text/count rules could silently inherit Excel coercion | Define scalar errors, range policies, empty results, override blanks and Ganit count behavior |
 | Type-directed parsing can precede dependency availability | Separate reference discovery/binding from typed parsing and graph evaluation |
-| Interrupted writes must retain complete canonical source | Atomic current-format writes and recovery; no legacy migration or capability barrier |
+| Interrupted writes must retain complete canonical source | Atomic writes and recovery; central schema 1 conversion with original metadata backups |
 | Missing/corrupt metadata must not lose table source | Rebuild current-schema metadata from canonical source; retain malformed/unknown blocks |
 | Fragment-by-fragment evaluation would reset sheet state | Integrate blocks into one scope/physical-line fold and retain ordinary-sheet cache instrumentation |
 | Raw table lines could enter aggregates or assistant fallback | Explicit block boundaries, non-scalar table lines and no automatic table assistant fan-out |

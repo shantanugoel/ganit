@@ -39,12 +39,12 @@ existing answer. See the [release train](docs/release/release-train.md).
   while commented; uncommenting restores their references without repair.
 - Replace All tracks each replacement separately so references to intact
   lines between matches remain valid, with reference updates in the same Undo.
-- Sheets and `.ganit` packages now use format 2, which also stores
-  presentation such as table column widths. Sheets and packages saved in
-  format 1 are not converted: Ganit leaves their files unchanged, says how
-  many sheets it couldn't open, and explains the format when one is opened.
-  Their source stays readable as plain text. The library index is rebuilt
-  once on first launch.
+- Sheets and `.ganit` packages now use format 2 for table display settings.
+  Ganit converts format 1 library metadata and daily backup metadata at
+  startup. A message shows progress while files are updated. Original
+  metadata is kept in `MigrationBackups/schema-1`. Sheet text stays unchanged.
+  Old packages convert in memory at import. The selected package stays
+  unchanged. Failed writes stop startup and retry on the next launch.
 
 - Multiplying a percentage by a plain number now preserves the percentage
   type, matching division. Subsequent percentage addition and subtraction

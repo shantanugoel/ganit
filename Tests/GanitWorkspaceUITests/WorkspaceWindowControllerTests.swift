@@ -583,7 +583,7 @@ struct WorkspaceWindowControllerTests {
 
   /// A scratch sheet Ganit cannot read does not keep the workspace from
   /// opening; it stays untouched, and asking for it reports the error.
-  @Test(arguments: [1, 3])
+  @Test(arguments: [0, 3])
   func anUnreadableScratchSheetDoesNotKeepTheWorkspaceClosed(version: Int) throws {
     let (first, ids) = try makeWorkspace(["rent"])
     close(first)

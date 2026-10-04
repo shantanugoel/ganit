@@ -64,7 +64,7 @@ struct RecoveryRehearsalTests {
     let library = try SheetLibrary(root: root)
     let ids = try seed(library)
     var unsupported: [UUID: Data] = [:]
-    for (id, version) in [(ids[0], 1), (ids[2], 3)] {
+    for (id, version) in [(ids[0], 0), (ids[2], 3)] {
       let metadataURL = library.store.metadataURL(id)
       let json = try String(contentsOf: metadataURL, encoding: .utf8)
         .replacingOccurrences(of: "\"schemaVersion\" : 2", with: "\"schemaVersion\" : \(version)")
@@ -106,7 +106,7 @@ struct RecoveryRehearsalTests {
     let metadataURL = SheetStore(root: root).metadataURL(unsupported)
     let metadata = Data(
       try String(contentsOf: metadataURL, encoding: .utf8)
-        .replacingOccurrences(of: "\"schemaVersion\" : 2", with: "\"schemaVersion\" : 1")
+        .replacingOccurrences(of: "\"schemaVersion\" : 2", with: "\"schemaVersion\" : 0")
         .utf8)
     try metadata.write(to: metadataURL)
     let source = try Data(contentsOf: SheetStore(root: root).sourceURL(unsupported))

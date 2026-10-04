@@ -3,10 +3,9 @@
 - Status: Accepted (architecture and schema selection; wire format v1 frozen in
   M1 as [table blocks](../storage/table-blocks.md))
 - Date: 2026-10-01
-- Amended: 2026-10-01 — backward compatibility is explicitly out of scope.
-  This supersedes the initial table requirements for earlier-schema readers,
-  migration backups, capability-publication barriers and downgrade handling.
-  It also overrides general earlier-format support expectations for this feature.
+- Amended: 2026-10-04 — automatic schema 1 conversion is required for upgrades.
+  This decision replaces the earlier exclusion of migration. Keep conversion
+  rules in one module. See [data migration](../storage/data-migration.md).
 - Amended: 2026-10-02 — M1 froze table block version 1 in
   [table blocks](../storage/table-blocks.md). Its layout supersedes the
   spike-only wording below: owners, targets, operand spans and copy locks are
@@ -91,19 +90,15 @@ based on an engine-only benchmark. Both encodings and byte counts are in the
 
 ## Current format and durable storage
 
-Use **sheet metadata schema 2** and **`.ganit` manifest schema 2** as the sole
-supported document/package schemas for this implementation. M1 adds current-
-format fixtures and updates the frozen-format registry with its readers and
-writers. Reject unsupported schemas clearly. Do not implement earlier-schema
-readers, automatic format migration, downgrade export or compatibility shims.
-The table block still has its own version for validation and malformed/unknown
-block quarantine; versioning does not require supporting older versions.
+Use **sheet metadata schema 2** and **`.ganit` manifest schema 2** for new
+writes. Keep current readers strict. Before library recovery, convert valid
+schema 1 metadata through `DocumentMigration`. Convert schema 1 package
+manifests in memory at import. Reject other schemas clearly.
 
-Use the same current metadata schema for ordinary and table-bearing documents.
-There is no per-document legacy upgrade, one-time capability-publication barrier
-or migration-specific backup. New writes use the current format directly.
-Preserve existing atomic file/package replacement and ordinary backup behavior;
-add no separate compatibility storage path.
+Keep original metadata before an atomic replacement. Keep source files
+unchanged. Convert daily backup metadata through the same module. Do not add
+downgrade export or an older reader publication barrier. See
+[data migration](../storage/data-migration.md) for restart and failure rules.
 
 Canonical source remains authoritative. Interrupted writes must retain either
 the previously committed current-format source or a complete replacement, never
@@ -112,7 +107,7 @@ without discarding source, IDs, bindings or malformed table blocks. Unknown
 blocks remain quarantined from ordinary calculations. A stale checksum must
 not replace canonical source with a cached projection.
 
-Package import/export supports only the current manifest schema. Plain UTF-8
+Package import accepts schema 1 and 2. Export writes schema 2. Plain UTF-8
 source remains a supported input/output independent of package schema; retain
 its exact bytes, IDs and ledgers. Values-only CSV/Markdown is explicitly lossy.
 Current-format backup restore must retain source and references; unsupported

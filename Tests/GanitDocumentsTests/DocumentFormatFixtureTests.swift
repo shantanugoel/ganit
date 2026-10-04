@@ -7,8 +7,8 @@ import Testing
 
 /// Frozen sheet metadata and `.ganit` manifest schema 2 fixtures, written by
 /// hand from docs/storage/sheet-files.md and docs/storage/ganit-format.md.
-/// Schema 2 is the only schema read or written; every other version is
-/// refused without conversion. Changing any byte is a format change: update
+/// Current readers and writers use schema 2. Package import converts schema 1
+/// through the migration module. Changing any byte is a format change: update
 /// the specifications, docs/reference/schema-freeze.md and these checksums
 /// deliberately.
 @Suite struct DocumentFormatFixtureTests {
@@ -244,11 +244,14 @@ import Testing
     }
   }
 
-  @Test func unsupportedManifestSchemaIsRefused() throws {
+  @Test func schema1ManifestIsConvertedWithoutChangingThePackage() throws {
     let package = try copy("Packages/Schema1.ganit")
-    #expect(throws: SheetExchangeError.unsupportedSchemaVersion(1)) {
-      try SheetExchange.read(from: package)
-    }
+    let original = try Data(contentsOf: package.appending(path: "manifest.json"))
+    let sheet = try SheetExchange.read(from: package)
+    #expect(sheet.manifest?.schemaVersion == 2)
+    #expect(sheet.manifest?.tables == TablePresentations())
+    #expect(sheet.manifest?.preferences.usesDecimalComma == true)
+    #expect(try Data(contentsOf: package.appending(path: "manifest.json")) == original)
   }
 
   /// Refusals say which format the file is in and that it was left alone.

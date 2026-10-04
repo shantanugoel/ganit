@@ -128,7 +128,7 @@ struct SheetExchangeTests {
     let manifest = package.appending(path: "manifest.json")
     let current = try String(contentsOf: manifest, encoding: .utf8)
     #expect(current.contains("\"schemaVersion\" : 2"))
-    for version in [1, 7] {
+    for version in [0, 7] {
       let unsupported = current.replacingOccurrences(
         of: "\"schemaVersion\" : 2", with: "\"schemaVersion\" : \(version)")
       try Data(unsupported.utf8).write(to: manifest)

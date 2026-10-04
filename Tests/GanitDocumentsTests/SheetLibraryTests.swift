@@ -95,7 +95,7 @@ struct SheetLibraryTests {
 
   /// A scratch sheet in an unsupported schema is refused, never replaced by
   /// a new empty one, and leaves no backup behind.
-  @Test(arguments: [1, 3])
+  @Test(arguments: [0, 3])
   func anUnreadableScratchSheetIsLeftUntouched(version: Int) throws {
     let clock = Clock()
     var library = try makeLibrary(clock)

@@ -18,13 +18,14 @@ fails with `DocumentStorageError.invalidUTF8` instead of decoding lossily.
 
 ## Metadata, schema version 2
 
-Schema 2 is the only metadata schema, for ordinary and table-bearing sheets
-alike. Every key below is required except `folderID`; a file missing one, or
+Current readers use schema 2 for all sheets. At startup, the migration module
+converts valid schema 1 metadata before these readers run. See
+[data migration](data-migration.md). Every key below is required except `folderID`; a file missing one, or
 holding an invalid value, fails to decode.
 
 | Key | Meaning |
 |---|---|
-| `schemaVersion` | `2`; any other version, including `1`, fails with `unsupportedSchemaVersion` and is never converted |
+| `schemaVersion` | `2`; the strict reader rejects other versions; startup conversion accepts `1` |
 | `id` | stable sheet UUID, matching both file names; metadata naming another sheet is corrupt |
 | `title` | display title; one following the first line omits a leading U+FEFF and a heading's `#` and keeps at most 200 characters and 1,024 UTF-8 bytes, cut between characters, so it cannot make a package manifest too large to export |
 | `folderID` | containing folder, if any |

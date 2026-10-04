@@ -196,7 +196,8 @@ database. Its table-bearing sheets have missing, truncated, non-JSON, invalid
 break, and one opens with a table block. Each holds two valid tables, one with
 deleted `#REF!` bindings, a malformed block, a version 2 block, and an
 unterminated block at the end. The library also holds orphaned metadata,
-schema 1 and schema 3 metadata, non-UTF-8 source, and a backup of the stale
+schema 1 metadata for conversion, unsupported schema 3 metadata,
+non-UTF-8 source, and a backup of the stale
 sheet's older source. Both by full recovery and by loading each sheet with
 `load(id:)` under a healthy index:
 

@@ -230,7 +230,8 @@ private func isCanonicalIdentity(_ text: String) -> Bool {
 /// Small, versioned metadata stored beside a sheet's canonical source.
 ///
 /// Schema 2 is the only schema read or written. Any other version is refused
-/// with `DocumentStorageError.unsupportedSchemaVersion`; there is no migration.
+/// with `DocumentStorageError.unsupportedSchemaVersion`. Library startup
+/// converts schema 1 through `DocumentMigration` before this reader runs.
 public struct SheetMetadata: Codable, Equatable, Sendable {
   public static let currentSchemaVersion = 2
 

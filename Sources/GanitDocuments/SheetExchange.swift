@@ -3,8 +3,8 @@ import Foundation
 
 /// The portable metadata of a `.ganit` package.
 ///
-/// Schema 2 is the only schema read or written. Any other version is refused
-/// with `SheetExchangeError.unsupportedSchemaVersion`; there is no migration.
+/// Writers use schema 2. The migration module converts schema 1 on import.
+/// Other versions cause `SheetExchangeError.unsupportedSchemaVersion`.
 public struct GanitManifest: Codable, Equatable, Sendable {
   public static let currentSchemaVersion = 2
 
@@ -73,7 +73,7 @@ public enum SheetExchange {
   /// removing one leading byte-order mark; nothing is normalized. A
   /// package's checksum is compared with that source. Bytes that are not
   /// UTF-8, a source or manifest larger than the limits, and a manifest
-  /// schema other than 2 are refused.
+  /// schema other than 1 or 2 are refused.
   public static func read(from url: URL) throws -> ExchangedSheet {
     guard isPackage(url) else {
       return ExchangedSheet(
@@ -83,11 +83,7 @@ public enum SheetExchange {
     // inside it.
     let data = try contents(
       of: url.appending(path: "manifest.json"), limit: maximumManifestBytes, reportedAs: url)
-    let version = try decoder.decode(SchemaVersion.self, from: data).schemaVersion
-    guard version == GanitManifest.currentSchemaVersion else {
-      throw SheetExchangeError.unsupportedSchemaVersion(version)
-    }
-    let manifest = try decoder.decode(GanitManifest.self, from: data)
+    let manifest = try DocumentMigration.manifest(from: data)
     let source = try utf8(at: url.appending(path: "source.txt"), reportedAs: url)
     return ExchangedSheet(
       source: source,
@@ -188,10 +184,6 @@ public enum SheetExchange {
       throw SheetExchangeError.tooLarge(reported)
     }
     return data
-  }
-
-  private struct SchemaVersion: Decodable {
-    let schemaVersion: Int
   }
 
   /// A UTF-8 byte-order mark: an encoding signature that some editors put
