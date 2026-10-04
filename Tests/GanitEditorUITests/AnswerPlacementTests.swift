@@ -243,6 +243,14 @@ struct AnswerPlacementTests {
     #expect(!textView.goToLine(0))
   }
 
+  @Test
+  func hiddenAnswerColumnDoesNotRegisterAnEmptyCursorRect() async throws {
+    let (editor, textView) = try await makeEditor("1 + 1")
+    editor.scrollView.isHidden = true
+    for subview in textView.subviews { subview.resetCursorRects() }
+    #expect(editor.sheet.text == "1 + 1")
+  }
+
   private static var windows: [NSWindow] = []
 
   private func makeEditor(_ text: String) async throws -> (SheetEditorViewController, SheetTextView)

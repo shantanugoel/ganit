@@ -2389,7 +2389,9 @@ private final class AnswerOverlayView: NSView {
   override func resetCursorRects() {
     super.resetCursorRects()
     if let rect = textView.answerResizeRect {
-      addCursorRect(rect.intersection(visibleRect), cursor: .resizeLeftRight)
+      let visible = rect.intersection(visibleRect)
+      guard !visible.isEmpty, visible.origin.x.isFinite, visible.origin.y.isFinite else { return }
+      addCursorRect(visible, cursor: .resizeLeftRight)
     }
   }
 
