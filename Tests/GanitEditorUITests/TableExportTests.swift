@@ -78,8 +78,9 @@ struct TableExportTests {
     let cell = try #require(values.rows.first?.first)
     #expect(cell == "Cannot divide by zero.")
     // A blocked dependent stays an explicit failure, and the total names it.
-    #expect(values.rows.first?[1] == "Error")
-    #expect(values.totals == [nil, "Error"])
+    #expect(values.rows.first?[1] == "An input has an error. Go to the original failure.")
+    #expect(
+      values.totals == [nil, "Cannot total these values. Check cell errors and value types."])
     _ = table
   }
 }

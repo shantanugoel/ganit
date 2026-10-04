@@ -494,6 +494,19 @@ public struct NumericResultFormatter: Sendable {
 }
 
 public struct ResultFormatter: Sendable {
+  private let tableContext: EvaluationContext
+  package func formatTable(_ value: EngineValue, snapshot: TableResultSnapshot, column: ColumnID)
+    throws -> FormattedResult
+  {
+    let presented = snapshot.percentageValue(value, column: column)
+    guard let digits = snapshot.percentageDecimals(column: column) else {
+      return try format(presented)
+    }
+    var options = display
+    options.numbers = .fixedDecimals(digits)
+    return try ResultFormatter(context: tableContext, limits: limits, display: options).format(
+      presented)
+  }
   private let numericFormatter: NumericResultFormatter
   private let percentConvention: LocalePercentConvention
   private let limits: FormattingLimits
@@ -505,6 +518,7 @@ public struct ResultFormatter: Sendable {
     limits: FormattingLimits = .default,
     display: DisplayOptions = .standard
   ) {
+    self.tableContext = context
     self.display = display
     numericFormatter = NumericResultFormatter(
       context: context,

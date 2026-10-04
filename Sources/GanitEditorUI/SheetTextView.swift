@@ -600,6 +600,54 @@ final class SheetTextView: NSTextView {
 
   /// Visible answers and failure messages, as static text elements after the
   /// text view's own children.
+  private func accessibleDocumentText() -> String {
+    guard !inlineRanges().isEmpty else { return string }
+    let document = TableSourceDocument(string)
+    let projections = document.editingTableIDs.compactMap { TableEditingSnapshot(document, id: $0) }
+    var text = string
+    for range in inlineRanges().sorted(by: { $0.location > $1.location }) {
+      let offset = (string as NSString).substring(to: range.location).utf8.count
+      var summary = "Table source has an error."
+      if let table = projections.first(where: { $0.utf8Range.lowerBound == offset }) {
+        summary = "Table " + table.name + ". " + String(table.rows.count) + " rows. Columns: "
+        summary +=
+          table.columns.map(\.header).joined(separator: ", ")
+          + ". Use the table controls to read its cells."
+      }
+      // Keep text offsets stable for the native accessibility range API.
+      let content = (summary as NSString).substring(to: min(range.length, summary.utf16.count))
+      let replacement =
+        content + String(repeating: " ", count: max(0, range.length - content.utf16.count - 1))
+        + (range.length > content.utf16.count ? "\n" : "")
+      text = (text as NSString).replacingCharacters(in: range, with: replacement)
+    }
+    return text
+  }
+  override func accessibilityValue() -> String? { accessibleDocumentText() }
+  override func accessibilityString(for range: NSRange) -> String? {
+    let text = accessibleDocumentText() as NSString
+    guard range.location >= 0, range.upperBound <= text.length else { return nil }
+    return text.substring(with: range)
+  }
+  override func accessibilityAttributedString(for range: NSRange) -> NSAttributedString? {
+    accessibilityString(for: range).map { NSAttributedString(string: $0) }
+  }
+  override func accessibilityAttributeValue(_ attribute: NSAccessibility.Attribute) -> Any? {
+    if attribute == .value { return accessibleDocumentText() }
+    if attribute == .selectedText { return accessibilityString(for: selectedRange()) }
+    return super.accessibilityAttributeValue(attribute)
+  }
+  override func accessibilityAttributeValue(
+    _ attribute: NSAccessibility.ParameterizedAttribute, forParameter parameter: Any?
+  ) -> Any? {
+    if let range = parameter as? NSValue {
+      if attribute == .stringForRange { return accessibilityString(for: range.rangeValue) }
+      if attribute == .attributedStringForRange {
+        return accessibilityString(for: range.rangeValue).map { NSAttributedString(string: $0) }
+      }
+    }
+    return super.accessibilityAttributeValue(attribute, forParameter: parameter)
+  }
   override func accessibilityChildren() -> [Any]? {
     let answerElements = answerLayout(in: visibleRect).map { line, cell, rect in
       let number = lineNumber(line) ?? 0
@@ -818,6 +866,10 @@ final class SheetTextView: NSTextView {
       for (title, action) in [
         ("Insert Table…", #selector(SheetEditorViewController.insertCalculationTable(_:))),
         ("Paste as Table…", #selector(SheetEditorViewController.pasteAsCalculationTable(_:))),
+        (
+          "Convert Selection to Table…",
+          #selector(SheetEditorViewController.convertSelectionToCalculationTable(_:))
+        ),
       ] {
         let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
         item.target = editor

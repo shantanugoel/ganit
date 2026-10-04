@@ -222,6 +222,38 @@ extension TableSourceDocument {
     }
   }
 
+  package func setColumnPresentation(
+    table id: TableID, column: ColumnID, percentageDecimals: Int?
+  ) throws -> TableSourceEdit {
+    guard percentageDecimals.map({ (0...12).contains($0) }) ?? true else {
+      throw TableTransformError.invalidSelection
+    }
+    return try transform(id, rewriteRules: false) { table in
+      guard let index = table.columns.firstIndex(where: { $0.id == column }) else {
+        throw TableTransformError.invalidPosition
+      }
+      table.columns[index].percentageDecimals = percentageDecimals
+    }
+  }
+
+  package func setColumnReview(
+    table id: TableID, column: ColumnID, sort: String?, filter: String?, frozen: Bool
+  ) throws -> TableSourceEdit {
+    guard sort == nil || sort == "ascending" || sort == "descending" else {
+      throw TableTransformError.invalidSelection
+    }
+    return try transform(id, rewriteRules: false) { table in
+      guard let index = table.columns.firstIndex(where: { $0.id == column }) else {
+        throw TableTransformError.invalidPosition
+      }
+      if sort != nil { for i in table.columns.indices { table.columns[i].reviewSort = nil } }
+      table.columns[index].reviewSort = sort
+      table.columns[index].reviewFilter = filter
+      if frozen { for i in table.columns.indices { table.columns[i].frozen = false } }
+      table.columns[index].frozen = frozen
+    }
+  }
+
   package func clipboard(table id: TableID, at position: TableCellPosition) throws -> TableClipboard
   {
     let table = try model(id)

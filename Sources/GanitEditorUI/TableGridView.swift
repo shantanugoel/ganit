@@ -4,22 +4,30 @@ import GanitEngine
 @MainActor
 final class TableGridView: NSTableView {
   weak var controller: ExpandedTableViewController?
+  var frozenColumn: Int?
   override var acceptsFirstResponder: Bool { controller?.isEditingCell != true }
   override var undoManager: UndoManager? { controller?.editor.documentUndoManager }
+  override func viewDidChangeEffectiveAppearance() {
+    super.viewDidChangeEffectiveAppearance()
+    reloadData()
+  }
   private func target(_ event: NSEvent) -> TableCellPosition? {
     let point = convert(event.locationInWindow, from: nil)
     let row = row(at: point)
     let column = column(at: point) - 1
     guard row >= 0, column >= 0 else { return nil }
-    return .init(row: row, column: column)
+    guard let canonical = controller?.canonicalRow(row) else { return nil }
+    return .init(row: canonical, column: frozenColumn ?? column)
   }
   override func mouseDown(with event: NSEvent) {
     guard let controller else { return }
     let point = convert(event.locationInWindow, from: nil)
-    if column(at: point) == 0, row(at: point) >= 0, controller.commitCellEditing() {
-      controller.select(.init(row: row(at: point), column: 0))
+    if column(at: point) == 0, let row = controller.canonicalRow(row(at: point)),
+      controller.commitCellEditing()
+    {
+      controller.select(.init(row: row, column: 0))
       if let count = controller.projection?.columns.count, count > 0 {
-        controller.select(.init(row: row(at: point), column: count - 1), extending: true)
+        controller.select(.init(row: row, column: count - 1), extending: true)
       }
       return
     }
@@ -64,9 +72,8 @@ final class TableGridView: NSTableView {
   override func menu(for event: NSEvent) -> NSMenu? {
     guard let controller, controller.commitCellEditing() else { return nil }
     let point = convert(event.locationInWindow, from: nil)
-    let row = row(at: point)
-    let column = column(at: point) - 1
-    guard row >= 0 else { return controller.actionsMenu() }
+    guard let row = controller.canonicalRow(row(at: point)) else { return controller.actionsMenu() }
+    let column = frozenColumn ?? (column(at: point) - 1)
     if column < 0 {
       controller.select(.init(row: row, column: 0))
       if let count = controller.projection?.columns.count, count > 0 {
@@ -75,7 +82,7 @@ final class TableGridView: NSTableView {
       return controller.rowMenu()
     }
     let target = TableCellPosition(row: row, column: column)
-    if !controller.rectangle.rows.contains(row) || !controller.rectangle.columns.contains(column) {
+    if !controller.selectionRows.contains(row) || !controller.rectangle.columns.contains(column) {
       controller.select(target)
     }
     return controller.cellMenu()
@@ -110,19 +117,15 @@ final class TableGridView: NSTableView {
       return
     case 123: target.column -= 1
     case 124: target.column += 1
-    case 125: target.row += 1
-    case 126: target.row -= 1
+    case 125:
+      target.row =
+        controller.canonicalRow((controller.visibleRow(target.row) ?? 0) + 1) ?? target.row
+    case 126:
+      target.row =
+        controller.canonicalRow((controller.visibleRow(target.row) ?? 0) - 1) ?? target.row
     case 48:
-      target.column += event.modifierFlags.contains(.shift) ? -1 : 1
-      let width = controller.projection?.columns.count ?? 0
-      if target.column >= width {
-        target.column = 0
-        target.row += 1
-      }
-      if target.column < 0 {
-        target.column = max(0, width - 1)
-        target.row -= 1
-      }
+      controller.moveAfterCommit(horizontal: true, backwards: event.modifierFlags.contains(.shift))
+      return
     case 36, 76, 120:
       controller.beginEditing(inline: true)
       return
@@ -150,13 +153,15 @@ final class TableGridView: NSTableView {
 @MainActor
 final class TableGridHeaderView: NSTableHeaderView {
   weak var controller: ExpandedTableViewController?
+  var frozenColumn: Int?
   override func menu(for event: NSEvent) -> NSMenu? {
     guard let controller, controller.commitCellEditing() else { return nil }
-    let column = column(at: convert(event.locationInWindow, from: nil)) - 1
+    let column = frozenColumn ?? (column(at: convert(event.locationInWindow, from: nil)) - 1)
     guard column >= 0 else { return controller.actionsMenu() }
-    controller.select(.init(row: 0, column: column))
+    controller.select(.init(row: controller.displayedRows.first ?? 0, column: column))
     if let rows = controller.projection?.rows.count, rows > 0 {
-      controller.select(.init(row: rows - 1, column: column), extending: true)
+      controller.select(
+        .init(row: controller.displayedRows.last ?? rows - 1, column: column), extending: true)
     } else {
       controller.position.column = column
     }
@@ -167,7 +172,7 @@ final class TableGridHeaderView: NSTableHeaderView {
       super.mouseDown(with: event)
       return
     }
-    let column = column(at: convert(event.locationInWindow, from: nil)) - 1
+    let column = frozenColumn ?? (column(at: convert(event.locationInWindow, from: nil)) - 1)
     guard column >= 0, controller.commitCellEditing() else { return }
     controller.select(.init(row: controller.position.row, column: column))
     if event.clickCount == 2 {
@@ -175,8 +180,9 @@ final class TableGridHeaderView: NSTableHeaderView {
       return
     }
     if let rows = controller.projection?.rows.count, rows > 0 {
-      controller.select(.init(row: 0, column: column))
-      controller.select(.init(row: rows - 1, column: column), extending: true)
+      controller.select(.init(row: controller.displayedRows.first ?? 0, column: column))
+      controller.select(
+        .init(row: controller.displayedRows.last ?? rows - 1, column: column), extending: true)
     }
     super.mouseDown(with: event)
   }

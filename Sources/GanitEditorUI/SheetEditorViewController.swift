@@ -93,6 +93,18 @@ public final class SheetEditorViewController: NSViewController {
   package func formatTableValue(_ value: EngineValue) -> FormattedResult? {
     try? resultFormatter.format(value)
   }
+  package func formatTableValue(
+    _ value: EngineValue, column: ColumnID, result: TableResultSnapshot?
+  ) -> FormattedResult? {
+    let presented = result?.percentageValue(value, column: column) ?? value
+    guard let digits = result?.percentageDecimals(column: column) else {
+      return formatTableValue(presented)
+    }
+    var options = displayOptions
+    options.numbers = .fixedDecimals(digits)
+    return try? ResultFormatter(context: context, display: options).format(presented)
+  }
+  package var tableEvaluationContext: EvaluationContext { context }
   package func formatTableError(_ error: EngineError) -> String {
     diagnosticFormatter.format(error).message
   }
@@ -1695,7 +1707,9 @@ extension CalculationResult {
 
 extension SheetEditorViewController {
   fileprivate func permitsInlineEdit(_ ranges: [NSRange], replacements: [String]?) -> Bool {
-    guard permitsInlineTables, !sourceCoordinator.isApplying, !isRewritingReferences else {
+    guard permitsInlineTables, !sourceCoordinator.isApplying, !isRewritingReferences,
+      !documentUndoManager.isUndoing, !documentUndoManager.isRedoing
+    else {
       return true
     }
     for (index, range) in ranges.enumerated() {
@@ -1829,12 +1843,15 @@ extension SheetEditorViewController {
   ) -> RenderedTableCell {
     switch value {
     case .value(let scalar):
-      return RenderedTableCell(text: formatTableValue(scalar)?.display ?? "")
+      return RenderedTableCell(
+        text: formatTableValue(scalar, column: column, result: result)?.display ?? "")
     case .text(let text): return RenderedTableCell(text: text)
     case .blank: return RenderedTableCell(text: "")
     case .failure:
       return RenderedTableCell(
-        text: result.cellError(row: row, column: column).map { formatTableError($0) }
+        text: result.cellProblem(row: row, column: column) ?? result.cellError(
+          row: row, column: column
+        ).map { formatTableError($0) }
           ?? localized("table.failure", "Error"), isFailure: true)
     case nil:
       if let failure = result.calculationFailure {
@@ -1878,7 +1895,13 @@ extension SheetEditorViewController {
     }
     showTableCreation(pasted: text)
   }
-  private func showTableCreation(pasted: String?) {
+  @objc public func convertSelectionToCalculationTable(_ sender: Any?) {
+    let range = textView.selectedRange()
+    guard range.length > 0 else { return }
+    showTableCreation(
+      pasted: (textView.string as NSString).substring(with: range), replacing: range)
+  }
+  private func showTableCreation(pasted: String?, replacing: NSRange? = nil) {
     guard permitsTableEditing, textView.isEditable, expandedTable == nil,
       !textView.hasMarkedText(), let window = view.window
     else { return }
@@ -1893,13 +1916,16 @@ extension SheetEditorViewController {
       return
     }
     let before = sheet.text
-    let start = (before as NSString).lineRange(for: textView.selectedRange()).location
+    let start =
+      replacing?.location ?? (before as NSString).lineRange(for: textView.selectedRange()).location
     let offset = (before as NSString).substring(to: start).utf8.count
     guard !inlineTableRanges.values.contains(where: { NSLocationInRange(start, $0) }) else {
       return
     }
     let alert = NSAlert()
-    alert.messageText = pasted == nil ? "Insert Table" : "Paste as Table"
+    alert.messageText =
+      replacing != nil
+      ? "Convert Selection to Table" : pasted == nil ? "Insert Table" : "Paste as Table"
     let form = TableCreationForm(pasted: grid)
     let names = Set(
       TableSourceDocument(sheet).editingTableIDs.compactMap {
@@ -1927,7 +1953,8 @@ extension SheetEditorViewController {
         let id = try insertTableRectangle(
           named: form.name.stringValue, headers: form.settings, rows: data,
           formulas: form.formulas.state == .on, atUTF8: offset, expectedSource: before,
-          rowCount: rowCount)
+          rowCount: rowCount, replacing: replacing, columnRules: form.columnRules,
+          percentageColumn: form.percentageColumn)
         if let id { openTable(id) }
       } catch { window.presentError(error) }
     }
@@ -1936,12 +1963,19 @@ extension SheetEditorViewController {
   @discardableResult
   package func insertTableRectangle(
     named name: String, headers: [(String, TableInputPolicy)], rows: [[String]]?,
-    formulas: Bool, atUTF8 offset: Int, expectedSource: String, rowCount: Int = 3
+    formulas: Bool, atUTF8 offset: Int, expectedSource: String, rowCount: Int = 3,
+    replacing: NSRange? = nil, columnRules: [Int: String] = [:], percentageColumn: Int? = nil
   ) throws -> TableID? {
     guard expectedSource == sheet.text else { throw SheetSourceCoordinator.Failure.staleEdit }
-    let create = try TableSourceDocument(sheet).createTable(
+    let base: String
+    if let replacing {
+      base = (expectedSource as NSString).replacingCharacters(in: replacing, with: "")
+    } else {
+      base = expectedSource
+    }
+    let create = try TableSourceDocument(base).createTable(
       name: name, headers: headers, rowCount: rows?.count ?? rowCount, atUTF8: offset)
-    var after = try create.applying(to: expectedSource)
+    var after = try create.applying(to: base)
     if let rows, !rows.isEmpty, let id = create.createdTable {
       guard rows.allSatisfy({ $0.count == headers.count }), rows.count * headers.count <= 4000
       else {
@@ -1955,7 +1989,24 @@ extension SheetEditorViewController {
         tsv, table: id, at: .init(row: 0, column: 0), formulas: formulas)
       after = try paste.applying(to: after)
     }
-    try replaceTableSource(before: expectedSource, after: after, action: "Insert Table")
+    if let id = create.createdTable,
+      let projection = TableEditingSnapshot(TableSourceDocument(after), id: id)
+    {
+      for (index, rule) in columnRules.sorted(by: { $0.key < $1.key })
+      where projection.columns.indices.contains(index) {
+        let edit = try TableSourceDocument(after).setColumnRule(
+          table: id, column: projection.columns[index].id, source: rule)
+        after = try edit.applying(to: after)
+      }
+      if let index = percentageColumn, projection.columns.indices.contains(index) {
+        let edit = try TableSourceDocument(after).setColumnPresentation(
+          table: id, column: projection.columns[index].id, percentageDecimals: 0)
+        after = try edit.applying(to: after)
+      }
+    }
+    try replaceTableSource(
+      before: expectedSource, after: after,
+      action: replacing == nil ? "Insert Table" : "Convert Selection to Table")
     return create.createdTable
   }
   @objc public func openCalculationTable(_ sender: Any?) {
@@ -2028,6 +2079,7 @@ extension SheetEditorViewController {
       controller.position, controller.anchor, controller.scroll.contentView.bounds.origin
     )
     tableProjectionObservers[controller.observerID] = nil
+    controller.stopReviewObservers()
     controller.view.removeFromSuperview()
     controller.removeFromParent()
     expandedTable = nil

@@ -217,7 +217,8 @@ struct ExpandedTableTests {
     #expect(input.maxY <= window.contentLayoutRect.maxY)
     #expect(input.minX >= 0)
     #expect(input.maxX <= window.contentLayoutRect.maxX)
-    #expect(grid.grid.selectedRow == grid.position.row)
+    #expect(grid.grid.selectedRowIndexes.isEmpty)
+    #expect(grid.position.row == 0)
   }
   @Test func resetOverridesPreservesOrdinaryInputs() async throws {
     let (editor, table, grid) = try await makeEditor()

@@ -1013,3 +1013,549 @@ covered by the completed basic-entry checks:
 
 The changes are in the requested worktree on branch `tables`. They are
 not committed or published by this work.
+
+## End-user table and sheet review — 2026-10-04
+
+This review checks the user tasks below. The completed U1–U12 and E1–E9
+checks do not close the issues in this section. Do not treat the earlier
+usability result as approval for release.
+
+### Review method and limits
+
+- Worktree: `/Users/shantanugoel/.codex/worktrees/tables-m0/ganit`.
+- Branch: `tables`. Commit: `16d4e87f3d3fc5cfb3b3e0dfd8661b1b127cb4cf`.
+- App: the debug app built on 2026-10-04 at 12:26. A copy in `/private/tmp`
+  used the bundle ID `com.shantanugoel.Ganit.PersonaReview20261004`.
+  This ID gave the app a separate test library.
+- Input: sample data only. Stock prices were sample prices. No real account
+  or investment data was used.
+- Method: native mouse and keyboard actions through Computer Use. The
+  checks used menus, dialogs, cell entry, paste, selection, formula fill,
+  Undo, Find, view changes, app appearance and CSV export.
+- Window: the initial 640 × 600 window, the same window with its sidebar
+  hidden, and the window after Zoom. Dark and light appearance were checked.
+- Evidence: screenshots, selected accessibility records, input sheets and
+  an actual CSV export are in
+  [`persona-review-2026-10-04`](../design/tables/persona-review-2026-10-04/).
+  The `*-input.txt` files contain the initial stock and recipe samples.
+  The `*-saved.txt` files contain the state after the checks.
+- The app could not attach this worktree to this chat because another chat
+  owns it. All repository reads and the report update used the requested
+  worktree. The branch was already `tables`.
+
+This is a review of the tasks performed, not a claim that all possible
+issues were found. VoiceOver speech, real input methods, large-table speed,
+print, PDF, file import from Excel, and recovery after a crash were not
+checked. Excel, Numi, Soulver and Calca were not run for a direct comparison.
+The comparison uses common spreadsheet, calculator and note tasks.
+
+### User tasks and results
+
+| User | Task | Table view | Sheet view |
+| --- | --- | --- | --- |
+| Household shopper / housewife | Enter Rice, Milk, Eggs, Soap and Tea. Enter quantity and INR price. Calculate each amount and the total. Change the milk quantity. | Entry with Tab, formula fill and the ₹522 total worked. Text input needed a type change. | Editing Milk from 3 to 4 gave the correct ₹552 total. Undo did not restore the edit. |
+| Traveler | Paste six trip expenses in USD, EUR and INR. Keep a note for each expense. Total the costs. | Import worked after two columns changed to Text. Mixed-currency total failed without useful footer guidance. | The SIM expense was outside the five-row preview. The original pasted list remained below the table and showed errors. |
+| Stock-market user | Review three holdings. Calculate cost, value, gain and return. Keep a decision note. Find a ticker. | Cost was $2,150, value was $2,180 and gain was $30. Find lost keyboard focus. Returns lacked a percentage display setting. | The ninth Decision column was absent. A manual return override had no visible override mark. |
+| Home cook | Scale six ingredients from four servings to six, then eight. Keep preparation instructions. | Typed quantities and rule formulas worked. | Changing `servings` to 8 gave 1,000 g of flour and 500 mL of milk. Sugar was outside the preview. Instructions were shortened. |
+| Freelancer | Use a $60 rate, hours, amount rules and task notes. Review a quote. Change a column formula. | The total was $810. An invalid rule was accepted and all amount cells failed. Grid Undo restored the rule. | Prose and tables could share one sheet. The rate was outside the table workspace. Long notes needed another view or a hover. |
+| Student / household saver | Calculate compound savings, round a result, try IF and several range arguments, fix a divisor error and export values. | Savings gave 1,102.5. ROUND gave 3.33. IF and the range-list formula failed. External formula paste showed an internal error name. | A divisor correction calculated 0.5. Undo advanced its history but did not restore the input. CSV export kept 0.5. |
+
+### Findings
+
+P1 means that a common task is blocked or a user can make an unintended
+change. P2 means that a task is difficult or its result is difficult to
+review. P3 means a small text or presentation issue. These are proposed
+product priorities. Each finding states whether it is an observed defect
+or a product gap.
+
+#### R01 — P1 — Preview Undo does not restore the cell (observed defect)
+
+Status: Done. Preview edits use the document Undo history. The regression check restores source, results and CSV output after Tab and Escape.
+
+Double-click B3 in the shopping preview. Change `3` to `4`, then press Tab.
+Press Escape to close the next cell draft. Press Command-Z. The quantity
+stays `4` and the total stays ₹552. A second Undo also left the values in
+place. The menu history moved to earlier operations.
+
+The same failure occurred on the independent Study sheet. Change B5 from
+`=1 / 0` to `=1 / 2` in its preview. Press Return, Escape and Command-Z.
+B5 stays `0.5`. Edit shows `Redo Edit Cell`, but the edit is still present.
+Open Table also shows `0.5`. A later CSV export contains `0.5`.
+Grid editing from `4` to `5`, followed by Undo, correctly restored `4`.
+
+Required check: one Undo must restore the input, result, dependent cells
+and totals in both views. The restored input must survive a view change
+and export. Redo must apply the edit again.
+Evidence: [preview after Undo](../design/tables/persona-review-2026-10-04/preview-undo-repro.png),
+[preview record](../design/tables/persona-review-2026-10-04/preview-undo-tree.txt),
+[grid record](../design/tables/persona-review-2026-10-04/grid-after-preview-undo-tree.txt).
+
+#### R02 — P1 — Find moves focus while the user types (observed defect)
+
+Status: Done. Incremental Find keeps keyboard focus. Explicit Next and Previous open the table result.
+
+Open Portfolio. Press Command-F. The app returns to the sheet and opens
+Find. Type `BETA`. The Find text stops at `BET`. The last `A` starts a cell
+draft in the full table. Repeat with `GAMMA`: Find stops at `GAMM`, the app
+opens A4, and the last `A` starts its draft. Escape cancels that draft.
+
+Required check: keep focus in Find until the user chooses a result. Typing
+a search term must never start or change a cell draft. Give table results
+their table name, address and column header.
+Evidence: [Find focus failure](../design/tables/persona-review-2026-10-04/stock-find-focus.png).
+
+#### R03 — P1 — Formula paste shows an internal error name (observed defect)
+
+Status: Done. Formula paste gives a readable message and an explicit formula paste action.
+
+Select Study B2. Paste two lines: `=12+3` and `=20+4`. The existing cells
+are preserved. The footer shows `formulaPasteNotConfirmed`.
+
+Required check: explain that the paste contains formulas. Offer Paste
+as Formulas and Paste as Text, or name the exact command to use. Preserve
+the existing cells if the user cancels.
+Evidence: [paste error](../design/tables/persona-review-2026-10-04/formula-paste.png).
+
+#### R04 — P1 — Converting selected text leaves the source list (observed defect)
+
+Status: Done. Convert Selection to Table replaces the selected list in one document Undo step.
+
+Paste a tab-separated trip list into a new sheet. Select it, copy it and
+choose Paste as Table. The table is inserted before the selected text.
+The original seven-line list remains. Those lines show calculation errors.
+The sheet also shows `Incomplete`, seven selected lines and seven failures.
+
+Required check: provide Convert Selection to Table. Replace the selected
+list in one Undo step. Keep Paste as Table for insertion from the clipboard,
+and make the difference clear.
+Evidence: [table and remaining list](../design/tables/persona-review-2026-10-04/travel-sheet.png),
+[saved trip source](../design/tables/persona-review-2026-10-04/travel-saved.txt).
+
+#### R05 — P2 — Appearance changes leave row numbers difficult to read (observed defect)
+
+Status: Done. The grid reloads its row views when the appearance changes.
+
+With a dark full table open, change app appearance to Light. The grid and
+text change, but row-number cell backgrounds remain dark. The dark row
+numbers become difficult to read. Return to Sheet and reopen the table;
+the row-number backgrounds then become light.
+
+Required check: update all grid backgrounds and text when appearance
+changes. A view change must not be necessary.
+Evidence: [after Light](../design/tables/persona-review-2026-10-04/light-grid.png),
+[after reopening](../design/tables/persona-review-2026-10-04/light-reopened.png).
+
+#### R06 — P1 — Default input types reject ordinary labels (product gap)
+
+Status: Done. Automatic input accepts labels. Strict Value and Text remain available.
+
+All new columns default to Value. Enter `Rice` under Item. The result is
+Error. Changing that column to Text restores the label. Trip import also
+defaults Item and Note to Value, although their pasted data is text.
+
+Required check: make a common label-and-number table work without type
+setup. Offer automatic input detection or suitable initial text columns.
+Keep an explicit strict Value choice for users who need it.
+Evidence: [shopping entry](../design/tables/persona-review-2026-10-04/household-entry.png).
+
+#### R07 — P1 — Calculator entry rules change inside tables (product gap)
+
+Status: Done. Calculator arithmetic is normalized to a formula for value input.
+
+Enter `85 USD * 3` in a trip cost cell. The cell fails. Show Interpretation
+says `Start arithmetic input with =.` This requires a different entry habit
+from the surrounding calculator note. Direct function entry can add `=`,
+but this arithmetic entry does not.
+
+Required check: support ordinary calculator arithmetic in suitable cells,
+or give the correction beside the draft with one action to apply it.
+Evidence: [arithmetic error details](../design/tables/persona-review-2026-10-04/travel-error-details.png).
+
+#### R08 — P1 — Preview limits hide important data (product gap)
+
+Status: Done. The preview contains all rows and columns in a scroll area.
+
+The preview shows only five rows and eight columns. It hides the SIM
+expense, the Sugar ingredient and the Portfolio Decision column. A general
+footer explains the limit, but the user cannot inspect these cells in place.
+
+Required check: offer Expand, Show All or a scrollable full table in the
+sheet. Show an explicit count of hidden rows and columns beside the title.
+A recipe or budget review must make omitted items clear.
+Evidence: [recipe preview](../design/tables/persona-review-2026-10-04/recipe-sheet-updated.png),
+[portfolio preview](../design/tables/persona-review-2026-10-04/stock-sheet.png).
+
+#### R09 — P2 — The fifth preview row can be partly clipped (observed defect)
+
+Status: Done. Preview height includes the header, visible row heights and scrollbar space.
+
+The five-row shopping preview has a partly hidden Tea row at its lower
+edge. This is a five-row table, so the preview does not show a limit message.
+
+Required check: reserve enough height for every advertised preview row,
+the header and any scrollbar. Check at both normal and Zoom window sizes.
+Evidence: [shopping preview](../design/tables/persona-review-2026-10-04/household-sheet.png).
+
+#### R10 — P2 — Preview headers lose their meaning (observed layout issue)
+
+Status: Done. Preview headers wrap and retain their complete accessible labels.
+
+At the initial window size, headers become `A`, `Local...`, `Ingred...`,
+`Base...`, `Instru...` and `Amou...`. The cells do not retain enough context
+for a quick review.
+
+Required check: use useful minimum widths, header wrapping or a horizontal
+scroll area. Keep the full header available on focus as well as on hover.
+Evidence: [trip preview](../design/tables/persona-review-2026-10-04/travel-sheet.png),
+[recipe preview](../design/tables/persona-review-2026-10-04/recipe-sheet-updated.png).
+
+#### R11 — P2 — Preparation instructions and notes are shortened (product gap)
+
+Status: Done. Text wraps in both views. Row height follows the text. Cell focus shows the input.
+
+The recipe preview shortens `Sift before mixing` and `Warm gently`. Table
+rows have one line. The full text is available in input and accessibility
+help, but the user cannot read the instructions as a normal table note.
+
+Required check: offer wrapped text and automatic row height. A focus action
+must reveal the full note without entering edit mode.
+Evidence: [recipe instructions](../design/tables/persona-review-2026-10-04/recipe-sheet-updated.png).
+
+#### R12 — P2 — The initial grid clips a three-column table (observed layout issue)
+
+Status: Done. Initial grid widths use the available pane width for a common three-column table.
+
+Create the default three-column table in the initial 640 × 600 window.
+With the sidebar shown, the third header and column are partly outside the
+visible grid. Entering C2 scrolls horizontally and hides part of Item.
+
+Required check: fit a common three-column table at the supported minimum
+window size. Test with the sidebar shown and hidden.
+Evidence: [shopping grid](../design/tables/persona-review-2026-10-04/household-entry.png).
+
+#### R13 — P2 — Add controls disappear at a small width (product gap)
+
+Status: Done. Add / Actions remains visible when the separate row and column buttons are hidden.
+
+The initial window shows Table Actions but no + Row or + Column buttons.
+The buttons appear after Zoom or after the sidebar is hidden. The commands
+remain in a menu, but their location changes with available width.
+
+Required check: keep one visible Add control at every supported width.
+Explain the row and column choices in that control.
+
+#### R14 — P2 — The formula bar is too short for common formulas (observed layout issue)
+
+Status: Done. The formula field has a separate row and space for multiple lines.
+
+At the initial width, a Portfolio return formula is cut off in the formula
+bar. Reference and Complete use much of the same row. Review requires
+horizontal cursor movement through a small field.
+
+Required check: allow the input bar to expand or show multiple lines.
+Keep the complete expression available while the user reviews references.
+Evidence: [return formula bar](../design/tables/persona-review-2026-10-04/stock-override.png).
+
+#### R15 — P1 — Narrow cells shorten money values (observed layout issue)
+
+Status: Done. Numeric columns grow to fit calculated values.
+
+In the Portfolio grid, cost cells show `$1,000....` at a narrow width.
+A finance user must compare complete amounts, signs and decimal places.
+
+Required check: fit or expand numeric columns. Do not shorten a money value
+in a way that hides its amount. Give a clear overflow display if it cannot fit.
+Evidence: [portfolio amounts](../design/tables/persona-review-2026-10-04/stock-override.png).
+
+#### R16 — P2 — A wide preview spreads related values too far apart (product gap)
+
+Status: Done. Preview columns use preferred widths in the horizontal scroll area.
+
+After Zoom on the review display, the four shopping columns fill the width
+of the sheet. Item labels and their quantities are far apart.
+
+Required check: provide readable preferred widths for previews. Allow users
+to expand them when needed. Do not use all available width by default.
+Evidence: [wide shopping preview](../design/tables/persona-review-2026-10-04/household-sheet.png).
+
+#### R17 — P2 — Text selection reports a zero sum (observed presentation issue)
+
+Status: Done. Selection status reports value, text and blank counts. A text-only or blank-only selection has no aggregate.
+
+Select a text cell such as Savings, Rice or a ticker. The footer shows
+`Sum: 0`. Empty-cell selections also show a zero sum. This suggests that
+a numeric calculation was performed on the selection.
+
+Required check: show the numeric count before an aggregate. Omit Sum and
+Average when no numeric values are selected. Distinguish text from blanks.
+Evidence: [text selection](../design/tables/persona-review-2026-10-04/light-grid.png).
+
+#### R18 — P3 — Selection count has incorrect singular text (observed text issue)
+
+Status: Done. Selection status uses cell for one cell and cells for other counts.
+
+A one-cell selection shows `1 cells`.
+
+Required check: show `1 cell` and use the correct plural for other counts.
+
+#### R19 — P2 — A selected range is not named (product gap)
+
+Status: Done. Selection status shows the range, dimensions and source cell.
+
+A selected amount column reports five cells, Sum and Average. The input
+bar shows only its active cell address. It does not show `D2:D6`.
+
+Required check: show the selected range and dimensions. Make it clear which
+cell supplies a fill or a paste operation.
+
+#### R20 — P2 — Fill collapses the review selection (observed behavior)
+
+Status: Done. Fill retains the range and updates its aggregate.
+
+Select D2:D6 in Groceries and use Command-D. The formulas move correctly.
+After the fill, the summary describes only D6 and its ₹150 value. The user
+must select the range again to check the ₹522 total.
+
+Required check: preserve the filled range and its aggregate after Fill.
+Keep the source cell and active cell clear.
+
+#### R21 — P2 — Totals are separate from their columns (product gap)
+
+Status: Done. The expanded grid has a total row under its columns. Selection status is separate.
+
+Full-table totals appear in a text strip below the grid. They do not sit
+under Cost, Value and Gain. The strip also shares the lower area with a
+selection summary. In a wide table, it is difficult to match each total
+to its column and distinguish it from a selected-cell result.
+
+Required check: align a total row with the columns. Keep table totals and
+selection aggregates visually distinct.
+Evidence: [portfolio footer](../design/tables/persona-review-2026-10-04/stock-override.png).
+
+#### R22 — P1 — A mixed-currency total has no recovery path (product gap)
+
+Status: Done. Mixed-currency sums show a separate total for each currency.
+
+Total the trip Local cost column. Its cells contain USD, EUR and INR.
+The footer shows `Local cost sum: Error`. The sheet preview shows the same
+text. Selecting one cost gives its normal value, but does not explain how
+to repair the total.
+
+Required check: explain the incompatible currencies. Offer totals by
+currency or an explicit conversion currency. If conversion is used, show
+the rate date and source, and permit a user-supplied rate.
+Evidence: [trip total](../design/tables/persona-review-2026-10-04/travel-total.png).
+
+#### R23 — P1 — Unsupported formulas have a generic diagnostic (observed defect)
+
+Status: Done. Formula diagnostics name unsupported functions and argument patterns. Editing selects the problem range.
+
+Study B3 contains `=IF(B2 > 1000, 1, 0)`. Its result is Error.
+Show Interpretation says only `Check the formula and its references.`
+The user cannot tell whether IF, the comparison or a reference is invalid.
+
+Required check: name the unsupported part. Mark it in the draft and give a
+supported example when one exists. Do not suggest a broken reference when
+the feature is unsupported.
+Evidence: [IF diagnostic](../design/tables/persona-review-2026-10-04/if-details.png).
+
+#### R24 — P1 — Common spreadsheet decisions and range lists are blocked (product gap)
+
+Status: Done. Help states the supported function scope. Completion lists supported functions. Multiple range arguments have a specific diagnostic. Decision functions remain outside this release.
+
+The IF example and `=SUM(B2:B3, B5:B6)` fail. These are common spreadsheet
+entry patterns. `=ROUND(10 / 3, 2)` works and gives 3.33. Function support
+is therefore difficult to predict from a familiar name alone.
+
+Required check: decide the basic spreadsheet function scope. Publish it in
+app Help and completion. Give a specific diagnostic for unsupported range
+argument patterns. Add decision functions if they are in that scope.
+
+#### R25 — P1 — Calculated returns lack a percentage display (product gap)
+
+Status: Done. Percentage display and decimal places are stored separately from input and formulas.
+
+Portfolio Return uses `=([@Now price] / [@Buy price] - 1) * 100%`.
+Its results are `0.1`, `-0.1` and `0.2`. Entering a literal `10%` displays
+`10%`. Column Settings offers input type, unit and currency, but no
+percentage display choice.
+
+Required check: offer a percentage format independent of the formula and
+input policy. Show 10%, -10% and 20% for this ratio example. Preserve the
+stored numeric value and support a chosen number of decimal places.
+Evidence: [column settings](../design/tables/persona-review-2026-10-04/stock-settings.png),
+[literal and calculated returns](../design/tables/persona-review-2026-10-04/stock-override.png).
+
+#### R26 — P1 — The preview hides a manual rule override (observed presentation issue)
+
+Replace Portfolio H2 with the literal `10%`. The grid shows `10% •`.
+Return to Sheet. The preview shows `10%`, with no dot. Its help shows the
+literal, but does not say that it overrides the column rule.
+
+Required check: show the same override state in both views. On focus,
+explain the column rule, the cell input and the action to restore the rule.
+
+#### R27 — P2 — The column formula dialog gives no syntax help (product gap)
+
+Status: Done. The column rule form gives a current-row example, references, note definitions and a sample result.
+
+Set Column Formula opens one small text field and Apply/Cancel buttons.
+There is no example, completion, reference picker or sample result. A user
+who enters `=Hours * rate` gets failures in every amount cell.
+
+Required check: show a current-row example such as `=[@Hours] * rate`.
+Offer available column names and definitions, and show a sample row result.
+Evidence: [formula dialog](../design/tables/persona-review-2026-10-04/column-rule.png).
+
+#### R28 — P2 — Apply accepts a failing column rule without a preview (product gap)
+
+Status: Done. The column rule form checks the draft and disables Apply if the rule fails.
+
+Applying `=Hours * rate` closes the dialog and changes every Amount cell
+to Error. The grid then reports that the identifier is not defined.
+Grid Undo correctly restores the original rule and $810 total.
+
+Required check: check the rule before Apply. Keep the dialog open with a
+specific problem and a correction. Permit an explicit incomplete draft
+only if that is a planned workflow.
+Evidence: [failed quote rule](../design/tables/persona-review-2026-10-04/rule-error.png).
+
+#### R29 — P2 — Complete opens an entirely disabled menu (observed UI issue)
+
+Status: Done. Complete starts a cell draft before it offers insertions.
+
+With a rule cell selected but no edit in progress, click Complete.
+The menu contains functions and current-row references, all disabled.
+The Complete button itself was enabled.
+
+Required check: start an appropriate draft when Complete is used, or disable
+the button and explain how to edit first. Do not open an unusable menu.
+
+#### R30 — P2 — Formula suggestions omit note definitions (product gap)
+
+Status: Done. Completion offers visible note definitions with their values.
+
+The Quote completion menu lists six aggregate functions and the current-row
+columns. It does not offer the preceding definition `rate`. The recipe also
+uses preceding definitions `servings` and `base`.
+
+Required check: offer valid note definitions with their current values.
+Distinguish a row reference from a note definition. The table must remain
+a useful part of the calculator note.
+
+#### R31 — P1 — Table review lacks sort and filter (product gap)
+
+Status: Done. Stable view sort and text filters keep canonical row identities. Source storage records review state for Undo and reload. Both views show filter state.
+
+Clicking the Portfolio Gain header did not reorder rows. Table Actions and
+the column menus offer no sort or filter commands. A stock user cannot put
+losses first. A traveler cannot show only one currency or category.
+
+Required check: support a stable sort and simple filters. Preserve formula
+targets, row identity and Undo. Make an active filter and hidden-row count
+visible in both views. These controls are basic review needs, not a request
+for all Excel features.
+
+#### R32 — P1 — Horizontal review loses row identity (product gap)
+
+Status: Done. The expanded grid can freeze one column and shows the selected row label.
+
+Scroll to Portfolio Gain, Return and Decision. Ticker is outside the visible
+area. The user must remember which holding each row represents.
+
+Required check: offer a frozen label column. Keep row numbers and headers
+visible while scrolling. Show a selected row label near the input bar.
+Evidence: [portfolio horizontal review](../design/tables/persona-review-2026-10-04/stock-override.png).
+
+#### R33 — P2 — Export does not expose its file format choice (product gap)
+
+Status: Done. Export has a CSV or TSV selector, extension and locale delimiter text.
+
+Export Table shows Values or Inputs and Formulas and Include header row.
+There is no visible CSV/TSV selector in the compact save dialog. The user
+must supply an extension to choose the separator. Saving a `.csv` file
+worked. Source inspection confirms that `.csv` selects CSV and other
+extensions select TSV.
+
+Required check: show a file format selector and matching extension.
+Describe the delimiter for the current number locale.
+Evidence: [export dialog](../design/tables/persona-review-2026-10-04/export.png).
+
+#### R34 — P2 — Export loses some error explanations (observed presentation issue)
+
+Status: Done. Copy Values and values export use complete cell diagnostics. Export shows an error count and offers an error report.
+
+The actual Study CSV writes `These quantities have incompatible dimensions.`
+for Wrong units. It writes only `Error` for Decision and Range list.
+A recipient cannot identify the unsupported formula from those values.
+
+Required check: use a consistent error policy for Copy Values and export.
+Offer an error report with table name, address, input and problem. Make any
+remaining errors clear before the file is saved.
+Evidence: [actual CSV](../design/tables/persona-review-2026-10-04/study-values.csv).
+
+#### R35 — P2 — Table setup is absent from the first-use tour (product gap)
+
+Status: Done. The tour has a table step and a creation action. The creation form offers Shopping, Travel, Quote and Portfolio starters.
+
+The four tour steps cover calculation lines, named values, Quick Ganit and
+Help. They do not introduce table creation, text columns, formula entry or
+the difference between Open Table and the sheet preview.
+
+Required check: add a short table example and a visible creation action.
+Offer starter tables for shopping, travel, a quote and a portfolio.
+
+#### R36 — P2 — Accessibility exposes the stored table block (observed accessibility issue)
+
+The sheet text entry area exposes the complete `@ganit-table` block,
+including its JSON and IDs. Its preview also exposes readable cell buttons.
+The full grid accessibility record marks every cell in an active row as
+selected, although the visible selection is one cell.
+
+Required check: expose the note and table as meaningful document elements.
+Expose the actual cell selection and complete error text. Verify this with
+VoiceOver speech before closing the issue. This review checked the
+accessibility records, not VoiceOver speech.
+Evidence: [preview record](../design/tables/persona-review-2026-10-04/preview-undo-tree.txt),
+[grid record](../design/tables/persona-review-2026-10-04/grid-after-preview-undo-tree.txt).
+
+#### R37 — P2 — Table view updates in sheets and table view
+
+- In sheets view, the table spans and takes over the results area as well which is jarring, it should remain within the input area
+- In sheets view, when the table is wider than the port, the scrollbar appears only when you have a mouse that can scroll horizontally, we should allow easy way to scroll (either with or without scrollbar)
+- In table view, the cell row borders are weird, unaligned and many places double bordered, while in sheets view it is fine
+
+### Work order and completion checks
+
+1. Fix R01 and R02 first. Test edit, Cancel, Undo, Redo and Find across both
+   views. Include a view change and an actual export in the Undo check.
+2. Fix R03–R05. Replace internal messages, define selection conversion and
+   update appearance without reopening the table.
+3. Remove the common entry and review blocks. Start with label input,
+   arithmetic entry, full previews, money widths and percentage formatting.
+4. Add sort, filter and a frozen label column. Keep reference identity and
+   document Undo intact. Do not implement these as changes to visible text
+   alone.
+5. Improve formula help, rule validation, total diagnostics and export.
+   Use the same source, result and error model in both views.
+6. Repeat the six user tasks above in a fresh test library. Use a small
+   window, hidden sidebar, wide window and both appearances. Ask users who
+   use spreadsheets and note calculators to complete the tasks without
+   reading the implementation plan.
+
+The repeat check must let a new user create and finish a shopping budget,
+change a trip expense, review a stock loss, scale a complete recipe, adjust
+a quote and repair a failed calculation. The user must be able to see the
+full inputs, results, hidden-data state and errors. One Undo must restore
+any committed cell edit. A search must never start an edit. Successful
+arithmetic alone is not sufficient to close this review.
+
+### Review change and verification record
+
+The original review added findings and evidence files. Its native checks
+and actual CSV export remain the evidence for the reported failures.
+
+The existing implementation changes were checked on 2026-10-04 before
+commit. All 15 `TableReviewRegressionTests` passed. The completed findings
+above describe those changes. R26, R36 and R37 remain open for further work.
+R36 requires a VoiceOver speech check before it can be closed.

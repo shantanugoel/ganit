@@ -1,0 +1,93 @@
+Window: "Student checks", App: Ganit.
+0 standard window Student checks, ID: workspace, Secondary Actions: Raise
+	1 split group
+		2 scroll area Secondary Actions: Scroll Up, Scroll Down
+			3 outline Collections
+				4 row (selectable, expanded) Value: Library, Secondary Actions: Collapse
+				5 row (selected) Description: Inbox Full, Value: All Sheets
+				6 row (selectable) Description: clock, Value: Recent
+				7 row (selectable) Description: favorite, Value: Favorites
+				8 row (selectable) Description: archive, Value: Archive
+				9 row (selectable) Description: trash, Value: Trash
+			10 scroll bar (settable, float) 0
+				11 value indicator (settable, float) 0
+				12 increment arrow button
+				13 decrement arrow button
+				14 increment page button
+				15 decrement page button
+		16 scroll area Secondary Actions: Scroll Up, Scroll Down
+			17 table Sheets
+				18 row (selected)
+					19 cell (selected)
+						20 text Student checks 20 seconds ago
+				21 row (selectable)
+					22 cell
+						23 text Recipe for six 1 minute ago
+				24 row (selectable)
+					25 cell
+						26 text Portfolio review 3 minutes ago
+				27 row (selectable)
+					28 cell
+						29 text Trip 5 minutes ago
+				30 row (selectable)
+					31 cell
+						32 text Scratch 6 minutes ago
+			33 scroll bar (disabled, settable, float) 0
+		34 splitter (disabled, settable, float) 180
+		35 scroll area Secondary Actions: Scroll Up, Scroll Down
+			36 text entry area (settable) Description: Sheet, Value: # Student checks
+
+@ganit-table 1
+{"ids":["7a679916-ea28-4e8f-a973-16f572eea88a","183d2c19-0204-4712-b2d0-9e9d65216494","2e9efb11-fa5c-4b08-ada1-a63bc13d0736","a4c3aee5-260e-4128-8200-f49c653ff8fc","b098c09d-855e-46a4-b8a9-5c0ecaaa56fc","56aa204d-8ce2-41ff-ad54-9fd898d24b97","65488967-3e63-4aa8-9b9e-72db006f83f6","33b89f6e-e63d-4b04-ad46-abb234fc8555","a39e1584-cf06-4a92-ac5e-294aee2a0cf6","153fc22c-5896-452d-a5a5-dbf0c8c91f9a","94adc594-3735-4997-a024-0979fb02fb0f","39215b2f-542c-44c1-9bcc-08cf74a79340"],"t":0,"n":"Study","c":[{"i":1,"h":"Case","p":"text"},{"i":2,"h":"Input","p":"value"},{"i":3,"h":"Comment","p":"text"}],"r":[4,5,6,7,8,9],"x":[{"a":[4,1],"s":"Savings"},{"a":[4,2],"s":"=1000 * (1 + 5%)^2"},{"a":[4,3],"s":"Two years"},{"a":[5,1],"s":"Decision"},{"a":[5,2],"s":"=IF(B2 > 1000, 1, 0)"},{"a":[5,3],"s":"Excel habit"},{"a":[6,1],"s":"Rounding"},{"a":[6,2],"s":"=ROUND(10 / 3, 2)"},{"a":[6,3],"s":"Two decimals"},{"a":[7,1],"s":"Zero divisor"},{"a":[7,2],"s":"=1 / 2"},{"a":[7,3],"s":"Fix divisor"},{"a":[8,1],"s":"Wrong units"},{"a":[8,2],"s":"=5 kg + 2 m"},{"a":[8,3],"s":"Fix unit"},{"a":[9,1],"s":"Range list"},{"a":[9,2],"s":"=SUM(B2:B3, B5:B6)"},{"a":[9,3],"s":"Excel habit"}],"b":[{"o":[5,2],"f":"=IF(B2 > 1000, 1, 0)","e":[{"k":"cell","a":[4,6],"t":[0,4,2],"l":[0,0]}]},{"o":[9,2],"f":"=SUM(B2:B3, B5:B6)","e":[{"i":10,"k":"rect","a":[5,10],"t":[0,4,2,5,2],"l":[0,0,0,0]},{"i":11,"k":"rect","a":[12,17],"t":[0,7,2,8,2],"l":[0,0,0,0]}]}]}
+@end-ganit-table
+, Secondary Actions: Copy Result, Copy with Results, Copy Full Precision, Show Interpretation, Ask Assistant, Change Answer…, Cancel Request, Insert Reference
+				37 text Study · 6 rows × 3 columns
+				38 button Open Table, Description: Open Study table
+				39 scroll area Secondary Actions: Scroll Left, Scroll Right
+					40 text Value: 2 3 4 5 6 A  Case, ID: row-0
+					41 button Savings, Description: A2 Case Savings, Help: A2 · Case: Savings
+					42 button Decision, Description: A3 Case Decision, Help: A3 · Case: Decision
+					43 button Rounding, Description: A4 Case Rounding, Help: A4 · Case: Rounding
+					44 button Zero divisor, Description: A5 Case Zero divisor, Help: A5 · Case: Zero divisor
+					45 button Wrong units, Description: A6 Case Wrong units, Help: A6 · Case: Wrong units
+					46 text Value: B  Input, ID: 1
+					47 button 1,102.5, Description: B2 Input 1,102.5, Help: B2 · Input: =1000 * (1 + 5%)^2
+					48 button Error, Description: B3 Input Error, Help: B3 · Input: =IF(B2 > 1000, 1, 0)
+					49 button 3.33, Description: B4 Input 3.33, Help: B4 · Input: =ROUND(10 / 3, 2)
+					50 button 0.5, Description: B5 Input 0.5, Help: B5 · Input: =1 / 2
+					51 button Error, Description: B6 Input Error, Help: B6 · Input: =5 kg + 2 m · These quantities have incompatible dimensions.
+					52 text Value: C  Comment, ID: 2
+					53 button Two years, Description: C2 Comment Two years, Help: C2 · Comment: Two years
+					54 button Excel habit, Description: C3 Comment Excel habit, Help: C3 · Comment: Excel habit
+					55 button Two decimals, Description: C4 Comment Two decimals, Help: C4 · Comment: Two decimals
+					56 button Fix divisor, Description: C5 Comment Fix divisor, Help: C5 · Comment: Fix divisor
+					57 button Fix unit, Description: C6 Comment Fix unit, Help: C6 · Comment: Fix unit
+					58 scroll bar (disabled, settable, float) 0
+				59 text Table totals
+				60 text Description: Cell input or formula, Help: B5 · Input: =1 / 0 · Cannot divide by zero., Value: B6 · Input: =5 kg + 2 m · These quantities have incompatible dimensions.
+			61 scroll bar (disabled, settable, float) 0
+	62 toolbar
+		63 button Description: Sidebar, Help: Hide Sidebar, Secondary Actions: Move next
+		64 button Description: New Sheet, Secondary Actions: Move next, Remove from toolbar
+		65 search text field (settable)
+			66 button Search
+	67 close button
+	68 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	69 minimize button
+	70 text Student checks
+71 menu bar
+	72 Ganit
+	73 File
+	74 Edit
+	75 Calculate
+	76 Format
+	77 View
+	78 Window
+	79 Help
+
+The focused UI element is 36 text entry area (settable) Description: Sheet, Value: # Student checks
+
+@ganit-table 1
+{"ids":["7a679916-ea28-4e8f-a973-16f572eea88a","183d2c19-0204-4712-b2d0-9e9d65216494","2e9efb11-fa5c-4b08-ada1-a63bc13d0736","a4c3aee5-260e-4128-8200-f49c653ff8fc","b098c09d-855e-46a4-b8a9-5c0ecaaa56fc","56aa204d-8ce2-41ff-ad54-9fd898d24b97","65488967-3e63-4aa8-9b9e-72db006f83f6","33b89f6e-e63d-4b04-ad46-abb234fc8555","a39e1584-cf06-4a92-ac5e-294aee2a0cf6","153fc22c-5896-452d-a5a5-dbf0c8c91f9a","94adc594-3735-4997-a024-0979fb02fb0f","39215b2f-542c-44c1-9bcc-08cf74a79340"],"t":0,"n":"Study","c":[{"i":1,"h":"Case","p":"text"},{"i":2,"h":"Input","p":"value"},{"i":3,"h":"Comment","p":"text"}],"r":[4,5,6,7,8,9],"x":[{"a":[4,1],"s":"Savings"},{"a":[4,2],"s":"=1000 * (1 + 5%)^2"},{"a":[4,3],"s":"Two years"},{"a":[5,1],"s":"Decision"},{"a":[5,2],"s":"=IF(B2 > 1000, 1, 0)"},{"a":[5,3],"s":"Excel habit"},{"a":[6,1],"s":"Rounding"},{"a":[6,2],"s":"=ROUND(10 / 3, 2)"},{"a":[6,3],"s":"Two decimals"},{"a":[7,1],"s":"Zero divisor"},{"a":[7,2],"s":"=1 / 2"},{"a":[7,3],"s":"Fix divisor"},{"a":[8,1],"s":"Wrong units"},{"a":[8,2],"s":"=5 kg + 2 m"},{"a":[8,3],"s":"Fix unit"},{"a":[9,1],"s":"Range list"},{"a":[9,2],"s":"=SUM(B2:B3, B5:B6)"},{"a":[9,3],"s":"Excel habit"}],"b":[{"o":[5,2],"f":"=IF(B2 > 1000, 1, 0)","e":[{"k":"cell","a":[4,6],"t":[0,4,2],"l":[0,0]}]},{"o":[9,2],"f":"=SUM(B2:B3, B5:B6)","e":[{"i":10,"k":"rect","a":[5,10],"t":[0,4,2,5,2],"l":[0,0,0,0]},{"i":11,"k":"rect","a":[12,17],"t":[0,7,2,8,2],"l":[0,0,0,0]}]}]}
+@end-ganit-table
+, Secondary Actions: Copy Result, Copy with Results, Copy Full Precision, Show Interpretation, Ask Assistant, Change Answer…, Cancel Request, Insert Reference

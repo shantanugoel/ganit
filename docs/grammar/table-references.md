@@ -71,6 +71,19 @@ pick a new target, and commit. The repair survives save, reload, and undo.
 - A column total is a footer summary, not a data row. Prose reads the same
   values with its own aggregate, such as `sum(Items[Amount])`.
 
+## Function scope
+
+Table formulas use the calculator's numeric functions. For example,
+`=ROUND(10 / 3, 2)` gives `3.33`. Range aggregates accept one range.
+`=SUM(B2:B3, B5:B6)` is not supported. Use
+`=SUM(B2:B3) + SUM(B5:B6)` instead. Scalar arguments, such as
+`=SUM(B2, C2)`, use the ordinary numeric function rules.
+
+Decision functions such as IF, AND, OR and NOT, comparison operators,
+lookup functions and text functions are not supported. An error names the
+unsupported function or operator. The editor selects that part of the
+draft. Completion and app Help give the supported scope.
+
 ## What a table line does not do
 
 A table's source lines have no scalar answers. `line N` and `@N` cannot name

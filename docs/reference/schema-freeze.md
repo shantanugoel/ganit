@@ -4,7 +4,9 @@ These formats are frozen for the first release. Writers use the current
 version. The migration module converts schema 1 sheet metadata and package
 manifests to schema 2. Other unsupported versions cause a clear error and
 stay unchanged. Downgrade export is not available. A format change must
-update its version, specification, fixtures, and release notes.
+update its version, specification, fixtures, and release notes. The table
+review extension updates the version 1 specification before the first
+release. See the compatibility limits in [table blocks](../storage/table-blocks.md#review-extension-for-the-first-release).
 `FrozenFormatTests` checks the version registry.
 
 | Format | Version | Defined in |

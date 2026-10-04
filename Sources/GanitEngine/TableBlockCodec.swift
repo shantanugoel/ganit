@@ -90,12 +90,25 @@ extension TableModel {
         }
         total = value
       }
-      return TableColumn(
+      var column = TableColumn(
         id: ColumnID(try pointer(required(node, "i"))),
         header: try string(required(node, "h"), "`h`"), input: input,
         unit: try node["u"].map { try string($0, "`u`") },
         currency: try node["m"].map { try string($0, "`m`") },
         rule: try node["f"].map { try string($0, "`f`") }, total: total)
+      if let digits = node["percent"] {
+        guard let n = digits.index, (0...12).contains(n) else {
+          throw malformed("Percentage decimals must be 0 to 12")
+        }
+        column.percentageDecimals = n
+      }
+      column.reviewSort = try node["sort"].map { try string($0, "`sort`") }
+      if let sort = column.reviewSort, sort != "ascending", sort != "descending" {
+        throw malformed("Unknown sort order")
+      }
+      column.reviewFilter = try node["filter"].map { try string($0, "`filter`") }
+      column.frozen = try trueFlag(node["frozen"], "`frozen`")
+      return column
     }
     rows = try array(required(json, "r"), "`r`").map { RowID(try pointer($0)) }
     cells = try array(required(json, "x"), "`x`").map { node in
@@ -233,6 +246,12 @@ extension TableSourceDocument {
       if let currency = column.currency { fields.append("\"m\":" + TableJSON.quoted(currency)) }
       if let rule = column.rule { fields.append("\"f\":" + TableJSON.quoted(rule)) }
       if let total = column.total { fields.append("\"z\":" + TableJSON.quoted(total.rawValue)) }
+      if let digits = column.percentageDecimals { fields.append("\"percent\":\(digits)") }
+      if let sort = column.reviewSort { fields.append("\"sort\":" + TableJSON.quoted(sort)) }
+      if let filter = column.reviewFilter {
+        fields.append("\"filter\":" + TableJSON.quoted(filter))
+      }
+      if column.frozen { fields.append("\"frozen\":true") }
       return "{" + fields.joined(separator: ",") + "}"
     }
     let cells = sortedCells.map { cell in

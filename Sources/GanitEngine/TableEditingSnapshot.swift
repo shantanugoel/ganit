@@ -10,6 +10,10 @@ package struct TableEditingSnapshot: Sendable {
     package let total: TableTotal?
     package let unit: String?
     package let currency: String?
+    package let percentageDecimals: Int?
+    package let reviewSort: String?
+    package let reviewFilter: String?
+    package let frozen: Bool
   }
   package let utf8Range: Range<Int>
   package let id: TableID
@@ -29,7 +33,8 @@ package struct TableEditingSnapshot: Sendable {
     columns = table.columns.map {
       Column(
         id: $0.id, header: $0.header, rule: $0.rule, input: $0.input, total: $0.total,
-        unit: $0.unit, currency: $0.currency)
+        unit: $0.unit, currency: $0.currency, percentageDecimals: $0.percentageDecimals,
+        reviewSort: $0.reviewSort, reviewFilter: $0.reviewFilter, frozen: $0.frozen)
     }
     let axes = TableAxes(table)
     cells = Dictionary(

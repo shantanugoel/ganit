@@ -183,10 +183,12 @@ public enum TableGridText {
   ) -> String {
     switch value {
     case .value(let scalar):
-      return (try? formatter.format(scalar))?.display ?? ""
+      return (try? formatter.formatTable(scalar, snapshot: snapshot, column: column.id))?.display
+        ?? ""
     case .text(let text): return text
     case .blank: return ""
     case .failure:
+      if let problem = snapshot.cellProblem(row: row, column: column.id) { return problem }
       if let error = snapshot.cellError(row: row, column: column.id) {
         return diagnostics.format(error).message
       }

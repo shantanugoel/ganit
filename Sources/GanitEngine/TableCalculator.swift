@@ -253,6 +253,11 @@ struct TableCalculationSnapshot: Sendable {
   var dependencyLinks = 0
   var scalarOperations = 0
   fileprivate var cache: TableCalculationCache? = nil
+  var noteDefinitions: [(String, EngineValue)] {
+    cache?.scope.inherited.compactMap { name, value in value.map { (name, $0) } }.sorted {
+      $0.0 < $1.0
+    } ?? []
+  }
   let table: TableModel
   let outcomes: [TableCellAddress: TableCellResult]
   let sources: [TableCellAddress: String]
@@ -1336,14 +1341,20 @@ private struct TableCalculationWorker {
     throws -> TableCellResult
   {
     if source.isEmpty { return .blank }
+    if source.hasPrefix("\""), source.hasSuffix("\""), source.count >= 2 {
+      return .text(
+        String(source.dropFirst().dropLast()).replacingOccurrences(of: "\"\"", with: "\""))
+    }
     if column.input == .text { return .text(source) }
     let parsing = engine.parse(source, context: context)
     guard let expression = parsing.expression else {
+      if column.input == .automatic, source.first?.isLetter == true { return .text(source) }
       var invalid = failure(.invalidLiteral, at: address, range: fullRange(source))
       invalid.syntaxDiagnostics = parsing.diagnostics
       return .failure(invalid)
     }
     guard expression.isTableLiteral(in: source) else {
+      if column.input == .automatic && !expression.isArithmetic { return .text(source) }
       // Only arithmetic over literals is fixed by prefixing `=`; plain words
       // are not formulas either.
       let code: TableCalculationFailure.Code =
@@ -1637,7 +1648,7 @@ private func addressKey(_ address: TableCellAddress) -> String {
 
 extension Expression {
   /// Arithmetic over literals and functions, with no names or references.
-  fileprivate var isArithmetic: Bool {
+  package var isArithmetic: Bool {
     var pending = [self]
     while let next = pending.popLast() {
       switch next {
@@ -1648,7 +1659,7 @@ extension Expression {
     return true
   }
 
-  fileprivate func isTableLiteral(in source: String) -> Bool {
+  package func isTableLiteral(in source: String) -> Bool {
     switch self {
     case .literal: return true
     case .temporal(let temporal, _):

@@ -12,9 +12,14 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
   package private(set) var projection: TableEditingSnapshot?
   package private(set) var result: TableResultSnapshot?
   let grid = TableGridView()
+  let frozenGrid = TableGridView()
+  let frozenScroll = NSScrollView()
+  private var scrollObserver: NSObjectProtocol?
+  var displayOrder: [Int] = []
   package let scroll = NSScrollView()
   package let formula = NSTextField(string: "")
   let address = NSTextField(labelWithString: "A2")
+  let rowLabel = NSTextField(labelWithString: "")
   private var needsInitialColumnSizing = true
   private var addRowButton: NSButton?
   private var addColumnButton: NSButton?
@@ -61,7 +66,7 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
       title: localized("table.insertReference", "Reference…"), target: self,
       action: #selector(insertReferenceWithKeyboard))
     let actions = NSButton(
-      title: localized("table.actions", "Table Actions"), target: self,
+      title: localized("table.actions", "Add / Actions"), target: self,
       action: #selector(showActions))
     let addRow = NSButton(title: "+ Row", target: self, action: #selector(addRow))
     let addColumn = NSButton(title: "+ Column", target: self, action: #selector(addColumn))
@@ -71,7 +76,15 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     tableTitle.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
     tableTitle.font = .systemFont(ofSize: 15, weight: .semibold)
     let top = NSStackView(views: [back, tableTitle, addRow, addColumn, actions])
-    let inputRow = NSStackView(views: [address, formula, reference, complete])
+    rowLabel.setAccessibilityLabel("Selected row label")
+    rowLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+    rowLabel.lineBreakMode = .byTruncatingTail
+    status.maximumNumberOfLines = 5
+    status.lineBreakMode = .byWordWrapping
+    let inputRow = NSStackView(views: [address, rowLabel, reference, complete])
+    formula.cell?.wraps = true
+    formula.cell?.isScrollable = false
+    formula.maximumNumberOfLines = 3
     inputRow.orientation = .horizontal
     inputRow.spacing = VisualStyle.Spacing.standard
     top.orientation = .horizontal
@@ -105,7 +118,33 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     totals.setAccessibilityLabel(localized("table.totals", "Table totals"))
     totals.font = VisualStyle.Typography.answer(scale: 1)
     totals.lineBreakMode = .byTruncatingTail
-    let stack = NSStackView(views: [top, inputRow, scroll, totals, status])
+    frozenGrid.controller = self
+    frozenGrid.dataSource = self
+    frozenGrid.delegate = self
+    frozenGrid.headerView = NSTableHeaderView()
+    frozenGrid.selectionHighlightStyle = .none
+    frozenGrid.rowHeight = grid.rowHeight
+    frozenScroll.documentView = frozenGrid
+    frozenScroll.hasVerticalScroller = false
+    frozenScroll.widthAnchor.constraint(equalToConstant: 170).isActive = true
+    frozenScroll.isHidden = true
+    scroll.contentView.postsBoundsChangedNotifications = true
+    scrollObserver = NotificationCenter.default.addObserver(
+      forName: NSView.boundsDidChangeNotification, object: scroll.contentView, queue: .main
+    ) { [weak self] _ in
+      MainActor.assumeIsolated {
+        guard let self else { return }
+        self.frozenScroll.contentView.scroll(
+          to: .init(x: 0, y: self.scroll.contentView.bounds.minY))
+        self.frozenScroll.reflectScrolledClipView(self.frozenScroll.contentView)
+      }
+    }
+    let gridRow = NSStackView(views: [frozenScroll, scroll])
+    gridRow.orientation = .horizontal
+    gridRow.alignment = .top
+    gridRow.spacing = 0
+    frozenScroll.heightAnchor.constraint(equalTo: scroll.heightAnchor).isActive = true
+    let stack = NSStackView(views: [top, inputRow, formula, gridRow, totals, status])
     stack.orientation = .vertical
     stack.alignment = .leading
     stack.spacing = VisualStyle.Spacing.standard
@@ -118,11 +157,11 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
       stack.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -12),
       top.widthAnchor.constraint(equalTo: stack.widthAnchor),
       inputRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
-      scroll.widthAnchor.constraint(equalTo: stack.widthAnchor),
+      gridRow.widthAnchor.constraint(equalTo: stack.widthAnchor),
       totals.widthAnchor.constraint(equalTo: stack.widthAnchor),
       status.widthAnchor.constraint(equalTo: stack.widthAnchor),
-      formula.widthAnchor.constraint(greaterThanOrEqualToConstant: 80),
-      address.widthAnchor.constraint(equalToConstant: 60),
+      formula.widthAnchor.constraint(equalTo: stack.widthAnchor),
+      formula.heightAnchor.constraint(greaterThanOrEqualToConstant: 48),
       scroll.heightAnchor.constraint(greaterThanOrEqualToConstant: 100),
     ])
     refresh()
@@ -133,13 +172,19 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
       let count = projection?.columns.count, count > 0
     {
       needsInitialColumnSizing = false
-      let width = max(80, min(180, (scroll.contentSize.width - 46) / CGFloat(count)))
+      let width = max(
+        80, min(180, (scroll.contentSize.width - 46 - CGFloat(count + 1)) / CGFloat(count)))
       for column in grid.tableColumns.dropFirst() { column.width = width }
+      fitNumericColumns()
       scroll.contentView.scroll(to: .init(x: 0, y: scroll.contentView.bounds.minY))
       scroll.reflectScrolledClipView(scroll.contentView)
     }
     addRowButton?.isHidden = view.bounds.width < 520
     addColumnButton?.isHidden = view.bounds.width < 520
+  }
+  func stopReviewObservers() {
+    if let scrollObserver { NotificationCenter.default.removeObserver(scrollObserver) }
+    scrollObserver = nil
   }
   @objc private func goBack() {
     guard commitCellEditing() else { return }
@@ -160,16 +205,20 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
       anchor = target
       anchorIDs = selectionIDs
     }
-    grid.selectRowIndexes(IndexSet(integer: target.row), byExtendingSelection: false)
-    grid.scrollRowToVisible(target.row)
-    grid.scrollToVisible(grid.frameOfCell(atColumn: target.column + 1, row: target.row))
+    guard let visible = visibleRow(target.row) else {
+      updateSummary()
+      return
+    }
+    grid.deselectAll(nil)
+    grid.scrollRowToVisible(visible)
+    grid.scrollToVisible(grid.frameOfCell(atColumn: target.column + 1, row: visible))
     if target.column == 0 {
       scroll.contentView.scroll(to: .init(x: 0, y: scroll.contentView.bounds.minY))
       scroll.reflectScrolledClipView(scroll.contentView)
     }
     formula.stringValue = effectiveSource(at: target)
     grid.reloadData()
-    grid.selectRowIndexes(IndexSet(integer: target.row), byExtendingSelection: false)
+    grid.deselectAll(nil)
     updateSummary()
   }
   package func effectiveSource(at target: TableCellPosition) -> String {
@@ -199,12 +248,21 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     if inline {
       inlineInput.stringValue = formula.stringValue
       inlineInput.setAccessibilityLabel("Edit " + address.stringValue)
-      inlineInput.frame = grid.frameOfCell(atColumn: position.column + 1, row: position.row)
-        .insetBy(dx: 1, dy: 1)
+      inlineInput.frame = grid.frameOfCell(
+        atColumn: position.column + 1, row: visibleRow(position.row) ?? position.row
+      )
+      .insetBy(dx: 1, dy: 1)
       grid.addSubview(inlineInput, positioned: .above, relativeTo: nil)
     }
     view.window?.makeFirstResponder(editingInput)
     editingInput.selectText(nil)
+    if let range = result?.problemRange(
+      row: projection.rows[position.row], column: projection.columns[position.column].id),
+      let field = editingInput.currentEditor() as? NSTextView,
+      range.upperBound <= field.string.utf16.count
+    {
+      field.setSelectedRange(range)
+    }
     pickedRange = nil
     referencedCells = projection.referencedCells(in: formula.stringValue, row: position.row)
   }
@@ -284,19 +342,30 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
           + $0.header.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(
             of: "]", with: "\\]") + "]]"
       } ?? []
-    for text in ["sum(", "average(", "median(", "min(", "max(", "count("] + headers {
+    let definitions = result?.noteDefinitions.map { $0.0 } ?? []
+    for text in [
+      "sum(", "average(", "median(", "min(", "max(", "count(", "round(", "sqrt(", "abs(",
+    ] + headers + definitions {
       let item = NSMenuItem(title: text, action: #selector(insertCompletion(_:)), keyEquivalent: "")
       item.target = self
+      item.representedObject = text
+      if let definition = result?.noteDefinitions.first(where: { $0.0 == text }) {
+        item.title =
+          text + " = " + (editor.formatTableValue(definition.1)?.display ?? "") + " · Note"
+        item.toolTip = "Note definition"
+      } else if text.hasPrefix("[@") {
+        item.title = text + " · Current row"
+      }
       menu.addItem(item)
     }
     menu.popUp(positioning: nil, at: NSPoint(x: 0, y: formula.bounds.maxY), in: formula)
   }
-  @objc private func insertCompletion(_ sender: NSMenuItem) {
+  @objc func insertCompletion(_ sender: NSMenuItem) {
     guard let input = editingInput.currentEditor() as? NSTextView, !input.hasMarkedText() else {
       return
     }
     if input.string.isEmpty { input.insertText("=") }
-    input.insertText(sender.title)
+    input.insertText(sender.representedObject as? String ?? sender.title)
     formula.stringValue = input.string
   }
   package func controlTextDidEndEditing(_ obj: Notification) {
@@ -405,6 +474,13 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     result =
       editor.tableEvaluationSource?.utf8.elementsEqual(editor.sheet.text.utf8) == true
       ? editor.latestEvaluation?.tableResult(tableID) : nil
+    displayOrder = result?.reviewRows() ?? Array(next?.rows.indices ?? 0..<0)
+    if let first = displayOrder.first, !displayOrder.contains(position.row) {
+      position.row = first
+      anchor = position
+      selectionIDs = next.map { ($0.rows[first], $0.columns[position.column].id) }
+      anchorIDs = selectionIDs
+    }
     if columnsChanged {
       let widths = Dictionary(
         uniqueKeysWithValues: grid.tableColumns.map { ($0.identifier, $0.width) })
@@ -429,14 +505,14 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     where grid.tableColumns.indices.contains(index + 1) {
       grid.tableColumns[index + 1].title = TableSourceDocument.letters(index) + "  " + column.header
       grid.tableColumns[index + 1].headerToolTip =
-        column.input == .text ? "Text · Formulas start with =" : "Value · Formulas start with ="
+        column.header + " · " + column.input.rawValue + " · Formulas start with ="
     }
     tableTitle.stringValue =
       next.map { "\($0.name) · \($0.rows.count) × \($0.columns.count)" } ?? "Table"
     grid.reloadData()
-    if let next, next.rows.indices.contains(position.row) {
-      grid.selectRowIndexes(IndexSet(integer: position.row), byExtendingSelection: false)
-    }
+    grid.deselectAll(nil)
+    refreshFrozenColumn()
+    fitNumericColumns()
     if !isEditingCell, let next, next.rows.indices.contains(position.row),
       next.columns.indices.contains(position.column)
     {
@@ -459,15 +535,62 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
       row.isMultiple(of: 2) ? .textBackgroundColor : .alternatingContentBackgroundColors[1]
     return rowView
   }
-  package func numberOfRows(in tableView: NSTableView) -> Int { projection?.rows.count ?? 0 }
+  package func numberOfRows(in tableView: NSTableView) -> Int {
+    displayedRows.count + (hasTotalRow ? 1 : 0)
+  }
+  package func tableView(_ tableView: NSTableView, heightOfRow row: Int) -> CGFloat {
+    if row == displayedRows.count {
+      return max(
+        40,
+        projection?.columns.indices.map { index in
+          let width =
+            grid.tableColumns.indices.contains(index + 1)
+            ? grid.tableColumns[index + 1].width - 16 : 140
+          return (totalDisplay(column: index) as NSString).boundingRect(
+            with: .init(width: max(40, width), height: 10000), options: [.usesLineFragmentOrigin],
+            attributes: [.font: VisualStyle.Typography.answer(scale: 1)]
+          ).height + 14
+        }.max() ?? 40)
+    }
+    guard let canonical = canonicalRow(row), let projection else { return 30 }
+    var height: CGFloat = 30
+    for index in projection.columns.indices {
+      let width =
+        grid.tableColumns.indices.contains(index + 1)
+        ? grid.tableColumns[index + 1].width - 16 : 140
+      let text = cellDisplay(row: canonical, column: index) as NSString
+      let rect = text.boundingRect(
+        with: .init(width: max(40, width), height: 1000), options: [.usesLineFragmentOrigin],
+        attributes: [.font: VisualStyle.Typography.answer(scale: 1)])
+      height = max(height, rect.height + 14)
+    }
+    return height
+  }
   package func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int)
     -> NSView?
   {
-    guard let projection, let tableColumn, projection.rows.indices.contains(row) else { return nil }
-    let index = grid.tableColumns.firstIndex(of: tableColumn) ?? 0
+    guard let projection, let tableColumn else { return nil }
+    let localIndex = tableView.tableColumns.firstIndex(of: tableColumn) ?? 0
+    let index =
+      tableView === frozenGrid && localIndex > 0 ? (frozenGrid.frozenColumn ?? 0) + 1 : localIndex
+    if row == displayedRows.count, hasTotalRow {
+      let cell = NSTableCellView()
+      let label = NSTextField(
+        wrappingLabelWithString: index == 0 ? "Σ" : totalDisplay(column: index - 1))
+      label.frame = .init(
+        x: 6, y: 4, width: tableColumn.width - 12,
+        height: self.tableView(tableView, heightOfRow: row) - 8)
+      label.alignment = .right
+      label.toolTip = "Table total includes all data rows, including filtered rows."
+      label.setAccessibilityLabel(
+        (index > 0 ? projection.columns[index - 1].header + " total: " : "") + label.stringValue)
+      cell.addSubview(label)
+      return cell
+    }
+    guard let row = canonicalRow(row), projection.rows.indices.contains(row) else { return nil }
     let identifier = NSUserInterfaceItemIdentifier("table-cell")
     let cell =
-      grid.makeView(withIdentifier: identifier, owner: self) as? TableGridCellView
+      tableView.makeView(withIdentifier: identifier, owner: self) as? TableGridCellView
       ?? TableGridCellView()
     cell.identifier = identifier
     if cell.textField == nil {
@@ -504,18 +627,26 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     } else {
       let column = projection.columns[index - 1]
       let value = result?.value(row: projection.rows[row], column: column.id)
-      label.stringValue = display(value)
+      label.stringValue = cellDisplay(row: row, column: index - 1)
       if projection.isOverride(at: .init(row: row, column: index - 1)) { label.stringValue += " •" }
       if case .text = value { label.alignment = .left } else { label.alignment = .right }
-      label.lineBreakMode = .byTruncatingTail
+      label.maximumNumberOfLines = 0
+      label.lineBreakMode = .byWordWrapping
+      cell.setAccessibilityElement(true)
+      cell.setAccessibilityRole(.cell)
+      cell.setAccessibilitySelected(selected)
+      cell.setAccessibilityHelp(cell.toolTip)
       let source = effectiveSource(at: .init(row: row, column: index - 1))
       cell.toolTip =
-        result?.cellError(row: projection.rows[row], column: column.id).map(editor.formatTableError)
-        ?? source
+        result?.cellProblem(row: projection.rows[row], column: column.id)
+        ?? result?.cellError(row: projection.rows[row], column: column.id).map(
+          editor.formatTableError) ?? source
+      cell.setAccessibilityHelp(cell.toolTip)
       if case .failure = value { label.textColor = VisualStyle.Color.failure }
-      label.setAccessibilityLabel(
+      let accessible =
         "\(TableSourceDocument.letters(index - 1))\(row + 2), \(column.header), \(label.stringValue)"
-      )
+      label.setAccessibilityLabel(accessible)
+      cell.setAccessibilityLabel(accessible)
     }
     return cell
   }

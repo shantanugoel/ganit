@@ -43,8 +43,8 @@ final class MappedTableFindClient: NSObject, @preconcurrency NSTextFinderClient 
     // selection so Find can open the mapped table cell for it.
     if range.length > 0 { textView.setSelectedRange(range) }
     textView.scrollRangeToVisible(range)
-    // Find-bar buttons call the client directly. Wait for its selection update.
-    DispatchQueue.main.async { [weak textView] in textView?.findTableHit() }
+    // Incremental matches keep focus in Find. Only an explicit Next or
+    // Previous action opens a table result, through performAction above.
   }
   func shouldReplaceCharacters(inRanges ranges: [NSValue], with strings: [String]) -> Bool {
     textView.shouldChangeText(inRanges: ranges, replacementStrings: strings)

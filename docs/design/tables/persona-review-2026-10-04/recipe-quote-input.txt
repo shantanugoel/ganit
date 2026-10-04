@@ -1,0 +1,19 @@
+# Recipe for six
+servings = 6
+base = 4
+
+@ganit-table 1
+{"ids":["cc27c29f-3a6a-4baf-8fb2-d18781891d48","5e228472-d2cf-4005-9a8f-93d05a673c4c","05017587-0b1d-4757-bb8c-f5606d41f3e0","fc5889e7-17d2-4f4d-b7ab-eb9731d8f477","433c144d-190a-4e9d-bc48-720f3f8ad268","a60f29db-2592-49ea-866b-3a147f722661","50f0bc46-6aa6-4635-bde0-abfa8cb7a5cb","f807684c-95ce-4149-a1b1-2d6c3003a2b1","8481ee6b-1bc6-4b16-a9be-90e758974454","0cf17ade-2045-4e9a-aceb-0bf20d416420","56956bdc-1806-43c0-a3a7-647713921eed"],"t":0,"n":"Recipe","c":[{"i":1,"h":"Ingredient","p":"text"},{"i":2,"h":"Base quantity","p":"value"},{"i":3,"h":"Need","p":"value","f":"=[@Base quantity] * servings / base"},{"i":4,"h":"Instruction","p":"text"}],"r":[5,6,7,8,9,10],"x":[{"a":[5,1],"s":"Flour"},{"a":[5,2],"s":"500 g"},{"a":[5,4],"s":"Sift before mixing"},{"a":[6,1],"s":"Milk"},{"a":[6,2],"s":"250 ml"},{"a":[6,4],"s":"Warm gently"},{"a":[7,1],"s":"Butter"},{"a":[7,2],"s":"100 g"},{"a":[7,4],"s":"Melt"},{"a":[8,1],"s":"Salt"},{"a":[8,2],"s":"5 g"},{"a":[8,4],"s":"Add last"},{"a":[9,1],"s":"Eggs"},{"a":[9,2],"s":"2"},{"a":[9,4],"s":"Beat lightly"},{"a":[10,1],"s":"Sugar"},{"a":[10,2],"s":"80 g"},{"a":[10,4],"s":"Mix with butter"}],"b":[]}
+@end-ganit-table
+
+// Check pantry before shopping.
+
+# Freelancer quote
+rate = 60 USD
+
+@ganit-table 1
+{"ids":["24ed6ee6-cce3-4d1a-9dfe-daea72117a26","a878f3eb-36eb-46dd-91df-d0516a99f162","9756ac83-c056-4915-bcc9-b262d71d9f4f","5ed993d0-6006-4f3a-a399-c1a2fc2db808","c4eb7924-e758-4417-a01d-3d2eb86a4038","80d9bd07-a48f-43e5-9f88-9944b2d68147","f8e340ac-1dbe-4255-b1fd-05da777bb7a1","e97497b4-692e-461e-85f1-308e6e685235"],"t":0,"n":"Quote","c":[{"i":1,"h":"Task","p":"text"},{"i":2,"h":"Hours","p":"value"},{"i":3,"h":"Amount","p":"value","f":"=[@Hours] * rate","z":"sum"},{"i":4,"h":"Note","p":"text"}],"r":[5,6,7],"x":[{"a":[5,1],"s":"Research"},{"a":[5,2],"s":"2"},{"a":[5,4],"s":"Includes calls"},{"a":[6,1],"s":"Design"},{"a":[6,2],"s":"3.5"},{"a":[6,4],"s":"Two revisions"},{"a":[7,1],"s":"Build"},{"a":[7,2],"s":"8"},{"a":[7,4],"s":"Estimate only"}],"b":[]}
+@end-ganit-table
+
+quote = sum(Quote[Amount])
+20% of quote

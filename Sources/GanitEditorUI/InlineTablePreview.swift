@@ -23,6 +23,9 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
   private var details: [Int: String] = [:]
   private(set) var selectedCell: TableCellPosition?
   private var columnCount = 0
+  private var resultRows: [Int] = []
+  private var rowOffsets: [CGFloat] = []
+  private var rowSizes: [CGFloat] = []
   private var columnScale: CGFloat = 1
   private var rowHeight: CGFloat = 24
   var reservedHeight: CGFloat = 220
@@ -40,6 +43,7 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
     open.target = self
     open.action = #selector(openTable)
     scroll.hasHorizontalScroller = true
+    scroll.hasVerticalScroller = true
     scroll.drawsBackground = false
     scroll.documentView = cells
     inspection.maximumNumberOfLines = 2
@@ -57,6 +61,12 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
   }
   @available(*, unavailable)
   required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
+  override func viewDidChangeEffectiveAppearance() {
+    super.viewDidChangeEffectiveAppearance()
+    layer?.backgroundColor = NSColor.textBackgroundColor.cgColor
+    layer?.borderColor = NSColor.separatorColor.cgColor
+    cells.needsDisplay = true
+  }
   @objc private func openTable() { if commitPreviewEdit() { onOpen?(selectedCell) } }
   @objc private func inspectCell(_ button: NSButton) {
     if editPosition != nil {
@@ -69,7 +79,9 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
       guard commitPreviewEdit() else { return }
     }
     selectedCell = positions[button.tag]
-    cells.selected = selectedCell
+    cells.selected = selectedCell.flatMap { position in
+      resultRows.firstIndex(of: position.row).map { .init(row: $0, column: position.column) }
+    }
     cells.needsDisplay = true
     if NSApp.currentEvent?.clickCount == 2 { beginPreviewEdit() }
     inspection.stringValue = details[button.tag] ?? ""
@@ -82,50 +94,92 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
     self.editor = editor
     self.projection = projection
     columnScale = scale
-    rowHeight = 28 * scale
-    reservedHeight = 114 + CGFloat(min(5, projection.rows.count) + 1) * rowHeight
+    rowHeight = 48 * scale
+    reservedHeight = 146 + CGFloat(min(5, projection.rows.count) + 1) * rowHeight
     title.stringValue =
       projection.name + " · " + String(projection.rows.count) + " rows × "
       + String(projection.columns.count) + " columns"
     title.font = .systemFont(ofSize: 14 * scale, weight: .semibold)
+    title.maximumNumberOfLines = 2
+    title.lineBreakMode = .byWordWrapping
+    title.toolTip = title.stringValue
     open.setAccessibilityLabel("Open " + projection.name + " table")
     for label in [totals, inspection] { label.font = .systemFont(ofSize: 12 * scale) }
     for child in cells.subviews where child !== cellInput { child.removeFromSuperview() }
     positions = [:]
     details = [:]
-    let columnWidth = 140 * scale
-    let columns = Array(projection.columns.prefix(8))
+    let columnWidth = 160 * scale
+    let columns = projection.columns
     columnCount = columns.count
     let gutter = 40 * scale
     cells.gutter = gutter
     cells.rowHeight = rowHeight
     cells.columnWidth = columnWidth
     cells.columnCount = columns.count
-    cells.selected = selectedCell
+    cells.selected = selectedCell.flatMap { position in
+      resultRows.firstIndex(of: position.row).map { .init(row: $0, column: position.column) }
+    }
     let width = gutter + CGFloat(columns.count) * columnWidth
     cells.frame = NSRect(
-      x: 0, y: 0, width: width, height: CGFloat(min(5, projection.rows.count) + 1) * rowHeight)
-    for row in 0..<min(5, projection.rows.count) {
+      x: 0, y: 0, width: width, height: CGFloat(projection.rows.count + 1) * rowHeight)
+    let shownRows = result?.reviewRows() ?? Array(projection.rows.indices)
+    resultRows = shownRows
+    cells.selected = selectedCell.flatMap { position in
+      resultRows.firstIndex(of: position.row).map { .init(row: $0, column: position.column) }
+    }
+    rowOffsets = []
+    rowSizes = []
+    var offset = rowHeight
+    for row in shownRows {
+      var height = rowHeight
+      for column in columns {
+        let text: String
+        if case .text(let value) = result?.value(row: projection.rows[row], column: column.id) {
+          text = value
+        } else {
+          text = ""
+        }
+        let rect = (text as NSString).boundingRect(
+          with: .init(width: columnWidth - 16, height: 10000), options: [.usesLineFragmentOrigin],
+          attributes: [.font: NSFont.systemFont(ofSize: 14 * scale)])
+        height = max(height, ceil(rect.height) + 12)
+      }
+      rowOffsets.append(offset)
+      rowSizes.append(height)
+      offset += height
+    }
+    cells.rowEdges = [0, rowHeight] + zip(rowOffsets, rowSizes).map { $0 + $1 }
+    cells.frame.size.height = offset
+    reservedHeight = 146 + rowHeight + rowSizes.prefix(5).reduce(0, +)
+    let hiddenRows = projection.rows.count - shownRows.count
+    if hiddenRows > 0 { title.stringValue += " · Filter: \(hiddenRows) hidden rows" }
+    if projection.columns.contains(where: { $0.reviewSort != nil }) {
+      title.stringValue += " · Sorted"
+    }
+    for (visible, row) in shownRows.enumerated() {
       let number = NSTextField(labelWithString: String(row + 2))
       number.textColor = .secondaryLabelColor
       number.alignment = .center
       number.font = .monospacedSystemFont(ofSize: 12 * scale, weight: .regular)
       number.identifier = NSUserInterfaceItemIdentifier("row-\(row)")
       number.frame = NSRect(
-        x: 0, y: CGFloat(row + 1) * rowHeight + 5, width: gutter, height: rowHeight - 6)
+        x: 0, y: rowOffsets[visible] + 5, width: gutter, height: rowSizes[visible] - 6)
       cells.addSubview(number)
     }
     for (column, item) in columns.enumerated() {
       let label = NSTextField(
         labelWithString: TableSourceDocument.letters(column) + "  " + item.header)
       label.identifier = NSUserInterfaceItemIdentifier(String(column))
-      label.lineBreakMode = .byTruncatingTail
+      label.toolTip = item.header
+      label.setAccessibilityLabel(item.header)
+      label.maximumNumberOfLines = 2
+      label.lineBreakMode = .byWordWrapping
       label.font = .systemFont(ofSize: 14 * scale, weight: .semibold)
       label.frame = NSRect(
         x: gutter + CGFloat(column) * columnWidth + 6, y: 0, width: columnWidth - 12,
         height: rowHeight)
       cells.addSubview(label)
-      for row in 0..<min(5, projection.rows.count) {
+      for (visible, row) in shownRows.enumerated() {
         let position = TableCellPosition(row: row, column: column)
         let address = TableSourceDocument.letters(column) + String(row + 2)
         let input =
@@ -135,30 +189,38 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
         let value = result?.value(row: projection.rows[row], column: item.id)
         let display: String
         switch value {
-        case .value(let scalar): display = editor.formatTableValue(scalar)?.display ?? ""
+        case .value(let scalar):
+          display = editor.formatTableValue(scalar, column: item.id, result: result)?.display ?? ""
         case .text(let text): display = text
         case .blank: display = ""
         case .failure: display = "Error"
         case nil: display = "Pending…"
         }
         let problem =
-          result?.cellError(row: projection.rows[row], column: item.id).map(editor.formatTableError)
-          ?? ""
+          result?.cellProblem(row: projection.rows[row], column: item.id)
+          ?? result?.cellError(row: projection.rows[row], column: item.id).map(
+            editor.formatTableError) ?? ""
         let detail =
           address + " · " + item.header + ": " + input + (problem.isEmpty ? "" : " · " + problem)
-        let button = NSButton(title: display, target: self, action: #selector(inspectCell(_:)))
+        let override = projection.isOverride(at: position)
+        let button = NSButton(
+          title: display + (override ? " •" : ""), target: self, action: #selector(inspectCell(_:)))
         button.isBordered = false
         if case .text = value { button.alignment = .left } else { button.alignment = .right }
         if case .failure = value { button.contentTintColor = .systemRed }
-        button.cell?.lineBreakMode = .byTruncatingTail
+        button.cell?.wraps = true
+        button.cell?.lineBreakMode = .byWordWrapping
         button.font = .systemFont(ofSize: 14 * scale)
-        button.tag = row * 8 + column
-        button.toolTip = detail
+        button.tag = visible * columnCount + column
+        button.toolTip =
+          detail
+          + (override
+            ? " · Overrides column formula. Open Table and use Reset Overrides to restore it." : "")
         button.setAccessibilityLabel(address + " " + item.header + " " + display)
-        button.setAccessibilityHelp(detail)
+        button.setAccessibilityHelp(button.toolTip)
         button.frame = NSRect(
-          x: gutter + CGFloat(column) * columnWidth + 6, y: CGFloat(row + 1) * rowHeight,
-          width: columnWidth - 12, height: rowHeight)
+          x: gutter + CGFloat(column) * columnWidth + 6, y: rowOffsets[visible],
+          width: columnWidth - 12, height: rowSizes[visible])
         cells.addSubview(button)
         positions[button.tag] = position
         details[button.tag] = detail
@@ -169,9 +231,17 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
       guard let total = column.total else { continue }
       let value = result?.aggregate(
         total, rectangle: .init(rows: 0..<projection.rows.count, columns: index..<(index + 1)))
+      let grouped =
+        total == .sum
+        ? result?.currencyTotals(column: column.id).map { groups in
+          groups.map { $0.0 + ": " + (editor.formatTableValue($0.1)?.display ?? "") }.joined(
+            separator: " · ")
+        } : nil
       footer.append(
         column.header + " " + total.rawValue + ": "
-          + (value.flatMap { editor.formatTableValue($0)?.display }
+          + (grouped ?? value.flatMap {
+            editor.formatTableValue($0, column: column.id, result: result)?.display
+          }
             ?? (result == nil ? "Pending…" : "Error")))
     }
     totals.stringValue = footer.joined(separator: "   |   ")
@@ -185,7 +255,7 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
       selectedCell = nil
       inspection.stringValue =
         projection.rows.count > 5 || projection.columns.count > 8
-        ? "Preview: first 5 rows and 8 columns. Open Table to see all cells. Double-click to edit."
+        ? "Scroll to see all rows and columns. Double-click to edit. Open Table for review controls."
         : "Double-click a cell to edit. Open Table for the full grid."
     }
     needsLayout = true
@@ -194,10 +264,15 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
   override func menu(for event: NSEvent) -> NSMenu? {
     let point = cells.convert(event.locationInWindow, from: nil)
     let column = Int(floor((point.x - cells.gutter) / cells.columnWidth))
-    let row = Int(floor(point.y / rowHeight)) - 1
-    if let projection, projection.rows.indices.contains(row), column >= 0, column < columnCount {
-      selectedCell = .init(row: row, column: column)
-      cells.selected = selectedCell
+    let row =
+      rowOffsets.indices.first(where: {
+        point.y >= rowOffsets[$0] && point.y < rowOffsets[$0] + rowSizes[$0]
+      }) ?? -1
+    if resultRows.indices.contains(row), column >= 0, column < columnCount {
+      selectedCell = .init(row: resultRows[row], column: column)
+      cells.selected = selectedCell.flatMap { position in
+        resultRows.firstIndex(of: position.row).map { .init(row: $0, column: position.column) }
+      }
       cells.needsDisplay = true
     }
     let menu = NSMenu()
@@ -246,7 +321,10 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
       inspection.stringValue = "The cell changed. Press Escape and select it again."
       return false
     }
-    let source = TableCellInput.normalized(cellInput.stringValue)
+    let source = TableCellInput.normalized(
+      cellInput.stringValue, policy: next.columns[position.column].input,
+      context: editor.tableEvaluationContext)
+    cellInput.abortEditing()
     editPosition = nil
     cellInput.removeFromSuperview()
     do {
@@ -273,20 +351,22 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
     let back = selector == #selector(NSResponder.insertBacktab(_:))
     if enter || tab || back {
       guard commitPreviewEdit(), var target = selectedCell, let projection else { return true }
+      var row = resultRows.firstIndex(of: target.row) ?? 0
       if enter {
-        target.row += 1
+        row += 1
       } else {
         target.column += back ? -1 : 1
         if target.column >= projection.columns.count {
           target.column = 0
-          target.row += 1
+          row += 1
         }
         if target.column < 0 {
           target.column = projection.columns.count - 1
-          target.row -= 1
+          row -= 1
         }
       }
-      if target.row >= 0, target.row < min(5, projection.rows.count), target.column < columnCount {
+      if resultRows.indices.contains(row), target.column < columnCount {
+        target.row = resultRows[row]
         selectedCell = target
         beginPreviewEdit()
       } else {
@@ -300,12 +380,10 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
     super.layout()
     let buttonWidth = min(110, bounds.width / 2)
     open.frame = NSRect(x: bounds.width - buttonWidth - 8, y: 6, width: buttonWidth, height: 28)
-    title.frame = NSRect(x: 10, y: 8, width: max(0, bounds.width - buttonWidth - 24), height: 24)
+    title.frame = NSRect(x: 10, y: 8, width: max(0, bounds.width - buttonWidth - 24), height: 40)
     scroll.frame = NSRect(
-      x: 4, y: 40, width: max(0, bounds.width - 8), height: max(0, bounds.height - 114))
-    let columnWidth = max(
-      80 * columnScale,
-      (scroll.contentSize.width - 40 * columnScale) / CGFloat(max(1, columnCount)))
+      x: 4, y: 56, width: max(0, bounds.width - 8), height: max(0, bounds.height - 130))
+    let columnWidth = 160 * columnScale
     let gutter = 40 * columnScale
     cells.columnWidth = columnWidth
     cells.gutter = gutter
@@ -314,8 +392,9 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
     for control in cells.subviews {
       if let button = control as? NSButton {
         button.frame = NSRect(
-          x: gutter + CGFloat(button.tag % 8) * columnWidth + 6,
-          y: CGFloat(button.tag / 8 + 1) * rowHeight, width: columnWidth - 12, height: rowHeight)
+          x: gutter + CGFloat(button.tag % max(1, columnCount)) * columnWidth + 6,
+          y: rowOffsets[button.tag / max(1, columnCount)], width: columnWidth - 12,
+          height: rowSizes[button.tag / max(1, columnCount)])
       } else if let label = control as? NSTextField,
         let column = Int(label.identifier?.rawValue ?? "")
       {
@@ -327,7 +406,8 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
     if let position = editPosition {
       cellInput.frame = NSRect(
         x: gutter + CGFloat(position.column) * columnWidth + 1,
-        y: CGFloat(position.row + 1) * rowHeight + 1, width: columnWidth - 2, height: rowHeight - 2)
+        y: rowOffsets[resultRows.firstIndex(of: position.row) ?? 0] + 1, width: columnWidth - 2,
+        height: rowSizes[resultRows.firstIndex(of: position.row) ?? 0] - 2)
     }
     totals.frame = NSRect(
       x: 10, y: bounds.height - 68, width: max(0, bounds.width - 20), height: 24)
@@ -344,6 +424,13 @@ final class FlippedTableContent: NSView {
   var rowHeight: CGFloat = 28
   var columnCount = 0
   var selected: TableCellPosition?
+  var rowEdges: [CGFloat] = []
+  func rowFrame(_ row: Int) -> (CGFloat, CGFloat) {
+    guard rowEdges.indices.contains(row + 2) else {
+      return (CGFloat(row + 1) * rowHeight, rowHeight)
+    }
+    return (rowEdges[row + 1], rowEdges[row + 2] - rowEdges[row + 1])
+  }
   override func draw(_ dirtyRect: NSRect) {
     guard gutter > 0 else { return }
     NSColor.controlBackgroundColor.setFill()
@@ -353,15 +440,17 @@ final class FlippedTableContent: NSView {
       NSColor.controlAccentColor.withAlphaComponent(0.12).setFill()
       NSRect(
         x: gutter + CGFloat(selected.column) * columnWidth,
-        y: CGFloat(selected.row + 1) * rowHeight,
-        width: columnWidth, height: rowHeight
+        y: rowFrame(selected.row).0,
+        width: columnWidth, height: rowFrame(selected.row).1
       ).fill()
     }
     NSColor.separatorColor.setStroke()
     let lines = NSBezierPath()
     lines.lineWidth = 1
-    for row in 0...Int(bounds.height / rowHeight) {
-      let y = CGFloat(row) * rowHeight + 0.5
+    for edge in rowEdges.isEmpty
+      ? stride(from: CGFloat(0), through: bounds.height, by: rowHeight).map({ $0 }) : rowEdges
+    {
+      let y = edge + 0.5
       lines.move(to: .init(x: 0, y: y))
       lines.line(to: .init(x: bounds.width, y: y))
     }
@@ -376,8 +465,8 @@ final class FlippedTableContent: NSView {
       let outline = NSBezierPath(
         rect: NSRect(
           x: gutter + CGFloat(selected.column) * columnWidth + 1,
-          y: CGFloat(selected.row + 1) * rowHeight + 1, width: columnWidth - 2,
-          height: rowHeight - 2))
+          y: rowFrame(selected.row).0 + 1, width: columnWidth - 2,
+          height: rowFrame(selected.row).1 - 2))
       outline.lineWidth = 2
       outline.stroke()
     }

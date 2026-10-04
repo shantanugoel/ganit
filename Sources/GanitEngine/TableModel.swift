@@ -43,6 +43,7 @@ package enum TableInputPolicy: String, Hashable, Sendable {
   /// Complete supported literals: numbers, percentages, money, quantities
   /// and temporal values.
   case value
+  case automatic
   /// Literal text, never interpreted.
   case text
 }
@@ -64,6 +65,10 @@ struct TableColumn: Hashable, Sendable {
   /// A formula inherited by every data cell without an override record.
   var rule: String?
   var total: TableTotal?
+  var percentageDecimals: Int? = nil
+  var reviewSort: String? = nil
+  var reviewFilter: String? = nil
+  var frozen: Bool = false
 
   init(
     id: ColumnID, header: String, input: TableInputPolicy = .value, unit: String? = nil,

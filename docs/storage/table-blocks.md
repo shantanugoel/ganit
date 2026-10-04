@@ -8,8 +8,7 @@ with `TableSourceDocument.canonicalBlock(for:lineEnding:)`.
 
 Version 1 is the only supported version. There is no reader, migration or
 conversion for any other version: a block naming another version is
-diagnosed and quarantined with its bytes intact. A change to anything on this
-page is a new block version and updates the [frozen formats](../reference/schema-freeze.md),
+diagnosed and quarantined with its bytes intact. A change to a required record shape is a new block version and updates the [frozen formats](../reference/schema-freeze.md),
 the fixtures in `Tests/GanitEngineTests/Fixtures/TableBlocks` and their
 checksums in `TableBlockFixtureTests`.
 
@@ -144,17 +143,31 @@ whitespace or control characters (including U+2028/U+2029), and is not
 across dividers. Case-insensitive comparisons use Unicode lowercase mapping
 and canonical equivalence; stored bytes are never normalized.
 
+### Review extension for the first release
+
+The table review update adds an Automatic input policy and optional column
+fields to version 1 before its first release. Existing version 1 blocks
+remain valid. The writer omits optional fields when their settings are off.
+The first release specification includes these fields. An earlier test
+build can ignore the display and review fields. It cannot read an
+`automatic` input policy. Do not open these sheets in an earlier test build.
+The block delimiters, identities and binding records do not change.
+
 ### Column object
 
 | Key | Type | Meaning |
 | --- | --- | --- |
 | `i` | pointer | ColumnID |
 | `h` | string | header text |
-| `p` | `"value"` or `"text"` | input policy for literal input |
+| `p` | `"automatic"`, `"value"` or `"text"` | input policy for literal input |
 | `u` | string, optional | default unit for value literals: non-empty single-line text without outer whitespace |
 | `m` | string, optional | default currency for value literals: three uppercase ASCII letters |
 | `f` | string, optional | column rule: a formula starting with `=` |
 | `z` | string, optional | totals-footer aggregate: `sum`, `average`, `median`, `min`, `max` or `count` |
+| `percent` | integer, optional | percentage display decimal places, 0 to 12 |
+| `sort` | string, optional | `ascending` or `descending`; only the active sort column |
+| `filter` | string, optional | case-insensitive text filter for this column |
+| `frozen` | `true`, optional | keep this label column visible during horizontal scroll |
 
 Headers follow the name rules above, except that `sheet` is an ordinary
 header, and are unique within the table ignoring case. Header text is literal: it is never parsed as units, variables or
@@ -172,9 +185,10 @@ The totals footer reads data rows only and has no data-row address.
 | `o` | `true`, optional | the record overrides its column's rule |
 
 A cell without a record is blank, or inherits its column's rule. A source that
-starts with `=` is a formula, whatever the input policy; literal text cannot
-start with `=` in version 1. Otherwise a value column reads `s` as a complete
-literal and a text column keeps it as text. Multi-line text is allowed.
+starts with `=` is a formula, whatever the input policy; literal text that starts with `=` uses a quoted string formula when pasted
+with the Text choice. Otherwise a value column reads `s` as a complete
+literal and a text column keeps it as text. Automatic input reads a value
+or keeps ordinary label text. Multi-line text is allowed.
 
 - In a column without a rule, records have `o` absent and non-empty `s`:
   blank is the absence of a record.
@@ -297,7 +311,7 @@ from parsing or writing. It validates the model first and emits:
 payload is one line of compact JSON with no insignificant whitespace:
 
 - Root keys in the order `ids`, `t`, `n`, `c`, `r`, `x`, `b`; `t` is always `0`.
-- Column keys `i`, `h`, `p`, then present optional keys `u`, `m`, `f`, `z`.
+- Column keys `i`, `h`, `p`, then present optional keys `u`, `m`, `f`, `z`, `percent`, `sort`, `filter`, `frozen`.
 - Cell keys `a`, `s`, then `"o":true` for overrides.
 - Ledger keys `o`, `f`, `e`; binding keys `i` (when present), `k`, `a`, `t`,
   `l` (when the kind has locks), then `"d":true` for deleted bindings.

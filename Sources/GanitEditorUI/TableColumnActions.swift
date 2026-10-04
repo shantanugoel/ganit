@@ -4,6 +4,15 @@ import GanitEngine
 extension ExpandedTableViewController: NSMenuItemValidation {
   package func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
     guard let projection else { return false }
+    if menuItem.action == #selector(insertCompletion(_:)) { return isEditingCell }
+    if hasReviewProjection,
+      [
+        #selector(insertRowsAbove), #selector(insertRowsBelow), #selector(fillSelection),
+        #selector(fillDown), #selector(fillRight), #selector(pasteCells), #selector(pasteFormulas),
+      ].contains(menuItem.action)
+    {
+      return false
+    }
     switch menuItem.action {
     case #selector(addRow), #selector(addColumn), #selector(renameCurrentTable),
       #selector(exportTable(_:)):
@@ -70,8 +79,8 @@ extension ExpandedTableViewController: NSMenuItemValidation {
     alert.informativeText =
       "The type applies to values you enter. Formulas work in either type. Use either a unit or a currency for Value input."
     let policy = NSPopUpButton()
-    policy.addItems(withTitles: ["Value", "Text"])
-    policy.selectItem(at: column.input == .value ? 0 : 1)
+    policy.addItems(withTitles: ["Value", "Text", "Automatic"])
+    policy.selectItem(at: column.input == .value ? 0 : column.input == .text ? 1 : 2)
     policy.setAccessibilityLabel("Input type")
     let unit = NSTextField(string: column.unit ?? "")
     let currency = NSTextField(string: column.currency ?? "")
@@ -79,14 +88,22 @@ extension ExpandedTableViewController: NSMenuItemValidation {
     currency.setAccessibilityLabel("Default currency")
     unit.placeholderString = "For example, kg"
     currency.placeholderString = "For example, USD"
+    let format = NSPopUpButton()
+    format.addItems(withTitles: ["Automatic", "Percentage"])
+    format.selectItem(at: column.percentageDecimals == nil ? 0 : 1)
+    format.setAccessibilityLabel("Display format")
+    let decimals = NSTextField(string: String(column.percentageDecimals ?? 0))
+    decimals.setAccessibilityLabel("Percentage decimals, 0 to 12")
     let stack = NSStackView(views: [
       NSStackView(views: [NSTextField(labelWithString: "Input type"), policy]),
       NSStackView(views: [NSTextField(labelWithString: "Default unit"), unit]),
       NSStackView(views: [NSTextField(labelWithString: "Default currency"), currency]),
+      NSStackView(views: [NSTextField(labelWithString: "Display format"), format]),
+      NSStackView(views: [NSTextField(labelWithString: "Percentage decimals"), decimals]),
     ])
     stack.orientation = .vertical
     stack.alignment = .leading
-    stack.frame = NSRect(x: 0, y: 0, width: 360, height: 108)
+    stack.frame = NSRect(x: 0, y: 0, width: 360, height: 172)
     for row in stack.arrangedSubviews {
       row.widthAnchor.constraint(equalToConstant: 360).isActive = true
     }
@@ -99,9 +116,18 @@ extension ExpandedTableViewController: NSMenuItemValidation {
       let u = unit.stringValue.trimmingCharacters(in: .whitespaces)
       let c = currency.stringValue.trimmingCharacters(in: .whitespaces).uppercased()
       performEdit {
+        editor.documentUndoManager.beginUndoGrouping()
+        defer { editor.documentUndoManager.endUndoGrouping() }
+        try editor.editTables("Change Column Format") {
+          try $0.setColumnPresentation(
+            table: tableID, column: column.id,
+            percentageDecimals: format.indexOfSelectedItem == 1 ? decimals.integerValue : nil)
+        }
         try editor.setTableColumnInput(
-          tableID, column: column.id, policy: text ? .text : .value,
-          unit: text || u.isEmpty ? nil : u, currency: text || c.isEmpty ? nil : c)
+          tableID, column: column.id,
+          policy: text ? .text : policy.indexOfSelectedItem == 2 ? .automatic : .value,
+          unit: policy.indexOfSelectedItem != 0 || u.isEmpty ? nil : u,
+          currency: policy.indexOfSelectedItem != 0 || c.isEmpty ? nil : c)
       }
     }
   }

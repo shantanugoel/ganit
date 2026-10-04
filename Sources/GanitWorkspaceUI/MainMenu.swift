@@ -286,6 +286,9 @@ public enum MainMenu {
           item("Inspect Table Source", #selector(SheetEditorViewController.inspectTableSource(_:))),
           item("Paste as Table…", #selector(SheetEditorViewController.pasteAsCalculationTable(_:))),
           item(
+            "Convert Selection to Table…",
+            #selector(SheetEditorViewController.convertSelectionToCalculationTable(_:))),
+          item(
             localized("table.open", "Open Table"),
             #selector(SheetEditorViewController.openCalculationTable(_:)), "t", [.command, .shift]),
           item(

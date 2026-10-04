@@ -116,6 +116,60 @@ public struct TableResultSnapshot: Sendable {
     else { return nil }
     return failure.engineError
   }
+  package func cellProblem(row: RowID, column: ColumnID) -> String? {
+    guard let id, let snapshot = block.calculation,
+      case .failure(let failure) = snapshot.result(at: .init(table: id, row: row, column: column))
+    else { return nil }
+    let source = snapshot.sources[.init(table: id, row: row, column: column)] ?? ""
+    let part = failure.referenceDiagnostic?.range.text(in: source).map(String.init) ?? ""
+    switch failure.referenceDiagnostic?.code {
+    case .unsupportedFunction:
+      return
+        "The function \(part) is not supported in tables. Use arithmetic or a supported aggregate such as =SUM(B2:B6)."
+    case .unsupportedComparison:
+      return
+        "The comparison \(part) is not supported in tables. Calculate the difference to compare two values."
+    case .assistantPrompt: return "Assistant prompts are not supported in table formulas."
+    default: break
+    }
+    switch failure.code {
+    case .inputRequiresFormula: return "Start arithmetic input with =. For example, =" + source
+    case .unsupportedRangeOperation:
+      return
+        "This range argument pattern is not supported. Use one range per aggregate, for example =SUM(B2:B3) + SUM(B5:B6)."
+    case .cycle: return "These cells refer to each other. Remove a reference to stop the cycle."
+    case .blocked: return "An input has an error. Go to the original failure."
+    case .emptyRange: return "This range has no numeric values."
+    case .invalidLiteral: return "Use Automatic or Text input for a label. Start a formula with =."
+    default:
+      return failure.engineError == nil
+        ? "The input or reference is invalid. Check the highlighted source." : nil
+    }
+  }
+
+  package func problemRange(row: RowID, column: ColumnID) -> NSRange? {
+    guard let id, let snapshot = block.calculation,
+      case .failure(let failure) = snapshot.result(at: .init(table: id, row: row, column: column)),
+      let source = snapshot.sources[.init(table: id, row: row, column: column)],
+      let range = (failure.referenceDiagnostic?.range ?? failure.sourceRange).text(in: source),
+      let found = source.range(of: String(range))
+    else { return nil }
+    return NSRange(found, in: source)
+  }
+
+  package var noteDefinitions: [(String, EngineValue)] {
+    block.calculation?.noteDefinitions ?? []
+  }
+
+  package func percentageValue(_ value: EngineValue, column: ColumnID) -> EngineValue {
+    guard block.projection?.columns.first(where: { $0.id == column })?.percentageDecimals != nil,
+      case .number(let number) = value, let context = block.calculation?.context,
+      let points = try? NumericOperations(context: context, limits: .default).applying(
+        .multiply, left: number, right: .integer(IntegerValue(100)))
+    else { return value }
+    return .percentage(PercentageValue(points: points))
+  }
+
   package func interpretation(row: RowID, column: ColumnID) -> [(String, String)] {
     guard let id, let snapshot = block.calculation else { return [] }
     let address = TableCellAddress(table: id, row: row, column: column)
@@ -140,6 +194,97 @@ public struct TableResultSnapshot: Sendable {
     }
     return details
   }
+  package func percentageDecimals(column: ColumnID) -> Int? {
+    block.projection?.columns.first(where: { $0.id == column })?.percentageDecimals
+  }
+
+  package func reviewRows() -> [Int] {
+    guard let snapshot = block.calculation else { return Array(rows.indices) }
+    let table = snapshot.table
+    var shown = Array(rows.indices).filter { row in
+      table.columns.allSatisfy { column in
+        guard let filter = column.reviewFilter, !filter.isEmpty else { return true }
+        let source =
+          snapshot.sources[.init(table: table.id, row: rows[row], column: column.id)] ?? ""
+        if case .value(.money(let money)) = value(row: rows[row], column: column.id),
+          money.currency.localizedCaseInsensitiveContains(filter)
+        {
+          return true
+        }
+        if case .text(let text) = value(row: rows[row], column: column.id) {
+          return text.localizedCaseInsensitiveContains(filter)
+        }
+        return source.localizedCaseInsensitiveContains(filter)
+      }
+    }
+    if let column = table.columns.first(where: { $0.reviewSort != nil }) {
+      let reducer = TableRangeReducer(context: snapshot.context, limits: .default)
+      // Keep incompatible value groups separate. Within each group the
+      // comparison is typed; ties retain source order.
+      var representatives: [TableCellValue] = []
+      var groups: [Int: Int] = [:]
+      for row in shown {
+        let cell = value(row: rows[row], column: column.id) ?? .blank
+        let index = representatives.firstIndex { candidate in
+          switch (candidate, cell) {
+          case (.value(let a), .value(let b)): return (try? reducer.ordering(a, b)) != nil
+          case (.text, .text), (.blank, .blank), (.failure, .failure): return true
+          default: return false
+          }
+        }
+        groups[row] = index ?? representatives.count
+        if index == nil { representatives.append(cell) }
+      }
+      shown.sort { left, right in
+        let a = value(row: rows[left], column: column.id)
+        let b = value(row: rows[right], column: column.id)
+        switch (a, b) {
+        case (.blank, .blank), (.failure, .failure): return left < right
+        case (.blank, .failure): return true
+        case (.failure, .blank): return false
+        case (.blank, _), (.failure, _): return false
+        case (_, .blank), (_, .failure): return true
+        default: break
+        }
+        if groups[left] != groups[right] {
+          return groups[left, default: 0] < groups[right, default: 0]
+        }
+        let order: Int
+        switch (a, b) {
+        case (.value(let a), .value(let b)): order = (try? reducer.ordering(a, b)) ?? 0
+        case (.text(let a), .text(let b)): order = a.localizedStandardCompare(b).rawValue
+        case (.blank, .blank), (.failure, .failure): order = 0
+        case (.blank, _), (.failure, _): return false
+        case (_, .blank), (_, .failure): return true
+        default: order = 0
+        }
+        if order == 0 { return left < right }
+        return column.reviewSort == "descending" ? order > 0 : order < 0
+      }
+    }
+    return shown
+  }
+
+  package func currencyTotals(column: ColumnID) -> [(String, EngineValue)]? {
+    guard let snapshot = block.calculation else { return nil }
+    var groups: [String: [EngineValue]] = [:]
+    for row in rows {
+      switch value(row: row, column: column) {
+      case .value(.money(let money)): groups[money.currency, default: []].append(.money(money))
+      case .blank, .text: break
+      default: return nil
+      }
+    }
+    guard groups.count > 1 else { return nil }
+    let reducer = TableRangeReducer(context: snapshot.context, limits: .default)
+    return groups.keys.sorted().compactMap { currency in
+      if case .success(let sum) = reducer.reduce(.sum, groups[currency]!, typedZero: { nil }) {
+        return (currency, sum)
+      }
+      return nil
+    }
+  }
+
   package func aggregate(_ function: TableTotal, rectangle: TableCellRectangle) -> EngineValue? {
     guard let snapshot = block.calculation,
       rectangle.rows.lowerBound >= 0, rectangle.rows.upperBound <= rows.count,
@@ -165,6 +310,31 @@ public struct TableResultSnapshot: Sendable {
         snapshot.table, axes: snapshot.axes, columns: rectangle.columns.map { columns[$0].id },
         engine: CalculationEngine(), context: snapshot.context, scalarBudget: nil)
     }
+    if case .success(let value) = reduced { return value }
+    return nil
+  }
+
+  package func aggregate(_ function: TableTotal, rowIndices: [Int], columns indices: Range<Int>)
+    -> EngineValue?
+  {
+    guard let snapshot = block.calculation,
+      let operation = TableRangeFunction(name: function.rawValue),
+      rowIndices.allSatisfy({ rows.indices.contains($0) }), indices.lowerBound >= 0,
+      indices.upperBound <= columns.count
+    else { return nil }
+    var values: [EngineValue] = []
+    for row in rowIndices {
+      for column in indices {
+        switch value(row: rows[row], column: columns[column].id) {
+        case .value(let scalar): values.append(scalar)
+        case .blank, .text: break
+        default: return nil
+        }
+      }
+    }
+    let reduced = TableRangeReducer(context: snapshot.context, limits: .default).reduce(
+      operation, values
+    ) { nil }
     if case .success(let value) = reduced { return value }
     return nil
   }

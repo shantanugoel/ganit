@@ -71,7 +71,9 @@ extension ExpandedTableViewController {
         ("Column Settings…", #selector(columnSettings)),
       ])
     let types = NSMenu()
-    for (title, policy) in [("Value", TableInputPolicy.value), ("Text", .text)] {
+    for (title, policy) in [
+      ("Automatic", TableInputPolicy.automatic), ("Value", .value), ("Text", .text),
+    ] {
       let item = NSMenuItem(
         title: title, action: #selector(changeColumnType(_:)), keyEquivalent: "")
       item.target = self
@@ -80,6 +82,21 @@ extension ExpandedTableViewController {
       types.addItem(item)
     }
     addSubmenu("Input Type", types, to: menu)
+    let format = NSMenu()
+    addCommands(
+      to: format,
+      [("Percentage…", #selector(percentageFormat)), ("Automatic", #selector(automaticFormat))])
+    addSubmenu("Display Format", format, to: menu)
+    let review = NSMenu()
+    addCommands(
+      to: review,
+      [
+        ("Sort Ascending", #selector(sortAscending)),
+        ("Sort Descending", #selector(sortDescending)), ("Clear Sort", #selector(clearSort)),
+        ("Filter…", #selector(filterColumn)), ("Clear Filter", #selector(clearFilter)),
+        ("Freeze / Unfreeze Label Column", #selector(freezeColumn)),
+      ])
+    addSubmenu("Review", review, to: menu)
     let totals = NSMenu()
     for total in TableTotal.allCases {
       let item = NSMenuItem(
@@ -107,6 +124,7 @@ extension ExpandedTableViewController {
       to: menu,
       [
         ("Edit Cell", #selector(editSelectedCell)),
+        ("Use Formula Input (=)", #selector(useFormulaInput)),
         ("Copy Values", #selector(copyValues)),
         ("Copy Inputs and Formulas", #selector(copyFormulas)),
         ("Paste", #selector(pasteCells)),
@@ -143,8 +161,11 @@ extension ExpandedTableViewController {
     do {
       try operation()
       refresh()
-      clampSelection()
-    } catch { status.stringValue = String(describing: error) }
+      updateSummary()
+    } catch {
+      status.stringValue =
+        "The table change could not be applied. Check the selection and input, then try again."
+    }
   }
   func clampSelection() {
     guard let projection, !projection.rows.isEmpty, !projection.columns.isEmpty else { return }
@@ -170,7 +191,16 @@ extension ExpandedTableViewController {
   }
   @objc func addRow() { performEdit { try editor.appendTableRows(tableID) } }
   @objc func deleteRows() {
-    performEdit { try editor.deleteTableRows(tableID, in: rectangle.rows) }
+    performEdit {
+      let before = editor.sheet.text
+      var document = TableSourceDocument(editor.sheet)
+      for row in selectionRows.sorted(by: >) {
+        let edit = try document.deleteRows(table: tableID, in: row..<(row + 1))
+        document = TableSourceDocument(try edit.applying(to: document.editingSource))
+      }
+      try editor.replaceTableSource(
+        before: before, after: document.editingSource, action: "Delete Rows")
+    }
   }
   @objc func addColumn() {
     prompt(localized("table.columnName", "Column name")) { [weak self] name in
@@ -184,11 +214,88 @@ extension ExpandedTableViewController {
     performEdit { try editor.deleteTableColumns(tableID, in: rectangle.columns) }
   }
   @objc func columnRule() {
-    guard let column = selectedColumn else { return }
-    prompt(localized("table.columnFormula", "Set Column Formula…"), initial: column.rule ?? "=") {
-      [weak self] text in
-      guard let self else { return }
-      performEdit { try editor.setTableColumnRule(tableID, column: column.id, formula: text) }
+    guard let column = selectedColumn, let window = view.window else { return }
+    let alert = NSAlert()
+    alert.messageText = "Column Formula: " + column.header
+    let names = projection?.columns.map { "[@[" + $0.header + "]]" }.joined(separator: ", ") ?? ""
+    let definitions =
+      result?.noteDefinitions.map { $0.0 + " = " + (editor.formatTableValue($0.1)?.display ?? "") }
+      .joined(separator: ", ") ?? ""
+    let choices =
+      (projection?.columns.map { column -> (String, String) in
+        let reference =
+          "[@["
+          + column.header.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(
+            of: "]", with: "\\]") + "]]"
+        return (column.header + " · Current row", reference)
+      } ?? [])
+      + (result?.noteDefinitions.map {
+        ($0.0 + " = " + (editor.formatTableValue($0.1)?.display ?? "") + " · Note", $0.0)
+      } ?? [])
+    let form = TableRuleForm(
+      source: column.rule ?? "=",
+      help: "Current-row example: =[@Hours] * rate.\nColumns: " + names + "\nNote definitions: "
+        + definitions, choices: choices
+    ) { [weak self] input in
+      guard let self else { return (false, "Table is unavailable.") }
+      return rulePreview(column: column.id, source: input)
+    }
+    alert.accessoryView = form
+    alert.addButton(withTitle: "Apply")
+    alert.addButton(withTitle: "Cancel")
+    form.applyButton = alert.buttons[0]
+    form.validate()
+    alert.window.initialFirstResponder = form.field
+    alert.beginSheetModal(for: window) { [weak self] response in
+      guard let self, response == .alertFirstButtonReturn,
+        rulePreview(column: column.id, source: form.field.stringValue).0
+      else { return }
+      performEdit {
+        try editor.setTableColumnRule(tableID, column: column.id, formula: form.field.stringValue)
+      }
+    }
+  }
+  func rulePreview(column: ColumnID, source: String) -> (Bool, String) {
+    do {
+      let document = TableSourceDocument(editor.sheet)
+      let edit = try document.setColumnRule(table: tableID, column: column, source: source)
+      let proposed = try edit.applying(to: editor.sheet.text)
+      var calculator = SheetCalculator(definitions: editor.scheduler?.definitions ?? .none)
+      let evaluation = try calculator.evaluate(
+        SheetSource(proposed), context: editor.tableEvaluationContext)
+      guard let sample = evaluation.tableResult(tableID) else {
+        return (false, "The table cannot be calculated.")
+      }
+      if let failure = sample.calculationFailure {
+        return (false, editor.formatTableError(failure))
+      }
+      for row in sample.rows {
+        if let index = projection?.rows.firstIndex(of: row),
+          let col = projection?.columns.firstIndex(where: { $0.id == column }),
+          projection?.isOverride(at: .init(row: index, column: col)) == true
+        {
+          continue
+        }
+        if case .failure = sample.value(row: row, column: column) {
+          let problem =
+            sample.cellProblem(row: row, column: column) ?? sample.cellError(
+              row: row, column: column
+            ).map(editor.formatTableError) ?? "The formula is invalid."
+          return (false, problem + " Use [@Column] to read the current row.")
+        }
+      }
+      if let row = sample.rows.first,
+        case .value(let value) = sample.value(row: row, column: column)
+      {
+        return (
+          true,
+          "First row: "
+            + (editor.formatTableValue(value, column: column, result: sample)?.display ?? "")
+        )
+      }
+      return (false, "Add a data row to check this formula before Apply.")
+    } catch {
+      return (false, "Start with = and use a valid column reference, for example =[@Hours] * rate.")
     }
   }
   var selectedColumn: TableEditingSnapshot.Column? {
@@ -203,7 +310,7 @@ extension ExpandedTableViewController {
     performEdit {
       var document = TableSourceDocument(editor.sheet)
       let before = editor.sheet.text
-      for row in rectangle.rows {
+      for row in selectionRows {
         for column in rectangle.columns where projection?.columns[column].rule != nil {
           let edit = try document.setCell(
             table: tableID, at: .init(row: row, column: column), source: nil)
@@ -228,6 +335,7 @@ extension ExpandedTableViewController {
     performEdit { try editor.setTableColumnTotal(tableID, column: column.id, total: nil) }
   }
   @objc func fillSelection() {
+    guard permitsRectangleEdit() else { return }
     performEdit {
       try editor.fillTableCells(
         tableID, from: .init(row: rectangle.rows.lowerBound, column: rectangle.columns.lowerBound),
@@ -242,16 +350,18 @@ extension ExpandedTableViewController {
     else { return }
     let text: String
     if formulas {
-      guard
-        let source = try? TableSourceDocument(editor.sheet).plainText(
-          table: tableID, rectangle: rectangle)
-      else { return }
-      text = source
+      let document = TableSourceDocument(editor.sheet)
+      let lines = selectionRows.compactMap { row in
+        try? document.plainText(
+          table: tableID, rectangle: .init(rows: row..<(row + 1), columns: rectangle.columns))
+      }
+      guard lines.count == selectionRows.count else { return }
+      text = lines.joined(separator: "\n")
     } else {
-      text = rectangle.rows.map { row in
+      text = selectionRows.map { row in
         rectangle.columns.map { column in
           tsv(
-            display(result?.value(row: projection.rows[row], column: projection.columns[column].id))
+            cellDisplay(row: row, column: column, explainsErrors: true)
           )
         }.joined(separator: "\t")
       }.joined(separator: "\n")
@@ -259,7 +369,7 @@ extension ExpandedTableViewController {
     let board = editor.resultPasteboard
     board.clearContents()
     board.setString(text, forType: .string)
-    if formulas {
+    if formulas, !hasReviewProjection {
       let payload = TableCopyPayload(
         version: 1, source: editor.sheet.text, table: tableID.uuid,
         rows: [rectangle.rows.lowerBound, rectangle.rows.upperBound],
@@ -275,9 +385,58 @@ extension ExpandedTableViewController {
     }
     return text
   }
-  @objc func pasteCells() { pasteRange(formulas: false) }
+  @objc func pasteCells() {
+    let board = editor.resultPasteboard
+    if board.data(forType: Self.copyType) == nil, let text = board.string(forType: .string),
+      TableSourceDocument.tabSeparated(text).joined().contains(where: { $0.hasPrefix("=") })
+    {
+      guard let window = view.window else {
+        status.stringValue =
+          "This paste contains formulas. Use Paste TSV as Formulas, or Paste as Text."
+        return
+      }
+      let alert = NSAlert()
+      alert.messageText = "This paste contains formulas"
+      alert.informativeText = "Choose how to paste these inputs. Cancel keeps the current cells."
+      alert.addButton(withTitle: "Paste as Formulas")
+      alert.addButton(withTitle: "Paste as Text")
+      alert.addButton(withTitle: "Cancel")
+      alert.beginSheetModal(for: window) { [weak self] response in
+        if response == .alertFirstButtonReturn {
+          self?.pasteRange(formulas: true)
+        } else if response == .alertSecondButtonReturn {
+          self?.pasteText(text)
+        }
+      }
+      return
+    }
+    pasteRange(formulas: false)
+  }
+  func pasteText(_ text: String) {
+    guard permitsRectangleEdit() else { return }
+    performEdit {
+      let fields = TableSourceDocument.tabSeparated(text)
+      let before = editor.sheet.text
+      var document = try documentForPaste(
+        rows: fields.count, columns: fields.map(\.count).max() ?? 0)
+      for (r, row) in fields.enumerated() {
+        for (c, input) in row.enumerated() {
+          let quoted =
+            input.hasPrefix("=")
+            ? "\"" + input.replacingOccurrences(of: "\"", with: "\"\"") + "\"" : input
+          let edit = try document.setCell(
+            table: tableID, at: .init(row: position.row + r, column: position.column + c),
+            source: quoted)
+          document = TableSourceDocument(try edit.applying(to: document.editingSource))
+        }
+      }
+      try editor.replaceTableSource(
+        before: before, after: document.editingSource, action: "Paste as Text")
+    }
+  }
   @objc func pasteFormulas() { pasteRange(formulas: true) }
   func pasteRange(formulas: Bool) {
+    guard permitsRectangleEdit() else { return }
     performEdit {
       let board = editor.resultPasteboard
       if !formulas, let data = board.data(forType: Self.copyType), data.count < 2_000_000,
@@ -344,13 +503,51 @@ extension ExpandedTableViewController {
     guard let projection else { return }
     let count =
       projection.rows.isEmpty || projection.columns.isEmpty
-      ? 0 : rectangle.rows.count * rectangle.columns.count
+      ? 0 : selectionRows.count * rectangle.columns.count
     address.stringValue = TableSourceDocument.letters(position.column) + String(position.row + 2)
-    var parts = ["\(count) cells"]
-    if count > 0, let result, let value = result.aggregate(.sum, rectangle: rectangle) {
+    var numeric = 0
+    var text = 0
+    var blank = 0
+    if count > 0 {
+      for row in selectionRows {
+        for column in rectangle.columns {
+          switch result?.value(row: projection.rows[row], column: projection.columns[column].id) {
+          case .value: numeric += 1
+          case .text: text += 1
+          case .blank: blank += 1
+          default: break
+          }
+        }
+      }
+    }
+    let first =
+      TableSourceDocument.letters(rectangle.columns.lowerBound)
+      + String(rectangle.rows.lowerBound + 2)
+    let last =
+      TableSourceDocument.letters(rectangle.columns.upperBound - 1)
+      + String(rectangle.rows.upperBound + 1)
+    rowLabel.stringValue =
+      projection.rows.indices.contains(position.row)
+      ? cellDisplay(row: position.row, column: 0) : ""
+    rowLabel.toolTip = rowLabel.stringValue
+    var parts = [
+      count == 1 ? "1 cell" : "\(count) cells",
+      "\(numeric) numeric · \(text) text · \(blank) blank",
+    ]
+    if count > 1 {
+      parts.append(
+        first + ":" + last
+          + " · \(rectangle.rows.count) rows × \(rectangle.columns.count) columns · Fill source: "
+          + first + " · Active: " + address.stringValue)
+    }
+    if numeric > 0, let result,
+      let value = result.aggregate(.sum, rowIndices: selectionRows, columns: rectangle.columns)
+    {
       parts.append("Sum: " + (editor.formatTableValue(value)?.display ?? ""))
     }
-    if count > 0, let result, let value = result.aggregate(.average, rectangle: rectangle) {
+    if numeric > 0, let result,
+      let value = result.aggregate(.average, rowIndices: selectionRows, columns: rectangle.columns)
+    {
       parts.append("Average: " + (editor.formatTableValue(value)?.display ?? ""))
     }
     var footer: [String] = []
@@ -364,20 +561,31 @@ extension ExpandedTableViewController {
       }
     }
     totals.stringValue = footer.joined(separator: "   |   ")
-    totals.isHidden = footer.isEmpty
-    if count == 1, projection.rows.indices.contains(position.row), let column = selectedColumn,
-      let error = result?.cellError(row: projection.rows[position.row], column: column.id)
+    totals.isHidden = true
+    let hidden = projection.rows.count - displayedRows.count
+    if hidden > 0 {
+      parts.append("Filter active · \(hidden) hidden rows · Totals include all rows")
+    }
+    if projection.columns.contains(where: { $0.reviewSort != nil }) {
+      parts.append("Review sort active · Addresses keep their original targets")
+    }
+    if projection.rows.indices.contains(position.row), !projection.columns.isEmpty {
+      parts.append("Row label: " + cellDisplay(row: position.row, column: 0))
+    }
+    if count == 1, projection.rows.indices.contains(position.row),
+      let problem = cellProblem(row: position.row, column: position.column)
     {
-      parts.append(editor.formatTableError(error))
+      parts.append(problem)
     }
     status.stringValue = parts.joined(separator: "   ")
+    status.toolTip = status.stringValue
   }
 }
 
 extension ExpandedTableViewController {
   @objc func copyFullPrecision(_ sender: Any?) {
     guard let projection, !isEditingCell, let result else { return }
-    let text = rectangle.rows.map { row in
+    let text = selectionRows.map { row in
       rectangle.columns.map { column in
         let value = result.value(row: projection.rows[row], column: projection.columns[column].id)
         if case .value(let scalar) = value {
@@ -413,7 +621,9 @@ extension ExpandedTableViewController {
       result?.interpretation(row: row, column: column.id).map { entry in
         var value = entry.1
         if entry.0 == "Problem" {
-          if let error = result?.cellError(row: row, column: column.id) {
+          if let problem = result?.cellProblem(row: row, column: column.id) {
+            value = problem
+          } else if let error = result?.cellError(row: row, column: column.id) {
             value = editor.formatTableError(error)
           } else {
             switch entry.1 {
@@ -485,22 +695,35 @@ extension ExpandedTableViewController {
     mode.addItems(withTitles: [
       localized("table.exportValues", "Values"),
       localized("table.exportFormulas", "Inputs and Formulas"),
+      "Error report (table, address, input, problem)",
     ])
     mode.setAccessibilityLabel(localized("table.exportMode", "Export mode"))
     let headerBox = NSButton(
       checkboxWithTitle: localized("table.exportHeaders", "Include header row"), target: nil,
       action: nil)
     headerBox.state = .on
-    let accessory = NSStackView(views: [mode, headerBox])
+    let formatChoice = TableExportFormatControl(
+      panel: panel, delimiter: TableGridText.csvSeparator(for: editor.tableExportLocale))
+    let failures = errorReport().rows.count
+    let warning = NSTextField(
+      wrappingLabelWithString: failures > 0
+        ? "\(failures) cells have errors. Values export includes each problem. Select Error report for details."
+        : "All cells calculated.")
+    let accessory = NSStackView(views: [
+      formatChoice, formatChoice.delimiter, mode, headerBox, warning,
+    ])
     accessory.orientation = .vertical
     accessory.edgeInsets = NSEdgeInsets(top: 8, left: 12, bottom: 8, right: 12)
     panel.accessoryView = accessory
     panel.beginSheetModal(for: window) { [weak self] response in
       guard response == .OK, let self, let url = panel.url else { return }
       let format: TableTextFormat =
-        url.pathExtension.lowercased() == "csv" ? .csv : .tsv
-      let grid = self.exportGrid(
-        mode: mode.indexOfSelectedItem == 1 ? .formulas : .values)
+        formatChoice.indexOfSelectedItem == 0 ? .csv : .tsv
+      let grid =
+        mode.indexOfSelectedItem == 2
+        ? self.errorReport()
+        : self.exportGrid(
+          mode: mode.indexOfSelectedItem == 1 ? .formulas : .values)
       let text = TableGridText.text(
         grid, format: format, includesHeader: headerBox.state == .on,
         locale: self.editor.tableExportLocale)
@@ -513,6 +736,25 @@ extension ExpandedTableViewController {
     }
   }
 
+  func errorReport() -> TableGrid {
+    guard let projection else {
+      return TableGrid(name: nil, headers: [], rows: [], totals: [], failures: [])
+    }
+    var rows: [[String]] = []
+    for row in projection.rows.indices {
+      for column in projection.columns.indices {
+        if let problem = cellProblem(row: row, column: column) {
+          rows.append([
+            projection.name, TableSourceDocument.letters(column) + String(row + 2),
+            effectiveSource(at: .init(row: row, column: column)), problem,
+          ])
+        }
+      }
+    }
+    return TableGrid(
+      name: projection.name, headers: ["Table", "Address", "Input", "Problem"], rows: rows,
+      totals: [], failures: [])
+  }
   /// Which text an export writes: what cells show, or what they hold.
   enum ExportMode { case values, formulas }
 
@@ -538,14 +780,10 @@ extension ExpandedTableViewController {
       }
     }
     let totals: [String?]
-    if let result {
+    if result != nil {
       totals = projection.columns.enumerated().map { index, column -> String? in
-        guard let total = column.total else { return nil }
-        let value = result.aggregate(
-          total, rectangle: .init(rows: 0..<projection.rows.count, columns: index..<(index + 1)))
-        return value.flatMap { editor.formatTableValue($0)?.display }
-          ?? localized(
-            "table.failure", "Error")
+        guard column.total != nil else { return nil }
+        return totalDisplay(column: index)
       }
     } else {
       totals = []
@@ -561,10 +799,11 @@ extension ExpandedTableViewController {
   private func exportCell(_ value: TableCellValue?, row: RowID, column: ColumnID) -> String {
     switch value {
     case .value(let scalar):
-      return editor.formatTableValue(scalar)?.display ?? ""
+      return editor.formatTableValue(scalar, column: column, result: result)?.display ?? ""
     case .text(let text): return text
     case .blank: return ""
     case .failure:
+      if let problem = result?.cellProblem(row: row, column: column) { return problem }
       if let error = result?.cellError(row: row, column: column) {
         return editor.formatTableError(error)
       }

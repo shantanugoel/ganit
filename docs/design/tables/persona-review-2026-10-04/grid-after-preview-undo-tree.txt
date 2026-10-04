@@ -1,0 +1,135 @@
+Window: "Student checks", App: Ganit.
+0 standard window Student checks, ID: workspace, Secondary Actions: Raise
+	1 split group
+		2 scroll area Secondary Actions: Scroll Up, Scroll Down
+			3 outline Collections
+				4 row (selectable, expanded) Value: Library, Secondary Actions: Collapse
+				5 row (selected) Description: Inbox Full, Value: All Sheets
+				6 row (selectable) Description: clock, Value: Recent
+				7 row (selectable) Description: favorite, Value: Favorites
+				8 row (selectable) Description: archive, Value: Archive
+				9 row (selectable) Description: trash, Value: Trash
+			10 scroll bar (settable, float) 0
+				11 value indicator (settable, float) 0
+				12 increment arrow button
+				13 decrement arrow button
+				14 increment page button
+				15 decrement page button
+		16 scroll area Secondary Actions: Scroll Up, Scroll Down
+			17 table Sheets
+				18 row (selected)
+					19 cell (selected)
+						20 text Student checks now
+				21 row (selectable)
+					22 cell
+						23 text Recipe for six 1 minute ago
+				24 row (selectable)
+					25 cell
+						26 text Portfolio review 4 minutes ago
+				27 row (selectable)
+					28 cell
+						29 text Trip 5 minutes ago
+				30 row (selectable)
+					31 cell
+						32 text Scratch 6 minutes ago
+			33 scroll bar (disabled, settable, float) 0
+		34 splitter (disabled, settable, float) 180
+		35 button Return to Sheet
+		36 text Study · 6 × 3
+		37 button Table Actions
+		38 text Description: Selected cell address, Value: B3
+		39 text field (settable) Description: Cell input or formula, Help: Formulas work in every column. Return saves; Tab moves right; Escape cancels., Value: =IF(B2 > 1000, 1, 0), Placeholder: Enter a value or =SUM(A2:B2)
+		40 button Reference…
+		41 button Complete
+		42 scroll area Secondary Actions: Scroll Left, Scroll Right, Scroll Up, Scroll Down
+			43 table Calculation table
+				44 row (selectable)
+					45 cell
+						46 text 2
+					47 cell
+						48 text Description: A2, Case, Savings, Value: Savings
+					49 cell
+						50 text Description: B2, Input, 1,102.5, Value: 1,102.5
+					51 cell
+						52 text Description: C2, Comment, Two years, Value: Two years
+				53 row (selected)
+					54 cell (selected)
+						55 text 3
+					56 cell (selected)
+						57 text Description: A3, Case, Decision, Value: Decision
+					58 cell (selected)
+						59 text Description: B3, Input, Error, Value: Error
+					60 cell (selected)
+						61 text Description: C3, Comment, Excel habit, Value: Excel habit
+				62 row (selectable)
+					63 cell
+						64 text 4
+					65 cell
+						66 text Description: A4, Case, Rounding, Value: Rounding
+					67 cell
+						68 text Description: B4, Input, 3.33, Value: 3.33
+					69 cell
+						70 text Description: C4, Comment, Two decimals, Value: Two decimals
+				71 row (selectable)
+					72 cell
+						73 text 5
+					74 cell
+						75 text Description: A5, Case, Zero divisor, Value: Zero divisor
+					76 cell
+						77 text Description: B5, Input, 0.5, Value: 0.5
+					78 cell
+						79 text Description: C5, Comment, Fix divisor, Value: Fix divisor
+				80 row (selectable)
+					81 cell
+						82 text 6
+					83 cell
+						84 text Description: A6, Case, Wrong units, Value: Wrong units
+					85 cell
+						86 text Description: B6, Input, Error, Value: Error
+					87 cell
+						88 text Description: C6, Comment, Fix unit, Value: Fix unit
+				89 row (selectable)
+					90 cell
+						91 text 7
+					92 cell
+						93 text Description: A7, Case, Range list, Value: Range list
+					94 cell
+						95 text Description: B7, Input, Error, Value: Error
+					96 cell
+						97 text Description: C7, Comment, Excel habit, Value: Excel habit
+				98 container
+					99 sort button #
+					100 sort button A  Case
+					101 sort button B  Input
+					102 sort button C  Comment
+			103 scroll bar (settable, float) 0
+				104 value indicator (settable, float) 0
+				105 increment arrow button
+				106 decrement arrow button
+				107 increment page button
+				108 decrement page button
+			109 scroll bar (disabled, settable, float) 0
+		110 text Description: Table status, Value: 1 cells
+	111 toolbar
+		112 button Description: Sidebar, Help: Hide Sidebar, Secondary Actions: Move next
+		113 button Description: New Sheet, Secondary Actions: Move next, Remove from toolbar
+		114 search text field (settable)
+			115 button Search
+	116 close button
+	117 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	118 minimize button
+	119 text Student checks
+120 menu bar
+	121 Ganit
+	122 File
+	123 Edit
+	124 Calculate
+	125 Format
+	126 View
+	127 Window
+	128 Help
+
+Selected:
+	53 row (selected)
+
+Note: Pay special attention to the content selected by the user. If the user asks a question or refers to the content they are looking at on-screen, they might be referring to the selected content (but they might be referring to something else that's visible, too).
