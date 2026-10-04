@@ -3,6 +3,12 @@
 Notable changes to Ganit's behavior, especially anything that changes an
 existing answer. See the [release train](docs/release/release-train.md).
 
+## 0.6.1
+
+- Replace deprecated system calls and correct concurrency warnings.
+- Make the table Find test wait for result selection.
+- Make CI treat compiler warnings as errors.
+
 ## 0.6.0
 
 - Add calculation tables to sheets. Use cell formulas, column formulas,
