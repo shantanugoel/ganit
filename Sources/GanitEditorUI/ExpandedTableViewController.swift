@@ -114,6 +114,8 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     scroll.automaticallyAdjustsContentInsets = false
     scroll.hasVerticalScroller = true
     scroll.hasHorizontalScroller = true
+    scroll.scrollerStyle = .legacy
+    scroll.autohidesScrollers = false
     scroll.documentView = grid
     totals.setAccessibilityLabel(localized("table.totals", "Table totals"))
     totals.font = VisualStyle.Typography.answer(scale: 1)
@@ -124,6 +126,10 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     frozenGrid.headerView = NSTableHeaderView()
     frozenGrid.selectionHighlightStyle = .none
     frozenGrid.rowHeight = grid.rowHeight
+    frozenGrid.intercellSpacing = grid.intercellSpacing
+    frozenGrid.gridStyleMask = grid.gridStyleMask
+    frozenGrid.gridColor = grid.gridColor
+    frozenGrid.columnAutoresizingStyle = .noColumnAutoresizing
     frozenScroll.documentView = frozenGrid
     frozenScroll.hasVerticalScroller = false
     frozenScroll.widthAnchor.constraint(equalToConstant: 170).isActive = true

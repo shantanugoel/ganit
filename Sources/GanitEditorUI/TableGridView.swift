@@ -189,19 +189,7 @@ final class TableGridHeaderView: NSTableHeaderView {
 }
 
 @MainActor
-final class TableGridCellView: NSTableCellView {
-  override func draw(_ dirtyRect: NSRect) {
-    super.draw(dirtyRect)
-    NSColor.separatorColor.setStroke()
-    let lines = NSBezierPath()
-    lines.lineWidth = 1
-    lines.move(to: .init(x: bounds.minX, y: bounds.minY + 0.5))
-    lines.line(to: .init(x: bounds.maxX, y: bounds.minY + 0.5))
-    lines.move(to: .init(x: bounds.maxX - 0.5, y: bounds.minY))
-    lines.line(to: .init(x: bounds.maxX - 0.5, y: bounds.maxY))
-    lines.stroke()
-  }
-}
+final class TableGridCellView: NSTableCellView {}
 
 @MainActor
 final class TableGridRowView: NSTableRowView {
@@ -212,6 +200,7 @@ final class TableGridRowView: NSTableRowView {
   override func drawSelection(in dirtyRect: NSRect) {}
   override func drawSeparator(in dirtyRect: NSRect) {
     NSColor.separatorColor.setFill()
-    NSRect(x: 0, y: bounds.minY, width: bounds.width, height: 1).fill()
+    let y = isFlipped ? bounds.maxY - 1 : bounds.minY
+    NSRect(x: bounds.minX, y: y, width: bounds.width, height: 1).fill()
   }
 }

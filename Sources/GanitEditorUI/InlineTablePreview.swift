@@ -43,6 +43,8 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
     open.target = self
     open.action = #selector(openTable)
     scroll.hasHorizontalScroller = true
+    scroll.scrollerStyle = .legacy
+    scroll.autohidesScrollers = false
     scroll.hasVerticalScroller = true
     scroll.drawsBackground = false
     scroll.documentView = cells
@@ -569,7 +571,10 @@ extension SheetEditorViewController {
         y: fragment.layoutFragmentFrame.minY + textView.textContainerOrigin.y,
         width: max(
           0,
-          textView.bounds.width - textView.textContainerOrigin.x - textView.textContainerInset.width
+          min(
+            textView.textContainer?.size.width ?? 0,
+            textView.bounds.width - textView.textContainerOrigin.x
+              - textView.textContainerInset.width)
         ),
         height: preview.reservedHeight)
       preview.needsLayout = true

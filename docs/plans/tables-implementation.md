@@ -1526,6 +1526,14 @@ Evidence: [preview record](../design/tables/persona-review-2026-10-04/preview-un
 
 #### R37 — P2 — Table view updates in sheets and table view
 
+Status: Done. The preview width follows the sheet input area. Both table
+views keep a horizontal scrollbar visible. The grid draws each row
+separator once. Its frozen column uses the same spacing and grid settings.
+All 17 table review regression tests passed. Native checks at 640 × 600
+confirmed the input boundary, visible scrollbar and aligned row separators.
+Evidence: [sheet](../design/tables/persona-review-2026-10-04/r37-sheet.png),
+[grid](../design/tables/persona-review-2026-10-04/r37-grid.png).
+
 - In sheets view, the table spans and takes over the results area as well which is jarring, it should remain within the input area
 - In sheets view, when the table is wider than the port, the scrollbar appears only when you have a mouse that can scroll horizontally, we should allow easy way to scroll (either with or without scrollbar)
 - In table view, the cell row borders are weird, unaligned and many places double bordered, while in sheets view it is fine
@@ -1562,7 +1570,7 @@ and actual CSV export remain the evidence for the reported failures.
 
 The existing implementation changes were checked on 2026-10-04 before
 commit. All 15 `TableReviewRegressionTests` passed. The completed findings
-above describe those changes. R36 and R37 remain open for further work.
+above describe those changes. R36 remains open for further work.
 R36 requires a VoiceOver speech check before it can be closed.
 
 The full suite passed 1,126 tests before the R26 follow-up change.

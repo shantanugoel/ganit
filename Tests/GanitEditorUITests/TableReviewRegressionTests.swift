@@ -302,4 +302,24 @@ struct TableReviewRegressionTests {
     #expect(editor.sheet.text == before)
   }
 
+  @Test func sheetPreviewStaysInInputColumnAndKeepsHorizontalScrollControl() async throws {
+    let (editor, table) = try await InlineTableTests().makeEditor()
+    let text = try #require(editor.textView as? SheetTextView)
+    for width: CGFloat in [360, 640, 1200] {
+      text.setFrameSize(.init(width: width, height: 1400))
+      text.textLayoutManager?.ensureLayout(
+        for: text.textLayoutManager!.textContentManager!.documentRange)
+      editor.layoutInlineTables()
+      let preview = try #require(editor.inlineTableViews[table.id])
+      preview.layoutSubtreeIfNeeded()
+      #expect(preview.frame.width <= text.textContainer!.size.width)
+      if let separator = text.answerSeparatorX {
+        #expect(preview.frame.maxX <= separator)
+      }
+      #expect(preview.scroll.scrollerStyle == .legacy)
+      #expect(!preview.scroll.autohidesScrollers)
+      #expect(preview.scroll.horizontalScroller != nil)
+    }
+  }
+
 }
