@@ -3,6 +3,13 @@
 Notable changes to Ganit's behavior, especially anything that changes an
 existing answer. See the [release train](docs/release/release-train.md).
 
+## 0.6.3
+
+- Explain table formula errors when a reference contains text or is blank.
+  Identify Text columns and give instructions to change their input type.
+  Identify header references and direct the user to a data cell.
+- Explain when to use Automatic, Text, and Value column input types.
+
 ## 0.6.2
 
 - Fix a startup error when old-format sheet metadata differs from its

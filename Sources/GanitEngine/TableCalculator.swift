@@ -7,6 +7,10 @@ struct TableFailureOrigin: Hashable, Sendable {
 }
 
 struct TableCalculationFailure: Hashable, Sendable {
+  enum ScalarInput: Hashable, Sendable {
+    case blank, text, header
+    case textColumn(String)
+  }
   enum Code: String, Hashable, Sendable {
     case cycle, blocked, reference, syntax, evaluation, inputRequiresFormula
     case scalarRequired, unsupportedRangeOperation, invalidLiteral
@@ -31,6 +35,7 @@ struct TableCalculationFailure: Hashable, Sendable {
   /// The binding or formula diagnostic of a `reference` or `unsupported`
   /// failure.
   var referenceDiagnostic: TableFormulaDiagnostic?
+  var scalarInput: ScalarInput?
 
   /// Flattened once per shared cause set, then returned without copying.
   var origin: [TableFailureOrigin] { causes.flattened().origins }
@@ -1134,7 +1139,29 @@ private struct TableCalculationWorker {
     for binding in bindings {
       switch operands[binding.occurrence.slot] {
       case .blank, .text:
-        return .failure(failure(.scalarRequired, at: address, range: binding.occurrence.range))
+        var invalid = failure(.scalarRequired, at: address, range: binding.occurrence.range)
+        if case .blank = operands[binding.occurrence.slot] {
+          invalid.scalarInput = .blank
+        } else {
+          invalid.scalarInput = .text
+          var inputColumn: TableColumn?
+          switch binding.target {
+          case .cell(let id, let row, let column):
+            if row == nil {
+              invalid.scalarInput = .header
+            } else {
+              let model = id == table.id ? table : scope.visible.first { $0.id == id }
+              inputColumn = model?.columns.first { $0.id == column }
+            }
+          case .currentRow(let column):
+            inputColumn = table.columns.first { $0.id == column }
+          default: break
+          }
+          if let inputColumn, inputColumn.input == .text {
+            invalid.scalarInput = .textColumn(inputColumn.header)
+          }
+        }
+        return .failure(invalid)
       default: break
       }
     }

@@ -12,6 +12,77 @@ import Testing
     String(decoding: Array(source.utf8)[range], as: UTF8.self)
   }
 
+  @Test func textColumnErrorsExplainTheCauseAndRepair() throws {
+    var items = Fold.table(
+      "Items", headers: ["Item", "Qty", "Amount"],
+      rows: [
+        ["1", "3", "=A2+B2"], ["", "", "=sum(A2, B2)"],
+        ["", "", "=sum(A2:B2)"], ["1", "", "=[@Item]+B2"],
+      ])
+    items.columns[0].input = .text
+    var run = try Fold.Run()
+    let result = try #require(try run.evaluate(Fold.block(items)).tableResult(items.id))
+    let amount = items.columns[2].id
+    for row in 0...1 {
+      #expect(
+        result.cellProblem(row: items.rows[row], column: amount)
+          == "A2 contains text because column \"Item\" uses Text input. This formula requires a value. Change the column's Input Type to Automatic or Value."
+      )
+    }
+    #expect(
+      result.cellProblem(row: items.rows[3], column: amount)
+        == "[@Item] contains text because column \"Item\" uses Text input. This formula requires a value. Change the column's Input Type to Automatic or Value."
+    )
+    #expect(
+      result.value(row: items.rows[2], column: amount) == .value(.number(.integer(IntegerValue(3))))
+    )
+    #expect(
+      result.problemRange(row: items.rows[0], column: amount) == NSRange(location: 1, length: 2))
+
+    items.columns[0].input = .automatic
+    let repaired = try #require(try run.evaluate(Fold.block(items)).tableResult(items.id))
+    for row in 0...2 {
+      #expect(
+        repaired.value(row: items.rows[row], column: amount)
+          == .value(.number(.integer(IntegerValue(4)))))
+      #expect(repaired.cellProblem(row: items.rows[row], column: amount) == nil)
+    }
+  }
+
+  @Test func scalarErrorsDistinguishTextHeadersAndBlankCells() throws {
+    let items = Fold.table(
+      "Items", headers: ["Item", "Amount"],
+      rows: [["\"1\"", "=A2+3"], ["", "=A3+3"], ["", "=A1+3"]])
+    var run = try Fold.Run()
+    let result = try #require(try run.evaluate(Fold.block(items)).tableResult(items.id))
+    let amount = items.columns[1].id
+    #expect(
+      result.cellProblem(row: items.rows[0], column: amount)
+        == "A2 contains text. This formula requires a value. Replace the text with a number or another value."
+    )
+    #expect(
+      result.cellProblem(row: items.rows[1], column: amount)
+        == "A3 is blank. This formula requires a value. Enter a number or another value in that cell."
+    )
+    #expect(
+      result.cellProblem(row: items.rows[2], column: amount)
+        == "A1 refers to a column header, which contains text. This formula requires a value. Use a data cell from row 2 or below."
+    )
+  }
+
+  @Test func textColumnErrorsUseTheReferencedTableSettings() throws {
+    var codes = Fold.table("Codes", headers: ["Code"], rows: [["00123"]])
+    codes.columns[0].input = .text
+    let items = Fold.table("Items", headers: ["Amount"], rows: [["=Codes!A2+3"]])
+    var run = try Fold.Run()
+    let result = try #require(
+      try run.evaluate(Fold.block(codes) + Fold.block(items)).tableResult(items.id))
+    #expect(
+      result.cellProblem(row: items.rows[0], column: items.columns[0].id)
+        == "Codes!A2 contains text because column \"Code\" uses Text input. This formula requires a value. Change the column's Input Type to Automatic or Value."
+    )
+  }
+
   @Test func resultsAreKeyedByIdentityAndSourceSpan() throws {
     let items = Fold.items()
     let quarantined = "@ganit-table 9\n{}\n@end-ganit-table\n"

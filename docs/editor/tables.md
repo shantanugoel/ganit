@@ -8,6 +8,15 @@ It reads numbers, percentages, units and money. It keeps ordinary labels as
 text. Use Value to require a value, or Text to keep literal text. Use up to 32 columns and 4,000
 cells. Value input reads numbers, percentages, units and money. Text input
 keeps literal text. Formulas work in both types.
+Use Automatic for most columns. Use Text for product codes, account numbers,
+and labels that must stay as text. For example, Text keeps `00123` with its
+leading zeros. Use Value for quantities, prices, and other calculation
+inputs. Value reports an error if you enter a label. Value also supports a
+default unit or currency.
+Arithmetic and individual function arguments require values. If a reference
+contains text or is blank, the error identifies that reference. For Text
+columns, the error also gives the column name and tells you how to change
+its input type. Range functions skip text and blank cells.
 Definitions above the table are available to its formulas. Definitions below
 it are not available.
 

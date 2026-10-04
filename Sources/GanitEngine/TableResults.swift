@@ -133,6 +133,25 @@ public struct TableResultSnapshot: Sendable {
     default: break
     }
     switch failure.code {
+    case .scalarRequired:
+      let reference = failure.sourceRange.text(in: source).map(String.init) ?? "This reference"
+      switch failure.scalarInput {
+      case .textColumn(let header):
+        return
+          "\(reference) contains text because column \"\(header)\" uses Text input. This formula requires a value. Change the column's Input Type to Automatic or Value."
+      case .text:
+        return
+          "\(reference) contains text. This formula requires a value. Replace the text with a number or another value."
+      case .header:
+        return
+          "\(reference) refers to a column header, which contains text. This formula requires a value. Use a data cell from row 2 or below."
+      case .blank:
+        return
+          "\(reference) is blank. This formula requires a value. Enter a number or another value in that cell."
+      case nil:
+        return
+          "This formula requires a value. Check the highlighted reference for text or a blank cell."
+      }
     case .inputRequiresFormula: return "Start arithmetic input with =. For example, =" + source
     case .unsupportedRangeOperation:
       return
