@@ -1601,3 +1601,19 @@ The full suite passed 1,126 tests before the R26 follow-up change.
 
 Format check: Done. The preview cleanup uses a for-in loop. This removes
 the strict format error in the existing changes.
+
+### Final fix checks — 2026-10-04
+
+The existing changes were committed first as `31033c0`. Each subsequent
+finding fix has a separate commit and a status entry above. The final full
+suite passed 1,130 tests. All 19 review regression tests passed. The strict
+format check and final debug app build passed.
+
+Native repeat checks covered shopping Undo, trip arithmetic and currency
+totals, portfolio Find and loss sort, recipe scaling, quote rule validation
+and Study diagnostics. The screenshots and results are in the
+[fix verification report](../design/tables/review-fixes-2026-10-04.md).
+
+R01–R35 and R37 are Done. R36 has a complete implementation, but its
+VoiceOver speech check remains open. Permission to enable VoiceOver
+for that check was requested in this chat. The worktree is on `tables`.
