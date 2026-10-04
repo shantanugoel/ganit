@@ -58,7 +58,8 @@ public final class QuickPanelController: NSWindowController, NSWindowDelegate {
     panel.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
     panel.becomesKeyOnlyIfNeeded = false
     panel.isReleasedWhenClosed = false
-    panel.contentMinSize = NSSize(width: 320, height: 120)
+    // Keep space for source, answers, line numbers, and the divider.
+    panel.contentMinSize = NSSize(width: 380, height: 120)
     panel.contentViewController = editor
     panel.setAccessibilityLabel(panel.title)
     super.init(window: panel)

@@ -232,6 +232,8 @@ struct QuickPanelGeometryTests {
     let answers = textView.answerColumnWidth
     #expect(answers >= SheetTextView.answerColumnWidthRange.lowerBound)
     #expect(textView.bounds.width - answers >= answers)
+    #expect(
+      textView.contentWidth - answers - SheetTextView.columnGap >= SheetTextView.minimumSourceWidth)
   }
 }
 
