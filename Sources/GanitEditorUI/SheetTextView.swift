@@ -656,22 +656,6 @@ final class SheetTextView: NSTextView {
   override func accessibilityAttributedString(for range: NSRange) -> NSAttributedString? {
     accessibilityString(for: range).map { NSAttributedString(string: $0) }
   }
-  override func accessibilityAttributeValue(_ attribute: NSAccessibility.Attribute) -> Any? {
-    if attribute == .value { return accessibleDocumentText() }
-    if attribute == .selectedText { return accessibilityString(for: selectedRange()) }
-    return super.accessibilityAttributeValue(attribute)
-  }
-  override func accessibilityAttributeValue(
-    _ attribute: NSAccessibility.ParameterizedAttribute, forParameter parameter: Any?
-  ) -> Any? {
-    if let range = parameter as? NSValue {
-      if attribute == .stringForRange { return accessibilityString(for: range.rangeValue) }
-      if attribute == .attributedStringForRange {
-        return accessibilityString(for: range.rangeValue).map { NSAttributedString(string: $0) }
-      }
-    }
-    return super.accessibilityAttributeValue(attribute, forParameter: parameter)
-  }
   override func accessibilityChildren() -> [Any]? {
     let answerElements = answerLayout(in: visibleRect).map { line, cell, rect in
       let number = lineNumber(line) ?? 0

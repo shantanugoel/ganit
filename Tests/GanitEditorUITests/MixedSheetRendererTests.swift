@@ -73,7 +73,6 @@ struct MixedSheetRendererTests {
         #expect(columns.map(\.string) == ["N", "Twice"])
       }
     }
-    let lastPage = view.pages.last ?? []
     let lastRow = view.pages.last?.last { item in
       if case .row = item.content { return true }
       return false

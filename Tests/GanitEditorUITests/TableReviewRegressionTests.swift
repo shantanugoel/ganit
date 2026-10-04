@@ -275,11 +275,11 @@ struct TableReviewRegressionTests {
   @Test func nativeAccessibilityInterfacesHideTableStorage() async throws {
     let (editor, _) = try await InlineTableTests().makeEditor()
     let text = try #require(editor.textView as? SheetTextView)
-    let value = try #require(text.accessibilityAttributeValue(.value) as? String)
+    let value = try #require(text.accessibilityValue())
     #expect(!value.contains("@ganit-table"))
-    let range = NSValue(range: NSRange(location: 0, length: (text.string as NSString).length))
+    let range = NSRange(location: 0, length: (text.string as NSString).length)
     let string = try #require(
-      text.accessibilityAttributeValue(.stringForRange, forParameter: range) as? String)
+      text.accessibilityString(for: range))
     #expect(string.contains("Table Items"))
     #expect(!string.contains("@ganit-table"))
   }

@@ -4,9 +4,7 @@ import AppKit
 @MainActor
 final class MappedTableFinder: NSTextFinder {
   private let sourceClient: MappedTableFindClient
-  private weak var textView: SheetTextView?
   init(textView: SheetTextView) {
-    self.textView = textView
     sourceClient = MappedTableFindClient(textView: textView)
     super.init()
     client = sourceClient
@@ -16,10 +14,15 @@ final class MappedTableFinder: NSTextFinder {
   @available(*, unavailable)
   required init(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
   override func performAction(_ action: NSTextFinder.Action) {
-    textView?.isPerformingFind = true
-    defer { textView?.isPerformingFind = false }
+    // AppKit calls find actions on the main thread. The superclass does not
+    // declare this rule in its Swift interface.
+    let sourceClient = sourceClient
+    MainActor.assumeIsolated { sourceClient.textView.isPerformingFind = true }
+    defer { MainActor.assumeIsolated { sourceClient.textView.isPerformingFind = false } }
     super.performAction(action)
-    if action == .nextMatch || action == .previousMatch { textView?.findTableHit() }
+    if action == .nextMatch || action == .previousMatch {
+      MainActor.assumeIsolated { sourceClient.textView.findTableHit() }
+    }
   }
 }
 
@@ -27,7 +30,7 @@ final class MappedTableFinder: NSTextFinder {
 /// source offsets, so Find can open the mapped table cell for a hit.
 @MainActor
 final class MappedTableFindClient: NSObject, @preconcurrency NSTextFinderClient {
-  private unowned let textView: SheetTextView
+  fileprivate unowned let textView: SheetTextView
   init(textView: SheetTextView) { self.textView = textView }
   var string: String { textView.string }
   var isSelectable: Bool { textView.isSelectable }

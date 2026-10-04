@@ -252,8 +252,10 @@ public enum MainMenu {
       menu(
         localized("menu.edit", "Edit"),
         [
-          item(localized("menu.undo", "Undo"), Selector(("undo:")), "z"),
-          item(localized("menu.redo", "Redo"), Selector(("redo:")), "z", [.command, .shift]),
+          item(localized("menu.undo", "Undo"), #selector(SheetHistoryCommands.undo(_:)), "z"),
+          item(
+            localized("menu.redo", "Redo"), #selector(SheetHistoryCommands.redo(_:)), "z",
+            [.command, .shift]),
           .separator(),
           item(localized("menu.cut", "Cut"), #selector(NSText.cut(_:)), "x"),
           item(localized("menu.copy", "Copy"), #selector(NSText.copy(_:)), "c"),

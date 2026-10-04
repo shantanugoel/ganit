@@ -53,7 +53,7 @@ struct TableExportTests {
   }
 
   @Test func exportGridShowsValuesTotalsAndRuleCells() async throws {
-    let (editor, table, grid) = try await makeEditor()
+    let (editor, _, grid) = try await makeEditor()
     await editor.scheduler?.waitUntilIdle()
     let values = grid.exportGrid(mode: .values)
     #expect(values.headers == ["Qty", "Amount"])

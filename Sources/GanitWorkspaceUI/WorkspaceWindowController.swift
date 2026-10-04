@@ -864,11 +864,17 @@ extension WorkspaceWindowController: NSToolbarDelegate {
       return item
     case .undoEdit, .redoEdit, .copySelection, .pasteSelection:
       let commands: [NSToolbarItem.Identifier: (String, String, Selector)] = [
-        .undoEdit: (localized("menu.undo", "Undo"), "arrow.uturn.backward", Selector(("undo:"))),
-        .redoEdit: (localized("menu.redo", "Redo"), "arrow.uturn.forward", Selector(("redo:"))),
-        .copySelection: (localized("menu.copy", "Copy"), "doc.on.doc", Selector(("copy:"))),
+        .undoEdit: (
+          localized("menu.undo", "Undo"), "arrow.uturn.backward",
+          #selector(SheetHistoryCommands.undo(_:))
+        ),
+        .redoEdit: (
+          localized("menu.redo", "Redo"), "arrow.uturn.forward",
+          #selector(SheetHistoryCommands.redo(_:))
+        ),
+        .copySelection: (localized("menu.copy", "Copy"), "doc.on.doc", #selector(NSText.copy(_:))),
         .pasteSelection: (
-          localized("menu.paste", "Paste"), "doc.on.clipboard", Selector(("paste:"))
+          localized("menu.paste", "Paste"), "doc.on.clipboard", #selector(NSText.paste(_:))
         ),
       ]
       guard let (title, symbol, action) = commands[identifier] else { return nil }

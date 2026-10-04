@@ -28,8 +28,10 @@ public final class SpotlightTitleIndex {
       summaries.filter { $0.state == .active }.map { ($0.id, $0.title) },
       uniquingKeysWith: { first, _ in first })
     guard let indexed else {
-      index.deleteSearchableItems(withDomainIdentifiers: [Self.domain]) { [index] _ in
-        index.indexSearchableItems(titles.map(Self.item))
+      index.deleteSearchableItems(withDomainIdentifiers: [Self.domain]) { [self] _ in
+        Task { @MainActor in
+          try? await index.indexSearchableItems(titles.map(Self.item))
+        }
       }
       self.indexed = titles
       return

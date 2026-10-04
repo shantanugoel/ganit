@@ -138,7 +138,9 @@ final class InlineTablePreview: NSView, NSTextFieldDelegate {
       if cellInput.stringValue.hasPrefix("="), let input = cellInput.currentEditor() as? NSTextView,
         !input.hasMarkedText(), let target = positions[button.tag]
       {
-        input.insertText(TableSourceDocument.letters(target.column) + String(target.row + 2))
+        input.insertText(
+          TableSourceDocument.letters(target.column) + String(target.row + 2),
+          replacementRange: input.selectedRange())
         return
       }
       cancelPreviewEdit()

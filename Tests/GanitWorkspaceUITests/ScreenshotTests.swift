@@ -5,6 +5,7 @@ import GanitDocuments
 import GanitEngine
 import GanitFormatting
 import GanitQuickUI
+import ScreenCaptureKit
 import Testing
 
 @testable import GanitEditorUI
@@ -175,28 +176,33 @@ struct ScreenshotTests {
     NSApp.activate(ignoringOtherApps: true)
     window.makeKeyAndOrderFront(nil)
     try await Task.sleep(for: .milliseconds(250))
+    let captured = await windowImage(window)
     let image = try #require(
-      windowImage(window) ?? framedContent(of: window),
+      captured ?? framedContent(of: window),
       "Could not draw \(name)"
     )
     try png(of: image).write(to: try images().appending(path: name))
   }
 
   /// The on-screen window, chrome and all, at the display's native scale.
-  private func windowImage(_ window: NSWindow) -> NSImage? {
+  private func windowImage(_ window: NSWindow) async -> NSImage? {
     let id = CGWindowID(window.windowNumber)
-    guard id != 0,
-      let cgImage = CGWindowListCreateImage(
-        .null,
-        .optionIncludingWindow,
-        id,
-        [.bestResolution]
-      ),
-      cgImage.width > 32,
-      cgImage.height > 32
-    else {
-      return nil
-    }
+    guard id != 0, CGPreflightScreenCaptureAccess(),
+      let content = try? await SCShareableContent.excludingDesktopWindows(
+        false, onScreenWindowsOnly: true),
+      let target = content.windows.first(where: { $0.windowID == id })
+    else { return nil }
+    let filter = SCContentFilter(desktopIndependentWindow: target)
+    let configuration = SCStreamConfiguration()
+    configuration.captureResolution = .best
+    configuration.width = Int(filter.contentRect.width * CGFloat(filter.pointPixelScale))
+    configuration.height = Int(filter.contentRect.height * CGFloat(filter.pointPixelScale))
+    configuration.showsCursor = false
+    guard
+      let cgImage = try? await SCScreenshotManager.captureImage(
+        contentFilter: filter, configuration: configuration),
+      cgImage.width > 32, cgImage.height > 32
+    else { return nil }
     return NSImage(cgImage: cgImage, size: window.frame.size)
   }
 

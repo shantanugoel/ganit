@@ -339,7 +339,7 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
       if !field.string.hasPrefix("=") {
         field.insertText("=", replacementRange: .init(location: 0, length: 0))
       }
-      field.insertText(text)
+      field.insertText(text, replacementRange: field.selectedRange())
       formula.stringValue = field.string
       referencedCells = projection?.referencedCells(in: field.string, row: position.row) ?? []
       grid.reloadData()
@@ -376,8 +376,9 @@ package final class ExpandedTableViewController: NSViewController, NSTableViewDa
     guard let input = editingInput.currentEditor() as? NSTextView, !input.hasMarkedText() else {
       return
     }
-    if input.string.isEmpty { input.insertText("=") }
-    input.insertText(sender.representedObject as? String ?? sender.title)
+    if input.string.isEmpty { input.insertText("=", replacementRange: input.selectedRange()) }
+    input.insertText(
+      sender.representedObject as? String ?? sender.title, replacementRange: input.selectedRange())
     formula.stringValue = input.string
   }
   package func controlTextDidEndEditing(_ obj: Notification) {

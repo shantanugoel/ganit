@@ -13,7 +13,7 @@ struct LanguageReferenceTests {
     #expect(LanguageReference.topics(matching: "compound interest").contains { $0.title == "fv" })
     #expect(LanguageReference.topics(matching: "GST").contains { $0.id == "grammar.percentages" })
     // The Units topic lists the units themselves, so a search for one finds it.
-    let units = try? #require(LanguageReference.topic(id: "grammar.units"))
+    let units = LanguageReference.topic(id: "grammar.units")
     #expect(units?.body.contains("Wh") == true)
     #expect(LanguageReference.topics(matching: "knot").contains { $0.id == "grammar.units" })
     #expect(LanguageReference.unitSymbols.contains("Ω"))

@@ -60,7 +60,7 @@ jobs:
               pin["state"]["revision"] == "63feef7820abb1a8fb08587d7da56bb0b7db8751"
           '
           swift package dump-package >/dev/null
-          swift test --parallel
+          swift test --parallel -Xswiftc -warnings-as-errors
 
       - name: Lay out windows with double-length strings
         run: GANIT_PSEUDOLOCALIZATION=1 swift test --filter PseudolocalizationTests

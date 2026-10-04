@@ -46,7 +46,7 @@ final class TableRuleForm: NSView, NSTextFieldDelegate {
       if let cursor, cursor.upperBound <= editor.string.utf16.count {
         editor.setSelectedRange(cursor)
       }
-      editor.insertText(choices[index].1)
+      editor.insertText(choices[index].1, replacementRange: editor.selectedRange())
       field.stringValue = editor.string
       cursor = editor.selectedRange()
     } else {

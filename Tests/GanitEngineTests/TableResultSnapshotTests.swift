@@ -93,7 +93,7 @@ import Testing
   }
 
   @Test func originsResolveToTheCellRuleOrHeaderSource() throws {
-    var table = Fold.table(
+    let table = Fold.table(
       "Items", headers: ["Qty", "Amount"], rows: [["2", "=1 +"], ["oops"]],
       rules: [1: "=[@Qty] * 2"])
     let source = "1\n" + (try Fold.block(table))

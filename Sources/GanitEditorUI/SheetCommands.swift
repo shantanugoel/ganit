@@ -29,3 +29,10 @@ import AppKit
   func decreaseTextSize(_ sender: Any?)
   func resetTextSize(_ sender: Any?)
 }
+
+/// Undo and redo actions for menus and toolbars.
+@MainActor
+@objc public protocol SheetHistoryCommands {
+  func undo(_ sender: Any?)
+  func redo(_ sender: Any?)
+}
