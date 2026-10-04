@@ -339,6 +339,10 @@ struct TableReviewRegressionTests {
     controller.select(.init(row: 2, column: 1))
     controller.select(.init(row: 0, column: 1), extending: true)
     #expect(controller.selectionRows == [2, 0])
+    #expect(controller.status.stringValue.contains("Rows 4, 2 · Columns B:B"))
+    #expect(controller.status.stringValue.contains("2 rows × 1 columns"))
+    #expect(controller.status.stringValue.contains("Copy starts: B4"))
+    #expect(!controller.status.stringValue.contains("B2:B4"))
     let column = controller.grid.tableColumns[2]
     let unselected = try #require(
       controller.tableView(controller.grid, viewFor: column, row: 0) as? TableGridCellView)

@@ -535,10 +535,24 @@ extension ExpandedTableViewController {
       "\(numeric) numeric · \(text) text · \(blank) blank",
     ]
     if count > 1 {
+      let rows = selectionRows
+      let rangeName: String
+      if rows.count == rectangle.rows.count {
+        rangeName = first + ":" + last
+      } else {
+        rangeName =
+          "Rows " + rows.prefix(12).map { String($0 + 2) }.joined(separator: ", ")
+          + (rows.count > 12 ? "…" : "") + " · Columns "
+          + TableSourceDocument.letters(rectangle.columns.lowerBound) + ":"
+          + TableSourceDocument.letters(rectangle.columns.upperBound - 1)
+      }
+      let source =
+        TableSourceDocument.letters(rectangle.columns.lowerBound)
+        + String((rows.first ?? anchor.row) + 2)
       parts.append(
-        first + ":" + last
-          + " · \(rectangle.rows.count) rows × \(rectangle.columns.count) columns · Fill source: "
-          + first + " · Active: " + address.stringValue)
+        rangeName + " · \(rows.count) rows × \(rectangle.columns.count) columns · "
+          + (hasReviewProjection ? "Copy starts: " : "Fill source: ")
+          + source + " · Active: " + address.stringValue)
     }
     if numeric > 0, let result,
       let value = result.aggregate(.sum, rowIndices: selectionRows, columns: rectangle.columns)

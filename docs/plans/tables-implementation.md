@@ -1306,6 +1306,10 @@ Required check: show `1 cell` and use the correct plural for other counts.
 #### R19 — P2 — A selected range is not named (product gap)
 
 Status: Done. Selection status shows the range, dimensions and source cell.
+If review order makes the selected source rows discontinuous, it names the
+selected rows and columns instead of a false rectangular range. Dimensions
+use the actual selected rows. It identifies where Copy starts. All 19 review
+regression tests passed after this native review follow-up.
 
 A selected amount column reports five cells, Sum and Average. The input
 bar shows only its active cell address. It does not show `D2:D6`.
