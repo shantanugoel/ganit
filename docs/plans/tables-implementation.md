@@ -1582,3 +1582,6 @@ above describe those changes. R36 remains open for further work.
 R36 requires a VoiceOver speech check before it can be closed.
 
 The full suite passed 1,126 tests before the R26 follow-up change.
+
+Format check: Done. The preview cleanup uses a for-in loop. This removes
+the strict format error in the existing changes.

@@ -1747,7 +1747,7 @@ extension SheetEditorViewController {
         .font: VisualStyle.Typography.source(scale: sheetTextView.textScale),
         .foregroundColor: NSColor.textColor, .paragraphStyle: NSParagraphStyle.default,
       ], range: NSRange(location: 0, length: storage.length))
-    inlineTableViews.values.forEach { $0.removeFromSuperview() }
+    for preview in inlineTableViews.values { preview.removeFromSuperview() }
     inlineTableViews = [:]
     inlineTableRanges = [:]
   }
