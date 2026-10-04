@@ -64,6 +64,14 @@ public struct SourceRange: Hashable, Sendable {
     return source[lowerIndex..<upperIndex]
   }
 
+  /// This range in coordinates that start `origin` earlier.
+  package func shifted(by origin: SourceLocation) -> SourceRange {
+    SourceRange(
+      lowerBound: lowerBound + origin.utf8Offset, upperBound: upperBound + origin.utf8Offset,
+      graphemeLowerBound: graphemeLowerBound + origin.graphemeOffset,
+      graphemeUpperBound: graphemeUpperBound + origin.graphemeOffset)
+  }
+
   package func union(_ other: SourceRange) -> SourceRange {
     SourceRange(
       lowerBound: min(lowerBound, other.lowerBound),

@@ -1,0 +1,10 @@
+@ganit-table 1
+{"ids":["a9d3c38a-f710-418b-964e-5043605c7160","43f954cd-4b0a-4c08-92c5-9e8f5a444a13","43b2696e-1923-4223-a24d-66a6e7952bc0","b1d7d9d6-446a-4fc0-b4d7-0c6982d88058","0dfec4eb-aa42-47f8-b3e5-a0a04951fbea","a68d234b-9e62-4db7-b170-9c2be17a699b","9e1e608b-6766-48d5-9d35-909c9d7ff245","3e5dab47-6ee9-46db-a05b-da198f83acd1","837df9ee-5c82-4a28-97cb-0cc151cf9f3e","6b1c6afe-9447-4bd2-9af4-4794af297377","27bdc9e6-7964-43a0-a61f-44e4edd03632"],"t":0,"n":"Trip","c":[{"i":1,"h":"Item","p":"text"},{"i":2,"h":"Local cost","p":"value","z":"sum"},{"i":3,"h":"People","p":"value"},{"i":4,"h":"Note","p":"text"}],"r":[5,6,7,8,9,10],"x":[{"a":[5,1],"s":"Hotel"},{"a":[5,2],"s":"85 USD * 3"},{"a":[5,3],"s":"2"},{"a":[5,4],"s":"3 nights"},{"a":[6,1],"s":"Meals"},{"a":[6,2],"s":"42.50 USD"},{"a":[6,3],"s":"2"},{"a":[6,4],"s":"per day"},{"a":[7,1],"s":"Train"},{"a":[7,2],"s":"60 EUR"},{"a":[7,3],"s":"2"},{"a":[7,4],"s":"return"},{"a":[8,1],"s":"Taxi"},{"a":[8,2],"s":"1200 INR"},{"a":[8,3],"s":"2"},{"a":[8,4],"s":"airport"},{"a":[9,1],"s":"Museum"},{"a":[9,2],"s":"20 EUR"},{"a":[9,3],"s":"2"},{"a":[9,4],"s":"optional"},{"a":[10,1],"s":"SIM"},{"a":[10,2],"s":"15 USD"},{"a":[10,3],"s":"1"},{"a":[10,4],"s":"data"}],"b":[]}
+@end-ganit-table
+Item	Local cost	People	Note
+Hotel	85 USD	2	3 nights
+Meals	42.50 USD	2	per day
+Train	60 EUR	2	return
+Taxi	1200 INR	2	airport
+Museum	20 EUR	2	optional
+SIM	15 USD	1	data

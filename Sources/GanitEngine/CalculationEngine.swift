@@ -69,7 +69,9 @@ public struct CalculationEngine: Sendable {
     variables: [String: EngineValue?],
     lines: LineOutcomes,
     manualRates: [CurrencyPair: NumericValue] = [:],
-    functions: [String: CustomFunction] = [:]
+    functions: [String: CustomFunction] = [:],
+    convertsMixedCurrencies: Bool = true,
+    scalarBudget: TableScalarBudget? = nil
   ) -> (result: CalculationResult, trace: EvaluationTrace) {
     let (result, trace) = Evaluator(
       context: context,
@@ -77,7 +79,9 @@ public struct CalculationEngine: Sendable {
       variables: variables,
       lines: lines,
       manualRates: manualRates,
-      functions: functions
+      functions: functions,
+      convertsMixedCurrencies: convertsMixedCurrencies,
+      scalarBudget: scalarBudget
     ).evaluateTracing(expression)
     switch result {
     case .success(let value):
@@ -210,5 +214,28 @@ public struct CalculationEngine: Sendable {
       return (nil, .takenWord(first.range))
     }
     return words.isEmpty ? (nil, nil) : (words.joined(separator: " "), nil)
+  }
+}
+
+extension CalculationEngine {
+  /// Table formulas use this engine's catalog and limits, preserving the
+  /// same kind-directed parser used by ordinary calculations.
+  func parse(
+    _ syntax: TableFormulaSyntax, context: EvaluationContext,
+    operandKinds: [String: EngineValueKind], inheritedKinds: [String: EngineValueKind],
+    customFunctions: Set<String> = [], origin: SourceLocation = .start
+  ) throws -> ParsingResult {
+    try syntax.parse(
+      context: context, operandKinds: operandKinds, inheritedKinds: inheritedKinds,
+      customFunctions: customFunctions, catalog: unitCatalog, limits: syntaxLimits,
+      origin: origin)
+  }
+
+  /// Range reductions reuse the ordinary aggregate arithmetic and this
+  /// engine's limits, so exactness, dimensions and currencies match `total`.
+  func tableRangeReducer(context: EvaluationContext, scalarBudget: TableScalarBudget? = nil)
+    -> TableRangeReducer
+  {
+    TableRangeReducer(context: context, limits: evaluationLimits, scalarBudget: scalarBudget)
   }
 }

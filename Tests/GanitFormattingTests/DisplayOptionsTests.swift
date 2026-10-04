@@ -12,10 +12,22 @@ struct DisplayOptionsTests {
     let hidden = DisplayOptions(showsLineNumbers: false)
     let data = try JSONEncoder().encode(hidden)
     #expect(try !JSONDecoder().decode(DisplayOptions.self, from: data).showsLineNumbers)
-    var older = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
-    older.removeValue(forKey: "showsLineNumbers")
-    let oldData = try JSONSerialization.data(withJSONObject: older)
-    #expect(try JSONDecoder().decode(DisplayOptions.self, from: oldData).showsLineNumbers)
+  }
+
+  /// Every choice is written, so options missing one are not current and are
+  /// refused rather than filled in.
+  @Test(arguments: [
+    "groupsDigits", "groupsInLakhs", "numbers", "writesAnswersInline", "showsAnswerSeparator",
+    "showsLineNumbers", "answerFormats", "dollarCurrency", "ambiguousSuffixes",
+  ])
+  func refusesOptionsMissingAChoice(key: String) throws {
+    let data = try JSONEncoder().encode(DisplayOptions.standard)
+    var object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    #expect(object.removeValue(forKey: key) != nil)
+    let missing = try JSONSerialization.data(withJSONObject: object)
+    #expect(throws: DecodingError.self) {
+      try JSONDecoder().decode(DisplayOptions.self, from: missing)
+    }
   }
 
   @Test
@@ -126,15 +138,10 @@ struct DisplayOptionsTests {
   }
 
   @Test
-  func preservesSheetInterpretationChoicesAndReadsOlderOptions() throws {
+  func preservesSheetInterpretationChoices() throws {
     let selected = DisplayOptions(ambiguousSuffixes: ["m": .unit, "l": .scale])
     let encoded = try JSONEncoder().encode(selected)
     #expect(try JSONDecoder().decode(DisplayOptions.self, from: encoded) == selected)
-    var older = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
-    older.removeValue(forKey: "ambiguousSuffixes")
-    // Existing sheets without a choice keep the spacing rule.
-    let data = try JSONSerialization.data(withJSONObject: older)
-    #expect(try JSONDecoder().decode(DisplayOptions.self, from: data).ambiguousSuffixes.isEmpty)
   }
 
   private func format(_ source: String, _ options: DisplayOptions) throws -> String {

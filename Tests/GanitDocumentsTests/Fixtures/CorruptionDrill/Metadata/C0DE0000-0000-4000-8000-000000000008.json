@@ -1,0 +1,38 @@
+{
+  "createdAt" : "2026-09-15T08:00:00Z",
+  "hasCustomTitle" : false,
+  "id" : "C0DE0000-0000-4000-8000-000000000008",
+  "isFavorite" : false,
+  "modifiedAt" : "2026-09-16T09:30:00Z",
+  "preferences" : {
+    "angleMode" : "radians",
+    "display" : {
+      "ambiguousSuffixes" : {
+
+      },
+      "answerFormats" : {
+
+      },
+      "dollarCurrency" : "USD",
+      "groupsDigits" : true,
+      "groupsInLakhs" : false,
+      "numbers" : {
+        "automatic" : {
+
+        }
+      },
+      "showsAnswerSeparator" : true,
+      "showsLineNumbers" : true,
+      "writesAnswersInline" : false
+    },
+    "localeIdentifier" : "en-US",
+    "significantDecimalDigits" : 15
+  },
+  "schemaVersion" : 2,
+  "sourceChecksum" : "sha256:2b2d2fa0c84d999ef6544e65d0488c82b9c11c4a08b7bf2925d130b366a3795b",
+  "state" : "active",
+  "tables" : {
+
+  },
+  "title" : "Orphan"
+}

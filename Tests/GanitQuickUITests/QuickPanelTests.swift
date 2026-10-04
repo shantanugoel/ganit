@@ -394,3 +394,63 @@ struct QuickBufferTests {
     #expect(store.load().isEmpty)
   }
 }
+
+/// Quick Ganit keeps pasted table blocks, valid or not, byte for byte in its
+/// buffer and when kept as a sheet, and never calculates them: each block's
+/// first line says so and points to Keep as Sheet, the way to a table.
+@MainActor
+@Suite
+struct QuickTableBlockTests {
+  private let root = FileManager.default.temporaryDirectory
+    .appending(path: "GanitQuickTables-\(UUID().uuidString)", directoryHint: .isDirectory)
+
+  @Test
+  func pastedBlocksAreKeptExactlyAndNeverCalculated() async throws {
+    defer { try? FileManager.default.removeItem(at: root) }
+    let fixtures = URL(fileURLWithPath: #filePath)
+      .deletingLastPathComponent().deletingLastPathComponent()
+      .appending(path: "GanitEngineTests/Fixtures/TableBlocks", directoryHint: .isDirectory)
+    var text = ""
+    for name in ["malformed-json.txt", "unsupported-version.txt", "line-endings-crlf.txt"] {
+      text += try #require(
+        String(data: try Data(contentsOf: fixtures.appending(path: name)), encoding: .utf8))
+    }
+    text += "@ganit-table 1\n{\"unterminated\": true}\n2 + 2"
+    let store = TextDocumentStore(url: root.appending(path: "QuickBuffer.txt"))
+    let controller = QuickPanelController(context: try standardContext(), store: store)
+    var promoted: [String] = []
+    controller.promote = { promoted.append($0) }
+    controller.show()
+    let pasteboard = NSPasteboard(name: NSPasteboard.Name("GanitQuickTables-\(UUID())"))
+    defer { pasteboard.releaseGlobally() }
+    pasteboard.clearContents()
+    pasteboard.setString(text, forType: .string)
+    let textView = controller.editor.textView
+    textView.setSelectedRange(NSRange(location: 0, length: (textView.string as NSString).length))
+    #expect(textView.readSelection(from: pasteboard, type: .string))
+    #expect(textView.string.utf8.elementsEqual(text.utf8))
+
+    let lines = await controller.editor.exportedLines()
+    let blocks = TableSourceDocument.blockLineRanges(in: SheetSource(text))
+    #expect(blocks.count == 4)
+    for block in blocks {
+      #expect(lines[block.lowerBound].status == .failure)
+      #expect(lines[block.lowerBound].answer?.contains("Keep as Sheet") == true)
+      #expect(block.dropFirst().allSatisfy { lines[$0].answer == nil })
+    }
+    #expect(
+      controller.editor.latestEvaluation?.tableResults.allSatisfy { !$0.isCalculated } == true)
+    // Prose outside the blocks still calculates.
+    #expect(lines[4].answer == "2")
+    #expect(controller.editor.latestEvaluation?.tableDiagnostics.count == 3)
+
+    controller.hide()
+    #expect(Array(try Data(contentsOf: store.url)) == Array(text.utf8))
+    let relaunched = QuickPanelController(context: try standardContext(), store: store)
+    #expect(relaunched.editor.textView.string.utf8.elementsEqual(text.utf8))
+
+    controller.show()
+    controller.keepAsSheet(nil)
+    #expect(promoted.count == 1 && promoted[0].utf8.elementsEqual(text.utf8))
+  }
+}

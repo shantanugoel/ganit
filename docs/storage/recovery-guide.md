@@ -2,7 +2,7 @@
 
 Every instruction here is rehearsed by `RecoveryRehearsalTests` against a real
 library on disk, and the automatic recovery paths by `StorageFaultTests`,
-`SheetLibraryTests`, and `RateSnapshotStoreTests`.
+`CorruptionDrillTests`, `SheetLibraryTests`, and `RateSnapshotStoreTests`.
 
 Ganit keeps its library in its sandbox container:
 
@@ -19,6 +19,20 @@ Nothing to do. Every save is atomic, so each sheet is its previous or new
 complete version. The next launch rewrites stale metadata, moves unreadable
 metadata to `Quarantine/`, and rebuilds the index from the sheet files.
 
+## A sheet's metadata is damaged or missing
+
+Nothing to do. Opening the sheet, or the next launch that rebuilds the index,
+moves damaged metadata to `Quarantine/` and recreates it from the sheet's text,
+which is never changed: its calculations and tables, including ones Ganit
+can't read yet, are kept exactly. The sheet's title then follows its first line,
+and its name, folder, favorite, archive or trash state, number settings, and
+column widths go back to their defaults; set them again if you need them. The
+quarantined file stays in `Quarantine/` for reference. A metadata file whose
+sheet text is gone is ignored. If Ganit can't write the repaired metadata, for
+example because the disk is full or the library folder's permissions were
+changed, the library still opens, the sheet's text is left as it is, and
+Ganit tries again at the next launch once the problem is fixed.
+
 ## Undo a day's mistakes
 
 Open the sheet and choose **File ▸ Restore Previous Version…**, then pick a
@@ -34,17 +48,25 @@ Ganit. The library opens with every sheet, title, folder, and backup.
 ## Keep an independent copy
 
 Choose **File ▸ Export…** and **Ganit Sheet** for each sheet. A `.ganit`
-package holds the exact source, title, and preferences. Import it with
+package holds the exact source, including its tables, and the title,
+preferences, and column widths. Import it with
 **File ▸ Import…** or by opening it in Finder; a package keeps its sheet's
 identity when that sheet is not already in the library. The source is also
 plain text you can read without Ganit: `source.txt` inside the package.
+**Plain Text** export writes the same bytes, which import back unchanged
+unless the text begins with an invisible U+FEFF, which import removes, or is
+larger than 1 MB, which import refuses.
 
-## Return to an older Ganit
+## Sheets in an unsupported format
 
-Sheets that a newer Ganit saved in a newer format are left untouched: an older
-version skips them, reports them as unreadable, and never rewrites or deletes
-their files. Every other sheet keeps working. Open the library in the newer
-Ganit again to use those sheets.
+Ganit reads only the current metadata format, schema 2. A sheet whose metadata
+has any other schema, such as `1` or a later version, is left untouched:
+Ganit never rewrites, converts, or deletes its files, and every other sheet
+keeps working. When Ganit rebuilds its index, such as the first launch after
+the format changed, it leaves these sheets out of the library and, when a
+window opens, says how many sheets it couldn't open. Opening one, such as the
+scratch sheet, explains which format it was saved in. The sheet's source in
+`Sheets/` is still plain text you can read or import.
 
 ## Damaged exchange rates
 
@@ -52,3 +74,20 @@ Nothing to do. If the current rate snapshot is damaged, Ganit falls back to
 the newest intact one of the eight it keeps, and a rejected download never
 replaces good rates. With no usable snapshot, conversions ask for a manual
 rate such as `1 USD = 83 INR`.
+
+## A table that Ganit cannot read
+
+Nothing to do. A table block that fails its checks, such as a damaged payload
+or a version Ganit does not read, is kept byte for byte in the sheet. Ganit
+does not calculate it, and lines that read it say so. The block prints with
+its failure in PDF and HTML output. Repair is an explicit edit: fix the block
+in the sheet source, or delete it and insert a new table.
+
+## A broken table reference
+
+A reference in a table formula that lost its target stays broken in source as
+`#REF!{...}`. It stays broken after save and reload, even when another cell
+later takes the same address. Select the cell, choose Repair Broken Reference
+in Table Actions, pick the new target, and commit. The repair is part of the
+same undoable edit as the change that caused it. See
+[table references](../grammar/table-references.md) for the repair rules.

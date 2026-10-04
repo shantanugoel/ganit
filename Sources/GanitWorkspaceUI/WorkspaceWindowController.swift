@@ -64,6 +64,8 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     let toolbar = NSToolbar(identifier: "workspace")
     toolbar.delegate = self
     toolbar.displayMode = .iconOnly
+    toolbar.allowsUserCustomization = true
+    toolbar.autosavesConfiguration = true
     window.toolbar = toolbar
     searchItem.searchField.target = self
     searchItem.searchField.action = #selector(searchFieldChanged(_:))
@@ -93,14 +95,18 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
 
   /// Shows a sheet in this window, or brings forward the window already
   /// showing it.
-  func show(_ id: UUID) {
+  /// Shows a sheet, returning whether it could be loaded. A failure is
+  /// presented on the window unless `presentingErrors` is false.
+  @discardableResult
+  func show(_ id: UUID, presentingErrors: Bool = true) -> Bool {
     let previous = sheetID
+    var loaded = true
     do {
       let next = try workspace.sheet(id)
       if let other = next.window, other !== self {
         other.showWindow(nil)
         sidebar.select(sheet: sheetID)
-        return
+        return true
       }
       saveNow(nil)
       sheet?.window = nil
@@ -116,10 +122,14 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
       window?.makeFirstResponder(next.editor.textView)
       discardIfUntouched(previous)
     } catch {
-      window?.presentError(error)
+      loaded = false
+      if presentingErrors {
+        window?.presentError(error)
+      }
     }
     updateTitle()
     window?.invalidateRestorableState()
+    return loaded
   }
 
   /// Shows the first listed sheet other than `excluded`, or clears the
@@ -227,11 +237,18 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     sidebar.search = restorable.search
     searchItem.searchField.stringValue = restorable.search
     splitViewController.splitViewItems[0].isCollapsed = restorable.isSidebarCollapsed
-    guard let id = restorable.sheetID, (try? library.store.load(id: id)) != nil else {
+    // Showing the sheet loads it through the workspace, which repairs its
+    // metadata if needed and reloads the sidebars.
+    guard let id = restorable.sheetID else {
       showFirstListedSheet()
       return
     }
-    show(id)
+    guard show(id, presentingErrors: false) else {
+      // A sheet that still cannot be loaded may still be listed; skip it so
+      // restoring never presents its error.
+      showFirstListedSheet(excluding: id)
+      return
+    }
     guard let textView = editor?.textView, restorable.selection.count == 2 else {
       return
     }
@@ -328,32 +345,57 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
       }
       let type = types[formats.indexOfSelectedItem]
       Task { @MainActor in
-        let lines = await editor.exportedLines()
-        let name = url.deletingPathExtension().lastPathComponent
+        let blocks = await editor.renderedBlocks()
+        let lines = type == .commaSeparatedText ? await editor.exportedLines() : []
+        let locale = editor.tableExportLocale
         self?.perform {
-          switch type {
-          case .pdf:
-            try SheetDocumentRenderer.pdf(lines, title: name).write(to: url, options: .atomic)
-          case .commaSeparatedText:
-            try Data(SheetDocumentRenderer.csv(lines).utf8).write(to: url, options: .atomic)
-          case .html:
-            try Data(SheetDocumentRenderer.html(lines, title: name).utf8).write(
-              to: url, options: .atomic)
-          default:
-            let pdf = try SheetDocumentRenderer.pdf(lines, title: name)
-            let quickLook =
-              type == .ganitSheet
-              ? SheetDocumentRenderer.thumbnail(ofPDF: pdf).map {
-                QuickLookPreview(pdf: pdf, thumbnailPNG: $0)
-              } : nil
-            try self?.library.exportSheet(sheetID, to: url, quickLook: quickLook)
+          if type == .commaSeparatedText {
+            // CSV keeps every physical line, so table source stays in it.
+            try self?.export(sheetID, lines: lines, locale: locale, as: type, to: url)
+          } else {
+            try self?.export(sheetID, blocks: blocks, as: type, to: url)
           }
         }
       }
     }
   }
 
-  /// Prints the sheet's source beside its answers.
+  /// Writes an export once its destination is chosen. A Ganit Sheet or plain
+  /// text holds the sheet's stored source bytes exactly; PDF, HTML and the
+  /// Quick Look preview show `blocks`, its prose beside its answers and its
+  /// tables as grids. CSV shows `lines`, one row per physical line.
+  func export(_ sheetID: UUID, blocks: [RenderedBlock], as type: UTType, to url: URL) throws {
+    let name = url.deletingPathExtension().lastPathComponent
+    switch type {
+    case .pdf:
+      try SheetDocumentRenderer.pdf(blocks, title: name).write(to: url, options: .atomic)
+    case .html:
+      try Data(SheetDocumentRenderer.html(blocks, title: name).utf8).write(
+        to: url, options: .atomic)
+    case .ganitSheet:
+      let pdf = try SheetDocumentRenderer.pdf(blocks, title: name)
+      let quickLook = SheetDocumentRenderer.thumbnail(ofPDF: pdf).map {
+        QuickLookPreview(pdf: pdf, thumbnailPNG: $0)
+      }
+      try library.exportSheet(sheetID, to: url, quickLook: quickLook)
+    default:
+      try library.exportSheet(sheetID, to: url, quickLook: nil)
+    }
+  }
+
+  /// Writes the line-per-row CSV export. `locale` is the sheet's number
+  /// locale, so the formula guard reads numbers the way the sheet shows them.
+  func export(
+    _ sheetID: UUID, lines: [ExportedLine], locale: Locale, as type: UTType, to url: URL
+  ) throws {
+    guard type == .commaSeparatedText else {
+      return try export(sheetID, blocks: [], as: type, to: url)
+    }
+    try Data(SheetDocumentRenderer.csv(lines, locale: locale).utf8).write(
+      to: url, options: .atomic)
+  }
+
+  /// Prints the sheet's prose beside its answers and its tables as grids.
   @objc public func printSheet(_ sender: Any?) {
     guard let window, let editor else {
       return
@@ -361,7 +403,7 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     Task { @MainActor in
       let printInfo = SheetDocumentRenderer.printInfo()
       let view = SheetDocumentRenderer.printableView(
-        await editor.exportedLines(), printInfo: printInfo)
+        await editor.renderedBlocks(), printInfo: printInfo)
       let operation = NSPrintOperation(view: view, printInfo: printInfo)
       operation.jobTitle = window.title
       operation.runModal(for: window, delegate: nil, didRun: nil, contextInfo: nil)
@@ -547,7 +589,7 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
   @objc public func toggleMarkdownMode(_ sender: Any?) {
     let id = sidebar.targetSheet?.id ?? sheetID
     guard let id,
-      var options = (try? library.store.load(id: id))?.metadata.preferences.display
+      var options = (try? library.load(id: id))?.metadata.preferences.display
     else {
       return
     }
@@ -561,7 +603,7 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     }
     let id = sidebar.targetSheet?.id ?? sheetID
     guard let id,
-      var options = (try? library.store.load(id: id))?.metadata.preferences.display
+      var options = (try? library.load(id: id))?.metadata.preferences.display
     else {
       return
     }
@@ -786,12 +828,20 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
 
 extension NSToolbarItem.Identifier {
   static let newSheet = NSToolbarItem.Identifier("newSheet")
+  static let undoEdit = NSToolbarItem.Identifier("undoEdit")
+  static let redoEdit = NSToolbarItem.Identifier("redoEdit")
+  static let copySelection = NSToolbarItem.Identifier("copySelection")
+  static let pasteSelection = NSToolbarItem.Identifier("pasteSelection")
   static let searchSheets = NSToolbarItem.Identifier("searchSheets")
 }
 
 extension WorkspaceWindowController: NSToolbarDelegate {
   public func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-    [.toggleSidebar, .sidebarTrackingSeparator, .newSheet, .flexibleSpace, .searchSheets]
+    [
+      .toggleSidebar, .sidebarTrackingSeparator, .newSheet,
+      .undoEdit, .redoEdit, .copySelection, .pasteSelection,
+      .flexibleSpace, .searchSheets,
+    ]
   }
 
   public func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
@@ -811,6 +861,23 @@ extension WorkspaceWindowController: NSToolbarDelegate {
         systemSymbolName: VisualStyle.Symbol.newSheet, accessibilityDescription: item.label)
       item.action = #selector(newSheet(_:))
       item.target = self
+      return item
+    case .undoEdit, .redoEdit, .copySelection, .pasteSelection:
+      let commands: [NSToolbarItem.Identifier: (String, String, Selector)] = [
+        .undoEdit: (localized("menu.undo", "Undo"), "arrow.uturn.backward", Selector(("undo:"))),
+        .redoEdit: (localized("menu.redo", "Redo"), "arrow.uturn.forward", Selector(("redo:"))),
+        .copySelection: (localized("menu.copy", "Copy"), "doc.on.doc", Selector(("copy:"))),
+        .pasteSelection: (
+          localized("menu.paste", "Paste"), "doc.on.clipboard", Selector(("paste:"))
+        ),
+      ]
+      guard let (title, symbol, action) = commands[identifier] else { return nil }
+      let item = NSToolbarItem(itemIdentifier: identifier)
+      item.label = title
+      item.paletteLabel = title
+      item.toolTip = title
+      item.image = NSImage(systemSymbolName: symbol, accessibilityDescription: title)
+      item.action = action
       return item
     case .searchSheets:
       searchItem.label = localized("menu.searchSheets", "Search Sheets")

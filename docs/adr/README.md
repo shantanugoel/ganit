@@ -18,3 +18,5 @@ Architecture decision records (ADRs) capture choices that constrain Ganit's impl
 | [0012](0012-assistant-fallback.md) | Ask a configured model about lines Ganit cannot work out |
 | [0013](0013-sparkle-updates.md) | Install updates with Sparkle, after being asked |
 | [0014](0014-reference-picker.md) | Compact line references and a shared @ picker |
+| [0016](0016-table-semantics-and-editor-ownership.md) | Table semantics, reference transformations and shared editor ownership |
+| [0017](0017-table-source-and-storage.md) | Table source ledger and current-format atomic storage (no backward compatibility) |

@@ -7,6 +7,7 @@ import GanitEditorUI
 import GanitQuickUI
 import GanitSystemIntegration
 import GanitWorkspaceUI
+import QuartzCore
 import ServiceManagement
 import Sparkle
 
@@ -77,8 +78,33 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     NSApplication.shared.appearance = appearanceChoice.appearance
     do {
       let root = try SheetLibrary.applicationSupportRoot()
+      var migrationWindow: NSWindow?
+      defer { migrationWindow?.close() }
+      let library = try SheetLibrary(
+        root: root,
+        migrationProgress: { progress in
+          if migrationWindow == nil {
+            let window = NSWindow(
+              contentRect: NSRect(x: 0, y: 0, width: 420, height: 120),
+              styleMask: [.titled], backing: .buffered, defer: false)
+            window.title = "Updating saved sheets"
+            window.isReleasedWhenClosed = false
+            window.center()
+            window.makeKeyAndOrderFront(nil)
+            migrationWindow = window
+          }
+          let label = NSTextField(
+            wrappingLabelWithString:
+              "Ganit is updating your saved sheets. This can take a moment.\nUpdated \(progress.completed) of \(progress.total) files."
+          )
+          label.frame = NSRect(x: 24, y: 20, width: 372, height: 76)
+          migrationWindow?.contentView = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 120))
+          migrationWindow?.contentView?.addSubview(label)
+          migrationWindow?.displayIfNeeded()
+          CATransaction.flush()
+        })
       let workspace = try Workspace(
-        library: try SheetLibrary(root: root),
+        library: library,
         definitions: TextDocumentStore(url: root.appending(path: "Definitions.txt"))
       )
       self.workspace = workspace
@@ -137,6 +163,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     // from a script with `open -a Ganit --args --quick-ganit`.
     if CommandLine.arguments.contains("--quick-ganit") {
       showQuickGanit(nil)
+      workspace?.presentPendingNotice()
       return
     }
     // Starting in the menu bar leaves even restored windows closed until
@@ -147,11 +174,14 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       for controller in workspace?.windows ?? [] {
         controller.close()
       }
+      // With no window open, the notice waits for the first one.
+      workspace?.presentPendingNotice()
       return
     }
     if workspace?.windows.isEmpty == true {
       openMostRecentSheet()
     }
+    workspace?.presentPendingNotice()
     NSApplication.shared.activate()
     if !GanitPreferences.hasCompletedTour {
       showTour(nil)

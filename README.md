@@ -27,6 +27,12 @@ The live notepad of [Soulver](https://soulver.app/) and [Numi](https://numi.app/
   <img src="docs/images/markdown-dark.png" alt="Ganit window in Markdown Mode, with answers written after => in the lines" width="860">
 </p>
 
+- **Calculation tables.** Keep item lists, quantities, prices, and totals in a sheet. Use **Edit ▸ Insert Table…** to add a table. Enter cell formulas or apply a formula to a column. Sort and filter rows, calculate totals, and export the table as CSV or TSV.
+
+<p align="center">
+  <img src="docs/images/tables-dark.png" alt="Ganit calculation table with quantities, prices, a column formula, and a total of 522 INR" width="860">
+</p>
+
 - **Anywhere on the Mac.** A shortcut summons **Quick Ganit** over any app. The same engine answers from the menu bar, Services, Shortcuts, `ganit://` links, and a `ganit` command.
 - **Yours, and honest.** Sheets are plain text on this Mac: autosave, backups, folders, Trash, export to CSV, HTML, PDF, or print. No account, no analytics. If Ganit cannot work a line out, it says so in place.
 
@@ -90,6 +96,13 @@ moves the answers into the lines, as in Calca. Headings, paragraphs, lists, and
 it ends its calculation with `=>` (⌘↩ adds one), right after the arrow, and any
 words after the arrow follow the answer. Markdown sheets show a small document
 mark in the sidebar.
+
+**Tables** can use the variables above them. For example, `=[@Qty] * [@Price]`
+calculates an amount for each row. Double-click a cell to edit it. Press
+Enter to save the value. Escape or a click outside the table discards the
+draft and clears the selection. Use **Open Table** for the full grid and
+the left arrow to return to the sheet. Undo, Redo, Copy, and Paste use the
+same icon toolbar in both views.
 
 **Your own functions**: `area(w, h) = w * h` defines one, and `area(3 m, 4 m)`
 calls it. Put it in **Window ▸ Definitions** to use it in every sheet.

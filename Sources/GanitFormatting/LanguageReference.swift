@@ -207,6 +207,36 @@ extension LanguageReference {
       keywords: ["custom unit", "shared"]
     ),
     topic(
+      id: "grammar.tables",
+      category: .grammar,
+      title: text("help.grammar.tables.title", "Calculation tables"),
+      summary: text(
+        "help.grammar.tables.summary",
+        "A named grid of rows and columns with formulas, totals, and typed cells."
+      ),
+      body: text(
+        "help.grammar.tables.body",
+        "Use Edit ▸ Insert Table, or right-click the sheet and select Insert Table. Set the row count, column count, headers and input types. Double-click a cell to edit it. Return saves and moves down. Tab saves and moves right. A formula with = works in every column. Direct function input such as sum(A2, B2) adds = when you save. Definitions above the table are available to its formulas. Set Column Formula gives one rule to a whole column, and a dot marks a cell that overrides it. Column Total adds a typed total below the column. Right-click a cell, row number or column header for its commands. Use Fill Down or Fill Right to copy formulas with relative references. Table Actions renames, adds rows or columns at the end, and exports the table. The table keeps its identity through Undo, redo, save, and reload. Automatic input reads labels and values. Value input is strict. Display Format offers percentage decimals. Review offers a stable sort, text or currency filters, and a frozen label column. Review controls keep the original addresses. Totals include filtered rows. Convert Selection to Table replaces selected text in one Undo step. Paste as Table inserts clipboard text. Scroll the sheet preview to read all cells. A dot marks overrides in both views. Tables support calculator arithmetic and numeric functions, and sum, average, median, min, max and count over one range. IF, comparisons, conditional aggregates, lookup and text functions are not supported. For several ranges, use =SUM(B2:B3) + SUM(B5:B6). Mixed currencies have separate totals. Export offers CSV, TSV and an error report."
+      ),
+      examples: ["=[@Qty] * rate", "=sum(B2:B6)"],
+      keywords: ["table", "grid", "column rule", "total", "rows"]
+    ),
+    topic(
+      id: "grammar.tableReferences",
+      category: .grammar,
+      title: text("help.grammar.tableReferences.title", "Table references"),
+      summary: text(
+        "help.grammar.tableReferences.summary",
+        "Addresses, ranges, named columns, and qualified references to other tables."
+      ),
+      body: text(
+        "help.grammar.tableReferences.body",
+        "The header row is 1 and the first data row is 2. B2 is one cell, B2:D6 is a rectangle, C:C is the whole data column, and [@Qty] is the current row's column. Items[Amount] reads one named column as data, and Rates!B2 names another table above. sheet[B2] reads an ordinary variable named B2. A header returns text. Range functions skip blank and text cells, and a failed cell fails the result. sum of an empty range is 0; average, median, min, and max of an empty range are errors. Prose below the table reads values with a qualified reference, such as cost = sum(Items[Amount])."
+      ),
+      examples: ["=[@Qty] * [@[Unit price]]", "=sum(Items[Amount])", "=Rates!B2 * 2"],
+      keywords: ["address", "range", "qualified", "A1", "lock", "fill"]
+    ),
+    topic(
       id: "grammar.dates",
       category: .grammar,
       title: text("help.grammar.dates.title", "Dates and times"),

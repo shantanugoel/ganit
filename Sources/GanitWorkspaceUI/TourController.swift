@@ -25,6 +25,13 @@ public final class TourController: NSViewController {
       )
     ),
     Step(
+      title: localized("tour.tables.title", "Use a table"),
+      body: localized(
+        "tour.tables.body",
+        "Use Edit ▸ Insert Table for a shopping list, trip, quote or portfolio. Automatic input accepts labels and numbers. Enter =[@Qty] * [@Price] for an amount. The sheet shows the table preview. Open Table provides formulas, totals, sort and filters."
+      )
+    ),
+    Step(
       title: localized("tour.step3.title", "Quick Ganit"),
       body: localized(
         "tour.step3.body",
@@ -70,7 +77,8 @@ public final class TourController: NSViewController {
     let skip = NSButton(
       title: localized("tour.skip", "Skip"), target: self, action: #selector(skip(_:)))
     skip.keyEquivalent = "\u{1b}"
-    let buttons = NSStackView(views: [skip, nextButton])
+    let create = NSButton(title: "Create Table…", target: self, action: #selector(createTable))
+    let buttons = NSStackView(views: [skip, create, nextButton])
     buttons.spacing = VisualStyle.Spacing.related
 
     let stack = NSStackView(views: [progress, titleLabel, bodyLabel, buttons])
@@ -93,6 +101,15 @@ public final class TourController: NSViewController {
     showStep()
   }
 
+  @objc private func createTable() {
+    finish()
+    DispatchQueue.main.async {
+      let workspace = NSApp.windows.first { $0.identifier?.rawValue == "workspace" }
+      workspace?.makeKeyAndOrderFront(nil)
+      NSApp.sendAction(
+        #selector(SheetEditorViewController.insertCalculationTable(_:)), to: nil, from: nil)
+    }
+  }
   @objc func advance(_ sender: Any?) {
     if index + 1 >= Self.steps.count {
       finish()

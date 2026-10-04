@@ -18,6 +18,50 @@ import GanitFormatting
 /// no answer is selected.
 @MainActor
 final class SheetTextView: NSTextView {
+  var isPerformingFind = false
+  private(set) var isCopyingSource = false
+  private lazy var mappedFinder = MappedTableFinder(textView: self)
+  var findTableHit: () -> Void = {}
+  var previewTableFindHit: () -> Void = {}
+  override func performTextFinderAction(_ sender: Any?) {
+    guard !inlineRanges().isEmpty else {
+      super.performTextFinderAction(sender)
+      return
+    }
+    let tag = (sender as? NSMenuItem)?.tag ?? (sender as? NSButton)?.tag ?? 0
+    guard let action = NSTextFinder.Action(rawValue: tag) else { return }
+    if mappedFinder.findBarContainer !== enclosingScrollView {
+      mappedFinder.findBarContainer = enclosingScrollView
+    }
+    mappedFinder.performAction(action)
+  }
+  override func writeSelection(to pasteboard: NSPasteboard, types: [NSPasteboard.PasteboardType])
+    -> Bool
+  {
+    let original = selectedRanges
+    let mapped = original.map { value -> NSValue in
+      var range = value.rangeValue
+      for block in inlineRanges() where NSIntersectionRange(range, block).length > 0 {
+        range = NSUnionRange(range, block)
+      }
+      return NSValue(range: range)
+    }
+    isCopyingSource = true
+    defer {
+      selectedRanges = original
+      isCopyingSource = false
+    }
+    selectedRanges = mapped
+    return super.writeSelection(to: pasteboard, types: types)
+  }
+  weak var tableCreationTarget: SheetEditorViewController?
+  var inlineLayout: () -> Void = {}
+  var inlineRefresh: () -> Void = {}
+  var inlineRanges: () -> [NSRange] = { [] }
+  override func layout() {
+    super.layout()
+    inlineLayout()
+  }
   private static let interpretationUnits = try? UnitCatalog.minimal()
   /// The answer column shares the width with source up to these bounds.
   static let answerColumnFraction: CGFloat = 0.35
@@ -38,6 +82,7 @@ final class SheetTextView: NSTextView {
   private(set) var textScale: CGFloat = 1 {
     didSet {
       font = VisualStyle.Typography.source(scale: textScale)
+      inlineRefresh()
       setFrameSize(frame.size)
       openAnswerGaps()
     }
@@ -130,6 +175,14 @@ final class SheetTextView: NSTextView {
   var line: (Int) -> (number: Int, id: LineID)? = { _ in nil }
   /// The one-based number of a line.
   var lineNumber: (LineID) -> Int? = { _ in nil }
+  /// Whether the line containing a UTF-16 offset belongs to a table block,
+  /// valid or not. Completion, scrubbing, answer arrows, inserted lines and
+  /// references, prefix toggles and reinterpretation never rewrite block
+  /// source; only what the reader types, pastes or deletes changes it.
+  var isTableLine: (Int) -> Bool = { _ in false }
+  /// Whether any line a UTF-16 range touches, including the line at its
+  /// end, belongs to a table block.
+  var touchesTableLine: (NSRange) -> Bool = { _ in false }
   /// Every line's ID, UTF-16 start offset, and UTF-16 length, in order.
   var lineStarts: () -> [(id: LineID, start: Int, length: Int)] = { [] }
   private lazy var problemRotor = LineRotor(textView: self, failures: true)
@@ -253,6 +306,10 @@ final class SheetTextView: NSTextView {
   /// Ends the insertion point's line with `=>`, as ⌘↩ does in Calca, unless it
   /// already has one.
   @objc func insertAnswerArrow(_ sender: Any?) {
+    guard canInsertAnswerArrow else {
+      NSSound.beep()
+      return
+    }
     let string = self.string as NSString
     var contentsEnd = 0
     string.getLineStart(
@@ -451,6 +508,7 @@ final class SheetTextView: NSTextView {
 
   override func didChangeText() {
     super.didChangeText()
+    mappedFinder.noteClientStringWillChange()
     // Edits move lines, so answers must be redrawn in their new positions.
     answerOverlay().needsDisplay = true
     completionDismissed = false
@@ -563,6 +621,57 @@ final class SheetTextView: NSTextView {
 
   /// Visible answers and failure messages, as static text elements after the
   /// text view's own children.
+  private func accessibleDocumentText() -> String {
+    guard !inlineRanges().isEmpty else { return string }
+    let document = TableSourceDocument(string)
+    let projections = document.editingTableIDs.compactMap { TableEditingSnapshot(document, id: $0) }
+    var text = string
+    for range in inlineRanges().sorted(by: { $0.location > $1.location }) {
+      let offset = (string as NSString).substring(to: range.location).utf8.count
+      var summary = "Table source has an error."
+      if let table = projections.first(where: { $0.utf8Range.lowerBound == offset }) {
+        summary = "Table " + table.name + ". " + String(table.rows.count) + " rows. Columns: "
+        summary +=
+          table.columns.map(\.header).joined(separator: ", ")
+          + ". Use the table controls to read its cells."
+      }
+      // Keep text offsets stable for the native accessibility range API.
+      let content = (summary as NSString).substring(to: min(range.length, summary.utf16.count))
+      let replacement =
+        content + String(repeating: " ", count: max(0, range.length - content.utf16.count - 1))
+        + (range.length > content.utf16.count ? "\n" : "")
+      text = (text as NSString).replacingCharacters(in: range, with: replacement)
+    }
+    return text
+  }
+  override func accessibilityValue() -> String? { accessibleDocumentText() }
+  override func accessibilitySelectedText() -> String? {
+    accessibilityString(for: selectedRange())
+  }
+  override func accessibilityString(for range: NSRange) -> String? {
+    let text = accessibleDocumentText() as NSString
+    guard range.location >= 0, range.upperBound <= text.length else { return nil }
+    return text.substring(with: range)
+  }
+  override func accessibilityAttributedString(for range: NSRange) -> NSAttributedString? {
+    accessibilityString(for: range).map { NSAttributedString(string: $0) }
+  }
+  override func accessibilityAttributeValue(_ attribute: NSAccessibility.Attribute) -> Any? {
+    if attribute == .value { return accessibleDocumentText() }
+    if attribute == .selectedText { return accessibilityString(for: selectedRange()) }
+    return super.accessibilityAttributeValue(attribute)
+  }
+  override func accessibilityAttributeValue(
+    _ attribute: NSAccessibility.ParameterizedAttribute, forParameter parameter: Any?
+  ) -> Any? {
+    if let range = parameter as? NSValue {
+      if attribute == .stringForRange { return accessibilityString(for: range.rangeValue) }
+      if attribute == .attributedStringForRange {
+        return accessibilityString(for: range.rangeValue).map { NSAttributedString(string: $0) }
+      }
+    }
+    return super.accessibilityAttributeValue(attribute, forParameter: parameter)
+  }
   override func accessibilityChildren() -> [Any]? {
     let answerElements = answerLayout(in: visibleRect).map { line, cell, rect in
       let number = lineNumber(line) ?? 0
@@ -597,7 +706,13 @@ final class SheetTextView: NSTextView {
       element.setAccessibilityValue(cell.text)
       return element
     }
-    return (super.accessibilityChildren() ?? []) + answerElements
+    let previews = subviews.compactMap { $0 as? InlineTablePreview }.sorted {
+      $0.frame.minY < $1.frame.minY
+    }
+    let controls = previews.flatMap { preview -> [Any] in
+      [preview.title, preview.open, preview.scroll, preview.totals, preview.inspection]
+    }
+    return (super.accessibilityChildren() ?? []) + answerElements + controls
   }
 
   /// Rotors that move VoiceOver between lines with problems or results.
@@ -770,6 +885,21 @@ final class SheetTextView: NSTextView {
     for (title, action) in answerCommands {
       menu.addItem(NSMenuItem(title: title, action: action, keyEquivalent: ""))
     }
+    if let editor = tableCreationTarget, isEditable, !hasMarkedText() {
+      menu.addItem(.separator())
+      for (title, action) in [
+        ("Insert Table…", #selector(SheetEditorViewController.insertCalculationTable(_:))),
+        ("Paste as Table…", #selector(SheetEditorViewController.pasteAsCalculationTable(_:))),
+        (
+          "Convert Selection to Table…",
+          #selector(SheetEditorViewController.convertSelectionToCalculationTable(_:))
+        ),
+      ] {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        item.target = editor
+        menu.addItem(item)
+      }
+    }
     menu.addItem(answerFormatMenuItem())
     menu.addItem(.separator())
     for (title, action) in [
@@ -878,7 +1008,7 @@ final class SheetTextView: NSTextView {
 
   /// Only tokens beside an amount can have these competing meanings.
   private func sourceInterpretation(atUTF16 offset: Int) -> SourceInterpretation? {
-    guard let info = line(offset),
+    guard !isTableLine(offset), let info = line(offset),
       let start = lineStarts().first(where: { $0.id == info.id })
     else { return nil }
     let lineText = (string as NSString).substring(
@@ -1317,7 +1447,7 @@ final class SheetTextView: NSTextView {
   /// holding it.
   private func number(at offset: Int) -> (number: ScrubbableNumber, lineStart: Int)? {
     let text = string as NSString
-    guard offset <= text.length else {
+    guard offset <= text.length, !isTableLine(offset) else {
       return nil
     }
     let line = text.paragraphRange(for: NSRange(location: offset, length: 0))
@@ -1478,7 +1608,7 @@ final class SheetTextView: NSTextView {
   /// assistant prompt prose. A placeholder remains an expression.
   private func isCompletionPosition() -> Bool {
     let cursor = selectedRange()
-    guard cursor.length == 0 else { return false }
+    guard cursor.length == 0, !isTableLine(cursor.location) else { return false }
     let text = string as NSString
     let lineRange = text.lineRange(for: cursor)
     let contents = text.substring(with: lineRange)
@@ -1695,7 +1825,8 @@ final class SheetTextView: NSTextView {
       details: interpretation(target.line), fullPrecision: target.cell.fullPrecision,
       availableSize: window?.screen?.visibleFrame.size ?? NSScreen.main?.visibleFrame.size
         ?? NSSize(width: 800, height: 600), pasteboard: pasteboard,
-      onSelectLine: { [weak self] number in self?.selectErrorOrigin(line: number) }
+      onSelectLine: { [weak self] number in self?.selectErrorOrigin(line: number) },
+      onSelectRange: { [weak self] range in self?.selectErrorOrigin(range: range) }
     )
     popover.show(relativeTo: rect, of: self, preferredEdge: .maxY)
     interpretationPopover = popover
@@ -1705,11 +1836,19 @@ final class SheetTextView: NSTextView {
     let lines = lineStarts()
     guard lines.indices.contains(number - 1) else { return }
     let origin = lines[number - 1]
+    selectErrorOrigin(range: NSRange(location: origin.1, length: origin.2))
+  }
+
+  /// Selects an original failure's source, such as a table cell's record
+  /// inside its block, and shows it.
+  func selectErrorOrigin(range: NSRange) {
+    guard range.upperBound <= (string as NSString).length else { return }
     interpretationPopover?.close()
     selectedAnswer = nil
-    setSelectedRange(NSRange(location: origin.1, length: origin.2))
-    scrollRangeToVisible(selectedRange())
+    setSelectedRange(range)
+    scrollRangeToVisible(range)
     window?.makeFirstResponder(self)
+    findTableHit()
   }
 
   @objc func askAssistant(_ sender: Any?) {
@@ -1758,7 +1897,7 @@ final class SheetTextView: NSTextView {
     case #selector(copyFullPrecision(_:)):
       return targetAnswer?.cell.fullPrecision != nil
     case #selector(insertReference(_:)):
-      return referenceTarget != nil
+      return referenceTarget != nil && canInsertReferenceHere
     case #selector(nextProblem(_:)), #selector(previousProblem(_:)):
       return !answerLines(failures: true).isEmpty
     case #selector(decreaseTextSize(_:)):
@@ -1767,10 +1906,12 @@ final class SheetTextView: NSTextView {
       return textScale < Self.textScales[Self.textScales.count - 1]
     case #selector(resetTextSize(_:)):
       return textScale != 1
-    case #selector(insertSubtotal(_:)), #selector(insertAnswerArrow(_:)),
-      #selector(toggleHeading(_:)),
-      #selector(toggleComment(_:)), #selector(insertDivider(_:)):
-      return isEditable
+    case #selector(insertSubtotal(_:)), #selector(insertDivider(_:)):
+      return isEditable && !isTableLine(lineInsertionPoint)
+    case #selector(insertAnswerArrow(_:)):
+      return isEditable && canInsertAnswerArrow
+    case #selector(toggleHeading(_:)), #selector(toggleComment(_:)):
+      return isEditable && canTogglePrefix
     case #selector(stepNumberUp(_:)), #selector(stepNumberDown(_:)):
       return isEditable && number(at: selectedRange().location) != nil
     default:
@@ -1855,33 +1996,61 @@ final class SheetTextView: NSTextView {
     return true
   }
 
-  private func insertLineAfterCurrent(_ text: String) {
+  /// Whether the answer arrow would be written outside table blocks.
+  private var canInsertAnswerArrow: Bool {
+    !isTableLine(selectedRange().location)
+  }
+
+  /// Where a line inserted after the selection's last line begins: the end
+  /// of that line's contents.
+  private var lineInsertionPoint: Int {
     let string = self.string as NSString
-    let lineRange = string.lineRange(for: selectedRange())
     var contentsEnd = 0
-    string.getLineStart(nil, end: nil, contentsEnd: &contentsEnd, for: lineRange)
+    string.getLineStart(
+      nil, end: nil, contentsEnd: &contentsEnd, for: string.lineRange(for: selectedRange()))
+    return contentsEnd
+  }
+
+  /// Whether a reference replacing the selection would leave every table
+  /// block's bytes alone.
+  private var canInsertReferenceHere: Bool {
+    !touchesTableLine(selectedRange())
+  }
+
+  private func insertLineAfterCurrent(_ text: String) {
+    let contentsEnd = lineInsertionPoint
+    guard !isTableLine(contentsEnd) else {
+      NSSound.beep()
+      return
+    }
     let inserted = "\n" + text
     insertText(inserted, replacementRange: NSRange(location: contentsEnd, length: 0))
     setSelectedRange(NSRange(location: contentsEnd + (inserted as NSString).length, length: 0))
   }
 
   /// Toggles a marker on the selected lines as one edit: removes it when
-  /// every non-blank line starts with it, and adds it otherwise.
+  /// every non-blank line starts with it, and adds it otherwise. Lines of a
+  /// table block keep their bytes.
   private func togglePrefix(_ marker: String) {
-    let string = self.string as NSString
-    let block = string.lineRange(for: selectedRange())
-    let lines = SheetSource(string.substring(with: block)).lines
-    let contentLines = lines.map(\.text).filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+    let (block, lines, inTable, terminators) = prefixToggleLines()
+    let contentLines = zip(lines, inTable).filter {
+      !$0.1 && !$0.0.trimmingCharacters(in: .whitespaces).isEmpty
+    }.map(\.0)
+    guard !contentLines.isEmpty || !inTable.contains(true) else {
+      NSSound.beep()
+      return
+    }
     let removing =
       !contentLines.isEmpty
       && contentLines.allSatisfy { $0.drop(while: \.isWhitespace).hasPrefix(marker) }
     var offset = block.location
     var changes: [(range: NSRange, replacement: String)] = []
-    let toggled = lines.map { sourceLine -> String in
-      let line = sourceLine.text
-      let terminator = sourceLine.terminator?.rawValue ?? ""
+    let toggled = zip(lines, inTable).enumerated().map { element -> String in
+      let (index, pair) = element
+      let (line, isTable) = pair
+      let terminator = terminators[index]
       defer { offset += line.utf16.count + terminator.utf16.count }
-      guard !line.trimmingCharacters(in: .whitespaces).isEmpty else {
+      guard !isTable, !line.trimmingCharacters(in: .whitespaces).isEmpty else {
         return line + terminator
       }
       let indent = line.prefix(while: \.isWhitespace)
@@ -1916,12 +2085,40 @@ final class SheetTextView: NSTextView {
     setSelectedRange(NSRange(location: block.location, length: (toggled as NSString).length))
   }
 
+  /// The selected lines a prefix toggle reads, and which of them belong to
+  /// table blocks.
+  private func prefixToggleLines() -> (
+    block: NSRange, lines: [String], inTable: [Bool], terminators: [String]
+  ) {
+    let string = self.string as NSString
+    let block = string.lineRange(for: selectedRange())
+    let physical = SheetSource(string.substring(with: block)).lines
+    var start = block.location
+    let inTable = physical.map { line -> Bool in
+      defer { start += line.text.utf16.count + (line.terminator?.rawValue.utf16.count ?? 0) }
+      return isTableLine(start)
+    }
+    return (block, physical.map(\.text), inTable, physical.map { $0.terminator?.rawValue ?? "" })
+  }
+
+  /// Whether a prefix toggle has a line outside table blocks to act on, or
+  /// a selection without block lines.
+  private var canTogglePrefix: Bool {
+    let (_, lines, inTable, _) = prefixToggleLines()
+    return !inTable.contains(true)
+      || zip(lines, inTable).contains { !$1 && !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+  }
+
   /// Inserts `line N` for an answer above the insertion point's line.
   private func insertReference(to answerLine: LineID) {
     guard let number = lineNumber(answerLine),
       let caretLine = line(selectedRange().location),
       number < caretLine.number
     else {
+      NSSound.beep()
+      return
+    }
+    guard canInsertReferenceHere else {
       NSSound.beep()
       return
     }
@@ -2037,7 +2234,10 @@ final class SheetTextView: NSTextView {
       VisualStyle.Typography.source(scale: textScale).ascender - (numberFont?.ascender ?? 0)
     let width = gutterWidth - VisualStyle.Spacing.standard / 2
     return visibleLines(in: rect).compactMap { line in
-      lineNumber(line.id).map {
+      guard !isTableLine(lineStarts().first(where: { $0.id == line.id })?.start ?? 0) else {
+        return nil
+      }
+      return lineNumber(line.id).map {
         (
           $0,
           NSRect(
@@ -2218,7 +2418,19 @@ private final class AnswerOverlayView: NSView {
     }
     if let x = textView.answerSeparatorX {
       VisualStyle.Color.separator.setFill()
-      NSRect(x: x, y: dirtyRect.minY, width: 1, height: dirtyRect.height).fill()
+      var start = dirtyRect.minY
+      let blocks = textView.subviews.compactMap { $0 as? InlineTablePreview }.map(\.frame).sorted {
+        $0.minY < $1.minY
+      }
+      for block in blocks where block.maxY > start && block.minY < dirtyRect.maxY {
+        if block.minY > start {
+          NSRect(x: x, y: start, width: 1, height: block.minY - start).fill()
+        }
+        start = max(start, block.maxY)
+      }
+      if start < dirtyRect.maxY {
+        NSRect(x: x, y: start, width: 1, height: dirtyRect.maxY - start).fill()
+      }
     }
     for (rect, color) in textView.underlineLayout(in: dirtyRect) {
       let path = NSBezierPath()

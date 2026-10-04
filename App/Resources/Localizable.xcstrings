@@ -2000,6 +2000,171 @@
           }
         }
       }
+    },
+    "storage.unsupportedSchema" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This sheet was saved in format %lld, which this version of Ganit can't open."
+          }
+        }
+      }
+    },
+    "storage.invalidUTF8" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This sheet's text isn't valid UTF-8, so Ganit can't open it."
+          }
+        }
+      }
+    },
+    "storage.leftUnchanged" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The file was left unchanged."
+          }
+        }
+      }
+    },
+    "exchange.unsupportedSchema" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Ganit sheet was saved in format %lld, which this version of Ganit can't open."
+          }
+        }
+      }
+    },
+    "exchange.invalidUTF8" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” isn't UTF-8 text, so Ganit can't open it."
+          }
+        }
+      }
+    },
+    "exchange.tooLarge" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%@” is larger than a Ganit sheet can be."
+          }
+        }
+      }
+    },
+    "library.unreadable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Some sheets couldn't be opened."
+          }
+        }
+      }
+    },
+    "library.unreadable.detail" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sheets Ganit couldn't open: %lld. Their files were left unchanged in Ganit's library folder. See “Sheets in an unsupported format” in the recovery guide."
+          }
+        }
+      }
+    },
+    "interpretation.errorTable" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Table" } }
+      }
+    },
+    "table.undo.insertTable" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Insert Table" } }
+      }
+    },
+    "table.undo.deleteTable" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete Table" } }
+      }
+    },
+    "table.undo.duplicateTable" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Duplicate Table" } }
+      }
+    },
+    "table.undo.insertRows" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Insert Rows" } }
+      }
+    },
+    "table.undo.deleteRows" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete Rows" } }
+      }
+    },
+    "table.undo.insertColumn" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Insert Column" } }
+      }
+    },
+    "table.undo.deleteColumns" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Delete Columns" } }
+      }
+    },
+    "table.undo.renameTable" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Rename Table" } }
+      }
+    },
+    "table.undo.renameColumn" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Rename Column" } }
+      }
+    },
+    "table.undo.editCell" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Edit Cell" } }
+      }
+    },
+    "table.undo.columnRule" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Change Column Formula" } }
+      }
+    },
+    "table.undo.columnTotal" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Change Total" } }
+      }
+    },
+    "table.undo.columnInput" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Change Column Input" } }
+      }
+    },
+    "table.undo.paste" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Paste" } }
+      }
+    },
+    "table.undo.fill" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Fill" } }
+      }
+    },
+    "table.undo.moveCells" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Move Cells" } }
+      }
     }
   },
   "version" : "1.0"

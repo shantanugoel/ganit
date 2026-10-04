@@ -42,6 +42,15 @@ Definitions stand above a sheet's first line:
 
 Quick Ganit reads the definitions sheet like any other sheet.
 
+## Tables
+
+The definitions sheet does not calculate [tables](../storage/table-blocks.md).
+It preserves each table block byte for byte. The first block line shows an
+explanation. A line that reads a table also fails with this explanation. For
+example, `total = sum(Items[Amount])` cannot export a table value. Table values
+cannot become global variables, units or functions. Move the table to a
+workspace sheet to calculate it.
+
 ## Custom units
 
 `1 <name> = <quantity>` defines a unit as a multiple of an existing one, the

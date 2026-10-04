@@ -281,6 +281,20 @@ public enum MainMenu {
             ]
           ),
           item(
+            localized("table.insert", "Insert Table…"),
+            #selector(SheetEditorViewController.insertCalculationTable(_:))),
+          item("Inspect Table Source", #selector(SheetEditorViewController.inspectTableSource(_:))),
+          item("Paste as Table…", #selector(SheetEditorViewController.pasteAsCalculationTable(_:))),
+          item(
+            "Convert Selection to Table…",
+            #selector(SheetEditorViewController.convertSelectionToCalculationTable(_:))),
+          item(
+            localized("table.open", "Open Table"),
+            #selector(SheetEditorViewController.openCalculationTable(_:)), "t", [.command, .shift]),
+          item(
+            localized("table.return", "Return to Sheet"),
+            #selector(SheetEditorViewController.returnFromTable(_:))),
+          item(
             localized("menu.goToLine", "Go to Line…"), #selector(SheetCommands.goToLine(_:)), "l"),
           .separator(),
           item(
@@ -412,6 +426,8 @@ public enum MainMenu {
             "s",
             [.command, .control]
           ),
+          item("Show Toolbar", #selector(NSWindow.toggleToolbarShown(_:))),
+          item("Customize Toolbar…", #selector(NSWindow.runToolbarCustomizationPalette(_:))),
           item(
             localized("menu.showAnswerSeparator", "Show Answer Separator"),
             #selector(WorkspaceCommands.toggleAnswerSeparator(_:))),

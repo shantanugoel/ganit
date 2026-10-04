@@ -1,0 +1,10 @@
+# Portfolio review
+// Sample prices. No live market data.
+
+@ganit-table 1
+{"ids":["094c725f-38af-4312-acb5-a6ec9426ed42","be81029d-3e81-4c73-b91c-5f815bdaf2a6","dc32aaba-207b-4997-8766-aa2d746ec3f7","1ef443e1-7444-4c99-93ae-aff2c6cb8283","1540e3d8-95d8-496b-a1bf-63c2297a4a9d","32c44a22-6e60-4c46-9721-d6b7dfe34324","79b99e43-1c07-4f6e-8457-c06c3019fe6e","854ca1a3-9d13-411b-8fad-0f4b068c8954","435af3cd-3270-4868-aaab-86668d251afb","84863584-080f-455d-93f9-d0b91f0335af","9effeeb7-8598-4fbf-8622-250d29b1aed9","a21243a1-f0ed-4784-9ca5-888ef8d31383","069a3824-1826-42af-8c18-36274ffaaa1c"],"t":0,"n":"Portfolio","c":[{"i":1,"h":"Ticker","p":"text"},{"i":2,"h":"Shares","p":"value"},{"i":3,"h":"Buy price","p":"value"},{"i":4,"h":"Now price","p":"value"},{"i":5,"h":"Cost","p":"value","f":"=[@Shares] * [@Buy price]","z":"sum"},{"i":6,"h":"Value","p":"value","f":"=[@Shares] * [@Now price]","z":"sum"},{"i":7,"h":"Gain","p":"value","f":"=[@Value] - [@Cost]","z":"sum"},{"i":8,"h":"Return","p":"value","f":"=([@Now price] / [@Buy price] - 1) * 100%"},{"i":9,"h":"Decision","p":"text"}],"r":[10,11,12],"x":[{"a":[10,1],"s":"ALFA"},{"a":[10,2],"s":"10"},{"a":[10,3],"s":"100 USD"},{"a":[10,4],"s":"110 USD"},{"a":[10,9],"s":"Hold"},{"a":[11,1],"s":"BETA"},{"a":[11,2],"s":"5"},{"a":[11,3],"s":"200 USD"},{"a":[11,4],"s":"180 USD"},{"a":[11,9],"s":"Review"},{"a":[12,1],"s":"GAMMA"},{"a":[12,2],"s":"3"},{"a":[12,3],"s":"50 USD"},{"a":[12,4],"s":"60 USD"},{"a":[12,9],"s":"Hold"}],"b":[]}
+@end-ganit-table
+
+cost = sum(Portfolio[Cost])
+value = sum(Portfolio[Value])
+value - cost

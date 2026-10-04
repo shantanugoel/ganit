@@ -7,6 +7,8 @@ public struct Evaluator: Sendable {
   private let lines: LineOutcomes
   private let manualRates: [CurrencyPair: NumericValue]
   private let functions: [String: CustomFunction]
+  private let convertsMixedCurrencies: Bool
+  private let scalarBudget: TableScalarBudget?
 
   public init(
     context: EvaluationContext,
@@ -23,14 +25,17 @@ public struct Evaluator: Sendable {
   /// `variables` maps declared names to their values, or to `nil` when the
   /// declaration failed. `lines` holds the results of lines above,
   /// `manualRates` the exchange rates declared above, and `functions` the
-  /// functions defined above.
+  /// functions defined above. Table formulas pass `convertsMixedCurrencies:
+  /// false`, so `€40 + $10` requires an explicit `in` conversion there.
   init(
     context: EvaluationContext,
     limits: EvaluationLimits,
     variables: [String: EngineValue?],
     lines: LineOutcomes,
     manualRates: [CurrencyPair: NumericValue] = [:],
-    functions: [String: CustomFunction] = [:]
+    functions: [String: CustomFunction] = [:],
+    convertsMixedCurrencies: Bool = true,
+    scalarBudget: TableScalarBudget? = nil
   ) {
     self.context = context
     self.limits = limits
@@ -38,6 +43,8 @@ public struct Evaluator: Sendable {
     self.lines = lines
     self.manualRates = manualRates
     self.functions = functions
+    self.convertsMixedCurrencies = convertsMixedCurrencies
+    self.scalarBudget = scalarBudget
   }
 
   public func evaluate(_ expression: Expression) throws -> EngineValue {
@@ -54,7 +61,9 @@ public struct Evaluator: Sendable {
       variables: variables,
       lines: lines,
       manualRates: manualRates,
-      functions: functions
+      functions: functions,
+      convertsMixedCurrencies: convertsMixedCurrencies,
+      scalarBudget: scalarBudget
     ).evaluate(aggregate, of: values)
   }
 
@@ -68,7 +77,9 @@ public struct Evaluator: Sendable {
       variables: variables,
       lines: lines,
       manualRates: manualRates,
-      functions: functions
+      functions: functions,
+      convertsMixedCurrencies: convertsMixedCurrencies,
+      scalarBudget: scalarBudget
     )
     let result = Result { try worker.evaluate(expression) }
     return (result, worker.trace)
@@ -90,6 +101,20 @@ struct EvaluationTrace: Sendable {
 enum ClockResolution: Comparable, Sendable {
   case day
   case second
+
+  /// The moments around `context.now` a result that read the clock this
+  /// finely stays correct for.
+  func interval(in context: EvaluationContext) -> DateInterval {
+    switch self {
+    case .day:
+      var calendar = Calendar(identifier: .gregorian)
+      calendar.timeZone = context.timeZone
+      return calendar.dateInterval(of: .day, for: context.now)!
+    case .second:
+      let start = context.now.timeIntervalSinceReferenceDate.rounded(.down)
+      return DateInterval(start: Date(timeIntervalSinceReferenceDate: start), duration: 1)
+    }
+  }
 }
 
 private struct EvaluationWorker {
@@ -103,6 +128,8 @@ private struct EvaluationWorker {
   let lines: LineOutcomes
   let manualRates: [CurrencyPair: NumericValue]
   let functions: [String: CustomFunction]
+  let convertsMixedCurrencies: Bool
+  let scalarBudget: TableScalarBudget?
   var visitedOperations = 0
   private(set) var trace = EvaluationTrace()
 
@@ -112,7 +139,9 @@ private struct EvaluationWorker {
     variables: [String: EngineValue?],
     lines: LineOutcomes,
     manualRates: [CurrencyPair: NumericValue],
-    functions: [String: CustomFunction]
+    functions: [String: CustomFunction],
+    convertsMixedCurrencies: Bool,
+    scalarBudget: TableScalarBudget?
   ) {
     self.context = context
     self.limits = limits
@@ -120,10 +149,12 @@ private struct EvaluationWorker {
     self.lines = lines
     self.manualRates = manualRates
     self.functions = functions
-    operations = NumericOperations(context: context, limits: limits)
+    self.convertsMixedCurrencies = convertsMixedCurrencies
+    self.scalarBudget = scalarBudget
+    operations = NumericOperations(context: context, limits: limits, scalarBudget: scalarBudget)
     money = MoneyArithmetic(
       operations: operations, rates: context.currencyRates, manualRates: manualRates)
-    unitAlgebra = UnitAlgebra(context: context, limits: limits)
+    unitAlgebra = UnitAlgebra(context: context, limits: limits, scalarBudget: scalarBudget)
     temporal = TemporalArithmetic(
       context: context, operations: operations, unitAlgebra: unitAlgebra)
   }
@@ -257,7 +288,7 @@ private struct EvaluationWorker {
     of left: EngineValue, _ right: EngineValue, for binaryOperator: BinaryOperator,
     at range: SourceRange
   ) throws -> EngineValue {
-    guard binaryOperator == .add || binaryOperator == .subtract,
+    guard convertsMixedCurrencies, binaryOperator == .add || binaryOperator == .subtract,
       case .money(let lhs) = left, case .money(let rhs) = right,
       lhs.currency != rhs.currency, lhs.unit == rhs.unit
     else {
@@ -1131,9 +1162,15 @@ private struct EvaluationWorker {
       variables: variables,
       lines: LineOutcomes(),
       manualRates: manualRates,
-      functions: function.functions
+      functions: function.functions,
+      convertsMixedCurrencies: convertsMixedCurrencies,
+      scalarBudget: scalarBudget
     )
+    // A custom body is part of its caller's expression work, including
+    // repeated or nested calls. It must not reset the per-cell AST ceiling.
+    body.visitedOperations = visitedOperations
     defer {
+      visitedOperations = body.visitedOperations
       if let clock = body.trace.clock {
         readClock(clock)
       }
@@ -1185,8 +1222,10 @@ private struct EvaluationWorker {
       return try located(at: arguments[0].range) {
         let radians = try operations.applying(
           .multiply, left: angle.magnitude, right: unit.scaleToCanonical)
-        return try NumericOperations(context: context.with(angleMode: .radians), limits: limits)
-          .transcendental(function, value: radians)
+        return try NumericOperations(
+          context: context.with(angleMode: .radians), limits: limits, scalarBudget: scalarBudget
+        )
+        .transcendental(function, value: radians)
       }
     }
     let values = try zip(evaluated, arguments).map { value, argument in
@@ -1382,6 +1421,7 @@ private struct EvaluationWorker {
   }
 
   private mutating func visit(_ range: SourceRange) throws {
+    try scalarBudget?.consume()
     visitedOperations += 1
     guard visitedOperations <= limits.maximumOperations else {
       throw limitError(.operations, range: range)

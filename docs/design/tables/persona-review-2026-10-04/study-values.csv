@@ -1,0 +1,7 @@
+Case,Input,Comment
+Savings,"1,102.5",Two years
+Decision,Error,Excel habit
+Rounding,3.33,Two decimals
+Zero divisor,0.5,Fix divisor
+Wrong units,These quantities have incompatible dimensions.,Fix unit
+Range list,Error,Excel habit

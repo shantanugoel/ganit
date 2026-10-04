@@ -45,3 +45,7 @@ extension EngineValue {
     }
   }
 }
+
+extension EngineValue {
+  package var tableKindName: String { String(describing: kind) }
+}

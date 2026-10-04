@@ -20,6 +20,13 @@ public final class SheetEditorViewController: NSViewController {
   /// The newest evaluation shown, which may trail the source while a
   /// generation is running.
   public private(set) var latestEvaluation: SheetEvaluation?
+  package private(set) var tableEvaluationSource: String?
+  package var tableProjectionObservers: [UUID: () -> Void] = [:]
+  public var evaluationDidCommit: ((SheetEvaluation) -> Void)?
+  private func refreshTableProjections() {
+    for observer in tableProjectionObservers.values { observer() }
+    refreshInlineTables()
+  }
   /// Undo belongs to the document, not the window, so each sheet has its own
   /// history.
   public let documentUndoManager = UndoManager()
@@ -62,11 +69,53 @@ public final class SheetEditorViewController: NSViewController {
   }
 
   private var context: EvaluationContext
-  private let scrollView = NSScrollView()
+  let scrollView = NSScrollView()
+  package private(set) var expandedTable: ExpandedTableViewController?
+  private var tableViewStates: [TableID: (TableCellPosition, TableCellPosition, NSPoint)] = [:]
+  private var proseScroll = NSPoint.zero
+  private let permitsTableEditing: Bool
+  package var permitsInlineTables: Bool { permitsTableEditing && !showsTableSource }
+  package private(set) var showsTableSource = false
+  var inlineTableViews: [TableID: InlineTablePreview] = [:]
+  private var normalizingInlineSelection = false
+  private var previousProseSelection = NSRange(location: 0, length: 0)
+  package var inlineTableRanges: [TableID: NSRange] = [:]
   let summaryBar = SelectionSummaryBar()
   private let sheetTextView = SheetTextView(usingTextLayoutManager: true)
   private let storageObserver = StorageObserver()
+  /// Applies edits that are not typed, such as structural table edits,
+  /// through the same source, Undo, rewrite, autosave and evaluation path.
+  private(set) lazy var sourceCoordinator = SheetSourceCoordinator(
+    textView: sheetTextView, undoManager: documentUndoManager)
   private(set) var scheduler: SheetEvaluationScheduler?
+  /// How this sheet reads numbers, which line references are lexed with.
+  var lexingConfiguration: LexingConfiguration { context.lexingConfiguration }
+  package func formatTableValue(_ value: EngineValue) -> FormattedResult? {
+    try? resultFormatter.format(value)
+  }
+  package func formatTableValue(
+    _ value: EngineValue, column: ColumnID, result: TableResultSnapshot?
+  ) -> FormattedResult? {
+    let presented = result?.percentageValue(value, column: column) ?? value
+    guard let digits = result?.percentageDecimals(column: column) else {
+      return formatTableValue(presented)
+    }
+    var options = displayOptions
+    options.numbers = .fixedDecimals(digits)
+    return try? ResultFormatter(context: context, display: options).format(presented)
+  }
+  package var tableEvaluationContext: EvaluationContext { context }
+  package func formatTableError(_ error: EngineError) -> String {
+    diagnosticFormatter.format(error).message
+  }
+  /// The sheet's number locale, which table exports and headless readers
+  /// follow so values read the same everywhere.
+  package var tableExportLocale: Locale {
+    Locale(identifier: context.localeIdentifier)
+  }
+  package func tableFinanceAssumption(_ name: String) -> String {
+    FinanceFunction(rawValue: name).map { assumption(of: $0) } ?? name
+  }
   private var resultFormatter: ResultFormatter
   /// Writes values to fewer digits for an answer column too narrow for them.
   private var compactFormatter: ResultFormatter
@@ -99,6 +148,9 @@ public final class SheetEditorViewController: NSViewController {
   private var cachedUTF16Starts: [Int]?
   /// Gutter drawing must not scan the whole sheet for every visible number.
   private var cachedLineNumbers: [LineID: Int]?
+  /// The physical lines of every table block, valid or not, which editor
+  /// conveniences such as completion and scrubbing never rewrite.
+  private var cachedTableLines: IndexSet?
   /// The text and result of each line in the newest shown evaluation.
   private var shownLines: [LineID: (text: String, result: SheetLineResult)] = [:]
   private var decorations: [LineID: LineDecoration] = [:]
@@ -120,11 +172,16 @@ public final class SheetEditorViewController: NSViewController {
   /// answer's format, so they can be saved with the sheet.
   public var displayOptionsDidChange: ((DisplayOptions) -> Void)?
 
+  /// `surface` is where the sheet is shown: off the workspace, as in the
+  /// definitions sheet and Quick Ganit, its tables are kept but never
+  /// calculated, and each block's first line says why.
   public init(
     text: String = "",
     context: EvaluationContext,
-    display: DisplayOptions = .standard
+    display: DisplayOptions = .standard,
+    surface: SheetSurface = .workspace
   ) {
+    permitsTableEditing = surface == .workspace
     self.context = context.with(
       dollarCurrency: display.dollarCurrency, isMarkdownMode: display.writesAnswersInline,
       ambiguousSuffixes: display.ambiguousSuffixes)
@@ -138,6 +195,14 @@ public final class SheetEditorViewController: NSViewController {
 
     configureTextView(text: text)
     placeAnswers(display)
+    sheetTextView.findTableHit = { [weak self] in self?.openTableAtFindSelection() }
+    sheetTextView.previewTableFindHit = { [weak self] in self?.previewTableAtFindSelection() }
+    sheetTextView.tableCreationTarget = permitsTableEditing ? self : nil
+    sheetTextView.inlineLayout = { [weak self] in self?.layoutInlineTables() }
+    sheetTextView.inlineRefresh = { [weak self] in self?.refreshInlineTables() }
+    sheetTextView.inlineRanges = { [weak self] in
+      Array(self?.inlineTableRanges.values ?? [:].values)
+    }
     sheetTextView.lexingConfiguration = context.lexingConfiguration
     storageObserver.controller = self
     textView.textStorage?.delegate = storageObserver
@@ -161,6 +226,15 @@ public final class SheetEditorViewController: NSViewController {
       }
       let index = lineIndex(atUTF16: offset)
       return (index + 1, sheet.lines[index].id)
+    }
+    sheetTextView.isTableLine = { [weak self] offset in
+      guard let self else { return false }
+      return tableLines().contains(lineIndex(atUTF16: offset))
+    }
+    sheetTextView.touchesTableLine = { [weak self] range in
+      guard let self else { return false }
+      return tableLines().intersects(
+        integersIn: lineIndex(atUTF16: range.location)...lineIndex(atUTF16: range.upperBound))
     }
     sheetTextView.lineNumber = { [weak self] id in
       guard let self else { return nil }
@@ -238,7 +312,7 @@ public final class SheetEditorViewController: NSViewController {
       pendingAnswerDraw = nil
       editToAnswerHandler?(interval.end())
     }
-    scheduler = SheetEvaluationScheduler(context: context) {
+    scheduler = SheetEvaluationScheduler(context: context, surface: surface) {
       [weak self] snapshot, evaluation, editToAnswer in
       guard let self else {
         return editToAnswer.cancel()
@@ -247,6 +321,7 @@ public final class SheetEditorViewController: NSViewController {
       pendingAnswerDraw = editToAnswer
       show(evaluation, of: snapshot)
     }
+    refreshInlineTables()
     scheduler?.schedule(sheet)
   }
 
@@ -272,7 +347,7 @@ public final class SheetEditorViewController: NSViewController {
 
   public override func viewDidAppear() {
     super.viewDidAppear()
-    view.window?.makeFirstResponder(textView)
+    view.window?.makeFirstResponder(expandedTable?.grid ?? textView)
   }
 
   private func configureTextView(text: String) {
@@ -336,18 +411,20 @@ public final class SheetEditorViewController: NSViewController {
     mirroredText = current
     cachedUTF16Starts = nil
     cachedLineNumbers = nil
+    cachedTableLines = nil
     for index in lineIndex(atUTF16: newRange.location)...lineIndex(atUTF16: newRange.upperBound) {
       let id = sheet.lines[index].id
       editedLines.insert(id)
       // Underline ranges no longer match the edited text.
       sheetTextView.underlines[id] = nil
     }
+    refreshTableProjections()
     sourceDidChange?()
     // Undo and other programmatic edits do not send `textDidChange`.
     textDidChange()
   }
 
-  private var pendingReferenceEdits: [(range: NSRange, number: String)] = []
+  private var pendingReferenceEdits: [(range: NSRange, replacement: String)] = []
   private var isRewritingReferences = false
 
   fileprivate func noteLineShift(replacing ranges: [NSRange], with replacements: [String]?) {
@@ -374,8 +451,8 @@ public final class SheetEditorViewController: NSViewController {
       documentUndoManager.endUndoGrouping()
     }
     for edit in edits.reversed()
-    where textView.shouldChangeText(in: edit.range, replacementString: edit.number) {
-      textView.textStorage?.replaceCharacters(in: edit.range, with: edit.number)
+    where textView.shouldChangeText(in: edit.range, replacementString: edit.replacement) {
+      textView.textStorage?.replaceCharacters(in: edit.range, with: edit.replacement)
       textView.didChangeText()
     }
   }
@@ -454,6 +531,27 @@ public final class SheetEditorViewController: NSViewController {
   }
 
   fileprivate func selectionDidChange() {
+    guard !normalizingInlineSelection, !sheetTextView.isCopyingSource else { return }
+    let selected = textView.selectedRange()
+    if permitsInlineTables, !textView.hasMarkedText(), !sheetTextView.isPerformingFind,
+      !scrollView.isFindBarVisible, !sourceCoordinator.isApplying
+    {
+      var mapped = selected
+      for block in inlineTableRanges.values {
+        if mapped.length == 0, mapped.location > block.location, mapped.location < block.upperBound
+        {
+          let edge =
+            previousProseSelection.location <= mapped.location ? block.upperBound : block.location
+          mapped = NSRange(location: edge, length: 0)
+        }
+      }
+      if mapped != selected {
+        normalizingInlineSelection = true
+        textView.setSelectedRange(mapped)
+        normalizingInlineSelection = false
+      }
+    }
+    previousProseSelection = textView.selectedRange()
     summarizeSelection()
     let line = sheet.lines[lineIndex(atUTF16: textView.selectedRange().location)].id
     guard line != editingLine else {
@@ -483,8 +581,11 @@ public final class SheetEditorViewController: NSViewController {
     var values: [EngineValue] = []
     var failedCount = 0
     var pendingCount = 0
-    for (line, start) in zip(sheet.lines, utf16Starts()) {
-      guard start < selection.upperBound, start + line.text.utf16.count > selection.location else {
+    let tableLines = tableLines()
+    for (index, (line, start)) in zip(sheet.lines, utf16Starts()).enumerated() {
+      guard start < selection.upperBound, start + line.text.utf16.count > selection.location,
+        !tableLines.contains(index)
+      else {
         continue
       }
       let shown = shownLines[line.id]
@@ -531,6 +632,9 @@ public final class SheetEditorViewController: NSViewController {
 
   private func show(_ evaluation: SheetEvaluation, of snapshot: SheetSource) {
     latestEvaluation = evaluation
+    tableEvaluationSource = snapshot.text
+    refreshTableProjections()
+    evaluationDidCommit?(evaluation)
     if evaluation.definitions != shownDefinitions {
       shownDefinitions = evaluation.definitions
       definitionsDidChange?(evaluation.definitions)
@@ -691,8 +795,10 @@ public final class SheetEditorViewController: NSViewController {
     }
     let defaults = variables
     var lines: [CompletionItem] = []
+    let tableLines = tableLines()
     for (index, line) in sheet.lines.prefix(lineIndex(atUTF16: offset)).enumerated() {
-      if case .divider = LineSyntax(line.text) {
+      // A `---` line inside a table block is block source, not a divider.
+      if !tableLines.contains(index), case .divider = LineSyntax(line.text) {
         variables = defaults
       }
       guard let shown = shownLines[line.id], shown.text == line.text else { continue }
@@ -968,6 +1074,8 @@ public final class SheetEditorViewController: NSViewController {
         || error.code == .unusableAssistantAnswer
         || error.code == .brokenReference
         || error.code == .unavailableReference
+        // Tables are calculated locally; no table error is sent to a model.
+        || error.code == .tableReference
         || error.code == .typeMismatch
         || error.code == .incompatibleDimensions
         || error.code == .missingCurrencyRate
@@ -1100,7 +1208,7 @@ public final class SheetEditorViewController: NSViewController {
     if case .evaluationFailure(let error) = result {
       return ![
         .unresolvedAssistantPrompt, .unusableAssistantAnswer, .unavailableReference,
-        .brokenReference,
+        .brokenReference, .tableReference,
         .typeMismatch, .incompatibleDimensions, .missingCurrencyRate,
         .currencyRatesUnavailable,
       ].contains(error.code)
@@ -1345,6 +1453,8 @@ public final class SheetEditorViewController: NSViewController {
         AnswerCell.Detail(
           label: localized("interpretation.problem", "Problem"), value: diagnostic.message)
       ]
+      // A table cell is where a failure that came from a table started.
+      details += tableFailureOrigins(shown.result.failureOriginTableCells)
       for number in shown.result.failureOriginLineNumbers
       where sheet.lines.indices.contains(number - 1) && sheet.lines[number - 1].id != id {
         details.append(
@@ -1368,6 +1478,36 @@ public final class SheetEditorViewController: NSViewController {
       }
     }
     return details
+  }
+
+  /// "Fix first" rows that select each original failing table cell's source
+  /// in the current text: its record, inherited rule or header, or the whole
+  /// block for a table that could not be calculated. Origins whose table is
+  /// gone are left out.
+  private func tableFailureOrigins(_ origins: [TableCellFailureOrigin]) -> [AnswerCell.Detail] {
+    origins.compactMap { origin in
+      guard let utf8 = TableSourceDocument.sourceRange(of: origin, in: sheet),
+        let range = utf16Range(forUTF8: utf8)
+      else { return nil }
+      let table = latestEvaluation?.tableResult(origin.table)
+      let name =
+        origin.column.flatMap { table?.address(row: origin.row, column: $0) } ?? table?.name
+      return AnswerCell.Detail(
+        label: localized("interpretation.errorOrigin", "Fix first"),
+        value: name ?? localized("interpretation.errorTable", "Table"), sourceRange: range)
+    }
+  }
+
+  /// A UTF-8 range of the current source as text view UTF-16 offsets.
+  private func utf16Range(forUTF8 range: Range<Int>) -> NSRange? {
+    let text = textView.string
+    let utf8 = text.utf8
+    guard
+      let lower = utf8.index(utf8.startIndex, offsetBy: range.lowerBound, limitedBy: utf8.endIndex),
+      let upper = utf8.index(lower, offsetBy: range.count, limitedBy: utf8.endIndex)
+    else { return nil }
+    let start = text.utf16.distance(from: text.utf16.startIndex, to: lower)
+    return NSRange(location: start, length: text.utf16.distance(from: lower, to: upper))
   }
 
   /// What a finance function took for granted, which its answer depends on.
@@ -1445,7 +1585,10 @@ public final class SheetEditorViewController: NSViewController {
       run.style.underlineColor.map { (range: run.range, color: $0) }
     }
     sheetTextView.underlines[line.id] = underlines.isEmpty ? nil : underlines
-    for run in decoration.runs where !run.style.attributes.isEmpty {
+    // TextKit 2 throws on a rendering attribute for an empty text range. A
+    // blank table block line has a zero-length comment run, so opening a
+    // sheet with one crashed on first display.
+    for run in decoration.runs where !run.style.attributes.isEmpty && run.range.length > 0 {
       guard let runStart = contentManager.location(start, offsetBy: run.range.location),
         let runEnd = contentManager.location(runStart, offsetBy: run.range.length),
         let runRange = NSTextRange(location: runStart, end: runEnd)
@@ -1458,6 +1601,19 @@ public final class SheetEditorViewController: NSViewController {
     }
     decorations[line.id] = decoration
     editedLines.remove(line.id)
+  }
+
+  /// Physical lines of table blocks, found by scanning line starts only.
+  private func tableLines() -> IndexSet {
+    if let cachedTableLines {
+      return cachedTableLines
+    }
+    var lines = IndexSet()
+    for range in TableSourceDocument.blockLineRanges(in: sheet) {
+      lines.insert(integersIn: range)
+    }
+    cachedTableLines = lines
+    return lines
   }
 
   private func utf16Starts() -> [Int] {
@@ -1515,6 +1671,10 @@ private final class StorageObserver: NSObject, @preconcurrency NSTextStorageDele
     _ textView: NSTextView, shouldChangeTextInRanges ranges: [NSValue],
     replacementStrings: [String]?
   ) -> Bool {
+    guard
+      controller?.permitsInlineEdit(ranges.map(\.rangeValue), replacements: replacementStrings)
+        != false
+    else { return false }
     controller?.noteLineShift(replacing: ranges.map(\.rangeValue), with: replacementStrings)
     return true
   }
@@ -1543,5 +1703,417 @@ extension CalculationResult {
       return false
     }
     return true
+  }
+}
+
+extension SheetEditorViewController {
+  fileprivate func permitsInlineEdit(_ ranges: [NSRange], replacements: [String]?) -> Bool {
+    guard permitsInlineTables, !sourceCoordinator.isApplying, !isRewritingReferences,
+      !documentUndoManager.isUndoing, !documentUndoManager.isRedoing
+    else {
+      return true
+    }
+    for (index, range) in ranges.enumerated() {
+      for block in inlineTableRanges.values {
+        if range.length == 0 {
+          if range.location > block.location && range.location < block.upperBound { return false }
+          if range.location == block.location, let replacements,
+            replacements.indices.contains(index),
+            !replacements[index].isEmpty, !replacements[index].hasSuffix("\n"),
+            !replacements[index].hasSuffix("\r")
+          {
+            return false
+          }
+        } else if NSIntersectionRange(range, block).length > 0,
+          !(range.location <= block.location && range.upperBound >= block.upperBound)
+        {
+          return false
+        }
+      }
+    }
+    return true
+  }
+  @objc public func inspectTableSource(_ sender: Any?) {
+    returnFromTable(nil)
+    guard expandedTable == nil, !textView.hasMarkedText() else { return }
+    showsTableSource.toggle()
+    resetInlineLayout()
+    refreshInlineTables()
+    textView.scrollRangeToVisible(textView.selectedRange())
+  }
+  package func resetInlineLayout() {
+    guard let storage = textView.textStorage else { return }
+    storage.addAttributes(
+      [
+        .font: VisualStyle.Typography.source(scale: sheetTextView.textScale),
+        .foregroundColor: NSColor.textColor, .paragraphStyle: NSParagraphStyle.default,
+      ], range: NSRange(location: 0, length: storage.length))
+    for preview in inlineTableViews.values { preview.removeFromSuperview() }
+    inlineTableViews = [:]
+    inlineTableRanges = [:]
+  }
+  @objc public override func performTextFinderAction(_ sender: Any?) {
+    returnFromTable(nil)
+    guard expandedTable == nil else { return }
+    view.window?.makeFirstResponder(textView)
+    textView.performTextFinderAction(sender)
+  }
+  package func previewTableAtFindSelection() {
+    guard !showsTableSource, !textView.hasMarkedText() else { return }
+    let selection = textView.selectedRange()
+    let document = TableSourceDocument(sheet)
+    for (id, range) in inlineTableRanges
+    where selection.length > 0 && selection.location >= range.location
+      && selection.upperBound <= range.upperBound
+    {
+      let offset = (sheet.text as NSString).substring(to: selection.location).utf8.count
+      guard let projection = TableEditingSnapshot(document, id: id),
+        let position = projection.cell(atUTF8: offset, in: document)
+      else { continue }
+      inlineTableViews[id]?.revealFindMatch(position)
+      return
+    }
+  }
+  package func openTableAtFindSelection() {
+    guard !showsTableSource, !textView.hasMarkedText() else { return }
+    let selection = textView.selectedRange()
+    let document = TableSourceDocument(sheet)
+    for (id, range) in inlineTableRanges
+    where selection.length > 0
+      && selection.location >= range.location && selection.upperBound <= range.upperBound
+    {
+      guard let projection = TableEditingSnapshot(document, id: id) else { continue }
+      let prefix = (sheet.text as NSString).substring(to: selection.location)
+      let position = projection.cell(atUTF8: prefix.utf8.count, in: document)
+      if expandedTable?.tableID != id { openTable(id) }
+      if let position, expandedTable?.isEditingCell != true { expandedTable?.select(position) }
+      return
+    }
+  }
+  /// Printing shows values. Source inspection and source copy keep the block.
+  /// Every table is its own block, with displayed values, units and failure
+  /// messages exactly as the editor shows them.
+  public func renderedBlocks() async -> [RenderedBlock] {
+    let lines = await exportedLines()
+    var output: [RenderedBlock] = []
+    var prose: [ExportedLine] = []
+    var index = 0
+    let tables = latestEvaluation?.tableResults ?? []
+    while index < lines.count {
+      if let result = tables.first(where: { $0.physicalLines.lowerBound == index }) {
+        if !prose.isEmpty {
+          output.append(.lines(prose))
+          prose = []
+        }
+        output.append(.table(renderedTable(result)))
+        index = result.physicalLines.upperBound
+      } else {
+        prose.append(lines[index])
+        index += 1
+      }
+    }
+    if !prose.isEmpty {
+      output.append(.lines(prose))
+    }
+    return output
+  }
+
+  /// One table as a renderer shows it: a quarantined block reports its
+  /// diagnostics; a calculated table shows its values, totals and failures.
+  private func renderedTable(_ result: TableResultSnapshot) -> RenderedTable {
+    guard let id = result.id,
+      let projection = TableEditingSnapshot(TableSourceDocument(sheet), id: id)
+    else {
+      return RenderedTable(
+        name: nil, headers: [], rows: [], totals: [],
+        failures: result.diagnostics.map { diagnosticFormatter.format($0).message })
+    }
+    let rows: [[RenderedTableCell]] = projection.rows.map { row in
+      projection.columns.map { column in
+        renderedCell(
+          result.value(row: row, column: column.id), result: result, row: row,
+          column: column.id)
+      }
+    }
+    let totals: [RenderedTotal] = projection.columns.enumerated().compactMap {
+      index, column in
+      guard let total = column.total else { return nil }
+      let value = result.aggregate(
+        total, rectangle: .init(rows: 0..<projection.rows.count, columns: index..<(index + 1)))
+      return RenderedTotal(
+        columnIndex: index,
+        label: column.header + " " + total.rawValue,
+        text: value.flatMap { formatTableValue($0)?.display }
+          ?? localized(
+            "table.failure", "Error"))
+    }
+    return RenderedTable(
+      name: projection.name, headers: projection.columns.map(\.header), rows: rows,
+      totals: totals,
+      failures: result.calculationFailure.map { [formatTableError($0)] } ?? [])
+  }
+
+  /// A cell as the renderer shows it: the display text, or the message that
+  /// names the problem.
+  private func renderedCell(
+    _ value: TableCellValue?, result: TableResultSnapshot, row: RowID, column: ColumnID
+  ) -> RenderedTableCell {
+    switch value {
+    case .value(let scalar):
+      return RenderedTableCell(
+        text: formatTableValue(scalar, column: column, result: result)?.display ?? "")
+    case .text(let text): return RenderedTableCell(text: text)
+    case .blank: return RenderedTableCell(text: "")
+    case .failure:
+      return RenderedTableCell(
+        text: result.cellProblem(row: row, column: column) ?? result.cellError(
+          row: row, column: column
+        ).map { formatTableError($0) }
+          ?? localized("table.failure", "Error"), isFailure: true)
+    case nil:
+      if let failure = result.calculationFailure {
+        return RenderedTableCell(text: formatTableError(failure), isFailure: true)
+      }
+      return RenderedTableCell(text: localized("table.pending", "Pending…"))
+    }
+  }
+
+  /// The sheet as flat lines for a reader that shows one line per row: a
+  /// table becomes its name, headers, rows and spelled totals.
+  public func printableLines() async -> [ExportedLine] {
+    func line(_ text: String) -> ExportedLine { .init(source: text, answer: nil, status: .none) }
+    var output: [ExportedLine] = []
+    for block in await renderedBlocks() {
+      switch block {
+      case .lines(let lines):
+        output += lines
+      case .table(let table):
+        if let name = table.name { output.append(line(name)) }
+        output += table.failures.map(line)
+        guard !table.headers.isEmpty else { continue }
+        output.append(line(table.headers.joined(separator: " | ")))
+        output += table.rows.map { row in
+          line(row.map(\.text).joined(separator: " | "))
+        }
+        for total in table.totals {
+          output.append(line(total.label + ": " + total.text))
+        }
+      }
+    }
+    return output
+  }
+  @objc public func insertCalculationTable(_ sender: Any?) {
+    showTableCreation(pasted: nil)
+  }
+  @objc public func pasteAsCalculationTable(_ sender: Any?) {
+    guard let text = resultPasteboard.string(forType: .string) else {
+      NSSound.beep()
+      return
+    }
+    showTableCreation(pasted: text)
+  }
+  @objc public func convertSelectionToCalculationTable(_ sender: Any?) {
+    let range = textView.selectedRange()
+    guard range.length > 0 else { return }
+    showTableCreation(
+      pasted: (textView.string as NSString).substring(with: range), replacing: range)
+  }
+  private func showTableCreation(pasted: String?, replacing: NSRange? = nil) {
+    guard permitsTableEditing, textView.isEditable, expandedTable == nil,
+      !textView.hasMarkedText(), let window = view.window
+    else { return }
+    let grid = pasted.map(TableSourceDocument.tabSeparated)
+    if let grid,
+      grid.isEmpty || grid[0].isEmpty || grid.count * grid[0].count > 4000
+        || grid[0].count > 32 || !grid.allSatisfy({ $0.count == grid[0].count })
+    {
+      let alert = NSAlert()
+      alert.messageText = "Use a rectangle with at most 32 columns and 4,000 cells."
+      alert.beginSheetModal(for: window)
+      return
+    }
+    let before = sheet.text
+    let start =
+      replacing?.location ?? (before as NSString).lineRange(for: textView.selectedRange()).location
+    let offset = (before as NSString).substring(to: start).utf8.count
+    guard !inlineTableRanges.values.contains(where: { NSLocationInRange(start, $0) }) else {
+      return
+    }
+    let alert = NSAlert()
+    alert.messageText =
+      replacing != nil
+      ? "Convert Selection to Table" : pasted == nil ? "Insert Table" : "Paste as Table"
+    let form = TableCreationForm(pasted: grid)
+    let names = Set(
+      TableSourceDocument(sheet).editingTableIDs.compactMap {
+        TableEditingSnapshot(TableSourceDocument(sheet), id: $0)?.name.lowercased()
+      })
+    var tableName = "Table"
+    var suffix = 2
+    while names.contains(tableName.lowercased()) {
+      tableName = "Table\(suffix)"
+      suffix += 1
+    }
+    form.name.stringValue = tableName
+    alert.accessoryView = form
+    alert.addButton(withTitle: pasted == nil ? "Insert" : "Paste as Table")
+    alert.addButton(withTitle: "Cancel")
+    alert.window.initialFirstResponder = form.name
+    alert.beginSheetModal(for: window) { [weak self] response in
+      guard let self, response == .alertFirstButtonReturn else { return }
+      do {
+        let data = grid.map { form.headerRow.state == .on ? Array($0.dropFirst()) : $0 }
+        let rowCount = data?.count ?? form.rows.integerValue
+        guard rowCount > 0, rowCount * form.settings.count <= 4000 else {
+          throw TableTransformError.invalidSelection
+        }
+        let id = try insertTableRectangle(
+          named: form.name.stringValue, headers: form.settings, rows: data,
+          formulas: form.formulas.state == .on, atUTF8: offset, expectedSource: before,
+          rowCount: rowCount, replacing: replacing, columnRules: form.columnRules,
+          percentageColumn: form.percentageColumn)
+        if let id { openTable(id) }
+      } catch { window.presentError(error) }
+    }
+  }
+  /// Build the complete insert and paste before applying one document edit.
+  @discardableResult
+  package func insertTableRectangle(
+    named name: String, headers: [(String, TableInputPolicy)], rows: [[String]]?,
+    formulas: Bool, atUTF8 offset: Int, expectedSource: String, rowCount: Int = 3,
+    replacing: NSRange? = nil, columnRules: [Int: String] = [:], percentageColumn: Int? = nil
+  ) throws -> TableID? {
+    guard expectedSource == sheet.text else { throw SheetSourceCoordinator.Failure.staleEdit }
+    let base: String
+    if let replacing {
+      base = (expectedSource as NSString).replacingCharacters(in: replacing, with: "")
+    } else {
+      base = expectedSource
+    }
+    let create = try TableSourceDocument(base).createTable(
+      name: name, headers: headers, rowCount: rows?.count ?? rowCount, atUTF8: offset)
+    var after = try create.applying(to: base)
+    if let rows, !rows.isEmpty, let id = create.createdTable {
+      guard rows.allSatisfy({ $0.count == headers.count }), rows.count * headers.count <= 4000
+      else {
+        throw TableTransformError.invalidSelection
+      }
+      func quoted(_ input: String) -> String {
+        "\"" + input.replacingOccurrences(of: "\"", with: "\"\"") + "\""
+      }
+      let tsv = rows.map { $0.map(quoted).joined(separator: "\t") }.joined(separator: "\n")
+      let paste = try TableSourceDocument(SheetSource(after)).pastePlainText(
+        tsv, table: id, at: .init(row: 0, column: 0), formulas: formulas)
+      after = try paste.applying(to: after)
+    }
+    if let id = create.createdTable,
+      let projection = TableEditingSnapshot(TableSourceDocument(after), id: id)
+    {
+      for (index, rule) in columnRules.sorted(by: { $0.key < $1.key })
+      where projection.columns.indices.contains(index) {
+        let edit = try TableSourceDocument(after).setColumnRule(
+          table: id, column: projection.columns[index].id, source: rule)
+        after = try edit.applying(to: after)
+      }
+      if let index = percentageColumn, projection.columns.indices.contains(index) {
+        let edit = try TableSourceDocument(after).setColumnPresentation(
+          table: id, column: projection.columns[index].id, percentageDecimals: 0)
+        after = try edit.applying(to: after)
+      }
+    }
+    try replaceTableSource(
+      before: expectedSource, after: after,
+      action: replacing == nil ? "Insert Table" : "Convert Selection to Table")
+    return create.createdTable
+  }
+  @objc public func openCalculationTable(_ sender: Any?) {
+    guard permitsTableEditing else { return }
+    let ids = TableSourceDocument(sheet).editingTableIDs
+    if let id = latestEvaluation?.tableResult(
+      atLine: lineIndex(atUTF16: textView.selectedRange().location))?.id, ids.contains(id)
+    {
+      openTable(id)
+      return
+    }
+    if ids.count == 1 {
+      openTable(ids[0])
+      return
+    }
+    let menu = NSMenu()
+    for id in ids {
+      let item = NSMenuItem(
+        title: TableEditingSnapshot(TableSourceDocument(sheet), id: id)?.name ?? "Table",
+        action: #selector(openNamedTable(_:)), keyEquivalent: "")
+      item.target = self
+      item.representedObject = id
+      menu.addItem(item)
+    }
+    menu.popUp(positioning: nil, at: NSPoint(x: 12, y: view.bounds.maxY - 12), in: view)
+  }
+  @objc private func openNamedTable(_ sender: NSMenuItem) {
+    if let id = sender.representedObject as? TableID { openTable(id) }
+  }
+  public func openTable(_ id: TableID) {
+    guard !textView.hasMarkedText(), permitsTableEditing,
+      TableEditingSnapshot(TableSourceDocument(sheet), id: id) != nil
+    else { return }
+    loadViewIfNeeded()
+    if expandedTable != nil {
+      returnFromTable(nil)
+      guard expandedTable == nil else { return }
+    }
+    for preview in inlineTableViews.values { preview.cancelPreviewEdit() }
+    proseScroll = scrollView.contentView.bounds.origin
+    if textView.hasMarkedText() { textView.unmarkText() }
+    let controller = ExpandedTableViewController(editor: self, table: id)
+    expandedTable = controller
+    controller.returnToSheet = { [weak self] in self?.returnFromTable(nil) }
+    controller.navigateFailure = { [weak self] origin in self?.navigateToTableFailure(origin) }
+    addChild(controller)
+    controller.view.frame = view.bounds
+    controller.view.autoresizingMask = [.width, .height]
+    scrollView.isHidden = true
+    summaryBar.isHidden = true
+    view.addSubview(controller.view)
+    if let saved = tableViewStates[id] {
+      controller.select(saved.0)
+      if let projection = controller.projection, !projection.rows.isEmpty,
+        !projection.columns.isEmpty
+      {
+        controller.anchor = .init(
+          row: min(saved.1.row, projection.rows.count - 1),
+          column: min(saved.1.column, projection.columns.count - 1))
+      }
+      controller.scroll.contentView.scroll(to: saved.2)
+    } else {
+      controller.select(.init(row: 0, column: 0))
+    }
+    view.window?.makeFirstResponder(controller.grid)
+  }
+  @objc public func returnFromTable(_ sender: Any?) {
+    guard let controller = expandedTable else { return }
+    controller.cancelEditing()
+    tableViewStates[controller.tableID] = (
+      controller.position, controller.anchor, controller.scroll.contentView.bounds.origin
+    )
+    tableProjectionObservers[controller.observerID] = nil
+    controller.stopReviewObservers()
+    controller.view.removeFromSuperview()
+    controller.removeFromParent()
+    expandedTable = nil
+    scrollView.isHidden = false
+    scrollView.contentView.scroll(to: proseScroll)
+    scrollView.reflectScrolledClipView(scrollView.contentView)
+    summarizeSelection()
+    view.window?.makeFirstResponder(textView)
+  }
+  private func navigateToTableFailure(_ origin: TableCellFailureOrigin) {
+    expandedTable?.cancelEditing()
+    openTable(origin.table)
+    guard let grid = expandedTable, let projection = grid.projection,
+      let row = origin.row.flatMap({ projection.rows.firstIndex(of: $0) }),
+      let column = origin.column.flatMap({ id in projection.columns.firstIndex { $0.id == id } })
+    else { return }
+    grid.select(.init(row: row, column: column))
   }
 }

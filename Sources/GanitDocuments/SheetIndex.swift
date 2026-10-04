@@ -1,4 +1,5 @@
 import Foundation
+import GanitEngine
 import SQLite3
 
 /// A sheet's listing fields, read from the index.
@@ -27,7 +28,12 @@ public struct IndexRebuildReport: Equatable, Sendable {
 /// an unexpected schema version, replaces it with an empty index and sets
 /// `needsRebuild`; `rebuild(from:)` then repopulates it from the store.
 public final class SheetIndex {
-  static let schemaVersion: Int32 = 2
+  /// The table layout is unchanged from version 2. Version 3 only marked
+  /// indexes written before metadata schema 2 as stale, so they were rebuilt
+  /// once and stopped listing sheets whose metadata is no longer readable.
+  /// Version 4 stores search text, in which a table block is its display
+  /// text rather than its payload, so older rows are rebuilt once.
+  static let schemaVersion: Int32 = 4
 
   public private(set) var needsRebuild = false
   private let url: URL
@@ -80,10 +86,27 @@ public final class SheetIndex {
       [
         metadata.id.uuidString, metadata.title, metadata.folderID?.uuidString,
         metadata.state.rawValue, metadata.isFavorite ? 1 : 0,
-        metadata.modifiedAt.timeIntervalSince1970, source,
+        metadata.modifiedAt.timeIntervalSince1970, Self.searchText(of: source),
         metadata.preferences.display.writesAnswersInline ? 1 : 0,
       ]
     )
+  }
+
+  /// What search matches in a sheet: its source as a reader sees it. Prose
+  /// is exact; a table block is its name, headers and cell text, never its
+  /// identities or JSON, and a block without a readable table stays raw, as
+  /// the editor shows it.
+  static func searchText(of source: String) -> String {
+    let lines = TableSourceDocument.displayLines(of: SheetSource(source))
+    guard lines.contains(where: { if case .prose = $0 { return false } else { return true } })
+    else { return source }
+    return lines.flatMap { line -> [String] in
+      switch line {
+      case .prose(let text): return [text]
+      case .table(let name, let text): return [name] + text
+      case .quarantined(let raw): return raw
+      }
+    }.joined(separator: "\n")
   }
 
   public func remove(id: UUID) throws {
@@ -182,7 +205,9 @@ public final class SheetIndex {
   private func isHealthy() -> Bool {
     let check = try? query("PRAGMA quick_check") { $0.text(0) }
     let version = try? query("PRAGMA user_version") { $0.integer(0) }
-    return check == ["ok"] && (version == [0] || version == [Int(Self.schemaVersion)])
+    // An existing file at version 0, such as an empty file left by an
+    // interrupted creation, was never populated, so it is rebuilt.
+    return check == ["ok"] && version == [Int(Self.schemaVersion)]
   }
 
   private func execute(_ sql: String) throws {

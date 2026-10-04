@@ -76,6 +76,11 @@ private enum GanitBenchmarks {
       purpose: "Ordinary incremental sheet evaluation"
     ),
     FixtureTarget(
+      name: "table-sheet",
+      target: "900 table cells, 55 readers",
+      purpose: "Table cell and prose edits with dependency invalidation"
+    ),
+    FixtureTarget(
       name: "independent-sheet",
       target: "10,000 lines",
       purpose: "Large independent-line evaluation"
@@ -145,6 +150,15 @@ private enum GanitBenchmarks {
     }
 
     if arguments.count == 2,
+      arguments[0] == "--table",
+      let iterations = Int(arguments[1]),
+      (1...maximumSheetIterations).contains(iterations)
+    {
+      runTableBenchmark(iterations: iterations)
+      return
+    }
+
+    if arguments.count == 2,
       arguments[0] == "--quick",
       let iterations = Int(arguments[1]),
       (1...maximumSheetIterations).contains(iterations)
@@ -162,6 +176,7 @@ private enum GanitBenchmarks {
         GanitBenchmarks --engine <iteration-count: 1...\(maximumEngineIterations)>
         GanitBenchmarks --sheet <\(sheetBenchmarks.map(\.fixture).joined(separator: "|"))> \
       <edit-count: 1...\(maximumSheetIterations)>
+        GanitBenchmarks --table <edit-count: 1...\(maximumSheetIterations)>
         GanitBenchmarks --quick <show-count: 1...\(maximumSheetIterations)>
         GanitBenchmarks --editor <\(sheetBenchmarks.map(\.fixture).joined(separator: "|"))> \
       <edit-count: 1...\(maximumSheetIterations)>
@@ -179,6 +194,7 @@ private enum GanitBenchmarks {
       let isAvailable =
         fixture.name == "launch-expressions"
         || sheetBenchmarks.contains { $0.fixture == fixture.name }
+        || (fixture.name == "table-sheet" && tableFixtureIsReadable())
       let status = isAvailable ? "available" : "unavailable"
       print(
         "\(fixture.name)\t\(fixture.target)\t\(status)\t\(fixture.purpose)"
@@ -368,6 +384,132 @@ private enum GanitBenchmarks {
         + String(format: "%.3f", nearestRank(0.95, in: latencySamples) / 1_000_000)
     )
     print("fixture_checksum=\(fixtureChecksum([text]))")
+  }
+
+  /// Times one table cell's source edit and one prose edit of a table
+  /// reader, alternating, through the incremental calculator. The cell edit
+  /// rewrites the block payload line, as a committed cell edit does.
+  private static func runTableBenchmark(iterations: Int) {
+    let text = tableFixtureText()
+    let context: EvaluationContext
+    do {
+      context = try benchmarkContext()
+    } catch {
+      fail("Table benchmark context is invalid.")
+    }
+    let clock = ContinuousClock()
+
+    // Warm up code paths with a throwaway calculator.
+    var warmup = SheetCalculator()
+    _ = try? warmup.evaluate(SheetSource(text), context: context)
+
+    var sheet = SheetSource(text)
+    var calculator = SheetCalculator()
+    let fullStart = clock.now
+    guard let first = try? calculator.evaluate(sheet, context: context) else {
+      fail("Table benchmark evaluation was cancelled.")
+    }
+    let fullNanoseconds = nanoseconds(fullStart.duration(to: clock.now))
+    let table = first.tableResults.first
+    guard let table, table.isCalculated, table.calculationFailure == nil else {
+      fail("Table benchmark fixture has no calculated table.")
+    }
+    guard sheet.lines.count > 7, let payloadLine = sheet.lines[2].text.first == "{" ? 2 : nil else {
+      fail("Table benchmark fixture has no payload line.")
+    }
+    let payloadRange = sheet.lines[payloadLine].range
+    let payload = String(
+      decoding: Array(text.utf8)[payloadRange.lowerBound..<payloadRange.upperBound],
+      as: UTF8.self)
+    guard sheet.lines.indices.contains(7), payload.contains("\"s\":\"65\""),
+      payload.contains("\"s\":\"64\"")
+    else {
+      fail("Table benchmark fixture has no editable cell source.")
+    }
+    let proseLine = sheet.lines[7].text
+    guard proseLine.contains("Data!C2") else {
+      fail("Table benchmark fixture has no editable reader line.")
+    }
+    // Each prose edit moves one reader to the next data row, so every edit
+    // re-evaluates the line and its dependencies.
+    func proseVariant(_ row: Int) -> String {
+      proseLine.replacingOccurrences(of: "Data!C2", with: "Data!C\(row)")
+    }
+
+    let cellVariants = [
+      payload.replacingOccurrences(of: "\"s\":\"65\"", with: "\"s\":\"64\""),
+      payload.replacingOccurrences(of: "\"s\":\"64\"", with: "\"s\":\"65\""),
+    ]
+
+    var cellSamples: [Double] = []
+    var proseSamples: [Double] = []
+    var evaluatedLines = 0
+    cellSamples.reserveCapacity(iterations)
+    proseSamples.reserveCapacity(iterations)
+    for iteration in 0..<(iterations * 2) {
+      let start = clock.now
+      // Recompute the line ranges, because a longer replacement shifts the
+      // lines after it.
+      let payload = sheet.lines[payloadLine].range
+      let reader = sheet.lines[7].range
+      if iteration % 2 == 0 {
+        let variant = cellVariants[iteration / 2 % 2]
+        sheet.replace(utf8Range: payload.lowerBound..<payload.upperBound, with: variant)
+      } else {
+        sheet.replace(
+          utf8Range: reader.lowerBound..<reader.upperBound,
+          with: proseVariant(3 + (iteration / 2) % 100))
+      }
+      guard let evaluation = try? calculator.evaluate(sheet, context: context) else {
+        fail("Table benchmark evaluation was cancelled.")
+      }
+      let sample = nanoseconds(start.duration(to: clock.now))
+      if iteration % 2 == 0 {
+        cellSamples.append(sample)
+      } else {
+        proseSamples.append(sample)
+        evaluatedLines += evaluation.evaluatedLineIDs.count
+      }
+    }
+    cellSamples.sort()
+    proseSamples.sort()
+
+    print("fixture=table-sheet")
+    print("lines=\(sheet.lines.count)")
+    print("full_evaluation_ms=\(String(format: "%.3f", fullNanoseconds / 1_000_000))")
+    print("cell_edits=\(cellSamples.count)")
+    print(
+      "p50_cell_edit_ms=" + String(format: "%.3f", nearestRank(0.50, in: cellSamples) / 1_000_000))
+    print(
+      "p95_cell_edit_ms=" + String(format: "%.3f", nearestRank(0.95, in: cellSamples) / 1_000_000))
+    print("prose_edits=\(proseSamples.count)")
+    print(
+      "p50_prose_edit_ms="
+        + String(format: "%.3f", nearestRank(0.50, in: proseSamples) / 1_000_000))
+    print(
+      "p95_prose_edit_ms="
+        + String(format: "%.3f", nearestRank(0.95, in: proseSamples) / 1_000_000))
+    print("evaluated_lines_per_prose_edit=\(evaluatedLines / max(proseSamples.count, 1))")
+    print("fixture_checksum=\(fixtureChecksum([text]))")
+  }
+
+  private static func tableFixtureText() -> String {
+    guard let text = try? String(contentsOf: tableFixtureURL(), encoding: .utf8) else {
+      fail("Table fixture is unreadable: \(tableFixtureURL().path)")
+    }
+    return text
+  }
+
+  private static func tableFixtureIsReadable() -> Bool {
+    (try? String(contentsOf: tableFixtureURL(), encoding: .utf8)) != nil
+  }
+
+  private static func tableFixtureURL() -> URL {
+    URL(fileURLWithPath: #filePath)
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .deletingLastPathComponent()
+      .appending(path: "Benchmarks/Fixtures/table-sheet-1k.txt")
   }
 
   /// Times edits in a real sheet editor until their answers are drawn, as the

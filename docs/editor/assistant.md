@@ -38,6 +38,11 @@ this user can read.
 - An assistant is set up and turned on.
 - Ganit flagged the line as one it could not work out. A line that is merely
   half-typed is not flagged, so it is not asked about.
+- The line is outside a table block. Its failure is not a table error
+  (`tableReference`). Ganit calculates tables locally. Automatic requests and
+  Ask Assistant exclude table source lines and prose with table errors. A kept
+  answer cannot replace a table diagnostic. A table formula with
+  `ask_assistant` produces a diagnostic and no request.
 - Typing has stopped for `assistantPause`, which is 1.2 seconds.
 - That exact text has not been asked about already. Answers are kept by the
   text that was asked, so the same line in two places costs one request, and

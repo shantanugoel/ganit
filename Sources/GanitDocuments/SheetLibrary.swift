@@ -1,3 +1,4 @@
+import Darwin
 import Foundation
 import GanitEngine
 
@@ -58,6 +59,18 @@ public final class SheetLibrary {
 
   public let store: SheetStore
   public let index: SheetIndex
+  /// Sheets the last index rebuild could not read, such as ones with an
+  /// unsupported metadata schema, or whose metadata could not be recreated.
+  /// Their source files were left untouched.
+  public private(set) var unreadableSheetIDs: [UUID] = []
+  /// Sheets whose metadata repair failed, such as when `Metadata/` cannot be
+  /// written, in the last recovery or in `load(id:)` since. After a full
+  /// recovery, a sheet whose missing or undecodable metadata could not be
+  /// recreated is also in `unreadableSheetIDs`; one that failed on demand is
+  /// not added there. A sheet whose stale checksum could not be rewritten
+  /// still opens. The library stays marked unsynchronized, so the next open
+  /// retries every repair.
+  public private(set) var unrepairedSheetIDs: [UUID] = []
   private let backupPolicy: BackupPolicy
   let now: () -> Date
   private let dayFormatter: DateFormatter
@@ -72,8 +85,10 @@ public final class SheetLibrary {
     root: URL,
     backupPolicy: BackupPolicy = .default,
     timeZone: TimeZone = .current,
-    now: @escaping () -> Date = Date.init
+    now: @escaping () -> Date = Date.init,
+    migrationProgress: ((DocumentMigration.Progress) -> Void)? = nil
   ) throws {
+    try DocumentMigration.migrateLibrary(at: root, progress: migrationProgress)
     store = SheetStore(root: root)
     index = try SheetIndex(url: root.appending(path: "Index/index.sqlite"))
     folderStore = SheetFolderStore(url: root.appending(path: "Folders.json"))
@@ -93,46 +108,193 @@ public final class SheetLibrary {
     store.root.appending(path: "Index/unsynchronized")
   }
 
+  /// Whether a change failed after marking the index unsynchronized, since
+  /// the last recovery. Its files may be stale, so the marker stays.
+  private var hasFailedChange = false
+
   /// Marks the index unsynchronized while `change` writes sheet files, so an
   /// interruption before the index update is detected on the next open.
+  ///
+  /// The marker's directory is synchronized before any sheet file changes,
+  /// so the marker is durable before they are. A change that fails leaves
+  /// the marker until recovery runs, even when later changes succeed.
   private func changingIndexedFiles<Result>(_ change: () throws -> Result) throws -> Result {
-    guard FileManager.default.createFile(atPath: unsyncedMarker.path, contents: nil) else {
-      throw DocumentStorageError.posix(operation: "create", code: errno)
+    try markUnsynchronized()
+    let result: Result
+    do {
+      result = try change()
+    } catch {
+      hasFailedChange = true
+      throw error
     }
-    let result = try change()
-    try FileManager.default.removeItem(at: unsyncedMarker)
+    if !hasFailedChange {
+      try FileManager.default.removeItem(at: unsyncedMarker)
+    }
     sheetsDidChange?()
     return result
   }
 
+  /// Creates the unsynchronized marker, durably, before files change.
+  private func markUnsynchronized() throws {
+    // Created in place: an atomic write would leave its own temporary file
+    // if interrupted.
+    let marker = open(unsyncedMarker.path, O_WRONLY | O_CREAT | O_CLOEXEC, 0o644)
+    guard marker >= 0 else {
+      throw DocumentStorageError.posix(operation: "open", code: errno)
+    }
+    close(marker)
+    try AtomicFile.synchronizeDirectory(unsyncedMarker.deletingLastPathComponent())
+  }
+
   /// Repairs sheets whose metadata is stale, unreadable, or missing, keeping
-  /// their source, and rebuilds the index. Unreadable metadata is moved to
-  /// `Quarantine/` rather than deleted. Sheets that still cannot be read, such
-  /// as source that is not UTF-8 or metadata from a newer schema, are left
-  /// untouched.
+  /// their source, and rebuilds the index. Only metadata is written: stale
+  /// metadata gets the source's checksum, and a title following the first
+  /// line is updated, while unreadable metadata is moved to `Quarantine/`
+  /// rather than deleted and recreated from the source. Sheets that still
+  /// cannot be read, such as source that is not UTF-8 or metadata in a schema
+  /// other than the current one, are left untouched. Temporary files
+  /// abandoned by interrupted writes are removed where possible.
+  ///
+  /// A sheet whose repair fails, such as when `Metadata/` or `Quarantine/`
+  /// cannot be written, never keeps the library from opening: it is listed in
+  /// `unrepairedSheetIDs`, and in `unreadableSheetIDs` when it cannot be read,
+  /// and the library stays marked unsynchronized so the next open retries.
+  /// Recovery throws only when the library itself is unusable: the index's
+  /// marker cannot be created, `Sheets/` cannot be listed, or the index
+  /// cannot be rebuilt.
+  ///
+  /// The library is marked unsynchronized until the index is rebuilt, so an
+  /// interrupted recovery, even one started by a corrupt index, runs again on
+  /// the next open.
+  ///
+  /// The library must be the only writer of its files, with no write in
+  /// progress, since recovery rewrites metadata and removes temporary files.
   @discardableResult
   public func recoverAndRebuildIndex() throws -> IndexRebuildReport {
+    try markUnsynchronized()
+    store.removeTemporaryFiles()
+    var unrepaired: [UUID] = []
     for id in try store.sheetIDs() {
       do {
-        let sheet = try store.load(id: id)
-        if !sheet.isChecksumValid {
-          try store.save(source: sheet.source, metadata: sheet.metadata)
+        switch read(id) {
+        case .readable(let sheet) where !sheet.isChecksumValid:
+          try repairChecksum(of: sheet)
+        case .readable, .unreadable:
+          continue
+        case .recoverable:
+          try recoverMetadata(of: id)
         }
-      } catch is DecodingError, CocoaError.fileReadNoSuchFile {
-        try recoverMetadata(of: id)
       } catch {
-        continue
+        unrepaired.append(id)
       }
     }
     let report = try index.rebuild(from: store)
-    try? FileManager.default.removeItem(at: unsyncedMarker)
+    unreadableSheetIDs = report.unreadable
+    unrepairedSheetIDs = unrepaired
+    hasFailedChange = !unrepaired.isEmpty
+    if !hasFailedChange {
+      try? FileManager.default.removeItem(at: unsyncedMarker)
+    }
     return report
   }
 
-  private func recoverMetadata(of id: UUID) throws {
-    guard let source = String(data: try Data(contentsOf: store.sourceURL(id)), encoding: .utf8)
-    else {
-      return
+  /// Reads a sheet for use, as opening it does, first repairing its metadata
+  /// from the canonical source as `recoverAndRebuildIndex()` would: stale
+  /// metadata gets the source's checksum, and a title following the first
+  /// line, keeping every other field; missing or undecodable metadata is
+  /// moved to `Quarantine/` and recreated with reset fields. Only metadata
+  /// and the sheet's index entry are written, marked unsynchronized
+  /// throughout. A sheet that still cannot be read, such as one with no
+  /// source file, source that is not UTF-8, or metadata in another schema,
+  /// throws and is left untouched.
+  ///
+  /// A failed repair leaves the library marked unsynchronized, so the next
+  /// open retries it. A sheet whose stale checksum cannot be rewritten is
+  /// returned unrepaired, since its metadata is still readable; one whose
+  /// metadata cannot be recreated throws.
+  public func load(id: UUID) throws -> StoredSheet {
+    switch read(id) {
+    case .readable(let sheet) where sheet.isChecksumValid:
+      return sheet
+    case .readable(let sheet):
+      do {
+        var repaired = try changingIndexedFiles {
+          try repairChecksum(of: sheet)
+        }
+        repaired.metadataRepair = .checksum
+        unrepairedSheetIDs.removeAll { $0 == id }
+        return repaired
+      } catch {
+        if !unrepairedSheetIDs.contains(id) {
+          unrepairedSheetIDs.append(id)
+        }
+        return sheet
+      }
+    case .recoverable:
+      do {
+        var sheet = try changingIndexedFiles {
+          try recoverMetadata(of: id)
+        }
+        sheet.metadataRepair = .rebuiltFromSource
+        unrepairedSheetIDs.removeAll { $0 == id }
+        return sheet
+      } catch {
+        if !unrepairedSheetIDs.contains(id) {
+          unrepairedSheetIDs.append(id)
+        }
+        throw error
+      }
+    case .unreadable(let error):
+      throw error
+    }
+  }
+
+  private enum Readability {
+    case readable(StoredSheet)
+    /// Current-schema metadata is missing or cannot be decoded, and the
+    /// source file exists.
+    case recoverable
+    case unreadable(any Error)
+  }
+
+  private func read(_ id: UUID) -> Readability {
+    do {
+      return .readable(try store.load(id: id))
+    } catch {
+      let isMissing = (error as? CocoaError)?.code == .fileReadNoSuchFile
+      guard error is DecodingError || isMissing,
+        FileManager.default.fileExists(atPath: store.sourceURL(id).path)
+      else {
+        return .unreadable(error)
+      }
+      return .recoverable
+    }
+  }
+
+  /// Rewrites stale metadata for the current source: its checksum, and its
+  /// title when that follows the first line. Returns the sheet as reread,
+  /// with its index entry updated, so the source returned is the one the
+  /// checksum describes.
+  @discardableResult
+  private func repairChecksum(of sheet: StoredSheet) throws -> StoredSheet {
+    var metadata = sheet.metadata
+    if !metadata.hasCustomTitle {
+      metadata.title = derivedTitle(of: sheet.source)
+    }
+    try store.saveMetadata(metadata)
+    let repaired = try store.load(id: metadata.id)
+    try index.upsert(repaired.metadata, source: repaired.source)
+    return repaired
+  }
+
+  /// Moves a sheet's metadata, if any, to `Quarantine/` and writes new
+  /// metadata for its source, titled after its first line, or "Scratch" for
+  /// the scratch sheet. The source file is read, never written. Returns the
+  /// sheet as reread, with its index entry updated.
+  @discardableResult
+  private func recoverMetadata(of id: UUID) throws -> StoredSheet {
+    guard let source = exactUTF8(try Data(contentsOf: store.sourceURL(id))) else {
+      throw DocumentStorageError.invalidUTF8(store.sourceURL(id))
     }
     let metadataURL = store.metadataURL(id)
     if FileManager.default.fileExists(atPath: metadataURL.path) {
@@ -144,9 +306,48 @@ public final class SheetLibrary {
       )
     }
     var metadata = SheetMetadata(id: id, title: "", createdAt: now(), preferences: .standard)
-    metadata.title = SheetSource(source).lines.lazy.compactMap(title(of:)).first ?? ""
-    metadata.modifiedAt = now()
-    try store.save(source: source, metadata: metadata)
+    if id == Self.scratchID {
+      metadata.title = "Scratch"
+      metadata.hasCustomTitle = true
+    } else {
+      metadata.title = derivedTitle(of: source)
+    }
+    try store.saveMetadata(metadata)
+    let recovered = try store.load(id: id)
+    try index.upsert(recovered.metadata, source: recovered.source)
+    return recovered
+  }
+
+  /// The longest title taken from a sheet's first line, in characters and in
+  /// UTF-8 bytes, so a long line cannot make a package manifest larger than
+  /// import accepts.
+  static let maximumDerivedTitleCharacters = 200
+  static let maximumDerivedTitleBytes = 1_024
+
+  /// The title of a sheet not named by the user: its first non-blank line,
+  /// without a leading U+FEFF or a heading's `#`, cut at a character
+  /// boundary to at most 200 characters and 1,024 UTF-8 bytes, without
+  /// trailing spaces. A table block counts as its table's name; a block
+  /// without a readable table is skipped, so no title is block syntax.
+  private func derivedTitle(of source: String) -> String {
+    let line =
+      TableSourceDocument.displayLines(of: SheetSource(source)).lazy.compactMap { line in
+        switch line {
+        case .prose(let text): return self.title(of: text)
+        case .table(let name, _): return name
+        case .quarantined: return nil
+        }
+      }.first ?? ""
+    var title = ""
+    var bytes = 0
+    for character in line.prefix(Self.maximumDerivedTitleCharacters) {
+      bytes += character.utf8.count
+      guard bytes <= Self.maximumDerivedTitleBytes else {
+        break
+      }
+      title.append(character)
+    }
+    return title.trimmingCharacters(in: .whitespaces)
   }
 
   /// The sheet every library has: somewhere to work a number out without
@@ -155,10 +356,15 @@ public final class SheetLibrary {
   public static let scratchID = UUID(uuidString: "5C4A7C40-0000-4000-8000-000000000001")!
 
   /// Creates the scratch sheet when the library has none, and returns it.
+  /// An existing one is read with `load(id:)`, so missing or corrupt
+  /// current-schema metadata is recovered from the source, titled
+  /// "Scratch". A scratch sheet that still cannot be read, such as one with
+  /// an unsupported schema, source that is not UTF-8, or metadata that cannot
+  /// be recreated, throws and its source is left untouched.
   @discardableResult
   public func openScratch() throws -> SheetMetadata {
-    if let existing = try? store.load(id: Self.scratchID) {
-      return existing.metadata
+    if FileManager.default.fileExists(atPath: store.sourceURL(Self.scratchID).path) {
+      return try load(id: Self.scratchID).metadata
     }
     var metadata = SheetMetadata(
       id: Self.scratchID, title: "Scratch", createdAt: now(), preferences: .standard)
@@ -183,7 +389,7 @@ public final class SheetLibrary {
     var metadata = metadata
     metadata.modifiedAt = now()
     if !metadata.hasCustomTitle {
-      metadata.title = SheetSource(source).lines.lazy.compactMap(title(of:)).first ?? ""
+      metadata.title = derivedTitle(of: source)
     }
     return try changingIndexedFiles {
       let saved = try store.save(source: source, metadata: metadata)
@@ -201,13 +407,13 @@ public final class SheetLibrary {
     _ id: UUID,
     _ change: (inout SheetMetadata) -> Void
   ) throws -> SheetMetadata {
-    let sheet = try store.load(id: id)
+    let sheet = try load(id: id)
     var metadata = sheet.metadata
     change(&metadata)
     return try changingIndexedFiles {
-      try store.saveMetadata(metadata)
-      try index.upsert(metadata, source: sheet.source)
-      return metadata
+      let saved = try store.saveMetadata(metadata)
+      try index.upsert(saved, source: sheet.source)
+      return saved
     }
   }
 
@@ -215,7 +421,7 @@ public final class SheetLibrary {
   /// line.
   @discardableResult
   public func rename(_ id: UUID, to title: String) throws -> SheetMetadata {
-    let sheet = try store.load(id: id)
+    let sheet = try load(id: id)
     var metadata = sheet.metadata
     metadata.hasCustomTitle = !title.isEmpty
     metadata.title = title
@@ -224,7 +430,7 @@ public final class SheetLibrary {
 
   /// Copies a sheet into a new active sheet in the same folder.
   public func duplicate(_ id: UUID) throws -> SheetMetadata {
-    let sheet = try store.load(id: id)
+    let sheet = try load(id: id)
     var copy = SheetMetadata(
       title: sheet.metadata.title,
       folderID: sheet.metadata.folderID,
@@ -232,7 +438,22 @@ public final class SheetLibrary {
       preferences: sheet.metadata.preferences
     )
     copy.hasCustomTitle = sheet.metadata.hasCustomTitle
-    return try save(source: sheet.source, metadata: copy)
+    let edit = try TableSourceDocument(sheet.source).duplicateSheet()
+    let source = try edit.applying(to: sheet.source)
+    // Widths follow the reminted tables and columns. Quarantined blocks
+    // remain byte for byte and retain their presentation identities.
+    for (table, presentation) in sheet.metadata.tables.byTableID {
+      let copiedTable =
+        UUID(uuidString: table).flatMap { edit.copiedIdentities[$0] }
+        .map { $0.uuidString.lowercased() } ?? table
+      for (column, width) in presentation.columnWidths {
+        let copiedColumn =
+          UUID(uuidString: column).flatMap { edit.copiedIdentities[$0] }
+          .map { $0.uuidString.lowercased() } ?? column
+        copy.tables.setWidth(width, column: copiedColumn, table: copiedTable)
+      }
+    }
+    return try save(source: source, metadata: copy)
   }
 
   /// Deletes a sheet's files, index entry, and backups. This cannot be undone,
@@ -336,15 +557,19 @@ public final class SheetLibrary {
       .sorted()
   }
 
-  private func title(of line: SheetLine) -> String? {
+  private func title(of text: String) -> String? {
+    // A leading U+FEFF is invisible; it hides neither a heading nor a blank.
+    let line =
+      text.unicodeScalars.first == "\u{FEFF}"
+      ? String(text.unicodeScalars.dropFirst()) : text
     let text: Substring?
-    switch LineSyntax(line.text) {
+    switch LineSyntax(line) {
     case .blank:
       return nil
     case .heading(let title):
-      text = title.text(in: line.text)
+      text = title.text(in: line)
     default:
-      text = Substring(line.text.trimmingCharacters(in: .whitespaces))
+      text = Substring(line.trimmingCharacters(in: .whitespaces))
     }
     return text.flatMap { $0.isEmpty ? nil : String($0) }
   }

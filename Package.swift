@@ -111,7 +111,14 @@ let package = Package(
     ),
     .executableTarget(
       name: "GanitCLI",
-      dependencies: ["GanitDocuments", "GanitEngine", "GanitSystemIntegration"]
+      dependencies: ["GanitDocuments", "GanitEngine", "GanitFormatting", "GanitSystemIntegration"]
+    ),
+    // Disposable M0 proof; never linked into the shipping app or CLI.
+    .executableTarget(
+      name: "GanitTablesM0",
+      dependencies: ["GanitEngine", "GanitEditorUI"],
+      path: "Spikes/TablesM0",
+      exclude: ["Fixtures", "README.md", "evidence.md"]
     ),
     .executableTarget(
       name: "GanitEngineHarness",
@@ -126,11 +133,13 @@ let package = Package(
     ),
     .testTarget(
       name: "GanitEngineTests",
-      dependencies: ["GanitEngine"]
+      dependencies: ["GanitEngine"],
+      // Byte-exact table block fixtures, read through #filePath.
+      exclude: ["Fixtures"]
     ),
     .testTarget(
       name: "GanitFormattingTests",
-      dependencies: ["GanitFormatting"]
+      dependencies: ["GanitFormatting", "GanitEngine"]
     ),
     .testTarget(
       name: "GanitEngineCorpusTests",
@@ -155,7 +164,9 @@ let package = Package(
     ),
     .testTarget(
       name: "GanitDocumentsTests",
-      dependencies: ["GanitData", "GanitDocuments", "GanitEngine", "GanitStorageStressHelper"]
+      dependencies: ["GanitData", "GanitDocuments", "GanitEngine", "GanitStorageStressHelper"],
+      // Byte-exact metadata and package fixtures, read through #filePath.
+      exclude: ["Fixtures"]
     ),
     .testTarget(
       name: "GanitEditorUITests",
@@ -167,7 +178,7 @@ let package = Package(
     ),
     .testTarget(
       name: "GanitSystemIntegrationTests",
-      dependencies: ["GanitEngine", "GanitSystemIntegration"]
+      dependencies: ["GanitEngine", "GanitFormatting", "GanitSystemIntegration"]
     ),
     .testTarget(
       name: "GanitWorkspaceUITests",

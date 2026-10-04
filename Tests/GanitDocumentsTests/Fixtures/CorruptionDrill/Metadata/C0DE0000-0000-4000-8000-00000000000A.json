@@ -1,0 +1,41 @@
+{
+  "createdAt" : "2026-09-15T08:00:00Z",
+  "futureField" : {
+    "kept" : true
+  },
+  "hasCustomTitle" : false,
+  "id" : "C0DE0000-0000-4000-8000-00000000000A",
+  "isFavorite" : false,
+  "modifiedAt" : "2026-09-16T09:30:00Z",
+  "preferences" : {
+    "angleMode" : "radians",
+    "display" : {
+      "ambiguousSuffixes" : {
+
+      },
+      "answerFormats" : {
+
+      },
+      "dollarCurrency" : "USD",
+      "groupsDigits" : true,
+      "groupsInLakhs" : false,
+      "numbers" : {
+        "automatic" : {
+
+        }
+      },
+      "showsAnswerSeparator" : true,
+      "showsLineNumbers" : true,
+      "writesAnswersInline" : false
+    },
+    "localeIdentifier" : "en-US",
+    "significantDecimalDigits" : 15
+  },
+  "schemaVersion" : 3,
+  "sourceChecksum" : "sha256:c371c38470c9e33cc8c472be9acf59fe45d939378419db321cdfbce165b27f3d",
+  "state" : "active",
+  "tables" : {
+
+  },
+  "title" : "Schema three"
+}

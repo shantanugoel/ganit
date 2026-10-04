@@ -4,7 +4,13 @@ import GanitEngine
 
 /// Serializes incremental evaluation off the main actor and owns its cache.
 private actor CalculatorWorker {
-  private var calculator = SheetCalculator()
+  private let surface: SheetSurface
+  private var calculator: SheetCalculator
+
+  init(surface: SheetSurface) {
+    self.surface = surface
+    calculator = SheetCalculator(surface: surface)
+  }
 
   func evaluate(_ sheet: SheetSource, context: EvaluationContext) throws -> SheetEvaluation {
     try calculator.evaluate(sheet, context: context)
@@ -12,7 +18,7 @@ private actor CalculatorWorker {
 
   /// Starts over with new definitions, which every line may read.
   func setDefinitions(_ definitions: SheetDefinitions) {
-    calculator = SheetCalculator(definitions: definitions)
+    calculator = SheetCalculator(definitions: definitions, surface: surface)
   }
 }
 
@@ -25,7 +31,7 @@ private actor CalculatorWorker {
 /// wake.
 @MainActor
 final class SheetEvaluationScheduler {
-  private let worker = CalculatorWorker()
+  private let worker: CalculatorWorker
   /// The context each generation evaluates in, at the current time.
   var context: EvaluationContext
   /// The definitions generations evaluate with, for comparing new ones.
@@ -38,9 +44,10 @@ final class SheetEvaluationScheduler {
   /// `commit` receives the evaluated snapshot, its evaluation, and the
   /// edit-to-answer interval started when the snapshot was scheduled.
   init(
-    context: EvaluationContext,
+    context: EvaluationContext, surface: SheetSurface = .workspace,
     commit: @escaping @MainActor (SheetSource, SheetEvaluation, SignpostedInterval) -> Void
   ) {
+    worker = CalculatorWorker(surface: surface)
     self.context = context
     self.commit = commit
   }

@@ -96,9 +96,10 @@ public struct SheetDefinitions: Hashable, Sendable {
   }
 
   /// What a definitions sheet's source defines, for a caller that answers
-  /// without showing it, such as the app at launch.
+  /// without showing it, such as the app at launch. Its tables are never
+  /// calculated, so nothing a table holds is defined for every sheet.
   public init(source: String, context: EvaluationContext) throws {
-    var calculator = SheetCalculator()
+    var calculator = SheetCalculator(surface: .definitions)
     self = try calculator.evaluate(SheetSource(source), context: context).definitions
   }
 

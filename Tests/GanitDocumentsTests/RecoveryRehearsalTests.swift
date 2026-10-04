@@ -1,4 +1,5 @@
 import Foundation
+import SQLite3
 import Testing
 
 @testable import GanitDocuments
@@ -55,28 +56,67 @@ struct RecoveryRehearsalTests {
     }
   }
 
-  /// Returning to an older Ganit: sheets saved in a newer format are left
-  /// untouched, and the rest of the library keeps working.
+  /// Sheets whose metadata has an unsupported schema, earlier or later than
+  /// the current one, are left untouched and reported, and the rest of the
+  /// library keeps working. Nothing is converted.
   @Test
-  func olderVersionLeavesNewerSheetsUntouched() throws {
+  func unsupportedSchemasAreLeftUntouchedAndReported() throws {
     let library = try SheetLibrary(root: root)
     let ids = try seed(library)
-    let newer = ids[0]
-    let metadataURL = library.store.metadataURL(newer)
-    let future = try String(contentsOf: metadataURL, encoding: .utf8)
-      .replacingOccurrences(of: "\"schemaVersion\" : 1", with: "\"schemaVersion\" : 2")
-    try Data(future.utf8).write(to: metadataURL)
-    let sourceBefore = try Data(contentsOf: library.store.sourceURL(newer))
+    var unsupported: [UUID: Data] = [:]
+    for (id, version) in [(ids[0], 0), (ids[2], 3)] {
+      let metadataURL = library.store.metadataURL(id)
+      let json = try String(contentsOf: metadataURL, encoding: .utf8)
+        .replacingOccurrences(of: "\"schemaVersion\" : 2", with: "\"schemaVersion\" : \(version)")
+      unsupported[id] = Data(json.utf8)
+      try Data(json.utf8).write(to: metadataURL)
+    }
+    let sources = try ids.map { try Data(contentsOf: library.store.sourceURL($0)) }
     try FileManager.default.removeItem(at: root.appending(path: "Index"))
 
     let reopened = try SheetLibrary(root: root)
     let report = try reopened.recoverAndRebuildIndex()
     _ = try reopened.save(source: "changed", metadata: reopened.store.load(id: ids[1]).metadata)
 
-    #expect(report.unreadable == [newer])
-    #expect(try Data(contentsOf: metadataURL) == Data(future.utf8))
-    #expect(try Data(contentsOf: reopened.store.sourceURL(newer)) == sourceBefore)
+    #expect(Set(report.unreadable) == Set(unsupported.keys))
+    for (id, metadata) in unsupported {
+      #expect(try Data(contentsOf: reopened.store.metadataURL(id)) == metadata)
+    }
+    #expect(try Data(contentsOf: reopened.store.sourceURL(ids[0])) == sources[0])
+    #expect(try Data(contentsOf: reopened.store.sourceURL(ids[2])) == sources[2])
     #expect(try reopened.store.load(id: ids[1]).source == "changed")
+    #expect(
+      !FileManager.default.fileExists(atPath: root.appending(path: "Quarantine").path))
+  }
+
+  /// An index written before metadata schema 2 still lists sheets that are
+  /// now unsupported. Its version is stale, so the library rebuilds it once,
+  /// lists only the readable sheets, and reports the rest untouched.
+  @Test
+  func anIndexFromBeforeTheCurrentSchemaIsRebuilt() throws {
+    var library: SheetLibrary? = try SheetLibrary(root: root)
+    let ids = try seed(library!)
+    library = nil
+    let indexURL = root.appending(path: "Index/index.sqlite")
+    var database: OpaquePointer?
+    #expect(sqlite3_open(indexURL.path, &database) == SQLITE_OK)
+    #expect(sqlite3_exec(database, "PRAGMA user_version = 2;", nil, nil, nil) == SQLITE_OK)
+    sqlite3_close(database)
+    let unsupported = ids[0]
+    let metadataURL = SheetStore(root: root).metadataURL(unsupported)
+    let metadata = Data(
+      try String(contentsOf: metadataURL, encoding: .utf8)
+        .replacingOccurrences(of: "\"schemaVersion\" : 2", with: "\"schemaVersion\" : 0")
+        .utf8)
+    try metadata.write(to: metadataURL)
+    let source = try Data(contentsOf: SheetStore(root: root).sourceURL(unsupported))
+
+    let reopened = try SheetLibrary(root: root)
+
+    #expect(Set(try reopened.index.summaries().map(\.id)) == Set(ids[1...]))
+    #expect(try reopened.recoverAndRebuildIndex().unreadable == [unsupported])
+    #expect(try Data(contentsOf: metadataURL) == metadata)
+    #expect(try Data(contentsOf: reopened.store.sourceURL(unsupported)) == source)
   }
 
   /// Undoing a bad day's edits: restore the version from before them.

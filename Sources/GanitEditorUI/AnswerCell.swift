@@ -8,6 +8,9 @@ struct AnswerCell: Equatable {
     let label: String
     let value: String
     var lineNumber: Int? = nil
+    /// The source of an original failure outside the sheet's lines, such as
+    /// a table cell's record, in the text view's UTF-16 offsets.
+    var sourceRange: NSRange? = nil
   }
 
   let text: String
@@ -35,16 +38,19 @@ final class InterpretationViewController: NSViewController {
   private let availableSize: NSSize
   private let pasteboard: NSPasteboard
   private let onSelectLine: ((Int) -> Void)?
+  private let onSelectRange: ((NSRange) -> Void)?
 
   init(
     details: [AnswerCell.Detail], fullPrecision: String?, availableSize: NSSize,
-    pasteboard: NSPasteboard, onSelectLine: ((Int) -> Void)? = nil
+    pasteboard: NSPasteboard, onSelectLine: ((Int) -> Void)? = nil,
+    onSelectRange: ((NSRange) -> Void)? = nil
   ) {
     self.details = details
     self.fullPrecision = fullPrecision
     self.availableSize = availableSize
     self.pasteboard = pasteboard
     self.onSelectLine = onSelectLine
+    self.onSelectRange = onSelectRange
     super.init(nibName: nil, bundle: nil)
   }
 
@@ -60,7 +66,7 @@ final class InterpretationViewController: NSViewController {
     let labelWidth = min(140, contentWidth * 0.3)
     let valueWidth = contentWidth - labelWidth - VisualStyle.Spacing.group - 16
     let grid = NSGridView(
-      views: details.map { detail in
+      views: details.enumerated().map { index, detail in
         let label = NSTextField(wrappingLabelWithString: detail.label)
         label.textColor = VisualStyle.Color.secondary
         label.alignment = .right
@@ -69,6 +75,15 @@ final class InterpretationViewController: NSViewController {
           let button = NSButton(
             title: detail.value, target: self, action: #selector(selectFailureOrigin(_:)))
           button.tag = number
+          button.bezelStyle = .inline
+          button.alignment = .left
+          button.cell?.wraps = true
+          return [label, button]
+        }
+        if detail.sourceRange != nil, onSelectRange != nil {
+          let button = NSButton(
+            title: detail.value, target: self, action: #selector(selectSourceOrigin(_:)))
+          button.tag = index
           button.bezelStyle = .inline
           button.alignment = .left
           button.cell?.wraps = true
@@ -147,6 +162,13 @@ final class InterpretationViewController: NSViewController {
 
   @objc private func selectFailureOrigin(_ sender: NSButton) {
     onSelectLine?(sender.tag)
+  }
+
+  @objc private func selectSourceOrigin(_ sender: NSButton) {
+    guard details.indices.contains(sender.tag), let range = details[sender.tag].sourceRange else {
+      return
+    }
+    onSelectRange?(range)
   }
 
   @objc func copyFullPrecision(_ sender: Any?) {

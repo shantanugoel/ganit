@@ -95,3 +95,10 @@ Selecting lines in the editor shows their count, total, and average in a
 not a block: it counts every answer it touches, in any order, across blank
 lines, headings, and dividers, and it reads the answers already on screen. The
 values themselves are aggregated by the same rules as above.
+
+## Tables
+
+A calculation table is a named block with its own cells, formulas, and
+totals. `line N` and `@N` do not name lines inside a table; use the table's
+qualified references instead. See
+[table references](table-references.md) for the table grammar.

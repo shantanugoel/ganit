@@ -51,7 +51,8 @@ struct SheetStoreTests {
       contentsOf: root.appending(path: "Metadata/\(metadata.id.uuidString).json"),
       encoding: .utf8
     )
-    #expect(json.contains("\"schemaVersion\" : 1"))
+    #expect(json.contains("\"schemaVersion\" : 2"))
+    #expect(json.contains("\"tables\" : {"))
     #expect(json.contains("\"createdAt\" : \"2026-09-15T08:00:00Z\""))
     #expect(json.contains("\"localeIdentifier\" : \"en-US\""))
     let keys = json.split(separator: "\n").filter { $0.hasPrefix("  \"") }.map {
@@ -60,10 +61,10 @@ struct SheetStoreTests {
     #expect(keys == keys.sorted())
   }
 
-  /// A sheet saved before sheets could say how to write their answers names no
-  /// display, and opens with the standard one.
+  /// Current metadata always says how the sheet writes its answers, so
+  /// metadata without it is not current and is refused rather than filled in.
   @Test
-  func opensASheetSavedBeforeItCouldSayHowToWriteAnswers() throws {
+  func refusesMetadataThatDoesNotSayHowToWriteAnswers() throws {
     let store = SheetStore(root: root)
     let metadata = makeMetadata()
     try store.save(source: "1234.5", metadata: metadata)
@@ -77,9 +78,9 @@ struct SheetStoreTests {
     )
     try withoutDisplay.write(to: metadataURL)
 
-    let loaded = try store.load(id: metadata.id)
-    #expect(loaded.metadata.preferences.display == .standard)
-    #expect(loaded.metadata.preferences == metadata.preferences)
+    #expect(throws: DecodingError.self) {
+      try store.load(id: metadata.id)
+    }
   }
 
   private func strippingDisplay(from json: String) throws -> [String: Any] {
@@ -119,11 +120,14 @@ struct SheetStoreTests {
     }
 
     try Data("1".utf8).write(to: sourceURL)
-    let future = try String(contentsOf: metadataURL, encoding: .utf8)
-      .replacingOccurrences(of: "\"schemaVersion\" : 1", with: "\"schemaVersion\" : 2")
-    try Data(future.utf8).write(to: metadataURL)
-    #expect(throws: DocumentStorageError.unsupportedSchemaVersion(2)) {
-      try store.load(id: metadata.id)
+    let current = try String(contentsOf: metadataURL, encoding: .utf8)
+    for version in [1, 3] {
+      let unsupported = current.replacingOccurrences(
+        of: "\"schemaVersion\" : 2", with: "\"schemaVersion\" : \(version)")
+      try Data(unsupported.utf8).write(to: metadataURL)
+      #expect(throws: DocumentStorageError.unsupportedSchemaVersion(version)) {
+        try store.load(id: metadata.id)
+      }
     }
   }
 

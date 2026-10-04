@@ -18,6 +18,33 @@ final class OpenSheet {
   }
 }
 
+/// Says that sheets could not be opened when the library opened, such as
+/// ones saved in an unsupported format, and that their files were kept.
+public struct UnreadableSheetsNotice: LocalizedError, Equatable, Sendable {
+  public let count: Int
+
+  /// `nil` when every sheet could be read.
+  public init?(count: Int) {
+    guard count > 0 else {
+      return nil
+    }
+    self.count = count
+  }
+
+  public var errorDescription: String? {
+    localized("library.unreadable", "Some sheets couldn't be opened.")
+  }
+
+  public var recoverySuggestion: String? {
+    String(
+      format: localized(
+        "library.unreadable.detail",
+        "Sheets Ganit couldn't open: %lld. Their files were left unchanged in Ganit's library folder. See “Sheets in an unsupported format” in the recovery guide."
+      ),
+      count)
+  }
+}
+
 /// The app's library windows and open sheets.
 ///
 /// Open sheets persist while the app runs, so a sheet keeps its text, undo
@@ -79,6 +106,14 @@ public final class Workspace {
   }
   private let definitionsStore: TextDocumentStore?
   private(set) var definitionsWindow: DefinitionsWindowController?
+  /// The notice about sheets the library could not read, until someone
+  /// dismisses it.
+  public private(set) var pendingNotice: UnreadableSheetsNotice?
+  /// The window showing the notice.
+  private weak var noticeWindow: NSWindow?
+  /// Whether the next window opened shows the notice, because none was
+  /// visible when it was asked for.
+  private var showsNoticeInNextWindow = false
   private var sheets: [UUID: OpenSheet] = [:]
 
   /// Reads the definitions sheet so the first sheet opened already evaluates
@@ -86,7 +121,15 @@ public final class Workspace {
   public init(library: SheetLibrary, definitions store: TextDocumentStore? = nil) throws {
     self.library = library
     definitionsStore = store
-    try library.openScratch()
+    let hasScratch = (try? library.store.sheetIDs().contains(SheetLibrary.scratchID)) ?? false
+    do {
+      try library.openScratch()
+    } catch  where hasScratch {
+      // An existing scratch sheet Ganit cannot read or repair is left
+      // untouched and does not keep the workspace from opening; opening
+      // Scratch shows why. Failing to create one still does.
+    }
+    pendingNotice = UnreadableSheetsNotice(count: library.unreadableSheetIDs.count)
     if let text = store?.load(), !text.isEmpty {
       definitions = try SheetDefinitions(
         source: text,
@@ -102,9 +145,11 @@ public final class Workspace {
       return
     }
     if definitionsWindow == nil {
+      // Definitions declare names; a table there is diagnosed, not shared.
       let editor = SheetEditorViewController(
         text: store.load(),
-        context: try SheetPreferences.standard.evaluationContext(currencyRates: currencyRates)
+        context: try SheetPreferences.standard.evaluationContext(currencyRates: currencyRates),
+        surface: .definitions
       )
       editor.definitionsDidChange = { [weak self] definitions in
         self?.definitions = definitions
@@ -124,7 +169,36 @@ public final class Workspace {
       controller.show(id)
     }
     controller.showWindow(nil)
+    if showsNoticeInNextWindow {
+      presentPendingNotice()
+    }
     return controller
+  }
+
+  /// Shows the notice about unreadable sheets as a sheet on the front visible
+  /// workspace window, so it never blocks other windows, and keeps it until
+  /// it is dismissed. With no visible window, the next window opened shows
+  /// it. The app asks once launching has finished, never while restoring.
+  public func presentPendingNotice() {
+    guard let notice = pendingNotice, noticeWindow == nil else {
+      return
+    }
+    guard let window = windows.last(where: { $0.window?.isVisible == true })?.window else {
+      showsNoticeInNextWindow = true
+      return
+    }
+    showsNoticeInNextWindow = false
+    noticeWindow = window
+    NSAlert(error: notice).beginSheetModal(for: window) { [weak self] response in
+      // Only its button dismisses it; a sheet ended by its window closing
+      // shows again in the next window.
+      if response == .alertFirstButtonReturn {
+        self?.pendingNotice = nil
+      } else if self?.pendingNotice != nil {
+        self?.showsNoticeInNextWindow = true
+      }
+      self?.noticeWindow = nil
+    }
   }
 
   /// Brings the window already showing a sheet to the front, and opens one
@@ -203,6 +277,12 @@ public final class Workspace {
 
   func windowWillClose(_ controller: WorkspaceWindowController) {
     windows.removeAll { $0 === controller }
+    // A notice closed with its window, rather than dismissed, waits for the
+    // next window.
+    if let window = controller.window, window === noticeWindow, pendingNotice != nil {
+      noticeWindow = nil
+      showsNoticeInNextWindow = true
+    }
   }
 
   /// The open sheet for an ID, opening it from the library if needed.
@@ -210,7 +290,8 @@ public final class Workspace {
     if let sheet = sheets[id] {
       return sheet
     }
-    let stored = try library.store.load(id: id)
+    // Repairs metadata the sheet's source can restore, as recovery would.
+    let stored = try library.load(id: id)
     let editor = SheetEditorViewController(
       text: stored.source,
       context: try stored.metadata.preferences.evaluationContext(currencyRates: currencyRates),
@@ -235,6 +316,13 @@ public final class Workspace {
     editor.sourceDidChange = { [weak autosaver] in autosaver?.sourceDidChange() }
     let sheet = OpenSheet(editor: editor, autosaver: autosaver)
     sheets[id] = sheet
+    if stored.metadataRepair != nil {
+      // A repair can change the title and state sidebars list. Only the
+      // lists reload: a window may be partway through showing this sheet.
+      for window in windows {
+        window.sidebar.reload()
+      }
+    }
     return sheet
   }
 
@@ -272,7 +360,7 @@ public final class Workspace {
     _ change: () throws -> SheetMetadata
   ) throws {
     sheets[id]?.autosaver.saveNow()
-    let before = try library.store.load(id: id).metadata
+    let before = try library.load(id: id).metadata
     didChange(try change())
     undoManager?.registerUndo(withTarget: self) { workspace in
       try? workspace.organize(id, named: actionName, undoManager: undoManager) {

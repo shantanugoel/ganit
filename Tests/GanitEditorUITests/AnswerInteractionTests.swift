@@ -150,7 +150,9 @@ struct AnswerInteractionTests {
     #expect(exactness(ids[1]) == "Exact")
     let exported = await editor.exportedLines()
     #expect(exported.map(\.fullPrecision) == ["1/3", "1.5"])
-    #expect(SheetDocumentRenderer.csv(exported).contains("1/3,≈ 0.33,1/3,calculated"))
+    #expect(
+      SheetDocumentRenderer.csv(exported, locale: Locale(identifier: "en_US")).contains(
+        "1/3,≈ 0.33,1/3,calculated"))
   }
 
   @Test

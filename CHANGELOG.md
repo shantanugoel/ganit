@@ -5,6 +5,20 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Add calculation tables to sheets. Use cell formulas, column formulas,
+  sheet variables, units, and currencies. Sort or filter rows and calculate
+  column totals.
+- Edit cells in the sheet or open the full table. Press Enter to save a
+  value. Escape or a click outside the table clears the selection and
+  discards the draft. Undo and redo restore saved changes.
+- Use the same icon toolbar for Undo, Redo, Copy, and Paste in both views.
+  Table controls appear in one row below it. Use the left arrow to return
+  to the sheet. Hide or customize the common toolbar from the View menu.
+- Export tables as CSV or TSV with values or formulas. Print, PDF, HTML,
+  and Quick Look show tables as grids. Use `ganit --tables` to read tables
+  from the command line.
+- Very large custom-function calculations now stop at the calculation limit.
+
 ## 0.5.7
 
 - Toggle Comment and Toggle Heading preserve references to the toggled lines
@@ -12,6 +26,12 @@ existing answer. See the [release train](docs/release/release-train.md).
   while commented; uncommenting restores their references without repair.
 - Replace All tracks each replacement separately so references to intact
   lines between matches remain valid, with reference updates in the same Undo.
+- Sheets and `.ganit` packages now use format 2 for table display settings.
+  Ganit converts format 1 library metadata and daily backup metadata at
+  startup. A message shows progress while files are updated. Original
+  metadata is kept in `MigrationBackups/schema-1`. Sheet text stays unchanged.
+  Old packages convert in memory at import. The selected package stays
+  unchanged. Failed writes stop startup and retry on the next launch.
 
 - Multiplying a percentage by a plain number now preserves the percentage
   type, matching division. Subsequent percentage addition and subtraction

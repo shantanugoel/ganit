@@ -1,0 +1,10 @@
+@ganit-table
+x = 1
+@end-ganit-table
+@ganit-table 1 
+x = 2
+@end-ganit-table
+@ganit-table 01
+x = 3
+@end-ganit-table
+@ganit-tables 1

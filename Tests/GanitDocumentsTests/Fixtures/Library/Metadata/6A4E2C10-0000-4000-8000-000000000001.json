@@ -1,0 +1,39 @@
+{
+  "createdAt" : "2026-09-15T08:00:00Z",
+  "folderID" : "6A4E2C10-0000-4000-8000-0000000000F1",
+  "hasCustomTitle" : false,
+  "id" : "6A4E2C10-0000-4000-8000-000000000001",
+  "isFavorite" : true,
+  "modifiedAt" : "2026-09-16T09:30:00Z",
+  "preferences" : {
+    "angleMode" : "radians",
+    "display" : {
+      "ambiguousSuffixes" : {
+
+      },
+      "answerFormats" : {
+
+      },
+      "dollarCurrency" : "USD",
+      "groupsDigits" : true,
+      "groupsInLakhs" : false,
+      "numbers" : {
+        "automatic" : {
+
+        }
+      },
+      "showsAnswerSeparator" : true,
+      "showsLineNumbers" : true,
+      "writesAnswersInline" : false
+    },
+    "localeIdentifier" : "en-US",
+    "significantDecimalDigits" : 15
+  },
+  "schemaVersion" : 2,
+  "sourceChecksum" : "sha256:178cf3b0ea72b05985270a71e43a952ccce29b1b48bd17f4bd7c721d859df128",
+  "state" : "active",
+  "tables" : {
+
+  },
+  "title" : "Rent"
+}

@@ -14,6 +14,9 @@ public enum EngineErrorCode: String, Hashable, Sendable {
   case unavailableReference = "evaluation.unavailableReference"
   case brokenReference = "evaluation.brokenReference"
   case invalidReference = "evaluation.invalidReference"
+  /// A qualified table operand in a sheet line, or a line reference to a
+  /// table block's source line, that cannot be read; the context says why.
+  case tableReference = "evaluation.tableReference"
   case unknownFunction = "evaluation.unknownFunction"
   case unresolvedAssistantPrompt = "evaluation.unresolvedAssistantPrompt"
   case unusableAssistantAnswer = "evaluation.unusableAssistantAnswer"
@@ -91,6 +94,41 @@ public enum EngineErrorContext: Hashable, Sendable {
     firstLine: Int, firstKind: EngineValueKind, otherLine: Int, otherKind: EngineValueKind)
   case dimensionMismatch(expected: Dimension, actual: Dimension)
   case resourceLimit(EvaluationResource)
+  case tableReference(TableReferenceProblem)
+}
+
+/// Why a sheet line cannot read a table operand.
+public enum TableReferenceProblem: String, Hashable, Sendable {
+  /// `@N`/`line N` names a table block's source line, which has no answer.
+  case tableLine
+  /// No table of that name is visible above the line (later tables and
+  /// tables above a divider are not).
+  case unknownTable
+  /// The table has no column with that header.
+  case unknownColumn
+  /// An address outside the table's bounds.
+  case outOfBounds
+  /// A reference that is not well formed, or a deleted-target marker.
+  case malformed
+  /// A text, blank or header cell, or a range, where a value is needed.
+  case notScalar
+  /// The cell, or a member of the range, has an error.
+  case failedCell
+  /// The table could not be calculated, such as over a resource limit.
+  case unavailableTable
+  /// average, median, min or max of no values.
+  case emptyRange
+  /// An aggregate the range's kinds do not support.
+  case unsupportedAggregation
+  /// The definitions sheet declares names; it never calculates a table, so
+  /// nothing a table holds is shared with every sheet.
+  case definitions
+  /// Quick Ganit does not calculate tables; Keep as Sheet opens the buffer,
+  /// table included, as a sheet.
+  case quickGanit
+  /// One expression, as a service, Shortcuts or a URL action answers, cannot
+  /// hold a table block.
+  case expression
 }
 
 public enum EngineValueKind: String, Hashable, Sendable {

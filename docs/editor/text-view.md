@@ -158,6 +158,64 @@ Explanations wrap; long values use a 96-point-high selectable scroll field.
 Copy Full Precision stays outside the scrolling details so an exact value can
 be copied in full.
 
+## Table blocks
+
+Each physical line of a [table block](../storage/table-blocks.md) is block
+source, including malformed source. In workspace sheets, these lines have no
+scalar answers. Ganit displays them as comments and excludes them from
+assistant requests and the selection summary. Definitions and Quick Ganit do
+not calculate tables. The first block line shows an explanation on these
+surfaces. The evaluation stores block diagnostics in `tableDiagnostics`.
+The integrated table interface remains future work. The answer separator
+still crosses block source.
+
+Explicit user edits change source bytes. These edits include typing, paste,
+delete, drag and drop, Find and Replace, Services, Writing Tools, Restore
+Previous Version, Undo, redo and structural table commands. The automatic
+save uses the current text storage. Ganit does not automatically format or
+repair a block.
+
+Line-reference renumbering does not read block lines as prose. Completion and
+the `@` picker do not open on these lines. Return inserts a newline.
+Two automatic source changes use the table transformation path:
+
+- When an edit outside a valid block moves a prose line, deliberate `@N` and
+  `line N` formula references follow that line. The formula and its binding
+  ledger change in the same Undo step.
+- When an edit deletes a complete valid table block, references in other
+  unchanged tables and prose become persistent broken markers. These changes
+  use the same Undo step as the deletion.
+
+These automatic changes exclude malformed blocks, edited blocks, text cells
+and headers. Number scrubbing and stepping, Insert
+Answer Arrow, Insert Subtotal and Insert Divider are disabled where they would
+write into a block, as is Insert Reference when the selection touches a block
+line; called directly, they beep. Interpret As is not offered on block lines.
+Toggle Comment and Toggle Heading change only the selected lines outside
+blocks, and are disabled when every selected line is a block line. Which lines
+are block lines is found by scanning line starts, so a table-free sheet does no
+further work.
+
+### Structural edits and failure origins
+
+`SheetSourceCoordinator` applies `TableSourceEdit` source patches to the text
+storage. Structural edits use the same source update, reference rewrite,
+automatic save and evaluation path as typing. Each edit is one named Undo
+step. Undo and redo restore exact source bytes and the applicable selection.
+A stale edit or a read-only sheet causes no source change.
+
+The editor provides `editTables` operations for rows, columns, cells, rename,
+column rules, totals, input settings, paste, fill, move, create, duplicate and
+delete. M4 must connect the expanded grid to these operations. A grid is a
+source projection and is never saved. Each sheet has one editor and one
+window. A request from another window activates the existing window.
+
+A prose failure can identify its original failing table cells. The
+interpretation card shows up to eight direct table causes as "Fix first",
+with addresses such as `Items!C3`. A dependent prose line also carries these
+causes. Select a cause to select its cell record, column rule or block in the
+source. M4 must connect this action to the expanded grid.
+
 ## Selection summary
 
 A bar below the sheet counts selected calculations and how many have engine

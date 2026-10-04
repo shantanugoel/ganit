@@ -1,0 +1,107 @@
+Window: "Student checks", App: Ganit.
+0 standard window Student checks, ID: workspace, Secondary Actions: Raise
+	1 split group
+		2 scroll area Secondary Actions: Scroll Up, Scroll Down
+			3 outline Collections
+				4 row (selectable, expanded) Value: Library, Secondary Actions: Collapse
+				5 row (selected) Description: Inbox Full, Value: All Sheets
+				6 row (selectable) Description: clock, Value: Recent
+				7 row (selectable) Description: favorite, Value: Favorites
+				8 row (selectable) Description: archive, Value: Archive
+				9 row (selectable) Description: trash, Value: Trash
+			10 scroll bar (settable, float) 0
+				11 value indicator (settable, float) 0
+				12 increment arrow button
+				13 decrement arrow button
+				14 increment page button
+				15 decrement page button
+		16 scroll area Secondary Actions: Scroll Up, Scroll Down
+			17 table Sheets
+				18 row (selectable)
+					19 cell
+						20 text Portfolio review 2 minutes ago
+				21 row (selected)
+					22 cell (selected)
+						23 text Student checks 11 minutes ago
+				24 row (selectable)
+					25 cell
+						26 text Freelancer quote 11 minutes ago
+				27 row (selectable)
+					28 cell
+						29 text Recipe for six 12 minutes ago
+				30 row (selectable)
+					31 cell
+						32 text Trip repeat 13 minutes ago
+				33 row (selectable)
+					34 cell
+						35 text Shopping repeat 14 minutes ago
+				36 row (selectable)
+					37 cell
+						38 text Portfolio review 1 hour ago
+				39 row (selectable)
+					40 cell
+						41 text Scratch 1 hour ago
+			42 scroll bar (disabled, settable, float) 0
+		43 splitter (disabled, settable, float) 150
+		44 scroll area Secondary Actions: Scroll Up, Scroll Down
+			45 text entry area (settable) Description: Sheet, Value: # Student checks
+
+Table Study. 6 rows. Columns: Case, Input, Comment. Use the table controls to read its cells.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+, Secondary Actions: Copy Result, Copy with Results, Copy Full Precision, Show Interpretation, Ask Assistant, Change Answer…, Cancel Request, Insert Reference
+				46 text Study · 6 rows × 3 columns
+				47 button Open Table, Description: Open Study table
+				48 scroll area Secondary Actions: Scroll Left, Scroll Right, Scroll Up, Scroll Down
+					49 text Value: 2 3 4 5 6 7 A  Case, ID: row-0
+					50 button Savings, Description: A2 Case Savings, Help: A2 · Case: Savings
+					51 button Decision, Description: A3 Case Decision, Help: A3 · Case: Decision
+					52 button Rounding, Description: A4 Case Rounding, Help: A4 · Case: Rounding
+					53 button Zero divisor, Description: A5 Case Zero divisor, Help: A5 · Case: Zero divisor
+					54 button Wrong units, Description: A6 Case Wrong units, Help: A6 · Case: Wrong units
+					55 button Range list, Description: A7 Case Range list, Help: A7 · Case: Range list
+					56 text Description: Input, Value: B  Input, ID: 1
+					57 button 1,102.5, Description: B2 Input 1,102.5, Help: B2 · Input: =1000 * (1 + 5%)^2
+					58 button Error, Description: B3 Input Error. The function IF is not supported in tables. Use arithmetic or a supported aggregate such as =SUM(B2:B6)., Help: B3 · Input: =IF(B2 > 1000, 1, 0) · The function IF is not supported in tables. Use arithmetic or a supported aggregate such as =SUM(B2:B6).
+					59 button 3.33, Description: B4 Input 3.33, Help: B4 · Input: =ROUND(10 / 3, 2)
+					60 button 0.5, Description: B5 Input 0.5, Help: B5 · Input: =1 / 2
+					61 button Error, Description: B6 Input Error. These quantities have incompatible dimensions., Help: B6 · Input: =5 kg + 2 m · These quantities have incompatible dimensions.
+					62 button Error, Description: B7 Input Error. This range argument pattern is not supported. Use one range per aggregate, for example =SUM(B2:B3) + SUM(B5:B6)., Help: B7 · Input: =SUM(B2:B3, B5:B6) · This range argument pattern is not supported. Use one range per aggregate, for example =SUM(B2:B3) + SUM(B5:B6).
+					63 text Description: Comment, Value: C  Comment, ID: 2
+					64 button Two years, Description: C2 Comment Two years, Help: C2 · Comment: Two years
+					65 button Excel habit, Description: C3 Comment Excel habit, Help: C3 · Comment: Excel habit
+					66 button Two decimals, Description: C4 Comment Two decimals, Help: C4 · Comment: Two decimals
+					67 button Fix divisor, Description: C5 Comment Fix divisor, Help: C5 · Comment: Fix divisor
+					68 button Fix unit, Description: C6 Comment Fix unit, Help: C6 · Comment: Fix unit
+					69 button Excel habit, Description: C7 Comment Excel habit, Help: C7 · Comment: Excel habit
+					70 scroll bar (disabled, settable, float) 0
+					71 scroll bar (settable, float) 0
+						72 value indicator (settable, float) 0
+						73 increment arrow button
+						74 decrement arrow button
+						75 increment page button
+						76 decrement page button
+				77 text Table totals
+				78 text Description: Cell input or formula, Value: Scroll to see all rows and columns. Double-click to edit. Open Table for review controls.
+			79 scroll bar (disabled, settable, float) 0
+	80 toolbar
+		81 button Description: Sidebar, Help: Hide Sidebar, Secondary Actions: Move next
+		82 button Description: New Sheet, Secondary Actions: Move next, Remove from toolbar
+		83 search text field (settable)
+			84 button Search
+	85 close button
+	86 full screen button Help: this button also has an action to zoom the window, Secondary Actions: zoom the window
+	87 minimize button
+	88 text Student checks
+89 menu bar
+	90 Ganit
+	91 File
+	92 Edit
+	93 Calculate
+	94 Format
+	95 View
+	96 Window
+	97 Help
+
+The focused UI element is 45 text entry area (settable) Description: Sheet, Value: # Student checks
+
+Table Study. 6 rows. Columns: Case, Input, Comment. Use the table controls to read its cells.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
+, Secondary Actions: Copy Result, Copy with Results, Copy Full Precision, Show Interpretation, Ask Assistant, Change Answer…, Cancel Request, Insert Reference

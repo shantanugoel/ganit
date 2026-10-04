@@ -10,9 +10,10 @@ public struct TextDocumentStore: Sendable {
     self.url = url
   }
 
-  /// The stored text, or empty when there is none or it is unreadable.
+  /// The stored text, byte for byte, or empty when there is none or it is
+  /// unreadable.
   public func load() -> String {
-    (try? Data(contentsOf: url)).flatMap { String(data: $0, encoding: .utf8) } ?? ""
+    (try? Data(contentsOf: url)).flatMap { exactUTF8($0) } ?? ""
   }
 
   /// Stores text; empty text removes the file.

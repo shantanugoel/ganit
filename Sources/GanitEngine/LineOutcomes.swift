@@ -4,7 +4,7 @@
 /// A block ends at a blank line, heading, or divider. Aggregates read the
 /// current block and skip lines that contain an aggregate themselves;
 /// `subtotal` starts after the previous subtotal line in the block.
-struct LineOutcomes: Sendable {
+struct LineOutcomes: Equatable, Sendable {
   enum Outcome: Hashable, Sendable {
     case none
     case value(EngineValue)
@@ -46,22 +46,26 @@ struct LineOutcomes: Sendable {
   /// The outcomes a reference reads, or `nil` when it names no line above.
   /// Equal inputs always resolve to equal values.
   func inputs(for reference: LineReference) -> [Outcome]? {
+    lineNumbers(for: reference)?.map { outcomes[$0 - 1] }
+  }
+
+  /// One-based source lines actually consumed by a reference. The mixed
+  /// sheet fold uses the same membership to carry dependency provenance.
+  func lineNumbers(for reference: LineReference) -> [Int]? {
     switch reference {
     case .line(let line):
-      guard line >= 1, line <= outcomes.count else {
-        return nil
-      }
-      return [outcomes[line - 1]]
+      guard line >= 1, line <= outcomes.count else { return nil }
+      return [line]
     case .broken:
       return nil
     case .previous:
       return (blockStart..<outcomes.count).last { outcomes[$0] != .none }
-        .map { [outcomes[$0]] }
+        .map { [$0 + 1] }
     case .aggregate(let aggregate):
       let start = aggregate == .subtotal ? subtotalStart : blockStart
       return (start..<outcomes.count)
         .filter { !aggregates[$0] && outcomes[$0] != .none }
-        .map { outcomes[$0] }
+        .map { $0 + 1 }
     }
   }
 

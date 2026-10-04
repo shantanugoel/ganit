@@ -14,7 +14,13 @@ collection's sheets, most recently modified first, with each title and a
 relative modification time, rewritten every minute while the window is open so
 it never says "1 second ago" an hour later. An empty list says why it is empty,
 such as `No sheets match “rent”`. Toolbar search narrows it to sheets whose title or
-source contains the text, ignoring case and diacritics.
+source contains the text, ignoring case and diacritics. A
+[table block](../storage/table-blocks.md) is searched as its table's name,
+headers, column formulas and cell text, never its identities or JSON; a block
+without a readable table is searched as its raw lines, which is how it is
+shown. A sheet not renamed is titled by its first non-blank line, where a
+table block counts as its table's name and a block without a readable table
+is skipped, so a title is never block syntax.
 
 All Sheets, Recent, Favorites, and folders list only active sheets; Archive and
 Trash list archived and trashed sheets. Selecting a sheet saves the open sheet
@@ -27,7 +33,11 @@ when the library opens. It is somewhere to work a number out without naming or
 filing it first, so **Window ▸ Scratch** (⇧⌘S) and the menu bar item both open
 it, and it cannot be renamed, archived, trashed, or deleted; `deletePermanently`
 refuses its ID. It is an ordinary sheet in every other way, and can be
-duplicated, favorited, and filed.
+duplicated, favorited, and filed. It is created only when its source file is
+missing. Missing or corrupt metadata is rebuilt from its source. A scratch
+sheet Ganit still cannot read, such as one with an unsupported metadata schema,
+is left untouched, the library still opens, and opening Scratch reports the
+error instead of replacing it.
 
 ## Commands
 
@@ -48,6 +58,11 @@ selected sheet, and appear in both the File menu and context menus.
 | Delete Immediately…, Empty Trash… | After confirmation, deletes trashed sheets with their backups |
 | Rename Folder…, Delete Folder | Deleting a folder moves its sheets out of it |
 | Search Sheets ⇧⌘F | Focuses the toolbar search field |
+
+Duplicate creates new IDs for each valid table, row, column and reference
+binding. Internal references point to the copied tables. Column widths use the
+new table and column IDs. The original sheet does not change. Malformed table
+blocks keep their exact source bytes.
 
 Organizing a sheet changes only its metadata; its source and modification time
 are unchanged. Renaming sets `hasCustomTitle`, so saves keep the name.
@@ -97,10 +112,11 @@ recent sheet only when no window was restored.
   4180. Answer is what the sheet shows, perhaps rounded and marked `≈`; Full
   Precision is the exact value behind a calculated answer, as Copy Full
   Precision copies it. A cell that a spreadsheet would run as a formula
-  (starting with `=`, `+`, `-`, `@`, tab, or return, and not a plain number)
-  gets a leading apostrophe.
-- **HTML** — a standalone page with one escaped table row per line that loads
-  nothing.
+  (starting with `=`, `+`, `-`, `@`, tab, or return, and not a plain number
+  in the sheet's locale) gets a leading apostrophe.
+- **HTML** — a standalone page that loads nothing: prose beside its answers,
+  and each calculation table as an escaped grid with its header, its values,
+  its totals and its failure messages.
 
 **File ▸ Print…** (⌘P) prints the same layout as the PDF. Every format uses the
 answers the editor shows once evaluation settles (`exportedLines()`), including

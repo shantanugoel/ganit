@@ -494,6 +494,19 @@ public struct NumericResultFormatter: Sendable {
 }
 
 public struct ResultFormatter: Sendable {
+  private let tableContext: EvaluationContext
+  package func formatTable(_ value: EngineValue, snapshot: TableResultSnapshot, column: ColumnID)
+    throws -> FormattedResult
+  {
+    let presented = snapshot.percentageValue(value, column: column)
+    guard let digits = snapshot.percentageDecimals(column: column) else {
+      return try format(presented)
+    }
+    var options = display
+    options.numbers = .fixedDecimals(digits)
+    return try ResultFormatter(context: tableContext, limits: limits, display: options).format(
+      presented)
+  }
   private let numericFormatter: NumericResultFormatter
   private let percentConvention: LocalePercentConvention
   private let limits: FormattingLimits
@@ -505,6 +518,7 @@ public struct ResultFormatter: Sendable {
     limits: FormattingLimits = .default,
     display: DisplayOptions = .standard
   ) {
+    self.tableContext = context
     self.display = display
     numericFormatter = NumericResultFormatter(
       context: context,
@@ -825,6 +839,79 @@ public struct DiagnosticFormatter: Sendable {
     )
   }
 
+  /// A quarantined table block's reason, for a reader that shows the block
+  /// instead of calculating it. The code names the problem; the detail is
+  /// developer-facing and never shown.
+  public func format(_ diagnostic: TableSourceDiagnostic) -> FormattedDiagnostic {
+    let message: String
+    switch diagnostic.code {
+    case .malformed:
+      message = localized(
+        "error.tableSource.malformed",
+        defaultValue:
+          "This table block is not valid, so Ganit keeps it unchanged and calculates nothing in it."
+      )
+    case .unsupportedVersion:
+      message = localized(
+        "error.tableSource.unsupportedVersion",
+        defaultValue:
+          "This table block names a version Ganit does not read, so Ganit keeps it unchanged."
+      )
+    case .unterminated:
+      message = localized(
+        "error.tableSource.unterminated",
+        defaultValue:
+          "This table block never ends, so Ganit keeps it unchanged and calculates nothing in it."
+      )
+    case .invalidRecord:
+      message = localized(
+        "error.tableSource.invalidRecord",
+        defaultValue:
+          "This table block breaks a table rule, so Ganit keeps it unchanged."
+      )
+    case .duplicateIdentity:
+      message = localized(
+        "error.tableSource.duplicateIdentity",
+        defaultValue:
+          "Two records share one table, row or column identity, so Ganit keeps this block unchanged."
+      )
+    case .duplicateName:
+      message = localized(
+        "error.tableSource.duplicateName",
+        defaultValue:
+          "Two visible tables share one name, so Ganit keeps both unchanged."
+      )
+    case .staleBinding:
+      message = localized(
+        "error.tableSource.staleBinding",
+        defaultValue:
+          "A stored reference does not match its formula, so Ganit keeps this table unchanged."
+      )
+    case .orphanTarget:
+      message = localized(
+        "error.tableSource.orphanTarget",
+        defaultValue:
+          "A reference names a table, row or column that does not exist, so Ganit keeps this table unchanged."
+      )
+    case .cellLimit:
+      message = localized(
+        "error.tableSource.cellLimit",
+        defaultValue: "The sheet has more populated table cells than Ganit calculates."
+      )
+    case .sourceLimit:
+      message = localized(
+        "error.tableSource.sourceLimit",
+        defaultValue: "The sheet is larger than Ganit reads, so Ganit keeps its tables unchanged."
+      )
+    }
+    return FormattedDiagnostic(
+      code: "tableSource.\(diagnostic.code.rawValue)",
+      severity: .error,
+      ranges: [],
+      message: message
+    )
+  }
+
   public func format(
     _ error: FormattingError,
     ranges: [SourceRange]
@@ -1091,6 +1178,8 @@ public struct DiagnosticFormatter: Sendable {
         "error.evaluation.invalidReference",
         defaultValue: "Refer to a result on a line above."
       )
+    case .tableReference:
+      return tableReferenceMessage(for: error.context)
     case .unknownFunction:
       return localized(
         "error.evaluation.unknownFunction",
@@ -1285,6 +1374,85 @@ public struct DiagnosticFormatter: Sendable {
       return localized(
         "error.evaluation.resourceLimit.unitFactors",
         defaultValue: "The compound unit has too many factors."
+      )
+    }
+  }
+
+  private func tableReferenceMessage(for context: EngineErrorContext) -> String {
+    guard case .tableReference(let problem) = context else {
+      return localized(
+        "error.evaluation.tableReference",
+        defaultValue: "This table reference cannot be read."
+      )
+    }
+    switch problem {
+    case .tableLine:
+      return localized(
+        "error.evaluation.tableReference.tableLine",
+        defaultValue:
+          "This line is part of a table, which has no line answer. Refer to the table by name, such as Items[Amount]."
+      )
+    case .unknownTable:
+      return localized(
+        "error.evaluation.tableReference.unknownTable",
+        defaultValue: "No table with this name is visible above this line."
+      )
+    case .unknownColumn:
+      return localized(
+        "error.evaluation.tableReference.unknownColumn",
+        defaultValue: "The table has no column with this name."
+      )
+    case .outOfBounds:
+      return localized(
+        "error.evaluation.tableReference.outOfBounds",
+        defaultValue: "This address is outside the table."
+      )
+    case .malformed:
+      return localized(
+        "error.evaluation.tableReference.malformed",
+        defaultValue: "This table reference is not valid."
+      )
+    case .notScalar:
+      return localized(
+        "error.evaluation.tableReference.notScalar",
+        defaultValue: "This table reference is text, blank or a range, not a value."
+      )
+    case .failedCell:
+      return localized(
+        "error.evaluation.tableReference.failedCell",
+        defaultValue: "The referenced table cell has an error, so this cannot use it."
+      )
+    case .unavailableTable:
+      return localized(
+        "error.evaluation.tableReference.unavailableTable",
+        defaultValue: "The table could not be calculated, so this cannot use it."
+      )
+    case .emptyRange:
+      return localized(
+        "error.evaluation.tableReference.emptyRange",
+        defaultValue: "The range has no values."
+      )
+    case .unsupportedAggregation:
+      return localized(
+        "error.evaluation.tableReference.unsupportedAggregation",
+        defaultValue: "This aggregate does not apply to the range's values."
+      )
+    case .definitions:
+      return localized(
+        "error.evaluation.tableReference.definitions",
+        defaultValue:
+          "Definitions don't calculate tables, so no sheet reads this table. Move it to a sheet."
+      )
+    case .quickGanit:
+      return localized(
+        "error.evaluation.tableReference.quickGanit",
+        defaultValue:
+          "Quick Ganit doesn't calculate tables. Choose Keep as Sheet to work with this table in a sheet."
+      )
+    case .expression:
+      return localized(
+        "error.evaluation.tableReference.expression",
+        defaultValue: "A table can't be answered as one expression. Open it in a Ganit sheet."
       )
     }
   }
