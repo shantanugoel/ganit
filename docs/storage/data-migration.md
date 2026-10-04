@@ -26,7 +26,11 @@ recovery rebuilds the index after conversion. If a write fails, startup stops.
 At the next launch, retry schema 1 files. Already converted files need no
 replacement. If interruption occurs after the final replacement, the index
 marker still causes recovery. Do not replace an existing original backup.
-A different backup causes an error.
+If the backup contains different data, keep it. Save the new original beside
+it as `<file name without extension>.<SHA-256 of original bytes>.json`.
+This permits conversion after an older app writes schema 1 data again.
+On a retry, check that the selected backup contains the exact original bytes.
+A different file at the hash path causes an error.
 
 The app shows “Updating saved sheets” before the first write. The message
 explains the possible delay and shows completed and total file counts. No

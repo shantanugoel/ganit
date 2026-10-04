@@ -3,6 +3,12 @@
 Notable changes to Ganit's behavior, especially anything that changes an
 existing answer. See the [release train](docs/release/release-train.md).
 
+## 0.6.2
+
+- Fix a startup error when old-format sheet metadata differs from its
+  migration backup. Keep both original versions and convert the sheet.
+  Sheet text stays unchanged.
+
 ## 0.6.1
 
 - Replace deprecated system calls and correct concurrency warnings.

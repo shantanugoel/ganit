@@ -78,7 +78,7 @@ import Testing
     #expect(!display.writesAnswersInline && display.dollarCurrency == "USD")
   }
 
-  @Test func aDifferentOriginalBackupStopsConversion() throws {
+  @Test func aDifferentOriginalBackupKeepsBothVersions() throws {
     defer { try? FileManager.default.removeItem(at: root) }
     let (store, id, original) = try seed()
     let backup = root.appending(path: "MigrationBackups/schema-1/Metadata/\(id.uuidString).json")
@@ -86,16 +86,28 @@ import Testing
       at: backup.deletingLastPathComponent(), withIntermediateDirectories: true)
     let existing = Data("different original".utf8)
     try existing.write(to: backup)
-    #expect(throws: DecodingError.self) { try DocumentMigration.migrateLibrary(at: root) }
-    #expect(try Data(contentsOf: store.metadataURL(id)) == original)
+    #expect(try DocumentMigration.migrateLibrary(at: root) == 1)
+    #expect(try store.load(id: id).metadata.schemaVersion == 2)
     #expect(try Data(contentsOf: backup) == existing)
+    let backups = try FileManager.default.contentsOfDirectory(
+      at: backup.deletingLastPathComponent(), includingPropertiesForKeys: nil)
+    let additional = try #require(backups.first { $0 != backup })
+    #expect(try Data(contentsOf: additional) == original)
+    #expect(try DocumentMigration.migrateLibrary(at: root) == 0)
   }
 
-  @Test(arguments: [StorageWritePoint.temporaryFlushed, .renamed])
-  func interruptedReplacementCanResume(point: StorageWritePoint) throws {
+  @Test(arguments: [StorageWritePoint.temporaryFlushed, .renamed], [false, true])
+  func interruptedReplacementCanResume(point: StorageWritePoint, hasOlderBackup: Bool) throws {
     defer { try? FileManager.default.removeItem(at: root) }
     let (store, id, original) = try seed()
     let target = store.metadataURL(id)
+    let backup = root.appending(path: "MigrationBackups/schema-1/Metadata/\(id.uuidString).json")
+    let older = Data("earlier original".utf8)
+    if hasOlderBackup {
+      try FileManager.default.createDirectory(
+        at: backup.deletingLastPathComponent(), withIntermediateDirectories: true)
+      try older.write(to: backup)
+    }
     struct Interruption: Error {}
     #expect(throws: Interruption.self) {
       try StorageFaults.$handler.withValue(
@@ -103,10 +115,10 @@ import Testing
           if reached == point && url == target { throw Interruption() }
         }, operation: { try DocumentMigration.migrateLibrary(at: root) })
     }
-    #expect(
-      try Data(
-        contentsOf: root.appending(path: "MigrationBackups/schema-1/Metadata/\(id.uuidString).json")
-      ) == original)
+    #expect(try Data(contentsOf: backup) == (hasOlderBackup ? older : original))
+    let backups = try FileManager.default.contentsOfDirectory(
+      at: backup.deletingLastPathComponent(), includingPropertiesForKeys: nil)
+    #expect(try backups.contains { try Data(contentsOf: $0) == original })
     let library = try SheetLibrary(root: root)
     #expect(try library.load(id: id).metadata.schemaVersion == 2)
     #expect(try library.index.summaries().contains { $0.id == id })

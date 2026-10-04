@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 import GanitFormatting
 
@@ -51,13 +52,19 @@ public enum DocumentMigration {
     for (offset, entry) in pending.enumerated() {
       let (url, original, converted) = entry
       let relative = String(url.path.dropFirst(root.path.count + 1))
-      let backup = root.appending(path: "MigrationBackups/schema-1").appending(path: relative)
+      var backup = root.appending(path: "MigrationBackups/schema-1").appending(path: relative)
       try manager.createDirectory(
         at: backup.deletingLastPathComponent(), withIntermediateDirectories: true)
+      if manager.fileExists(atPath: backup.path), try Data(contentsOf: backup) != original {
+        // Keep both originals if an older app saved schema 1 after migration.
+        let digest = SHA256.hash(data: original).map { String(format: "%02x", $0) }.joined()
+        backup = backup.deletingPathExtension()
+          .appendingPathExtension(digest).appendingPathExtension("json")
+      }
       if !manager.fileExists(atPath: backup.path) {
         try AtomicFile.write(original, to: backup)
       } else {
-        // A retry must not replace or ignore a different original.
+        // A retry must keep the exact original before it replaces metadata.
         guard try Data(contentsOf: backup) == original else {
           throw DecodingError.dataCorrupted(
             .init(
