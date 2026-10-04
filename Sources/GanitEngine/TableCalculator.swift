@@ -430,6 +430,7 @@ private typealias TableFormulaTemplate = Result<
 
 /// A formula's own error, found without operand values.
 private enum TableStaticFailure {
+  case unsupportedRange(SourceRange)
   case syntax([SyntaxDiagnostic])
   case reference(TableFormulaDiagnostic)
   /// An error the ordinary evaluator would report, such as an unknown call.
@@ -1566,6 +1567,19 @@ private struct TableCalculationWorker {
           customFunctions: customFunctionNames)
         if let expression = parsing.expression {
           found = scopeFailure(expression)
+          if found == nil {
+            var pending = [expression]
+            var unsupported: SourceRange?
+            while let next = pending.popLast() {
+              if case .identifier(let slot, let range) = next, ranges[slot] != nil,
+                unsupported.map({ range.lowerBound < $0.lowerBound }) ?? true
+              {
+                unsupported = range
+              }
+              pending.append(contentsOf: next.tableChildren)
+            }
+            found = unsupported.map(TableStaticFailure.unsupportedRange)
+          }
           break
         }
         found = found ?? .syntax(parsing.diagnostics)
@@ -1581,6 +1595,8 @@ private struct TableCalculationWorker {
     -> TableCalculationFailure
   {
     switch own {
+    case .unsupportedRange(let range):
+      return failure(.unsupportedRangeOperation, at: address, range: range)
     case .syntax(let diagnostics):
       var error = failure(
         .syntax, at: address, range: diagnostics.first?.range ?? sourceRange(address))

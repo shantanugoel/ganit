@@ -1361,7 +1361,14 @@ Evidence: [IF diagnostic](../design/tables/persona-review-2026-10-04/if-details.
 
 #### R24 — P1 — Common spreadsheet decisions and range lists are blocked (product gap)
 
-Status: Done. Help states the supported function scope. Completion lists supported functions. Multiple range arguments have a specific diagnostic. Decision functions remain outside this release.
+Status: Done. A native repeat check found that a failed range member could
+hide the unsupported multiple-range pattern. The engine now reports that
+formula problem first and selects its first range in the draft. The check
+also verifies the exported error text. All 19 review regression tests and
+384 engine table tests passed. The native Find test failed in the combined
+run and passed when run alone.
+
+Help states the supported function scope. Completion lists supported functions. Multiple range arguments have a specific diagnostic. Decision functions remain outside this release.
 
 The IF example and `=SUM(B2:B3, B5:B6)` fail. These are common spreadsheet
 entry patterns. `=ROUND(10 / 3, 2)` works and gives 3.33. Function support

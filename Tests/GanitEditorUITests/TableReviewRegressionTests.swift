@@ -355,4 +355,18 @@ struct TableReviewRegressionTests {
       })
   }
 
+  @Test func unsupportedRangePatternOutranksFailedRangeMembers() async throws {
+    let (editor, table, controller) = try await ExpandedTableTests().makeEditor()
+    try editor.setTableCell(table.id, at: .init(row: 0, column: 1), source: "=IF(A2 > 1000, 1, 0)")
+    try editor.setTableCell(table.id, at: .init(row: 2, column: 1), source: "=SUM(B2:B3, A2:A3)")
+    await editor.scheduler?.waitUntilIdle()
+    let problem = try #require(controller.cellProblem(row: 2, column: 1))
+    #expect(problem.contains("one range per aggregate"))
+    #expect(controller.exportGrid(mode: .values).rows[2][1] == problem)
+    controller.select(.init(row: 2, column: 1))
+    controller.beginEditing()
+    let field = try #require(controller.formula.currentEditor() as? NSTextView)
+    #expect((field.string as NSString).substring(with: field.selectedRange()) == "B2:B3")
+  }
+
 }
