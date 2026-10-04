@@ -3,7 +3,7 @@
 Notable changes to Ganit's behavior, especially anything that changes an
 existing answer. See the [release train](docs/release/release-train.md).
 
-## Unreleased
+## 0.6.0
 
 - Add calculation tables to sheets. Use cell formulas, column formulas,
   sheet variables, units, and currencies. Sort or filter rows and calculate
