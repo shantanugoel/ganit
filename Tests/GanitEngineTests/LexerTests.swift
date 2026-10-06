@@ -71,6 +71,67 @@ struct LexerTests {
   }
 
   @Test
+  func lexesDecimalsWithoutLeadingZero() {
+    let english = Lexer(source: ".085 + -.25").lex()
+    #expect(english.diagnostics.isEmpty)
+    #expect(
+      english.tokens.map(\.kind) == [
+        .number(.decimal(digits: "085", fractionalDigitCount: 3, exponent: 0)),
+        .plus,
+        .minus,
+        .number(.decimal(digits: "25", fractionalDigitCount: 2, exponent: 0)),
+        .endOfFile,
+      ]
+    )
+
+    let comma = Lexer(
+      source: ",085",
+      configuration: LexingConfiguration(decimalSeparator: ",", groupingSeparator: ".")
+    ).lex()
+    #expect(comma.diagnostics.isEmpty)
+    #expect(
+      comma.tokens.first?.kind
+        == .number(.decimal(digits: "085", fractionalDigitCount: 3, exponent: 0))
+    )
+  }
+
+  @Test(arguments: ["20% of .5", "$.25", "USD.25", "min(.2, .5)", "(2).5", ".5e-2"])
+  func lexesLeadingDecimalsInExpressions(source: String) {
+    #expect(Lexer(source: source).lex().diagnostics.isEmpty)
+  }
+
+  @Test(arguments: ["20% of ,5", "€,25", "EUR,25", "min(,2; ,5)", ",5e-2"])
+  func lexesLeadingCommaDecimalsInExpressions(source: String) throws {
+    let configuration = LexingConfiguration(decimalSeparator: ",", groupingSeparator: ".")
+    let result = Lexer(source: source, configuration: configuration).lex()
+    #expect(result.diagnostics.isEmpty)
+    for token in result.tokens {
+      if case .number(.decimal) = token.kind {
+        #expect(try #require(token.range.text(in: source)).first == ",")
+      }
+    }
+    #expect(Parser(source: source, configuration: configuration).parse().diagnostics.isEmpty)
+  }
+
+  @Test
+  func retainsLeadingDecimalDigitsAndSourceRanges() throws {
+    let source = "٫٠٨٥"
+    let configuration = LexingConfiguration(decimalSeparator: "٫", groupingSeparator: "٬")
+    let result = Lexer(source: source, configuration: configuration).lex()
+    #expect(result.diagnostics.isEmpty)
+    let token = try #require(result.tokens.first)
+    #expect(token.kind == .number(.decimal(digits: "085", fractionalDigitCount: 3, exponent: 0)))
+    #expect(try #require(token.range.text(in: source)) == source)
+    #expect(token.range.upperBound == source.utf8.count)
+    #expect(token.range.graphemeUpperBound == source.count)
+  }
+
+  @Test(arguments: [".", "1.2.3", "2 .5", ".5e", ".٥2"])
+  func rejectsInvalidLeadingDecimalExpressions(source: String) {
+    #expect(!Parser(source: source).parse().diagnostics.isEmpty)
+  }
+
+  @Test
   func lexesPercentAsItsOwnOperator() {
     let result = Lexer(source: "20%").lex()
 

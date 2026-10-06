@@ -2,6 +2,76 @@
   "schemaVersion": 1,
   "cases": [
     {
+      "name": "number: decimal separator may lead a literal",
+      "expression": ".085",
+      "expected": {
+        "status": "value",
+        "display": "0.085",
+        "fullPrecision": "0.085",
+        "approximate": false
+      }
+    },
+    {
+      "name": "number: currency symbol before a leading decimal",
+      "expression": "$.25",
+      "expected": {
+        "status": "value",
+        "display": "$0.25",
+        "fullPrecision": "0.25 USD",
+        "approximate": false
+      }
+    },
+    {
+      "name": "number: currency code before a leading decimal",
+      "expression": "USD.25",
+      "expected": {
+        "status": "value",
+        "display": "$0.25",
+        "fullPrecision": "0.25 USD",
+        "approximate": false
+      }
+    },
+    {
+      "name": "number: percentage phrase before a leading decimal",
+      "expression": "20% of .5",
+      "expected": {
+        "status": "value",
+        "display": "0.1",
+        "fullPrecision": "1/10",
+        "approximate": false
+      }
+    },
+    {
+      "name": "number: implicit product with a leading decimal",
+      "expression": "(2).5",
+      "expected": {
+        "status": "value",
+        "display": "1",
+        "fullPrecision": "1.0",
+        "approximate": false
+      }
+    },
+    {
+      "name": "number: leading decimal with an exponent",
+      "expression": ".5e-2",
+      "expected": {
+        "status": "value",
+        "display": "0.005",
+        "fullPrecision": "0.005",
+        "approximate": false
+      }
+    },
+    {
+      "name": "number: function arguments with leading decimals",
+      "expression": "min(.2, .5)",
+      "expected": {
+        "status": "value",
+        "display": "0.2",
+        "fullPrecision": "0.2",
+        "approximate": false
+      }
+    },
+    {
       "name": "in: terminal alias after a number is inches",
       "expression": "12 in",
       "expected": {

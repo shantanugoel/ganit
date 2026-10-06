@@ -75,6 +75,7 @@ private struct Scanner {
   private var tokens: [Token] = []
   private var diagnostics: [SyntaxDiagnostic] = []
   private var groupingCache: [Int: GroupingCacheEntry] = [:]
+  private var lastTokenCanEndValue = false
   /// Open parentheses of an `ask_assistant` prompt, whose words are not
   /// tokens, and whether a `{…}` placeholder inside it is open.
   private var promptDepth = 0
@@ -141,6 +142,14 @@ private struct Scanner {
         if scanTemporal() {
           continue
         }
+        scanNumber()
+        continue
+      }
+
+      if character == configuration.decimalSeparator,
+        decimalDigit(self.character(at: cursor + 1)) != nil,
+        configuration.decimalSeparator != "," || !lastTokenCanEndValue
+      {
         scanNumber()
         continue
       }
@@ -244,6 +253,13 @@ private struct Scanner {
 
   private mutating func append(_ kind: TokenKind, from start: Int) {
     tokens.append(Token(kind: kind, range: range(from: start)))
+    switch kind {
+    case .number, .temporal, .rightParenthesis,
+      .superscript, .percent, .factorial:
+      lastTokenCanEndValue = true
+    default:
+      lastTokenCanEndValue = false
+    }
   }
 
   private mutating func diagnose(

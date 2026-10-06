@@ -18,10 +18,10 @@ func formatVersionsMatchTheFreeze() throws {
     .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
   let registry = try String(
     contentsOf: repository.appending(path: "docs/grammar/ambiguity-registry.md"), encoding: .utf8)
-  #expect(registry.contains("**Registry version:** 8"))
+  #expect(registry.contains("**Registry version:** 9"))
   let freeze = try String(
     contentsOf: repository.appending(path: "docs/reference/schema-freeze.md"), encoding: .utf8)
-  #expect(freeze.contains("| Ambiguity registry (grammar policy) | 8 |"))
+  #expect(freeze.contains("| Ambiguity registry (grammar policy) | 9 |"))
   #expect(freeze.contains("| Table block (`@ganit-table`) in sheet source | 1 |"))
   #expect(freeze.contains("| Sheet metadata (`Metadata/<id>.json`) | 2 |"))
   #expect(freeze.contains("| `.ganit` package manifest | 2 |"))

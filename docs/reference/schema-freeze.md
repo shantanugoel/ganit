@@ -16,7 +16,7 @@ release. See the compatibility limits in [table blocks](../storage/table-blocks.
 | `.ganit` package manifest | 2 | `GanitManifest.currentSchemaVersion`, [.ganit format](../storage/ganit-format.md) |
 | Exchange-rate snapshot metadata | 1 | `RateSnapshotMetadata.currentSchemaVersion`, [currency snapshots](../storage/currency-snapshots.md) |
 | Table block (`@ganit-table`) in sheet source | 1 | `TableSourceDocument.currentBlockVersion`, [table blocks](../storage/table-blocks.md) |
-| Ambiguity registry (grammar policy) | 8 | [ambiguity registry](../grammar/ambiguity-registry.md) |
+| Ambiguity registry (grammar policy) | 9 | [ambiguity registry](../grammar/ambiguity-registry.md) |
 | Golden corpus fixtures | 1 | `Tests/GanitEngineCorpusTests/Fixtures` |
 
 Sheet metadata and the package manifest share schema 2 for ordinary and

@@ -3,6 +3,11 @@
 Notable changes to Ganit's behavior, especially anything that changes an
 existing answer. See the [release train](docs/release/release-train.md).
 
+## 0.6.4
+
+- Accept a decimal separator before the first digit. For example, `.085` is
+  the same as `0.085` in an English sheet.
+
 ## 0.6.3
 
 - Explain table formula errors when a reference contains text or is blank.

@@ -1,6 +1,6 @@
 # Ambiguity registry
 
-**Registry version:** 8
+**Registry version:** 9
 
 This registry records how the English grammar resolves inputs that could
 reasonably mean more than one thing. Every entry is pinned by named cases in
@@ -10,6 +10,17 @@ registry version, update the corpus, and add release notes.
 
 The general rule is conservative: when the grammar cannot pick one meaning
 deterministically, it reports a ranged diagnostic instead of guessing.
+
+## Decimal literals
+
+- A decimal literal can start with the decimal separator for the sheet
+  language. At least one decimal digit must follow the separator. For
+  example, `.085` means `0.085` in English. In a sheet with a decimal comma,
+  `,085` means `0,085`.
+- A decimal comma after a complete value cannot start a new literal. Use
+  a semicolon or a comma followed by a space to separate function arguments.
+- A separator without digits after it is incomplete or invalid. The
+  separator rules for the sheet language still apply.
 
 ## `%` — percent versus modulo
 
