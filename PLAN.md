@@ -8,6 +8,14 @@
 **Working product name:** Ganit
 **Primary platform:** macOS 14+; progressively adopt newer macOS design APIs behind availability checks
 
+## Planned assistant change
+
+The selected assistant direction is [expression suggestions and repairs](docs/plans/ai-expression-suggestions.md).
+The plan defines request timing, permitted context, engine checks, repair limits,
+and release gates. Implementation has not started.
+[Proposed ADR 0018](docs/adr/0018-assistant-expression-suggestions.md) records the
+decisions. The current runtime follows ADR 0012 until the replacement is released.
+
 ---
 
 ## 1. Product decision
