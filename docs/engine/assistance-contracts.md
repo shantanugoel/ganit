@@ -99,7 +99,7 @@ M1 exit gate.
 `SuggestionTransport.send` is the test injection point. Each call represents
 one outbound request. It returns strict response JSON or throws an error.
 A coordinator must control repairs, format fallback, deadlines, permission,
-and cancellation. That coordinator is not yet implemented.
+and cancellation. `GanitAssistance.SuggestionCoordinator` provides these controls.
 
 `SuggestionWireRequest` freezes its body, endpoint, and timeout. The context
 inspector can read the same body that transmission will use. The key is an
@@ -151,3 +151,39 @@ A proposal cannot hide a native input error by dropping an operand.
 `userRevisedInputs` is an application control for a user-supplied input or
 constraint revision. It is false by default. A model response cannot set it.
 The input revision workflow is not connected to the editor yet.
+
+## Request coordinator
+
+Share one `SuggestionCoordinator` across application windows. Its input
+contains the frozen snapshot, provider settings, and session permission.
+The coordinator does not read saved provider settings or keys. Each job
+permits at most three wire requests, including context requests, corrections,
+and the single response-format fallback. A transport failure stops the job.
+A repeated source or failure stops correction. No timer starts another job.
+
+A remote job has a 90-second deadline. A local job has a 180-second deadline.
+Each wire request also retains its transport timeout. An injected clock
+controls both deadlines in tests. Cancellation and source invalidation
+prevent a late response from becoming a preview.
+
+A provider can have one active job and one pending automatic target across
+windows. A manual request has priority over an automatic request. Automatic
+requests require a session area. They have a 15-second minimum interval,
+two jobs and six wire requests per minute, and twelve jobs per area.
+These controls do not implement the editor completion-event scheduler.
+
+Additional context waits for an explicit application action. The exact
+encoded wire body is available to the context inspector. Every follow-up
+uses the same permitted-context encoder. Feedback contains stable error
+codes and native spans. It does not contain the complete shadow source.
+
+The memory cache has limits of 128 entries and 4 MiB. Cached proposals must
+pass the local checker again. No transport failure is stored as an answer.
+The cache still needs complete dependency and rate fingerprints. Editor
+session state must also retain dismissed outcomes before automatic mode
+can use this coordinator.
+
+The coordinator passed twenty tests with synthetic replies and a virtual
+clock. These tests cover request counts, context permission, exact request
+bodies, deadlines, late replies, window priority, automatic limits, and
+cache eviction. They do not establish the M2 or release exit gate.

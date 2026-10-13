@@ -82,6 +82,9 @@ let package = Package(
       dependencies: ["GanitData", "GanitEngine", "GanitFormatting"]
     ),
     .target(name: "GanitSuggestionProtocol"),
+    .target(
+      name: "GanitAssistance",
+      dependencies: ["GanitData", "GanitEngine", "GanitSuggestionProtocol"]),
     .target(name: "GanitData", dependencies: ["GanitSuggestionProtocol"]),
     .target(
       name: "GanitEngine",
@@ -160,6 +163,9 @@ let package = Package(
       name: "GanitDiagnosticsTests",
       dependencies: ["GanitDiagnostics"]
     ),
+    .testTarget(
+      name: "GanitAssistanceTests",
+      dependencies: ["GanitAssistance", "GanitData", "GanitEngine", "GanitSuggestionProtocol"]),
     .testTarget(
       name: "GanitDataTests",
       dependencies: ["GanitData", "GanitSuggestionProtocol"]

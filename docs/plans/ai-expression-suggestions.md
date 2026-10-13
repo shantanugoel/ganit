@@ -722,3 +722,11 @@ No phase exit gate is complete. Complete dependency and function context,
 paragraph and table targets, the request coordinator, source acceptance,
 automatic scheduling, legacy removal, and the remaining release gates still
 need work.
+
+The request coordinator now has an injected transport and clock, session
+permission checks, bounded corrections, context approval, cancellation,
+deadlines, request accounting, and a bounded memory cache. Twenty tests
+use synthetic replies and a virtual clock. The editor does not use the
+coordinator yet. Complete dependency fingerprints, session dismissal,
+editor acceptance, and the remaining phase requirements still need work.
+No phase exit gate is complete.
