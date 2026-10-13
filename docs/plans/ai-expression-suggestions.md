@@ -744,3 +744,11 @@ model-answer callbacks. Legacy engine and editor APIs still need removal.
 Paragraph and table targets, complete dependency context, automatic events,
 inline placement, and remaining accessibility and release checks are not
 complete. No phase exit gate is complete.
+
+Selected custom functions now retain native source identities and exact
+capture records. Tests cover original declarations, nested function
+versions, imported records, compiled units, source identity, context limits,
+and failed or unreviewed captures. Material choices are part of request
+and reuse keys. Complete scalar and table dependency records, rate
+provenance, paragraph and table targets, automatic events, and the remaining
+release checks still need work. No phase exit gate is complete.

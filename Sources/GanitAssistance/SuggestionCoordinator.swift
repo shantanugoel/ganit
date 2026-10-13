@@ -364,9 +364,10 @@ public actor SuggestionCoordinator {
 
   private func requestContext(_ record: Record, feedback: [String: Any]?) throws -> Data {
     let data = try record.input.snapshot.permittedContext(including: record.included)
-    guard let feedback else { return data }
+    guard feedback != nil || !record.input.choices.isEmpty else { return data }
     var root = try JSONSerialization.jsonObject(with: data) as! [String: Any]
-    root["feedback"] = feedback
+    if let feedback { root["feedback"] = feedback }
+    if !record.input.choices.isEmpty { root["selectedChoices"] = record.input.choices }
     return try JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])
   }
 
@@ -375,6 +376,7 @@ public actor SuggestionCoordinator {
   ) throws -> CacheKey {
     let data = try input.snapshot.permittedContext(including: included ?? input.includedRecords)
     var root = try JSONSerialization.jsonObject(with: data) as! [String: Any]
+    if !input.choices.isEmpty { root["selectedChoices"] = input.choices }
     var settings = root["settings"] as! [String: Any]
     settings.removeValue(forKey: "now")
     root["settings"] = settings

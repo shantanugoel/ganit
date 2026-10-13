@@ -69,6 +69,14 @@ public struct AssistanceSnapshot: Sendable {
           declaration: line, value: value, matchesTarget: referenced.contains(line.id),
           kind: "line_result", unreviewed: result.hasUnreviewedModelDependency))
     }
+    for (index, name) in scope.functions.keys.sorted().enumerated() {
+      let function = scope.functions[name]!
+      symbols.append(
+        AssistanceSymbol(
+          handle: "F\(index + 1)", name: name,
+          declaration: nil, value: nil, matchesTarget: scope.functionMatches.contains(name),
+          kind: "function", unreviewed: function.hasUnreviewedCapture, function: function))
+    }
     inventory = symbols
     var attached: [AssistanceNote] = []
     for line in source.lines[..<targetIndex].reversed() {
@@ -112,8 +120,14 @@ public struct AssistanceSnapshot: Sendable {
       evaluation.lines.first { $0.id == target.id }?.result)
     let catalog = scope.engine.assistanceCatalog(
       for: target.text + "\n" + notes.map(\.source).joined(separator: "\n"), context: context)
+    let encodedSymbols = try symbols.map {
+      try SymbolRecord($0, engine: scope.engine, context: context)
+    }
+    guard encodedSymbols.reduce(0, { $0 + $1.recordCount }) <= SuggestionLimits.symbols else {
+      throw AssistanceSnapshotError.contextTooLarge
+    }
     let records = ContextRecords(
-      notes: notes, symbols: symbols.map(SymbolRecord.init), settings: SettingsRecord(context),
+      notes: notes, symbols: encodedSymbols, settings: SettingsRecord(context),
       evidence: evidence, catalog: catalog, diagnostics: diagnostics)
     guard try encoder.encode(records).count <= SuggestionLimits.contextBytes else {
       throw AssistanceSnapshotError.contextTooLarge
@@ -121,7 +135,7 @@ public struct AssistanceSnapshot: Sendable {
     let data = try encoder.encode(
       PermittedContext(
         target: TargetRecord(handle: "T1", source: target.text), notes: notes,
-        symbols: symbols.map(SymbolRecord.init), settings: SettingsRecord(context),
+        symbols: encodedSymbols, settings: SettingsRecord(context),
         evidence: evidence, catalog: catalog, diagnostics: diagnostics))
     guard data.count <= SuggestionLimits.requestBytes else {
       throw AssistanceSnapshotError.contextTooLarge
@@ -142,16 +156,26 @@ public struct AssistanceSnapshot: Sendable {
     let value: AssistanceValue?
     let unavailable: Bool
     let unreviewed: Bool
+    let function: AssistanceFunctionContext?
+    var recordCount: Int { 1 + (function?.recordCount ?? 0) }
 
-    init(_ symbol: AssistanceSymbol) {
+    init(_ symbol: AssistanceSymbol, engine: CalculationEngine, context: EvaluationContext) throws {
       handle = symbol.handle
       name = symbol.name
       kind = symbol.kind
-      source = symbol.declaration?.text
-      origin = symbol.declaration.map { "line:\($0.id.rawValue)" } ?? "definitions"
+      source = symbol.sourceText
+      origin =
+        symbol.function?.assistanceOrigin?.identifier
+        ?? symbol.declaration.map { "line:\($0.id.rawValue)" } ?? "definitions"
       unreviewed = symbol.unreviewed
       value = symbol.unreviewed ? nil : symbol.value.map(AssistanceValue.init)
-      unavailable = symbol.value == nil || symbol.unreviewed
+      function =
+        try symbol.unreviewed
+        ? nil
+        : symbol.function.map {
+          try AssistanceFunctionContext($0, engine: engine, context: context)
+        }
+      unavailable = (symbol.value == nil && function == nil) || symbol.unreviewed
     }
   }
   private struct SettingsRecord: Encodable {
@@ -214,6 +238,8 @@ public struct AssistanceSymbol: Sendable {
   public let matchesTarget: Bool
   public let kind: String
   public let unreviewed: Bool
+  package var function: CustomFunction? = nil
+  public var sourceText: String? { declaration?.text ?? function?.assistanceOrigin?.source }
 }
 
 public struct AssistanceNote: Encodable, Sendable {
@@ -242,6 +268,7 @@ package struct AssistanceScope: Sendable {
   let outcomes: LineOutcomes
   let origins: [String: SheetLine]
   let matches: Set<String>
+  let functionMatches: Set<String>
   let unreviewedNames: Set<String>
   let unreviewedUnits: Set<String>
 }

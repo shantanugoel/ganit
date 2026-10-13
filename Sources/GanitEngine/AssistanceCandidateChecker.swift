@@ -126,6 +126,25 @@ public enum AssistanceCandidateChecker {
         .evaluation, "A required input is unavailable. Supply that input before calculating.",
         engineResult: originalResult)
     }
+    if !userRevisedInputs {
+      for record in permitted where record.kind == "function" {
+        guard !record.unreviewed else {
+          throw AssistanceValidationFailure(
+            .unsupportedOperation,
+            "A required function has an unreviewed model dependency.")
+        }
+        if let function = record.function {
+          let context = try AssistanceFunctionContext(
+            function, engine: snapshot.scope.engine,
+            context: snapshot.context)
+          guard !context.hasUnavailableCapture else {
+            throw AssistanceValidationFailure(
+              .evaluation,
+              "A required function input is unavailable. Supply that input before calculating.")
+          }
+        }
+      }
+    }
     let bindings = Dictionary(
       candidate.bindings.map { ($0.symbol.lowercased(), $0.source) },
       uniquingKeysWith: { first, _ in first })
@@ -170,28 +189,31 @@ public enum AssistanceCandidateChecker {
       }
     }
     guard
-      bindings.keys.allSatisfy({ facts.identifiers.contains($0) || referenceBindings.contains($0) })
+      bindings.keys.allSatisfy({
+        facts.identifiers.contains($0) || referenceBindings.contains($0)
+          || (facts.calls.contains($0) && snapshot.scope.functions[$0] != nil)
+      })
     else {
       throw AssistanceValidationFailure(.unknownBinding, "A binding is not used by the expression.")
     }
     for name in facts.calls where snapshot.scope.functions[name] != nil {
-      guard permitted.contains(where: { $0.kind == "function" && $0.name == name }) else {
+      guard let record = permitted.first(where: { $0.kind == "function" && $0.name == name }),
+        !record.unreviewed, bindings[name] == record.handle,
+        record.function?.assistanceOrigin != nil
+      else {
         throw AssistanceValidationFailure(
           .unknownBinding, "The required function definition is not in the permitted context.")
       }
     }
-    // Custom bodies are inspected locally. Their captured values cannot grant AI access.
-    var functions = facts.calls.compactMap { snapshot.scope.functions[$0] }
-    var visited: Set<CustomFunction> = []
-    while let function = functions.popLast() {
-      guard visited.insert(function).inserted else { continue }
-      let body = AssistanceExpressionFacts(
-        function.body, source: "", engine: snapshot.scope.engine, context: snapshot.context)
-      guard !body.containsAssistant, !function.hasUnreviewedCapture else {
-        throw AssistanceValidationFailure(
-          .unsupportedOperation, "A required function calls ask_assistant.")
+    var functionReferences: [LineID] = []
+    for name in facts.calls {
+      if let function = snapshot.scope.functions[name] {
+        let functionContext = try AssistanceFunctionContext(
+          function, engine: snapshot.scope.engine, context: snapshot.context)
+        functionReferences += functionContext.origins.filter {
+          $0.document == snapshot.source.assistanceIdentity
+        }.map(\.line)
       }
-      functions.append(contentsOf: body.calls.compactMap { function.functions[$0] })
     }
     let allowedChoices: [String: Set<String>] = [
       "profit_basis": ["cost", "sale"], "rate_period": ["nominal", "effective"],
@@ -455,7 +477,7 @@ public enum AssistanceCandidateChecker {
         snapshot: snapshot, result: result, usedSymbols: facts.identifiers,
         literalValues: facts.literals.map(\.value)),
       interpretation: candidate.summary,
-      referencedLineIDs: referenceIDs
+      referencedLineIDs: referenceIDs + functionReferences
         + permitted.filter { facts.identifiers.contains($0.name) }.compactMap { $0.declaration?.id },
       changedResults: changes, sourceBefore: snapshot.source.text, sourceAfter: shadow.text,
       rateUses: line.rateUses,

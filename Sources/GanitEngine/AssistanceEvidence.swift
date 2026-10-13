@@ -35,7 +35,7 @@ extension AssistanceSnapshot {
     sources += inventory.filter {
       !$0.unreviewed && ($0.matchesTarget || handles.contains($0.handle))
     }
-    .compactMap { symbol in symbol.declaration.map { (symbol.handle, $0.text) } }
+    .compactMap { symbol in symbol.sourceText.map { (symbol.handle, $0) } }
     func append(
       source: String, text: String, kind: String, value: EngineValue? = nil,
       temporal: TemporalLiteral? = nil

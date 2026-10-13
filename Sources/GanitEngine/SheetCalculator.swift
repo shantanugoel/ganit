@@ -251,6 +251,7 @@ public struct SheetCalculator: Sendable {
 
     var inherited = VariableScope(definitions.variables, functions: definitions.functions)
     inherited.unreviewedNames = definitions.unreviewedVariables
+    inherited.assistanceOrigins = definitions.assistanceOrigins
     var unreviewedUnits = definitions.unreviewedUnits
     var unreviewedLines: Set<LineID> = []
     var scope = inherited
@@ -309,7 +310,7 @@ public struct SheetCalculator: Sendable {
         var noteWords: [[String]] = []
         for previous in sheet.lines[..<lineIndex].reversed() {
           guard case .comment = LineSyntax(previous.text) else { break }
-          if previous.text.trimmingCharacters(in: .whitespaces).hasPrefix("// Request record:") {
+          if AssistanceNote(source: previous.text).historical {
             continue
           }
           noteWords += LineSource(previous.text, units, engine, context).words
@@ -318,6 +319,7 @@ public struct SheetCalculator: Sendable {
           engine: engine, names: scope.all, functions: scope.functions, rates: scope.rates,
           outcomes: outcomes, origins: origins,
           matches: Set(scope.values(named: source.words + noteWords).keys),
+          functionMatches: Set(scope.functions(named: source.words + noteWords).keys),
           unreviewedNames: scope.unreviewedNames, unreviewedUnits: unreviewedUnits)
       }
 
@@ -431,11 +433,28 @@ public struct SheetCalculator: Sendable {
       if unreviewed { unreviewedLines.insert(line.id) }
       if var function = evaluation?.function {
         function.hasUnreviewedCapture = unreviewed
+        function.assistanceOrigin = AssistanceDeclarationOrigin(
+          scope: surface == .definitions ? "definitions" : "sheet",
+          document: sheet.assistanceIdentity,
+          line: line.id, source: line.text
+        )
+        function.assistanceCaptures = Dictionary(
+          uniqueKeysWithValues: (facts?.identifiers ?? []).subtracting(function.parameters)
+            .compactMap { name in
+              scope.assistanceOrigins[name].map { (name, $0) }
+            })
         scope.functions[function.name] = function
         declared.functions[function.name] = function
       }
       if let name = source.declaredName, let result {
         scope.declare(name, result: result, failureOrigins: failureOrigins)
+        let origin = AssistanceDeclarationOrigin(
+          scope: surface == .definitions ? "definitions" : "sheet",
+          document: sheet.assistanceIdentity,
+          line: line.id, source: line.text
+        )
+        scope.assistanceOrigins[name] = origin
+        if surface == .definitions { declared.assistanceOrigins[name] = origin }
         if unreviewed {
           scope.unreviewedNames.insert(name)
         } else if !scope.unreviewedNames.isEmpty {
@@ -1265,6 +1284,7 @@ private struct VariableScope: Sendable {
   /// Functions defined above, by lowercased name.
   var functions: [String: CustomFunction]
   var unreviewedNames: Set<String> = []
+  var assistanceOrigins: [String: AssistanceDeclarationOrigin] = [:]
 
   init(_ inherited: [String: EngineValue] = [:], functions: [String: CustomFunction] = [:]) {
     self.functions = functions

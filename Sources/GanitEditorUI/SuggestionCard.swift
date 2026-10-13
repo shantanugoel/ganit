@@ -116,7 +116,7 @@ final class SuggestionCard: NSView {
     if session.state == .needsContext {
       label("Additional source records", bold: true)
       for record in session.requestedContext {
-        label(record.declaration?.text ?? record.name)
+        label(record.sourceText ?? record.name)
       }
       button("Include More Context") { [weak self] in self?.session.includeContext() }
     }

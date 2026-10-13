@@ -2,6 +2,7 @@ import Foundation
 import GanitAssistance
 import GanitData
 import GanitEngine
+import GanitSuggestionProtocol
 import Testing
 
 @Suite
@@ -446,6 +447,103 @@ struct SuggestionCoordinatorTests {
     for request in await transport.requests {
       #expect(!String(decoding: request.body, as: UTF8.self).contains("PRIVATE-FIXTURE"))
     }
+  }
+
+  @Test func explicitMaterialChoicesAreSentAndHaveDistinctCacheKeys() async throws {
+    let snapshot = try assistanceSnapshot("cost = 1000 INR\nFind a price with 20% profit on cost.")
+    let evidence = snapshot.evidence()
+    let cost = try #require(snapshot.inventory.first { $0.name == "cost" }?.handle)
+    let candidate = SuggestionCandidate(
+      id: "C1", edits: [SuggestionEdit(target: "T1", replacement: "cost + 20%")],
+      bindings: [SuggestionBinding(symbol: "cost", source: cost)],
+      literals: [
+        SuggestionLiteral(
+          text: "20%", evidence: try #require(evidence.first { $0.text == "20%" }?.handle))
+      ],
+      relations: [
+        SuggestionRelation(
+          rule: "interpretation",
+          evidence: try #require(
+            evidence.first { $0.kind == "relation" && $0.source == "T1" }?.handle))
+      ],
+      assumptions: [], summary: "Add profit based on cost.")
+    let object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(candidate))
+    let reply = try outcome("proposal", ["candidates": [object]])
+    let transport = FakeSuggestionTransport([.reply(reply), .reply(reply)])
+    let coordinator = SuggestionCoordinator(transport: transport)
+    let document = UUID()
+    let initial = await coordinator.start(input(snapshot, document: document))
+    guard case .proposal(let unresolved) = await initial.result.value else {
+      Issue.record("Expected a choice")
+      return
+    }
+    #expect(!unresolved[0].isApplicable)
+    let selected = SuggestionJobInput(
+      document: document, snapshot: snapshot, settings: fixtureSettings(),
+      permission: SuggestionPermission(contextAccepted: true), choices: ["profit_basis": "cost"])
+    for _ in 0..<2 {
+      let job = await coordinator.start(selected)
+      guard case .proposal(let proposals) = await job.result.value else {
+        Issue.record("Expected a checked choice")
+        return
+      }
+      #expect(proposals[0].isApplicable)
+    }
+    #expect(await transport.count() == 2)
+    let body = await transport.requests[1].body
+    let wire = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
+    let messages = try #require(wire["messages"] as? [[String: Any]])
+    let context = try #require(messages.last?["content"] as? String)
+    let records = try #require(
+      JSONSerialization.jsonObject(with: Data(context.utf8)) as? [String: Any])
+    #expect(records["selectedChoices"] as? [String: String] == ["profit_basis": "cost"])
+  }
+
+  @Test func importedFunctionCaptureChangesInvalidateReuseWithTheSameTargetText() async throws {
+    func snapshot(_ definitions: SheetDefinitions) throws -> AssistanceSnapshot {
+      let source = SheetSource("Use f with two.")
+      var calculator = SheetCalculator(definitions: definitions)
+      return try calculator.assistanceSnapshot(
+        source, context: assistanceContext(), target: source.lines[0].id)
+    }
+    let firstDefinitions = try SheetDefinitions(
+      source: "factor = 7\nf(x) = x * factor", context: assistanceContext())
+    let first = try snapshot(firstDefinitions)
+    let evidence = first.evidence()
+    let candidate = SuggestionCandidate(
+      id: "C1", edits: [SuggestionEdit(target: "T1", replacement: "f(2)")],
+      bindings: [
+        SuggestionBinding(
+          symbol: "f", source: try #require(first.inventory.first { $0.kind == "function" }?.handle)
+        )
+      ],
+      literals: [
+        SuggestionLiteral(
+          text: "2", evidence: try #require(evidence.first { $0.text == "two" }?.handle))
+      ],
+      relations: [
+        SuggestionRelation(
+          rule: "interpretation",
+          evidence: try #require(
+            evidence.first { $0.kind == "relation" && $0.source == "T1" }?.handle))
+      ],
+      assumptions: [], summary: "Use the selected function.")
+    let object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(candidate))
+    let reply = try outcome("proposal", ["candidates": [object]])
+    let transport = FakeSuggestionTransport([.reply(reply), .reply(reply)])
+    let coordinator = SuggestionCoordinator(transport: transport)
+    let document = UUID()
+    let changed = try snapshot(
+      SheetDefinitions(source: "factor = 9\nf(x) = x * factor", context: assistanceContext()))
+    for (snapshot, expected) in [(first, 14), (try snapshot(firstDefinitions), 14), (changed, 18)] {
+      let job = await coordinator.start(input(snapshot, document: document))
+      guard case .proposal(let proposals) = await job.result.value else {
+        Issue.record("Expected the current capture")
+        return
+      }
+      #expect(proposals[0].result == .number(.integer(IntegerValue(expected))))
+    }
+    #expect(await transport.count() == 2)
   }
 
 }

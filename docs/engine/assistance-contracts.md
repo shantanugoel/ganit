@@ -36,9 +36,9 @@ It also contains native diagnostics and a generated capability catalog.
 The catalog reads native function, operator, keyword, unit, and diagnostic
 registries. Its examples have independent expected results in tests.
 
-Function capture records, complete dependency records, table records, and
-selected paragraph targets still need work. A custom function cannot pass
-checking until its required definition is in the permitted context.
+Selected custom functions now have native source and capture records.
+Their complete scalar dependency graph, rate provenance, table records,
+and selected paragraph targets still need work.
 
 ## Response contract
 
@@ -228,3 +228,36 @@ still need work. No phase exit gate is complete.
 The application no longer attaches the legacy model-answer callbacks or
 opens their answer store. Legacy engine and editor APIs still need removal.
 The new feature does not load cached model values into accepted source.
+
+## Native function context
+
+The engine retains a source identity with function declarations and their
+captured variables. Source identity includes an internal document identity
+and a physical line identity. Equal line numbers in two sources cannot
+identify the same declaration. The records come from the normal engine
+fold. The adapter does not open or calculate the definitions sheet.
+
+A selected function record contains its source, parameters, exact captured
+values, captured declaration origins, called function versions, and compiled
+unit transforms. Parameter names and comment words do not create captures.
+The context is a flat list. It has no recursive JSON structure. Required
+records count against the context limit. An excessive closure is rejected;
+its records are not cut off.
+
+The checker requires an explicit function binding. An unreviewed model
+capture cannot supply a value or a preview. A failed captured input cannot
+be hidden by dropping the function. Native local origins also supply the
+reference-focus targets in the card. A function imported from another
+source cannot point to an unrelated local line with the same line number.
+
+Tests cover redeclarations, nested calls, imported captures, parameter and
+comment scope, exact rational values, custom units, record limits, source
+identity, and failed or legacy captures. Coordinator tests also cover
+changed captures and explicit material choices in request and reuse keys.
+Complete scalar and table dependency records and all earlier incomplete
+requirements still need work. No phase exit gate is complete.
+
+The function-context check passed 665 engine tests, 22 coordinator tests,
+226 editor tests, 15 Quick Ganit tests, and 60 workspace tests on 2026-10-13.
+All 988 tests used local calculation or separate test transports. No test
+contacted the configured AI server. Format and whitespace checks also passed.
