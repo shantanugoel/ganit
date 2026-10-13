@@ -19,29 +19,44 @@ public enum LineReferenceRenumbering {
 
   public static func edits(
     replacing range: NSRange, in old: String, with replacement: String,
-    configuration: LexingConfiguration
+    configuration: LexingConfiguration, targetLineMapping: [Int: Int] = [:]
   ) -> [(range: NSRange, replacement: String)] {
-    edits(replacing: [range], in: old, with: [replacement], configuration: configuration)
+    edits(
+      replacing: [range], in: old, with: [replacement], configuration: configuration,
+      targetLineMapping: targetLineMapping)
   }
 
   /// Ranges are nonoverlapping UTF-16 ranges in the old source, as supplied
   /// by NSTextView's multiple-range editing delegate.
   public static func edits(
     replacing ranges: [NSRange], in old: String, with replacements: [String],
-    configuration: LexingConfiguration
+    configuration: LexingConfiguration, targetLineMapping: [Int: Int] = [:]
   ) -> [(range: NSRange, replacement: String)] {
+    effects(
+      replacing: ranges, in: old, with: replacements,
+      configuration: configuration, targetLineMapping: targetLineMapping
+    ).edits
+  }
+
+  package static func effects(
+    replacing ranges: [NSRange], in old: String, with replacements: [String],
+    configuration: LexingConfiguration, targetLineMapping: [Int: Int] = [:]
+  )
+    -> (edits: [(range: NSRange, replacement: String)], ambiguousTargets: Set<Int>)
+  {
     precondition(ranges.count == replacements.count)
+    var ambiguousTargets: Set<Int> = []
     let changes = zip(ranges, replacements).sorted { $0.0.location < $1.0.location }
     let oldText = old as NSString
-    if changes.count == 1, let (range, replacement) = changes.first,
+    if targetLineMapping.isEmpty, changes.count == 1, let (range, replacement) = changes.first,
       !hasNewline(oldText.substring(with: range)), !hasNewline(replacement)
     {
-      if !replacement.trimmingCharacters(in: .whitespaces).isEmpty { return [] }
+      if !replacement.trimmingCharacters(in: .whitespaces).isEmpty { return ([], []) }
       let span = oldText.lineRange(for: range)
       let local = NSRange(location: range.location - span.location, length: range.length)
       let changed = (oldText.substring(with: span) as NSString)
         .replacingCharacters(in: local, with: replacement)
-      if !changed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return [] }
+      if !changed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return ([], []) }
     }
     let updated = NSMutableString(string: old)
     for (range, replacement) in changes.reversed() {
@@ -136,6 +151,11 @@ public enum LineReferenceRenumbering {
       for index in indices { targets[index] = .broken(.split) }
     }
 
+    for (old, new) in targetLineMapping
+    where targets.indices.contains(old - 1)
+      && newLines.indices.contains(new - 1)
+    { targets[old - 1] = .line(new) }
+
     // Table block lines are never prose: their references are rewritten with
     // their ledger by table edits, so even quarantined blocks stay untouched.
     // A reference is skipped when its line is in a block before the edit or
@@ -181,6 +201,7 @@ public enum LineReferenceRenumbering {
           edits.append(
             (NSRange(location: moved(start), length: referenceEnd - start), String(updated)))
         case .broken(let reason):
+          ambiguousTargets.insert(target)
           edits.append(
             (
               NSRange(location: moved(referenceStart), length: referenceEnd - referenceStart),
@@ -190,7 +211,7 @@ public enum LineReferenceRenumbering {
         }
       }
     }
-    guard !oldBlocks.isEmpty else { return edits }
+    guard !oldBlocks.isEmpty else { return (edits, ambiguousTargets) }
     // Prose lines no change touches and that stay prose may have operands
     // rewritten.
     func untouched(_ index: Int) -> Bool {
@@ -210,11 +231,13 @@ public enum LineReferenceRenumbering {
       guard number >= 1, number <= targets.count else { return nil }
       switch targets[number - 1] {
       case .line(let updated) where updated != number: return .number(updated)
-      case .broken(let reason): return .marker("@" + reason.rawValue)
+      case .broken(let reason):
+        ambiguousTargets.insert(number)
+        return .marker("@" + reason.rawValue)
       default: return nil
       }
     }
-    return edits.sorted { $0.range.location < $1.range.location }
+    return (edits.sorted { $0.range.location < $1.range.location }, ambiguousTargets)
   }
 
   /// Formula rewrites in every valid block the edit leaves byte for byte:

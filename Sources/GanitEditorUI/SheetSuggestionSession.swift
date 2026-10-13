@@ -23,7 +23,7 @@ package final class SheetSuggestionSession {
   private var job: SuggestionJob?
   private var configuration: SheetSuggestionConfiguration?
   private var snapshot: AssistanceSnapshot?
-  private var target: LineID?
+  private var target: [LineID]?
   private var taskNotes: [String] = []
   private var retry = false
   private var userRevisedInputs = false
@@ -76,8 +76,8 @@ package final class SheetSuggestionSession {
     }
     // An explicit request commits the composition before taking a snapshot.
     if editor.textView.hasMarkedText() { editor.textView.unmarkText() }
-    guard !editor.textView.hasMarkedText(), let target = editor.suggestionTarget else {
-      update(.failed, "Select one source line. Paragraph and table targets need a separate scope.")
+    guard !editor.textView.hasMarkedText(), let target = editor.suggestionTargets else {
+      update(.failed, "Select complete source lines. Table targets need a separate scope.")
       return
     }
     self.configuration = configuration
@@ -86,7 +86,7 @@ package final class SheetSuggestionSession {
     let version = revision
     task = Task { [weak self] in
       do {
-        let snapshot = try await editor.suggestionSnapshot(target: target)
+        let snapshot = try await editor.suggestionSnapshot(targets: target)
         guard let self, self.revision == version, snapshot.source.text == editor.sheet.text else {
           return
         }
@@ -234,7 +234,7 @@ package final class SheetSuggestionSession {
     task = Task { [weak self] in
       guard let self else { return }
       do {
-        var snapshot = try await editor.suggestionSnapshot(target: target)
+        var snapshot = try await editor.suggestionSnapshot(targets: target)
         for note in self.taskNotes { snapshot = try snapshot.addingTaskNote(note) }
         guard self.revision == version, snapshot.source.text == editor.sheet.text else { return }
         self.snapshot = snapshot
@@ -261,7 +261,7 @@ package final class SheetSuggestionSession {
     task = Task { [weak self] in
       guard let self else { return }
       do {
-        var fresh = try await editor.suggestionSnapshot(target: target)
+        var fresh = try await editor.suggestionSnapshot(targets: target)
         guard original.source.text == fresh.source.text else {
           self.invalidate()
           return
@@ -294,14 +294,15 @@ package final class SheetSuggestionSession {
 
   package func editRequest() {
     guard let editor, let target,
-      let line = editor.sheet.lines.first(where: { $0.id == target })
+      let first = editor.sheet.lines.first(where: { $0.id == target.first }),
+      let last = editor.sheet.lines.first(where: { $0.id == target.last })
     else {
       dismiss()
       return
     }
     let text = editor.sheet.text
-    let lower = text.utf8.index(text.utf8.startIndex, offsetBy: line.range.lowerBound)
-    let upper = text.utf8.index(text.utf8.startIndex, offsetBy: line.range.upperBound)
+    let lower = text.utf8.index(text.utf8.startIndex, offsetBy: first.range.lowerBound)
+    let upper = text.utf8.index(text.utf8.startIndex, offsetBy: last.range.upperBound)
     dismiss()
     editor.textView.setSelectedRange(NSRange(lower..<upper, in: text))
     editor.textView.scrollRangeToVisible(editor.textView.selectedRange())

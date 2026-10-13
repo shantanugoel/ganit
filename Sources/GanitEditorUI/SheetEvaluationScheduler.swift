@@ -24,6 +24,12 @@ private actor CalculatorWorker {
     try calculator.assistanceSnapshot(sheet, context: context, target: target)
   }
 
+  func assistanceSnapshot(_ sheet: SheetSource, context: EvaluationContext, targets: [LineID])
+    throws -> AssistanceSnapshot
+  {
+    try calculator.assistanceSnapshot(sheet, context: context, targets: targets)
+  }
+
   /// Starts over with new definitions, which every line may read.
   func setDefinitions(_ definitions: SheetDefinitions) {
     calculator = SheetCalculator(definitions: definitions, surface: surface)
@@ -63,6 +69,13 @@ final class SheetEvaluationScheduler {
   func assistanceSnapshot(_ sheet: SheetSource, target: LineID) async throws -> AssistanceSnapshot {
     await waitUntilIdle()
     return try await worker.assistanceSnapshot(sheet, context: context.at(Date()), target: target)
+  }
+
+  func assistanceSnapshot(_ sheet: SheetSource, targets: [LineID]) async throws
+    -> AssistanceSnapshot
+  {
+    await waitUntilIdle()
+    return try await worker.assistanceSnapshot(sheet, context: context.at(Date()), targets: targets)
   }
 
   func checkSuggestion(

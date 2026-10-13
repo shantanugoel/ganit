@@ -25,13 +25,15 @@ public struct AssistanceDiagnostic: Encodable, Sendable {
     public let replacement: String
   }
 
-  static func records(_ result: CalculationResult?) -> [AssistanceDiagnostic] {
+  static func records(_ result: CalculationResult?, origin: SourceLocation = .start)
+    -> [AssistanceDiagnostic]
+  {
     switch result {
     case .syntaxFailure(let diagnostics):
       return diagnostics.map {
         AssistanceDiagnostic(
           code: $0.messageKey, severity: $0.severity.rawValue,
-          spans: [Span($0.range)], expected: nil, fixes: [])
+          spans: [Span($0.range.shifted(by: origin))], expected: nil, fixes: [])
       }
     case .evaluationFailure(let error):
       let expected: String?
@@ -43,8 +45,10 @@ public struct AssistanceDiagnostic: Encodable, Sendable {
       return [
         AssistanceDiagnostic(
           code: error.code.rawValue, severity: error.severity.rawValue,
-          spans: error.ranges.map(Span.init), expected: expected,
-          fixes: error.fixIts.map { Fix(span: Span($0.range), replacement: $0.replacement) })
+          spans: error.ranges.map { Span($0.shifted(by: origin)) }, expected: expected,
+          fixes: error.fixIts.map {
+            Fix(span: Span($0.range.shifted(by: origin)), replacement: $0.replacement)
+          })
       ]
     default: return []
     }

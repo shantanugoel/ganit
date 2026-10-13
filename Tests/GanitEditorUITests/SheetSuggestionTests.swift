@@ -357,7 +357,110 @@ struct SheetSuggestionTests {
     #expect(await transport.count() == 2)
   }
 
-  @Test func partialAndMultiLineSelectionsAreNotSilentlyExpanded() async throws {
+  @Test(arguments: [false, true])
+  func aSelectedParagraphAndCompleteWorkingUseOneUndo(_ markdown: Bool) async throws {
+    let original = request + "\nKeep the addition equal."
+    let editor = try await editor(original, markdown: markdown)
+    let snapshot = try await editor.suggestionSnapshot(targets: editor.sheet.lines.map(\.id))
+    let evidence = snapshot.evidence()
+    let candidate = SuggestionCandidate(
+      id: "C1",
+      edits: [SuggestionEdit(target: "T1", replacement: "part = 2 + 3\nresult = part * 1")],
+      bindings: [SuggestionBinding(symbol: "part", source: "L1")],
+      literals: [
+        SuggestionLiteral(
+          text: "2", evidence: try #require(evidence.first { $0.text == "two" }?.handle)),
+        SuggestionLiteral(
+          text: "3", evidence: try #require(evidence.first { $0.text == "three" }?.handle)),
+      ],
+      relations: [
+        SuggestionRelation(
+          rule: "interpretation",
+          evidence: try #require(
+            evidence.first { $0.kind == "relation" && $0.source == "T1" }?.handle))
+      ], assumptions: [], summary: "Add the supplied numbers.")
+    let object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(candidate))
+    let reply = try JSONSerialization.data(withJSONObject: [
+      "schemaVersion": 1, "kind": "proposal", "candidates": [object],
+    ])
+    let transport = configure(editor, replies: [reply])
+    editor.textView.setSelectedRange(NSRange(location: 0, length: original.utf16.count))
+    let beforeSelection = editor.textView.selectedRange()
+    let session = editor.suggestionSession
+    session.prepare()
+    await session.waitUntilIdle()
+    #expect(session.canSend)
+    #expect(
+      String(decoding: try #require(session.preparedBody), as: UTF8.self).contains(
+        "Keep the addition equal."))
+    session.send()
+    await session.waitUntilIdle()
+    #expect(session.preview?.result == .number(.integer(IntegerValue(5))))
+    session.apply()
+    await session.waitUntilIdle()
+    #expect(
+      editor.sheet.text == "part = 2 + 3\nresult = part * 1\n// Request record: " + request
+        + "\n// Request record: Keep the addition equal.")
+    let accepted = editor.sheet.text
+    editor.documentUndoManager.undo()
+    #expect(editor.sheet.text == original)
+    #expect(editor.textView.selectedRange() == beforeSelection)
+    #expect(!editor.documentUndoManager.canUndo)
+    editor.documentUndoManager.redo()
+    #expect(editor.sheet.text == accepted)
+    #expect(await transport.count() == 1)
+  }
+
+  @Test func aReferenceChoiceRechecksLocallyBeforeOneSourceTransaction() async throws {
+    let original = request + "\n@1"
+    let editor = try await editor(original)
+    let snapshot = try await editor.suggestionSnapshot(target: editor.sheet.lines[0].id)
+    let evidence = snapshot.evidence()
+    let candidate = SuggestionCandidate(
+      id: "C1",
+      edits: [SuggestionEdit(target: "T1", replacement: "part = 2 + 3\nresult = part * 1")],
+      bindings: [SuggestionBinding(symbol: "part", source: "L1")],
+      literals: [
+        SuggestionLiteral(
+          text: "2", evidence: try #require(evidence.first { $0.text == "two" }?.handle)),
+        SuggestionLiteral(
+          text: "3", evidence: try #require(evidence.first { $0.text == "three" }?.handle)),
+      ],
+      relations: [
+        SuggestionRelation(
+          rule: "interpretation",
+          evidence: try #require(
+            evidence.first { $0.kind == "relation" && $0.source == "T1" }?.handle))
+      ], assumptions: [], summary: "Keep the result reference.")
+    let object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(candidate))
+    let reply = try JSONSerialization.data(withJSONObject: [
+      "schemaVersion": 1, "kind": "proposal", "candidates": [object],
+    ])
+    let transport = configure(editor, replies: [reply])
+    editor.textView.setSelectedRange(NSRange(location: 0, length: 0))
+    let session = editor.suggestionSession
+    session.prepare()
+    await session.waitUntilIdle()
+    session.send()
+    await session.waitUntilIdle()
+    #expect(!session.canApply)
+    let choice = try #require(session.availableChoices.first { $0.id.hasPrefix("reference_") })
+    session.choose(choice.id, option: "line_2")
+    await session.waitUntilIdle()
+    #expect(session.canApply)
+    session.apply()
+    await session.waitUntilIdle()
+    #expect(editor.sheet.text.hasSuffix("@2"))
+    await editor.scheduler?.waitUntilIdle()
+    #expect(
+      editor.latestEvaluation?.lines.last?.result == .value(.number(.integer(IntegerValue(5)))))
+    editor.documentUndoManager.undo()
+    #expect(editor.sheet.text == original)
+    #expect(!editor.documentUndoManager.canUndo)
+    #expect(await transport.count() == 1)
+  }
+
+  @Test func incompleteLineSelectionsAreNotSilentlyExpanded() async throws {
     let editor = try await editor(request + "\n" + request)
     let transport = configure(editor, replies: [])
     for range in [

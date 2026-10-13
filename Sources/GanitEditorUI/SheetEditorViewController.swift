@@ -82,12 +82,19 @@ public final class SheetEditorViewController: NSViewController {
     return try await scheduler.assistanceSnapshot(sheet, target: target)
   }
 
+  package func suggestionSnapshot(targets: [LineID]) async throws -> AssistanceSnapshot {
+    guard let scheduler else { throw AssistanceSnapshotError.unsupportedTarget }
+    return try await scheduler.assistanceSnapshot(sheet, targets: targets)
+  }
+
   package func applySuggestionEdit(_ edit: AssistanceSourceEdit) throws {
     guard sheet.text == edit.sourceBefore, !textView.hasMarkedText(),
       sheet.lines.contains(where: { $0.id == edit.target })
     else {
       throw SheetSourceCoordinator.Failure.staleEdit
     }
+    assistanceReferenceMapping = edit.referenceMapping
+    defer { assistanceReferenceMapping = [:] }
     try sourceCoordinator.apply(
       edit.patches, actionName: localized("suggestion.undo", "Use Expression"))
     guard sheet.text == edit.sourceAfter else {
@@ -96,17 +103,24 @@ public final class SheetEditorViewController: NSViewController {
     }
   }
 
-  package var suggestionTarget: LineID? {
+  package var suggestionTarget: LineID? { suggestionTargets?.first }
+  package var suggestionTargets: [LineID]? {
     let selection = textView.selectedRange()
-    let index = lineIndex(atUTF16: selection.location)
-    let line = sheet.lines[index]
-    guard !tableLines().contains(index), textView.isEditable else { return nil }
+    let first = lineIndex(atUTF16: selection.location)
+    guard textView.isEditable else { return nil }
+    let last = selection.length == 0 ? first : lineIndex(atUTF16: selection.upperBound - 1)
+    guard tableLines().intersection(IndexSet(integersIn: first..<(last + 1))).isEmpty else {
+      return nil
+    }
     if selection.length > 0 {
-      let start = utf16Starts()[index]
-      guard selection.location == start, selection.upperBound == start + line.text.utf16.count
+      let start = utf16Starts()[first]
+      let end = utf16Starts()[last] + sheet.lines[last].text.utf16.count
+      let terminated = end + (sheet.lines[last].terminator?.rawValue.utf16.count ?? 0)
+      guard selection.location == start,
+        selection.upperBound == end || selection.upperBound == terminated
       else { return nil }
     }
-    return line.id
+    return Array(sheet.lines[first...last].map(\.id))
   }
 
   @objc public func suggestExpression(_ sender: Any?) { suggestionSession.prepare() }
@@ -502,6 +516,7 @@ public final class SheetEditorViewController: NSViewController {
     textDidChange()
   }
 
+  private var assistanceReferenceMapping: [Int: Int] = [:]
   private var pendingReferenceEdits: [(range: NSRange, replacement: String)] = []
   private var isRewritingReferences = false
 
@@ -511,7 +526,7 @@ public final class SheetEditorViewController: NSViewController {
     else { return }
     let edits = LineReferenceRenumbering.edits(
       replacing: ranges, in: textView.string, with: replacements,
-      configuration: context.lexingConfiguration)
+      configuration: context.lexingConfiguration, targetLineMapping: assistanceReferenceMapping)
     guard !edits.isEmpty else { return }
     textView.breakUndoCoalescing()
     documentUndoManager.beginUndoGrouping()

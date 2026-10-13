@@ -499,6 +499,51 @@ struct SuggestionCoordinatorTests {
     #expect(records["selectedChoices"] as? [String: String] == ["profit_basis": "cost"])
   }
 
+  @Test func anApprovedInputRevisionRemainsApprovedOnCacheReplay() async throws {
+    let source = SheetSource("Use two as a denominator.\n4 / 0")
+    var calculator = SheetCalculator()
+    let snapshot = try calculator.assistanceSnapshot(
+      source, context: assistanceContext(), targets: source.lines.map(\.id))
+    let evidence = snapshot.evidence()
+    let candidate = SuggestionCandidate(
+      id: "C1", edits: [SuggestionEdit(target: "T1", replacement: "4 / 2")], bindings: [],
+      literals: [
+        SuggestionLiteral(
+          text: "4",
+          evidence: try #require(
+            evidence.first { $0.text == "4" }?.handle)),
+        SuggestionLiteral(
+          text: "2",
+          evidence: try #require(
+            evidence.first { $0.text == "two" }?.handle)),
+      ],
+      relations: [
+        SuggestionRelation(
+          rule: "interpretation",
+          evidence: try #require(
+            evidence.first { $0.kind == "relation" }?.handle))
+      ],
+      assumptions: [], summary: "Use the revised denominator.")
+    let object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(candidate))
+    let transport = FakeSuggestionTransport([
+      .reply(try outcome("proposal", ["candidates": [object]]))
+    ])
+    let coordinator = SuggestionCoordinator(transport: transport)
+    let input = SuggestionJobInput(
+      document: UUID(), snapshot: snapshot, settings: fixtureSettings(),
+      permission: SuggestionPermission(contextAccepted: true), userRevisedInputs: true)
+    for _ in 0..<2 {
+      let job = await coordinator.start(input)
+      guard case .proposal(let proposals) = await job.result.value else {
+        Issue.record("Expected an approved revision from the reply and cache")
+        return
+      }
+      #expect(proposals[0].isApplicable)
+      #expect(proposals[0].result == .number(.integer(IntegerValue(2))))
+    }
+    #expect(await transport.count() == 1)
+  }
+
   @Test func importedFunctionCaptureChangesInvalidateReuseWithTheSameTargetText() async throws {
     func snapshot(_ definitions: SheetDefinitions) throws -> AssistanceSnapshot {
       let source = SheetSource("Use f with two.")

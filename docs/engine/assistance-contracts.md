@@ -20,8 +20,10 @@ snapshot contains the local source, frozen context, and evaluation from
 that generation. The normal evaluation cache applies. Snapshot creation
 does not read or calculate other sheets.
 
-The current target is one physical source line. Symbol handles identify
-records in the captured inventory. The default context contains direct name
+The target is one physical source line or a selection of complete lines.
+A selection must contain adjacent lines. Its limit is 12 lines and 8 KiB.
+The snapshot keeps the complete selected text and all its diagnostics.
+Symbol handles identify records in the captured inventory. The default context contains direct name
 matches. An additional handle must come from that inventory. The caller
 must get context permission before it includes additional records.
 
@@ -37,8 +39,8 @@ The catalog reads native function, operator, keyword, unit, and diagnostic
 registries. Its examples have independent expected results in tests.
 
 Selected custom functions now have native source and capture records.
-Their complete scalar dependency graph, rate provenance, table records,
-and selected paragraph targets still need work.
+Their complete scalar dependency graph, rate provenance, and table records
+still need work.
 
 ## Response contract
 
@@ -67,8 +69,23 @@ applies those checks regardless of provider format support.
 
 ## Local candidate checks
 
-`AssistanceCandidateChecker.check` checks one physical line target. It uses
-app-owned ranges and the normal engine. It does not apply an edit.
+`AssistanceCandidateChecker.check` checks one target with one or more
+complete physical lines. It uses application ranges and the normal engine.
+It does not apply an edit.
+
+Each output line must contain a calculation. The last output line supplies
+the preview result. Earlier output lines can declare names for later lines.
+Bindings for these names use `L1`, `L2`, and subsequent output ordinals.
+The checker resolves each name to its actual declaration. Derived values
+cannot supply new literal evidence. All output lines use original evidence.
+The expanded expression must stay within native depth and operation limits.
+Native parser and function evaluation keep small recursive frames. Release
+tests use a 512 KiB secondary thread stack at the existing depth limit.
+The depth limit and stack budget remain unchanged.
+
+If an existing reference becomes ambiguous, the user must select the new
+result it reads. The provisional preview uses the last output line. Apply
+stays blocked until each required reference choice has a valid selection.
 
 The checks cover target handles, existing labels and names, bindings,
 numeric evidence, temporal evidence, declared assumptions, native parsing,
@@ -90,7 +107,7 @@ Native provenance flags follow legacy model values through declarations,
 references, imported definitions, units, and function captures. These values
 cannot become preview evidence. The context omits their canonical values.
 
-Multi-line edits, complete dependency tracing, table targets, and the full
+Partial line edits, complete dependency tracing, table targets, and the full
 ambiguity fixture set remain incomplete. This code does not establish the
 M1 exit gate.
 
@@ -121,8 +138,8 @@ provider settings or keys. The tests cover scope capture, redeclarations,
 dividers, frozen values, source privacy, exact value encoding, strict
 response checks, body privacy, request count, redirect refusal, and limits.
 
-The editor has an explicit source review and acceptance path for one physical
-line. Paragraph and table targets, automatic scheduling, complete dependency
+The editor has a source review and acceptance path for complete physical
+lines. Partial selections, table targets, automatic scheduling, complete dependency
 records, model evaluation, and user sessions remain part of the full
 [implementation plan](../plans/ai-expression-suggestions.md).
 
@@ -186,8 +203,7 @@ The cache still needs complete dependency and rate fingerprints. Editor
 session state must also retain dismissed outcomes before automatic mode
 can use this coordinator.
 
-The coordinator passed twenty tests with synthetic replies and a virtual
-clock. These tests cover request counts, context permission, exact request
+The coordinator tests use synthetic replies and a virtual clock. These tests cover request counts, context permission, exact request
 bodies, deadlines, late replies, window priority, automatic limits, and
 cache eviction. They do not establish the M2 or release exit gate.
 
@@ -207,10 +223,11 @@ answer, total, export result, or Copy Result value.
 
 Apply takes a fresh native snapshot and checks the complete source change.
 `AssistanceSourceEdit` contains the checked edit and its local evaluation.
-The accepted expression stays on the original physical line. Historical
-request comments follow that line. Approved task notes and assumptions also
-remain in source. Existing references retain the expression's identity;
-references to later lines move through the native reference transformation.
+Accepted calculations replace the selected lines. A source comment keeps
+each original selected line. These historical records follow the working.
+Approved task notes and assumptions also remain in source. Existing
+references use the reviewed result choice when necessary.
+References to later lines use the native reference transformation.
 The editor applies the patches through `SheetSourceCoordinator` in one Undo
 transaction. Undo and Redo restore the source and selection together.
 
@@ -220,9 +237,9 @@ provider changes, and native namespace changes make the preview stale.
 Closing its window or hiding Quick Ganit cancels the suggestion. If a fresh
 local result differs, Apply first updates the preview for another review.
 
-The current selection must be one complete physical line. A partial line
-or a multi-line selection shows a scope error. These targets still need
-implementation; this restriction does not complete or reduce the plan.
+The selection must contain complete physical lines. A partial line or a
+table target shows a scope error. These targets still need implementation.
+This restriction does not complete or reduce the plan.
 The current card is in the editor review area. Placement beside the target,
 full accessibility review, real IMEs, visual checks, and release measurements
 still need work. No phase exit gate is complete.

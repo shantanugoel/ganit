@@ -14,6 +14,11 @@ public struct AssistanceSnapshot: Sendable {
   public let source: SheetSource
   public let context: EvaluationContext
   public let target: SheetLine
+  public let targetLines: [SheetLine]
+  public var targetRange: Range<Int> {
+    targetLines[0].range.lowerBound..<targetLines[targetLines.count - 1].range.upperBound
+  }
+  public let targetText: String
   public let evaluation: SheetEvaluation
   public private(set) var inventory: [AssistanceSymbol]
   public private(set) var notes: [AssistanceNote]
@@ -22,27 +27,35 @@ public struct AssistanceSnapshot: Sendable {
 
   package init(
     source: SheetSource, context: EvaluationContext, target: SheetLine,
-    evaluation: SheetEvaluation, scope: AssistanceScope, calculator: SheetCalculator
+    evaluation: SheetEvaluation, scope: AssistanceScope, calculator: SheetCalculator,
+    targetLines: [SheetLine]? = nil
   ) {
     self.source = source
     self.context = context
     self.target = target
+    let selected = targetLines ?? [target]
+    self.targetLines = selected
+    self.targetText = selected.enumerated().map { index, line in
+      line.text + (index == selected.count - 1 ? "" : line.terminator?.rawValue ?? "\n")
+    }.joined()
     self.evaluation = evaluation
     self.scope = scope
     self.calculator = calculator
     let targetIndex = source.lines.firstIndex { $0.id == target.id }!
-    let originalReferences: Set<LineReference>
-    if case .calculation(_, _, let range?, _) = LineSyntax(target.text),
-      let expressionText = range.text(in: target.text)
-    {
-      originalReferences =
-        scope.engine.parse(
-          String(expressionText), context: context,
-          variables: scope.names.mapValues { $0?.kind ?? .number }
-        ).expression?.references ?? []
-    } else {
-      originalReferences = []
+    var originalReferences: Set<LineReference> = []
+    for line in self.targetLines {
+      if case .calculation(_, _, let range?, _) = LineSyntax(line.text),
+        let text = range.text(in: line.text)
+      {
+        originalReferences.formUnion(
+          scope.engine.parse(
+            String(text), context: context,
+            variables: scope.names.mapValues { $0?.kind ?? .number }
+          ).expression?.references ?? [])
+      }
     }
+    let selectedNames = SheetCalculator.assistanceMatches(
+      in: self.targetText, scope: scope, context: context)
     let referenced = Set(
       originalReferences.flatMap { scope.outcomes.lineNumbers(for: $0) ?? [] }.map {
         source.lines[$0 - 1].id
@@ -51,7 +64,7 @@ public struct AssistanceSnapshot: Sendable {
       AssistanceSymbol(
         handle: "S\(index + 1)", name: name, declaration: scope.origins[name],
         value: scope.names[name] ?? nil,
-        matchesTarget: scope.matches.contains(name)
+        matchesTarget: scope.matches.contains(name) || selectedNames.contains(name)
           || scope.origins[name].map { referenced.contains($0.id) } == true,
         kind: "variable", unreviewed: scope.unreviewedNames.contains(name))
     }
@@ -74,7 +87,8 @@ public struct AssistanceSnapshot: Sendable {
       symbols.append(
         AssistanceSymbol(
           handle: "F\(index + 1)", name: name,
-          declaration: nil, value: nil, matchesTarget: scope.functionMatches.contains(name),
+          declaration: nil, value: nil,
+          matchesTarget: scope.functionMatches.contains(name) || selectedNames.contains(name),
           kind: "function", unreviewed: function.hasUnreviewedCapture, function: function))
     }
     inventory = symbols
@@ -145,10 +159,15 @@ public struct AssistanceSnapshot: Sendable {
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.sortedKeys]
     let evidence = evidence(including: handles)
-    let diagnostics = AssistanceDiagnostic.records(
-      evaluation.lines.first { $0.id == target.id }?.result)
+    let diagnostics = targetLines.flatMap { line in
+      AssistanceDiagnostic.records(
+        evaluation.lines.first { $0.id == line.id }?.result,
+        origin: SourceLocation(
+          utf8Offset: line.range.lowerBound - target.range.lowerBound,
+          graphemeOffset: line.range.graphemeLowerBound - target.range.graphemeLowerBound))
+    }
     let catalog = scope.engine.assistanceCatalog(
-      for: target.text + "\n" + notes.map(\.source).joined(separator: "\n"), context: context)
+      for: targetText + "\n" + notes.map(\.source).joined(separator: "\n"), context: context)
     let encodedSymbols = try symbols.map {
       try SymbolRecord($0, engine: scope.engine, context: context)
     }
@@ -163,7 +182,7 @@ public struct AssistanceSnapshot: Sendable {
     }
     let data = try encoder.encode(
       PermittedContext(
-        target: TargetRecord(handle: "T1", source: target.text), notes: notes,
+        target: TargetRecord(handle: "T1", source: targetText), notes: notes,
         symbols: encodedSymbols, settings: SettingsRecord(context),
         evidence: evidence, catalog: catalog, diagnostics: diagnostics))
     guard data.count <= SuggestionLimits.requestBytes else {

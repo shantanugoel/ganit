@@ -28,7 +28,7 @@ extension AssistanceSnapshot {
 
   public func evidence(including handles: Set<String> = []) -> [AssistanceEvidence] {
     var records: [AssistanceEvidence] = []
-    var sources = [("T1", target.text)]
+    var sources = [("T1", targetText)]
     sources += notes.enumerated().filter { !$0.element.historical }.map {
       ("N\($0.offset + 1)", $0.element.source)
     }

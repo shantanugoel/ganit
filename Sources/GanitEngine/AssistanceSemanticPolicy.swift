@@ -141,14 +141,16 @@ struct AssistanceSemanticPolicy {
 extension AssistanceSnapshot {
   public var taskText: String {
     let noteText = notes.filter { !$0.historical }.map(\.source).joined(separator: "\n")
-    guard case .calculation(_, _, let range?, let comment) = LineSyntax(target.text),
-      let expression = range.text(in: target.text),
-      scope.engine.parse(
-        String(expression), context: context,
-        variables: scope.names.mapValues { $0?.kind ?? .number }
-      ).expression != nil
-    else { return noteText + "\n" + target.text }
-    // A variable name alone does not state the expected result dimension.
-    return noteText + "\n" + (comment?.text(in: target.text).map(String.init) ?? "")
+    let tasks = targetLines.map { line -> String in
+      guard case .calculation(_, _, let range?, let comment) = LineSyntax(line.text),
+        let expression = range.text(in: line.text),
+        scope.engine.parse(
+          String(expression), context: context,
+          variables: scope.names.mapValues { $0?.kind ?? .number }
+        ).expression != nil
+      else { return line.text }
+      return comment?.text(in: line.text).map(String.init) ?? ""
+    }
+    return noteText + "\n" + tasks.joined(separator: "\n")
   }
 }

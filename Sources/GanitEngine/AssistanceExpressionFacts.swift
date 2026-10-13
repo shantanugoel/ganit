@@ -12,6 +12,7 @@ struct AssistanceExpressionFacts {
   var identifiers: Set<String> = []
   var calls: Set<String> = []
   var references: Set<LineReference> = []
+  var resourceLimited = false
   var containsAssistant = false
   var readsClock = false
   var unitConstants: [Int] = []
@@ -22,7 +23,13 @@ struct AssistanceExpressionFacts {
     _ expression: Expression, source: String, engine: CalculationEngine, context: EvaluationContext
   ) {
     var work: [(Expression, String?)] = [(expression, nil)]
+    var visited = 0
     while let (node, structuralRule) = work.popLast() {
+      visited += 1
+      guard visited <= EvaluationLimits.default.maximumOperations, !Task.isCancelled else {
+        resourceLimited = true
+        return
+      }
       switch node {
       case .literal(_, let range):
         let text = range.text(in: source).map(String.init) ?? ""
@@ -110,6 +117,19 @@ struct AssistanceExpressionFacts {
         inspect(unit)
       }
     }
+  }
+
+  mutating func include(_ other: AssistanceExpressionFacts) {
+    resourceLimited = resourceLimited || other.resourceLimited
+    literals += other.literals
+    identifiers.formUnion(other.identifiers)
+    calls.formUnion(other.calls)
+    references.formUnion(other.references)
+    containsAssistant = containsAssistant || other.containsAssistant
+    readsClock = readsClock || other.readsClock
+    unitConstants += other.unitConstants
+    unitIdentifiers.formUnion(other.unitIdentifiers)
+    temporal += other.temporal
   }
 
   static func isPrimitive(_ expression: Expression) -> Bool {

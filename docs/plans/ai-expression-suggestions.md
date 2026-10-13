@@ -695,72 +695,45 @@ remain authoritative until the implementation and release updates occur.
 
 ## 13. Implementation progress
 
-The first code change adds the version 1 response contract, strict JSON
-checks, exact value encoding, and an immutable local scope snapshot.
-It also adds an injected transport interface. Each transport call sends
-one request. The transport has no retry loop.
+Implementation is in progress. No phase exit gate is complete.
 
-Tests use synthetic response data and separate test HTTP servers on random
-loopback ports. Do not use the user's configured local AI server. Do not
-read the user's provider settings or API key in tests.
+The code includes the version 1 response contract, strict JSON checks,
+exact value encoding, native scope snapshots, evidence, diagnostic spans,
+and the generated capability catalog. Local candidate checks use the
+existing engine. Custom function records retain source and capture data.
 
-See [the current API contract](../engine/assistance-contracts.md). The code
-is a foundation for the new feature. It is not connected to editor actions.
-No phase is complete. The remaining work includes the capability catalog,
-evidence and dependency records, candidate checks, semantic choice rules,
-the bounded coordinator, editor acceptance, table targets, the automatic
-scheduler, removal of the legacy path, and all remaining release gates.
+The coordinator uses an injected transport and clock. It controls context
+permission, corrections, cancellation, deadlines, request counts, and a
+bounded memory cache. Native checking uses a separate cancellable task.
+The inspector and coordinator use the same context encoder. A separate
+user control permits an input revision. That control is off by default.
 
-The next code change adds app-owned evidence, native diagnostic spans, a
-generated capability catalog, and local candidate checks. Independent tests
-cover profit basis, tax base and inclusion, tip and split rules, volume
-repairs, nominal monthly rates, scoped references, downstream failures,
-clock expressions, and legacy model provenance. The checks passed 650
-engine tests and 50 data tests. These tests use no model.
+The editor prepares context before Send. Its temporary card shows source,
+local results, choices, assumptions, and clarification. Apply checks a fresh
+snapshot and uses the existing source coordinator for one Undo operation.
+The application shares one coordinator across Workspace and Quick Ganit.
+It no longer attaches the legacy model-answer callbacks. Legacy engine and
+editor APIs still need removal.
 
-No phase exit gate is complete. Complete dependency and function context,
-paragraph and table targets, the request coordinator, source acceptance,
-automatic scheduling, legacy removal, and the remaining release gates still
-need work.
+The target can now contain complete adjacent physical lines. The limit is
+12 lines and 8 KiB. Proposed working can contain several calculation lines.
+The last line supplies the preview. Derived names bind to actual earlier
+output declarations. Derived values cannot supply new evidence. Expanded
+working must stay within native operation and depth limits.
 
-The request coordinator now has an injected transport and clock, session
-permission checks, bounded corrections, context approval, cancellation,
-deadlines, request accounting, and a bounded memory cache. Twenty tests
-use synthetic replies and a virtual clock. The editor does not use the
-coordinator yet. Complete dependency fingerprints, session dismissal,
-editor acceptance, and the remaining phase requirements still need work.
-No phase exit gate is complete.
+Apply retains each original selected line as a historical source comment.
+An ambiguous existing reference requires a user choice of the new result.
+Tests cover paragraph separators, derived inputs, evidence limits, original
+names and comments, native errors, reference choices, and Undo and Redo.
+Cache tests also check that an approved input revision stays approved.
 
-The explicit editor path now prepares context before Send. Its temporary
-card supports local previews, choices, assumption approval, clarification,
-and source acceptance through the existing Undo coordinator. Independent
-checks cover retained working, Unicode ranges, reference identity, and
-local downstream results. Editor tests cover ordinary and Markdown sheets,
-Quick Ganit, Undo and Redo, reopened source, late replies, and keyboard
-behavior. These tests use synthetic replies only.
+Tests use synthetic responses and separate HTTP servers on random loopback
+ports. Do not use the user's configured local AI server. Do not read the
+user's provider settings or API key in tests.
 
-The app shares one suggestion coordinator and no longer attaches its legacy
-model-answer callbacks. Legacy engine and editor APIs still need removal.
-Paragraph and table targets, complete dependency context, automatic events,
-inline placement, and remaining accessibility and release checks are not
-complete. No phase exit gate is complete.
-
-Selected custom functions now retain native source identities and exact
-capture records. Tests cover original declarations, nested function
-versions, imported records, compiled units, source identity, context limits,
-and failed or unreviewed captures. Material choices are part of request
-and reuse keys. Complete scalar and table dependency records, rate
-provenance, paragraph and table targets, automatic events, and the remaining
-release checks still need work. No phase exit gate is complete.
-
-Native checking now uses a separate cancellable task. Ordinary evaluation
-keeps its calculation worker. A cancelled caller makes no wire request.
-Clarifications use native name and reference matching for the new reviewed
-scope. The inspector and coordinator share one context encoder. A separate
-user control permits an explicit input revision; it is off by default.
-Tests cover an approved denominator change and retained working. Complete
-dependency records, paragraph and table targets, automatic events, and the
-remaining release checks are still incomplete. No phase exit gate is complete.
+Complete dependency records, rate provenance, partial selections, table
+targets, automatic events, placement beside the target, accessibility,
+real IMEs, legacy removal, and remaining release checks still need work.
 
 A paired release editor benchmark used separate baseline and candidate
 builds on the same development Mac. No provider settings were loaded.
@@ -768,4 +741,4 @@ No AI request was sent. Both builds failed the existing edit latency gates.
 The candidate results were close to the baseline results. See
 [the performance record](../../Benchmarks/Results/ai-expression-suggestions-2026-10-13/README.md).
 The gates remain unchanged. Active-job performance and the other required
-release checks still need work. No phase exit gate is complete.
+release checks still need work.

@@ -239,13 +239,39 @@ public struct SheetCalculator: Sendable {
     guard line.text.utf8.count <= SuggestionLimits.targetBytes else {
       throw AssistanceSnapshotError.targetTooLarge
     }
+    return try assistanceSnapshot(sheet, context: context, targets: [target])
+  }
+
+  /// The selected physical lines form one app-owned source target.
+  public mutating func assistanceSnapshot(
+    _ sheet: SheetSource, context: EvaluationContext,
+    targets: [LineID]
+  ) throws -> AssistanceSnapshot {
+    guard let first = targets.first,
+      let start = sheet.lines.firstIndex(where: { $0.id == first }),
+      !targets.isEmpty, start + targets.count <= sheet.lines.count,
+      Array(sheet.lines[start..<(start + targets.count)].map(\.id)) == targets
+    else {
+      throw AssistanceSnapshotError.unknownTarget
+    }
+    let lines = Array(sheet.lines[start..<(start + targets.count)])
+    let range = lines[0].range.lowerBound..<lines[lines.count - 1].range.upperBound
+    guard targets.count <= SuggestionLimits.targetLines, range.count <= SuggestionLimits.targetBytes
+    else {
+      throw AssistanceSnapshotError.targetTooLarge
+    }
+    guard
+      !TableSourceDocument.blockLineRanges(in: sheet).contains(where: {
+        $0.overlaps(start..<(start + targets.count))
+      })
+    else { throw AssistanceSnapshotError.unsupportedTarget }
     var captured: AssistanceScope?
     let evaluation = try evaluateCapturingAssistance(
-      sheet, context: context, target: target, captured: &captured)
+      sheet, context: context, target: first, captured: &captured)
     guard let captured else { throw AssistanceSnapshotError.unsupportedTarget }
     return AssistanceSnapshot(
-      source: sheet, context: context, target: line, evaluation: evaluation,
-      scope: captured, calculator: self)
+      source: sheet, context: context, target: lines[0],
+      evaluation: evaluation, scope: captured, calculator: self, targetLines: lines)
   }
 
   private mutating func evaluateCapturingAssistance(

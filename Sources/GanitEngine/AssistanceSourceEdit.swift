@@ -8,6 +8,7 @@ public struct AssistanceSourceEdit: Sendable {
   public let target: LineID
   public let evaluation: SheetEvaluation
   public let checked: AssistanceCheckedCandidate
+  package let referenceMapping: [Int: Int]
   package let patches: [TableSourcePatch]
 }
 
@@ -25,15 +26,15 @@ extension AssistanceCandidateChecker {
     guard checked.isApplicable else {
       throw AssistanceValidationFailure(.relation, "Review each required choice and assumption.")
     }
-    let target = snapshot.target
+    let target = snapshot.targetLines.last!
     let separator = target.terminator?.rawValue ?? "\n"
-    var comments = ["// Request record: " + target.text]
+    var comments = snapshot.targetLines.map { "// Request record: " + $0.text }
     comments += snapshot.notes.filter { $0.source.hasPrefix("// Task: ") }.map {
       "// Task record: " + String($0.source.dropFirst("// Task: ".count))
     }
     comments += candidate.assumptions.map { "// Approved assumption: " + oneLine($0.text) }
-    // Keep the expression on the original line. The record follows its
-    // terminator, so an existing reference retains that expression's identity.
+    // Put historical records after the proposed working. Existing references
+    // use the reviewed mapping through the same source transaction.
     let insertion = target.range.upperBound + (target.terminator?.rawValue.utf8.count ?? 0)
     let record =
       (target.terminator == nil ? separator : "")
@@ -55,7 +56,8 @@ extension AssistanceCandidateChecker {
     }
     let rewrites = LineReferenceRenumbering.edits(
       replacing: ranges, in: original, with: patches.map(\.replacement),
-      configuration: snapshot.context.lexingConfiguration)
+      configuration: snapshot.context.lexingConfiguration,
+      targetLineMapping: checked.referenceMapping)
     for rewrite in rewrites.reversed() {
       let text = shadow.text
       guard let range = Range(rewrite.range, in: text) else {
@@ -70,14 +72,23 @@ extension AssistanceCandidateChecker {
     var calculator = snapshot.calculator
     let baseline = try calculator.evaluate(snapshot.source, context: context)
     let evaluation = try calculator.evaluate(shadow, context: context)
-    guard let line = evaluation.lines.first(where: { $0.id == target.id }),
+    let outputCount = SheetSource(candidate.edits[0].replacement).lines.count
+    guard let firstOutput = shadow.lines.firstIndex(where: { $0.id == snapshot.target.id }),
+      firstOutput + outputCount <= shadow.lines.count
+    else {
+      throw AssistanceValidationFailure(
+        .invalidBounds, "The result line no longer has its source identity.")
+    }
+    let resultID = shadow.lines[firstOutput + outputCount - 1].id
+    guard let line = evaluation.lines.first(where: { $0.id == resultID }),
       case .value(let value) = line.result,
       assistanceValuesEqual(value, checked.result, context: context)
     else {
       throw AssistanceValidationFailure(.downstreamFailure, "The source record changes the result.")
     }
     let before = Dictionary(uniqueKeysWithValues: baseline.lines.map { ($0.id, $0.result) })
-    for line in evaluation.lines where line.id != target.id {
+    let selectedIDs = Set(snapshot.targetLines.map(\.id))
+    for line in evaluation.lines where !selectedIDs.contains(line.id) {
       switch line.result {
       case .syntaxFailure, .evaluationFailure:
         guard before[line.id] == .some(line.result) else {
@@ -99,8 +110,9 @@ extension AssistanceCandidateChecker {
       }
     }
     return AssistanceSourceEdit(
-      sourceBefore: original, sourceAfter: shadow.text, target: target.id,
-      evaluation: evaluation, checked: checked, patches: patches)
+      sourceBefore: original, sourceAfter: shadow.text, target: snapshot.target.id,
+      evaluation: evaluation, checked: checked, referenceMapping: checked.referenceMapping,
+      patches: patches)
   }
 
   private static func oneLine(_ text: String) -> String {

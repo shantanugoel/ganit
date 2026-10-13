@@ -411,7 +411,7 @@ public actor SuggestionCoordinator {
           if let value = try? await SuggestionLocalChecking.check(
             candidate, snapshot: input.snapshot,
             handles: input.includedRecords, choices: input.choices,
-            assumptions: input.approvedAssumptions)
+            assumptions: input.approvedAssumptions, userRevisedInputs: input.userRevisedInputs)
           {
             checked.append(value)
           }

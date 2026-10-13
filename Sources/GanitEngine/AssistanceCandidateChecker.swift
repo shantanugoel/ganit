@@ -25,6 +25,7 @@ public struct AssistanceValidationFailure: Error, Sendable {
 public struct AssistanceCheckedCandidate: Sendable {
   public let candidate: SuggestionCandidate
   public let result: EngineValue
+  public let resultLineID: LineID
   public let evaluation: SheetEvaluation
   public let choices: [AssistanceChoice]
   public let interpretation: String
@@ -35,6 +36,7 @@ public struct AssistanceCheckedCandidate: Sendable {
   public let rateUses: Set<CurrencyRateUse>
   public let requiresAssumptionApproval: Bool
   public let readsClock: Bool
+  package let referenceMapping: [Int: Int]
   package let patches: [TableSourcePatch]
 
   public var isApplicable: Bool { choices.isEmpty && !requiresAssumptionApproval }
@@ -52,75 +54,53 @@ public enum AssistanceCandidateChecker {
         .unauthorizedEdit, "The proposal does not match the permitted target.")
     }
     let originalResult = snapshot.evaluation.lines.first { $0.id == snapshot.target.id }?.result
-    if !userRevisedInputs, case .evaluationFailure(let error) = originalResult,
-      [
-        .divisionByZero, .invalidDomain, .invalidDate, .invalidTime, .nonexistentLocalTime,
-        .ambiguousLocalTime, .dateOutOfRange, .missingCurrencyRate, .currencyRatesUnavailable,
-        .resourceLimitExceeded,
-      ].contains(error.code)
-    {
-      throw AssistanceValidationFailure(
-        .evaluation,
-        "The supplied inputs still have a native calculation error. Supply a revised input or constraint.",
-        engineResult: originalResult)
-    }
-    let replacement = candidate.edits[0].replacement
-    guard replacement.utf8.count <= SuggestionLimits.replacementBytes,
-      !replacement.contains("\n"), !replacement.contains("\r"), !replacement.isEmpty
-    else {
-      throw AssistanceValidationFailure(
-        .invalidBounds, "Use one bounded expression for this target.")
-    }
-    guard
-      case .calculation(let label, let name, let expressionRange?, let comment) = LineSyntax(
-        replacement),
-      let expressionText = expressionRange.text(in: replacement)
-    else {
-      throw AssistanceValidationFailure(
-        .unsupportedOperation, "The edit must contain a calculation.")
-    }
-    if let name, let declared = name.text(in: replacement),
-      snapshot.scope.engine.variableName(in: String(declared), context: snapshot.context) == nil
-    {
-      throw AssistanceValidationFailure(
-        .unsupportedOperation, "A proposal cannot add a unit, rate, or function definition.")
-    }
-    let original = LineSyntax(snapshot.target.text)
-    if case .calculation(let oldLabel, let oldName, _, let oldComment) = original {
-      for (before, after) in [(oldLabel, label), (oldName, name), (oldComment, comment)] {
-        if let before, before.text(in: snapshot.target.text) != after?.text(in: replacement) {
+    if !userRevisedInputs {
+      let selected = Set(snapshot.targetLines.map(\.id))
+      for line in snapshot.evaluation.lines where selected.contains(line.id) {
+        if case .evaluationFailure(let error) = line.result,
+          [
+            .divisionByZero, .invalidDomain, .invalidDate, .invalidTime, .nonexistentLocalTime,
+            .ambiguousLocalTime, .dateOutOfRange, .missingCurrencyRate, .currencyRatesUnavailable,
+            .resourceLimitExceeded,
+          ].contains(error.code)
+        {
           throw AssistanceValidationFailure(
-            .changedDeclaration, "Keep the existing label, name, and comment.")
+            .evaluation,
+            "The supplied inputs still have a native calculation error. Supply a revised input or constraint.",
+            engineResult: line.result)
         }
       }
     }
+    let replacement = candidate.edits[0].replacement
+    let plan = try AssistanceProposalPlan(candidate, snapshot: snapshot, choices: selectedChoices)
+    let expression = plan.expression
+    let facts = plan.facts
     let variables = snapshot.scope.names.mapValues { $0?.kind ?? .number }
-    let parsing = snapshot.scope.engine.parse(
-      String(expressionText), context: snapshot.context,
-      origin: SourceLocation(
-        utf8Offset: expressionRange.lowerBound, graphemeOffset: expressionRange.graphemeLowerBound),
-      variables: variables)
-    guard let expression = parsing.expression else {
+    guard !facts.resourceLimited else {
+      try Task.checkCancellation()
       throw AssistanceValidationFailure(
-        .syntax, "The proposed expression does not parse.",
-        ranges: parsing.diagnostics.map(\.range), engineResult: .syntaxFailure(parsing.diagnostics))
+        .evaluation, "The working exceeds the native operation limit.",
+        engineResult: .evaluationFailure(EngineError(code: .resourceLimitExceeded)))
     }
-    let facts = AssistanceExpressionFacts(
-      expression, source: replacement, engine: snapshot.scope.engine, context: snapshot.context)
     guard !facts.containsAssistant,
       facts.unitIdentifiers.isDisjoint(with: snapshot.scope.unreviewedUnits)
     else {
       throw AssistanceValidationFailure(
         .unsupportedOperation, "A proposal cannot call ask_assistant.")
     }
-    let permitted = snapshot.inventory.filter {
+    let inputs = snapshot.inventory.filter {
       $0.matchesTarget || permittedHandles.contains($0.handle)
     }
+    let permitted = inputs + plan.locals
     guard permittedHandles.isSubset(of: Set(snapshot.inventory.map(\.handle))) else {
       throw AssistanceValidationFailure(.unknownBinding, "The context handle is not supplied.")
     }
     guard
-      userRevisedInputs || !permitted.contains(where: { $0.kind == "variable" && $0.value == nil })
+      userRevisedInputs
+        || !snapshot.inventory.contains(where: {
+          ($0.matchesTarget || permittedHandles.contains($0.handle)) && $0.kind == "variable"
+            && $0.value == nil
+        })
     else {
       throw AssistanceValidationFailure(
         .evaluation, "A required input is unavailable. Supply that input before calculating.",
@@ -152,7 +132,9 @@ public enum AssistanceCandidateChecker {
       throw AssistanceValidationFailure(.unknownBinding, "A symbol has more than one binding.")
     }
     for symbol in facts.identifiers {
-      if let record = snapshot.inventory.first(where: { $0.name == symbol }) {
+      if let expected = plan.variableBindings[symbol],
+        let record = (snapshot.inventory + plan.locals).first(where: { $0.handle == expected })
+      {
         guard !record.unreviewed, permitted.contains(where: { $0.handle == record.handle }),
           bindings[symbol] == record.handle
         else {
@@ -163,12 +145,9 @@ public enum AssistanceCandidateChecker {
         throw AssistanceValidationFailure(.unknownBinding, "The symbol is not declared: " + symbol)
       }
     }
-    let referenceNumbers = Set(
-      facts.references.flatMap { snapshot.scope.outcomes.lineNumbers(for: $0) ?? [] })
+    let referenceNumbers = Set(plan.referenceNumbers.keys)
     let referenceRecords = permitted.filter { record in
-      record.declaration.map { declaration in
-        referenceNumbers.contains { snapshot.source.lines[$0 - 1].id == declaration.id }
-      } == true
+      record.declaration.map { plan.referenceNumbers.values.contains($0.id) } == true
     }
     let referenceBindings = Set(referenceNumbers.map { "@\($0)" } + referenceRecords.map(\.name))
     for binding in candidate.bindings where referenceBindings.contains(binding.symbol.lowercased())
@@ -178,8 +157,8 @@ public enum AssistanceCandidateChecker {
           record.handle == binding.source
             && (record.name == binding.symbol.lowercased()
               || record.declaration.map { declaration in
-                referenceNumbers.contains {
-                  "@\($0)" == binding.symbol && snapshot.source.lines[$0 - 1].id == declaration.id
+                plan.referenceNumbers.contains {
+                  "@\($0.key)" == binding.symbol && $0.value == declaration.id
                 }
               } == true)
         })
@@ -215,12 +194,13 @@ public enum AssistanceCandidateChecker {
         }.map(\.line)
       }
     }
-    let allowedChoices: [String: Set<String>] = [
+    var allowedChoices: [String: Set<String>] = [
       "profit_basis": ["cost", "sale"], "rate_period": ["nominal", "effective"],
       "tax_inclusion": ["included", "excluded"], "split_exclusions": ["exclude", "separate"],
       "date_order": ["day_month", "month_day"],
       "expected_dimension": ["proposed", "edit_request"],
     ]
+    allowedChoices.merge(plan.referenceOptions) { first, _ in first }
     guard selectedChoices.allSatisfy({ allowedChoices[$0.key]?.contains($0.value) == true }) else {
       throw AssistanceValidationFailure(
         .relation, "The selected interpretation is not a supplied choice.")
@@ -344,19 +324,38 @@ public enum AssistanceCandidateChecker {
       throw AssistanceValidationFailure(
         .missingEvidence, "An assumption has no supplied task evidence.")
     }
-    var shadow = snapshot.source
-    shadow.replace(
-      utf8Range: snapshot.target.range.lowerBound..<snapshot.target.range.upperBound,
-      with: replacement)
+    guard plan.locals.allSatisfy({ $0.value != nil }) else {
+      throw AssistanceValidationFailure(
+        .evaluation, "Every line of the proposed working must calculate.")
+    }
+    var shadow = plan.shadow
+    let originalText = snapshot.source.text
+    let utf8 = originalText.utf8
+    let lower = utf8.index(utf8.startIndex, offsetBy: snapshot.targetRange.lowerBound)
+    let upper = utf8.index(utf8.startIndex, offsetBy: snapshot.targetRange.upperBound)
+    let rewrites = LineReferenceRenumbering.edits(
+      replacing: NSRange(lower..<upper, in: originalText),
+      in: originalText, with: replacement, configuration: snapshot.context.lexingConfiguration,
+      targetLineMapping: plan.referenceMapping)
+    for rewrite in rewrites.reversed() {
+      let text = shadow.text
+      guard let range = Range(rewrite.range, in: text) else {
+        throw AssistanceValidationFailure(
+          .invalidBounds, "The reference edit is outside the source.")
+      }
+      let lower = text.utf8.distance(from: text.utf8.startIndex, to: range.lowerBound)
+      let upper = text.utf8.distance(from: text.utf8.startIndex, to: range.upperBound)
+      shadow.replace(utf8Range: lower..<upper, with: rewrite.replacement)
+    }
     // Legacy model values are never evidence for a preview.
     let context = snapshot.context.with(assistantAnswers: [:])
     var calculator = snapshot.calculator
     let safeBaseline = try calculator.evaluate(snapshot.source, context: context)
     let evaluation = try calculator.evaluate(shadow, context: context)
-    guard let line = evaluation.lines.first(where: { $0.id == snapshot.target.id }),
+    guard let line = evaluation.lines.first(where: { $0.id == plan.resultLine }),
       case .value(let result) = line.result
     else {
-      let failed = evaluation.lines.first(where: { $0.id == snapshot.target.id })?.result
+      let failed = evaluation.lines.first(where: { $0.id == plan.resultLine })?.result
       throw AssistanceValidationFailure(
         .evaluation, "The engine cannot calculate the proposed expression.", engineResult: failed)
     }
@@ -368,7 +367,7 @@ public enum AssistanceCandidateChecker {
       }
     }
     if let basis = policy.profitBasis, policy.task.contains("profit") {
-      let used = permitted.filter { facts.identifiers.contains($0.name) }
+      let used = inputs.filter { facts.identifiers.contains($0.name) }
       let cost = used.first { $0.name == "cost" } ?? (used.count == 1 ? used.first : nil)
       let percent = snapshot.evidence(including: permittedHandles).first { record in
         record.source == "T1"
@@ -433,19 +432,23 @@ public enum AssistanceCandidateChecker {
     }
     try AssistanceTaskConstraints.check(
       result: result, snapshot: snapshot, policy: policy,
-      symbols: permitted,
+      symbols: inputs,
       evidence: Array(evidence.values).sorted {
         Int($0.handle.dropFirst())! < Int($1.handle.dropFirst())!
       })
     var changes: [LineID] = []
-    for (before, after) in zip(safeBaseline.lines, evaluation.lines)
-    where before.id != snapshot.target.id && before.result != after.result {
-      if isFailure(after.result) {
-        throw AssistanceValidationFailure(
-          .downstreamFailure, "The edit introduces a downstream failure.",
-          engineResult: after.result)
+    let beforeResults = Dictionary(uniqueKeysWithValues: safeBaseline.lines.map { ($0.id, $0) })
+    let selected = Set(snapshot.targetLines.map(\.id))
+    for after in evaluation.lines
+    where !plan.outputLines.contains(after.id) && !selected.contains(after.id) {
+      if beforeResults[after.id]?.result != after.result {
+        if isFailure(after.result) {
+          throw AssistanceValidationFailure(
+            .downstreamFailure, "The edit introduces a downstream failure.",
+            engineResult: after.result)
+        }
+        changes.append(after.id)
       }
-      changes.append(after.id)
     }
     for table in evaluation.tables {
       guard let current = table.calculation else { continue }
@@ -457,12 +460,7 @@ public enum AssistanceCandidateChecker {
         }
       }
     }
-    let referenceIDs = facts.references.flatMap {
-      snapshot.scope.outcomes.lineNumbers(for: $0) ?? []
-    }.compactMap { number -> LineID? in
-      snapshot.source.lines.indices.contains(number - 1)
-        ? snapshot.source.lines[number - 1].id : nil
-    }
+    let referenceIDs = Array(Set(plan.referenceNumbers.values))
     guard
       referenceIDs.allSatisfy({ id in
         permitted.contains { $0.declaration?.id == id && !$0.unreviewed }
@@ -472,10 +470,10 @@ public enum AssistanceCandidateChecker {
         .unknownBinding, "A line reference is outside the permitted context.")
     }
     return AssistanceCheckedCandidate(
-      candidate: candidate, result: result, evaluation: evaluation,
+      candidate: candidate, result: result, resultLineID: plan.resultLine, evaluation: evaluation,
       choices: policy.requiredChoices(
         snapshot: snapshot, result: result, usedSymbols: facts.identifiers,
-        literalValues: facts.literals.map(\.value)),
+        literalValues: facts.literals.map(\.value)) + plan.referenceChoices,
       interpretation: candidate.summary,
       referencedLineIDs: referenceIDs + functionReferences
         + permitted.filter { facts.identifiers.contains($0.name) }.compactMap { $0.declaration?.id },
@@ -483,10 +481,11 @@ public enum AssistanceCandidateChecker {
       rateUses: line.rateUses,
       requiresAssumptionApproval: !Set(candidate.assumptions.map(\.id)).isSubset(
         of: approvedAssumptions), readsClock: facts.readsClock || line.usesClock,
+      referenceMapping: plan.referenceMapping,
       patches: [
         TableSourcePatch(
-          utf8Range: snapshot.target.range.lowerBound..<snapshot.target.range.upperBound,
-          expected: snapshot.target.text, replacement: replacement)
+          utf8Range: snapshot.targetRange,
+          expected: snapshot.targetText, replacement: replacement)
       ])
   }
 
