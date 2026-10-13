@@ -112,7 +112,10 @@ func onlyTheRatesAndTheAssistantReachTheNetworkFromGanitsOwnCode() throws {
       source.contains($0)
     }
   }
-  #expect(Set(networking.map(\.lastPathComponent)) == ["RateDownloader.swift", "Assistant.swift"])
+  #expect(
+    Set(networking.map(\.lastPathComponent))
+      == ["RateDownloader.swift", "Assistant.swift", "SuggestionTransport.swift"])
+  #expect(networking.allSatisfy { $0.deletingLastPathComponent().lastPathComponent == "GanitData" })
 }
 
 /// The updater's settings are the whole of its privacy promise: it looks for

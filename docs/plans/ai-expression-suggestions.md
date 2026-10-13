@@ -2,7 +2,7 @@
 
 Date: 2026-10-13
 
-Status: Ready for implementation review. Implementation has not started.
+Status: Implementation is in progress. No phase exit gate is complete.
 
 Selected direction: Option 2, an editor that suggests calculation expressions
 and repairs. This plan does not introduce a live English document model.
@@ -600,7 +600,7 @@ VoiceOver, text scaling, real IMEs, and Unicode edit ranges.
 
 ## 10. Implementation sequence and exit gates
 
-All phases below are unstarted. Complete the whole slice before marking a
+The implementation has started. Complete the whole slice before marking a
 phase done. A later phase does not replace an earlier safety requirement.
 
 ### M0: Freeze contracts and test data
@@ -692,3 +692,21 @@ establish runtime correctness or completion of any implementation phase.
 The external references support interaction choices. They do not prove
 Ganit's proposed harness or timing limits. The current runtime documents
 remain authoritative until the implementation and release updates occur.
+
+## 13. Implementation progress
+
+The first code change adds the version 1 response contract, strict JSON
+checks, exact value encoding, and an immutable local scope snapshot.
+It also adds an injected transport interface. Each transport call sends
+one request. The transport has no retry loop.
+
+Tests use synthetic response data and separate test HTTP servers on random
+loopback ports. Do not use the user's configured local AI server. Do not
+read the user's provider settings or API key in tests.
+
+See [the current API contract](../engine/assistance-contracts.md). The code
+is a foundation for the new feature. It is not connected to editor actions.
+No phase is complete. The remaining work includes the capability catalog,
+evidence and dependency records, candidate checks, semantic choice rules,
+the bounded coordinator, editor acceptance, table targets, the automatic
+scheduler, removal of the legacy path, and all remaining release gates.

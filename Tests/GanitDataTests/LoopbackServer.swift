@@ -8,6 +8,9 @@ final class LoopbackServer: @unchecked Sendable {
   private let queue = DispatchQueue(label: "LoopbackServer")
   private let body: String
   private let contentType: String
+  private let status: Int
+  private let headers: [String: String]
+  private var receivedCount = 0
   private var received: String?
   private var waiters: [CheckedContinuation<String?, Never>] = []
 
@@ -15,9 +18,14 @@ final class LoopbackServer: @unchecked Sendable {
     listener.port?.rawValue ?? 0
   }
 
-  init(body: String = "<ok/>", contentType: String = "text/xml") throws {
+  init(
+    body: String = "<ok/>", status: Int = 200, contentType: String = "text/xml",
+    headers: [String: String] = [:]
+  ) throws {
     self.body = body
     self.contentType = contentType
+    self.status = status
+    self.headers = headers
     let parameters = NWParameters.tcp
     parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any)
     listener = try NWListener(using: parameters)
@@ -50,6 +58,12 @@ final class LoopbackServer: @unchecked Sendable {
     }
   }
 
+  func requestCount() async -> Int {
+    await withCheckedContinuation { continuation in
+      queue.async { continuation.resume(returning: self.receivedCount) }
+    }
+  }
+
   private func serve(_ connection: NWConnection) {
     connection.start(queue: queue)
     read(connection, so: "")
@@ -67,13 +81,15 @@ final class LoopbackServer: @unchecked Sendable {
       guard isComplete || isWhole(raw) else {
         return read(connection, so: raw)
       }
+      receivedCount += 1
       received = raw
       for waiter in waiters {
         waiter.resume(returning: raw)
       }
       waiters = []
       let response =
-        "HTTP/1.1 200 OK\r\nContent-Type: \(contentType)\r\nContent-Length: \(body.utf8.count)\r\n"
+        "HTTP/1.1 \(status) Fixture\r\nContent-Type: \(contentType)\r\nContent-Length: \(body.utf8.count)\r\n"
+        + headers.keys.sorted().map { "\($0): \(headers[$0]!)\r\n" }.joined()
         + "Connection: close\r\n\r\n\(body)"
       connection.send(
         content: Data(response.utf8),

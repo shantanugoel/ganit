@@ -2,7 +2,7 @@
 
 - Status: Proposed
 - Date: 2026-10-13
-- Implementation: Not started
+- Implementation: In progress; no phase exit gate is complete
 - Companion: [Implementation plan](../plans/ai-expression-suggestions.md)
 - Replaces ADR 0012 only when the new workflow is implemented and released
 

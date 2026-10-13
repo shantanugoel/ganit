@@ -1,4 +1,5 @@
 import Foundation
+import GanitSuggestionProtocol
 
 public struct SheetLineResult: Hashable, Sendable {
   public let id: LineID
@@ -206,6 +207,35 @@ public struct SheetCalculator: Sendable {
     _ sheet: SheetSource,
     context: EvaluationContext
   ) throws -> SheetEvaluation {
+    var captured: AssistanceScope?
+    return try evaluateCapturingAssistance(
+      sheet, context: context, target: nil, captured: &captured)
+  }
+
+  /// Capture the target's native scope in the same pass as its evaluation.
+  /// The normal cache still applies. No other sheet is read or evaluated.
+  public mutating func assistanceSnapshot(
+    _ sheet: SheetSource, context: EvaluationContext, target: LineID
+  ) throws -> AssistanceSnapshot {
+    guard let line = sheet.lines.first(where: { $0.id == target }) else {
+      throw AssistanceSnapshotError.unknownTarget
+    }
+    guard line.text.utf8.count <= SuggestionLimits.targetBytes else {
+      throw AssistanceSnapshotError.targetTooLarge
+    }
+    var captured: AssistanceScope?
+    let evaluation = try evaluateCapturingAssistance(
+      sheet, context: context, target: target, captured: &captured)
+    guard let captured else { throw AssistanceSnapshotError.unsupportedTarget }
+    return AssistanceSnapshot(
+      source: sheet, context: context, target: line, evaluation: evaluation,
+      scope: captured, calculator: self)
+  }
+
+  private mutating func evaluateCapturingAssistance(
+    _ sheet: SheetSource, context: EvaluationContext, target: LineID?,
+    captured: inout AssistanceScope?
+  ) throws -> SheetEvaluation {
     generation += 1
     if context.at(self.context?.now ?? context.now) != self.context {
       cache.removeAll()
@@ -259,6 +289,19 @@ public struct SheetCalculator: Sendable {
         ? cached!.source
         : LineSource(line.text, units, engine, context, tableOperands: tableOperands)
       var evaluation = cached?.source === source ? cached?.evaluation : nil
+      if line.id == target {
+        var origins: [String: SheetLine] = [:]
+        for (previousSource, previousResult) in zip(sheet.lines, results).reversed() {
+          if case .divider = previousResult.syntax { break }
+          if let name = previousResult.declaredVariableName, origins[name] == nil {
+            origins[name] = previousSource
+          }
+        }
+        captured = AssistanceScope(
+          engine: engine, names: scope.all, functions: scope.functions, rates: scope.rates,
+          outcomes: outcomes, origins: origins,
+          matches: Set(scope.values(named: source.words).keys))
+      }
 
       if case .calculation(_, _, let expressionRange?, _) = source.syntax {
         let names = scope.values(named: source.words)
