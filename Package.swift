@@ -135,7 +135,7 @@ let package = Package(
     ),
     .testTarget(
       name: "GanitEngineTests",
-      dependencies: ["GanitEngine"],
+      dependencies: ["GanitEngine", "GanitSuggestionProtocol"],
       // Byte-exact table block fixtures, read through #filePath.
       exclude: ["Fixtures"]
     ),

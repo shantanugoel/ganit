@@ -30,12 +30,46 @@ public struct AssistanceSnapshot: Sendable {
     self.evaluation = evaluation
     self.scope = scope
     self.calculator = calculator
-    inventory = scope.names.keys.sorted().enumerated().map { index, name in
+    let targetIndex = source.lines.firstIndex { $0.id == target.id }!
+    let originalReferences: Set<LineReference>
+    if case .calculation(_, _, let range?, _) = LineSyntax(target.text),
+      let expressionText = range.text(in: target.text)
+    {
+      originalReferences =
+        scope.engine.parse(
+          String(expressionText), context: context,
+          variables: scope.names.mapValues { $0?.kind ?? .number }
+        ).expression?.references ?? []
+    } else {
+      originalReferences = []
+    }
+    let referenced = Set(
+      originalReferences.flatMap { scope.outcomes.lineNumbers(for: $0) ?? [] }.map {
+        source.lines[$0 - 1].id
+      })
+    var symbols = scope.names.keys.sorted().enumerated().map { index, name in
       AssistanceSymbol(
         handle: "S\(index + 1)", name: name, declaration: scope.origins[name],
-        value: scope.names[name] ?? nil, matchesTarget: scope.matches.contains(name))
+        value: scope.names[name] ?? nil,
+        matchesTarget: scope.matches.contains(name)
+          || scope.origins[name].map { referenced.contains($0.id) } == true,
+        kind: "variable", unreviewed: scope.unreviewedNames.contains(name))
     }
-    let targetIndex = source.lines.firstIndex { $0.id == target.id }!
+    for (index, pair) in zip(source.lines[..<targetIndex], evaluation.lines[..<targetIndex])
+      .enumerated()
+    {
+      let (line, result) = pair
+      guard !symbols.contains(where: { $0.declaration?.id == line.id }), let outcome = result.result
+      else { continue }
+      let value: EngineValue?
+      if case .value(let found) = outcome { value = found } else { value = nil }
+      symbols.append(
+        AssistanceSymbol(
+          handle: "R\(line.id.rawValue)", name: "@\(index + 1)",
+          declaration: line, value: value, matchesTarget: referenced.contains(line.id),
+          kind: "line_result", unreviewed: result.hasUnreviewedModelDependency))
+    }
+    inventory = symbols
     var attached: [AssistanceNote] = []
     for line in source.lines[..<targetIndex].reversed() {
       guard case .comment = LineSyntax(line.text) else { break }
@@ -62,15 +96,22 @@ public struct AssistanceSnapshot: Sendable {
     }
     let encoder = JSONEncoder()
     encoder.outputFormatting = [.sortedKeys]
+    let evidence = evidence(including: handles)
+    let diagnostics = AssistanceDiagnostic.records(
+      evaluation.lines.first { $0.id == target.id }?.result)
+    let catalog = scope.engine.assistanceCatalog(
+      for: target.text + "\n" + notes.map(\.source).joined(separator: "\n"), context: context)
     let records = ContextRecords(
-      notes: notes, symbols: symbols.map(SymbolRecord.init), settings: SettingsRecord(context))
+      notes: notes, symbols: symbols.map(SymbolRecord.init), settings: SettingsRecord(context),
+      evidence: evidence, catalog: catalog, diagnostics: diagnostics)
     guard try encoder.encode(records).count <= SuggestionLimits.contextBytes else {
       throw AssistanceSnapshotError.contextTooLarge
     }
     let data = try encoder.encode(
       PermittedContext(
         target: TargetRecord(handle: "T1", source: target.text), notes: notes,
-        symbols: symbols.map(SymbolRecord.init), settings: SettingsRecord(context)))
+        symbols: symbols.map(SymbolRecord.init), settings: SettingsRecord(context),
+        evidence: evidence, catalog: catalog, diagnostics: diagnostics))
     guard data.count <= SuggestionLimits.requestBytes else {
       throw AssistanceSnapshotError.contextTooLarge
     }
@@ -84,18 +125,22 @@ public struct AssistanceSnapshot: Sendable {
   private struct SymbolRecord: Encodable {
     let handle: String
     let name: String
+    let kind: String
     let source: String?
     let origin: String
     let value: AssistanceValue?
     let unavailable: Bool
+    let unreviewed: Bool
 
     init(_ symbol: AssistanceSymbol) {
       handle = symbol.handle
       name = symbol.name
+      kind = symbol.kind
       source = symbol.declaration?.text
       origin = symbol.declaration.map { "line:\($0.id.rawValue)" } ?? "definitions"
-      value = symbol.value.map(AssistanceValue.init)
-      unavailable = symbol.value == nil
+      unreviewed = symbol.unreviewed
+      value = symbol.unreviewed ? nil : symbol.value.map(AssistanceValue.init)
+      unavailable = symbol.value == nil || symbol.unreviewed
     }
   }
   private struct SettingsRecord: Encodable {
@@ -135,12 +180,18 @@ public struct AssistanceSnapshot: Sendable {
     let notes: [AssistanceNote]
     let symbols: [SymbolRecord]
     let settings: SettingsRecord
+    let evidence: [AssistanceEvidence]
+    let catalog: AssistanceCatalog
+    let diagnostics: [AssistanceDiagnostic]
   }
   private struct PermittedContext: Encodable {
     let target: TargetRecord
     let notes: [AssistanceNote]
     let symbols: [SymbolRecord]
     let settings: SettingsRecord
+    let evidence: [AssistanceEvidence]
+    let catalog: AssistanceCatalog
+    let diagnostics: [AssistanceDiagnostic]
   }
 }
 
@@ -150,6 +201,8 @@ public struct AssistanceSymbol: Sendable {
   public let declaration: SheetLine?
   public let value: EngineValue?
   public let matchesTarget: Bool
+  public let kind: String
+  public let unreviewed: Bool
 }
 
 public struct AssistanceNote: Encodable, Sendable {
@@ -175,4 +228,6 @@ package struct AssistanceScope: Sendable {
   let outcomes: LineOutcomes
   let origins: [String: SheetLine]
   let matches: Set<String>
+  let unreviewedNames: Set<String>
+  let unreviewedUnits: Set<String>
 }

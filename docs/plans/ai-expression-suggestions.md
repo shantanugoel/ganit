@@ -710,3 +710,15 @@ No phase is complete. The remaining work includes the capability catalog,
 evidence and dependency records, candidate checks, semantic choice rules,
 the bounded coordinator, editor acceptance, table targets, the automatic
 scheduler, removal of the legacy path, and all remaining release gates.
+
+The next code change adds app-owned evidence, native diagnostic spans, a
+generated capability catalog, and local candidate checks. Independent tests
+cover profit basis, tax base and inclusion, tip and split rules, volume
+repairs, nominal monthly rates, scoped references, downstream failures,
+clock expressions, and legacy model provenance. The checks passed 650
+engine tests and 50 data tests. These tests use no model.
+
+No phase exit gate is complete. Complete dependency and function context,
+paragraph and table targets, the request coordinator, source acceptance,
+automatic scheduling, legacy removal, and the remaining release gates still
+need work.

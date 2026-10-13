@@ -44,7 +44,7 @@ struct AssistanceSnapshotTests {
     let divided = SheetSource("bill = 100\n---\nAdd bill to base")
     let afterDivider = try calculator.assistanceSnapshot(
       divided, context: sheetContext(), target: divided.lines[2].id)
-    #expect(afterDivider.inventory.map(\.name) == ["base"])
+    #expect(afterDivider.inventory.filter { $0.kind == "variable" }.map(\.name) == ["base"])
     #expect(afterDivider.inventory[0].declaration == nil)
   }
 
@@ -84,4 +84,18 @@ struct AssistanceSnapshotTests {
     }
     #expect(calculator.generation == 0)
   }
+  @Test func includesNativeDiagnosticCodesAndRanges() throws {
+    var calculator = SheetCalculator()
+    let sheet = SheetSource("1 / 0")
+    let snapshot = try calculator.assistanceSnapshot(
+      sheet, context: sheetContext(), target: sheet.lines[0].id)
+    let root = try #require(
+      JSONSerialization.jsonObject(with: snapshot.permittedContext()) as? [String: Any])
+    let diagnostics = try #require(root["diagnostics"] as? [[String: Any]])
+    #expect(diagnostics[0]["code"] as? String == "evaluation.divisionByZero")
+    let spans = try #require(diagnostics[0]["spans"] as? [[String: Int]])
+    #expect(spans[0]["utf8Start"] == 4)
+    #expect(spans[0]["utf8End"] == 5)
+  }
+
 }

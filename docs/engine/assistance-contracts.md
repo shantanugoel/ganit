@@ -1,7 +1,7 @@
 # Assistance contracts
 
-Status: Implementation is in progress. This document describes the first
-code change. It does not establish completion of M0, M1, or M2.
+Status: Implementation is in progress. This document describes the current
+code changes. It does not establish completion of M0, M1, or M2.
 
 ## Module boundaries
 
@@ -31,9 +31,14 @@ not encode the complete local source or the unselected inventory. It checks
 byte and record limits. It does not truncate records. Historical request
 comments have an explicit flag. Context keys use a stable order.
 
-Dependency traces, evidence handles, grammar facts, and result constraints
-are not yet part of the encoded context. They must be added before a
-candidate can pass the planned validation sequence.
+The context now contains app-owned literal, temporal, and relation evidence.
+It also contains native diagnostics and a generated capability catalog.
+The catalog reads native function, operator, keyword, unit, and diagnostic
+registries. Its examples have independent expected results in tests.
+
+Function capture records, complete dependency records, table records, and
+selected paragraph targets still need work. A custom function cannot pass
+checking until its required definition is in the permitted context.
 
 ## Response contract
 
@@ -59,6 +64,35 @@ limits. It does not extract source from prose, Markdown, or reasoning text.
 `x-maxUtf8Bytes` and `x-maxPhysicalLines` fields describe local checks that
 ordinary JSON schema string limits cannot express. The local decoder
 applies those checks regardless of provider format support.
+
+## Local candidate checks
+
+`AssistanceCandidateChecker.check` checks one physical line target. It uses
+app-owned ranges and the normal engine. It does not apply an edit.
+
+The checks cover target handles, existing labels and names, bindings,
+numeric evidence, temporal evidence, declared assumptions, native parsing,
+evaluation, result dimensions, and downstream failures. Native scale
+suffixes are checked as numeric facts. A suffix cannot hide an extra factor.
+The complete shadow sheet stays local.
+
+The local policy checks profit basis, tax inclusion, tax base, nominal rate
+period, date order, split exclusions, and mass-to-volume inputs. Profit
+basis and changed units can require a user choice. An unstated density
+blocks application. The tested tip and tax rules use independent expected
+expressions. Other relations remain interpretations for user review.
+
+A checked candidate contains its source change, engine result, affected
+results, references, choices, and clock and rate information. It does not
+establish that arbitrary English has one correct numerical interpretation.
+
+Native provenance flags follow legacy model values through declarations,
+references, imported definitions, units, and function captures. These values
+cannot become preview evidence. The context omits their canonical values.
+
+Multi-line edits, complete dependency tracing, table targets, and the full
+ambiguity fixture set remain incomplete. This code does not establish the
+M1 exit gate.
 
 ## Transport contract
 
@@ -102,3 +136,18 @@ git diff --check
 The test run passed 624 engine tests and 50 data tests. These results apply
 to the foundation APIs. They do not establish completion of the editor or
 release gates.
+
+The next local check passed 650 engine tests and 50 data tests with the same
+commands. It covers the generated catalog, evidence checks, independent
+profit and tax choices, tip and split constraints, native references,
+downstream failures, and legacy model provenance. No model was contacted.
+
+Literal checks retain quantity units and currency codes. A mass cannot
+supply a price. A converted literal cannot replace the supplied input;
+retain the conversion expression. Tests cover these failures and valid
+quantity and currency literals.
+
+A proposal cannot hide a native input error by dropping an operand.
+`userRevisedInputs` is an application control for a user-supplied input or
+constraint revision. It is false by default. A model response cannot set it.
+The input revision workflow is not connected to the editor yet.

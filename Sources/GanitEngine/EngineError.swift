@@ -1,4 +1,4 @@
-public enum EngineErrorCode: String, Hashable, Sendable {
+public enum EngineErrorCode: String, CaseIterable, Hashable, Sendable {
   case zeroDenominator = "numeric.zeroDenominator"
   case invalidIntegerLiteral = "numeric.invalidIntegerLiteral"
   case integerLiteralTooLong = "numeric.integerLiteralTooLong"

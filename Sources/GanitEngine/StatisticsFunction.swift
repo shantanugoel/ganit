@@ -4,7 +4,7 @@
 /// They are the same arithmetic as the aggregates that read the lines above, so
 /// a list of money answers in its currency and a mixed list fails, exactly as
 /// `total` does. Which values are included is the only difference.
-public enum StatisticsFunction: String, Hashable, Sendable {
+public enum StatisticsFunction: String, CaseIterable, Hashable, Sendable {
   case sum
   case total
   case average

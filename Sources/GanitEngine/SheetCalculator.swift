@@ -13,11 +13,12 @@ public struct SheetLineResult: Hashable, Sendable {
   /// a failed cell or range member this line or a line it depends on read,
   /// or a table that could not be calculated. Empty otherwise.
   public let failureOriginTableCells: [TableCellFailureOrigin]
+  public let hasUnreviewedModelDependency: Bool
 
   fileprivate init(
     id: LineID, source: LineSource, evaluation: LineEvaluation?,
     result: CalculationResult?, failureOrigins: [Int],
-    tableFailureOrigins: [TableCellFailureOrigin] = []
+    tableFailureOrigins: [TableCellFailureOrigin] = [], hasUnreviewedModelDependency: Bool = false
   ) {
     self.id = id
     self.source = source
@@ -25,6 +26,7 @@ public struct SheetLineResult: Hashable, Sendable {
     self.result = result
     failureOriginLineNumbers = failureOrigins
     failureOriginTableCells = tableFailureOrigins
+    self.hasUnreviewedModelDependency = hasUnreviewedModelDependency
   }
 
   public var syntax: LineSyntax {
@@ -46,6 +48,9 @@ public struct SheetLineResult: Hashable, Sendable {
   public var financeUses: Set<FinanceFunction> {
     evaluation?.financeUses ?? []
   }
+  /// Whether the native evaluation reads the frozen clock.
+  public var usesClock: Bool { evaluation?.clockInterval != nil }
+
   /// The `ask_assistant` prompts the line needs answered, with their
   /// placeholders filled in.
   public var assistantPrompts: [AssistantPrompt] {
@@ -56,6 +61,7 @@ public struct SheetLineResult: Hashable, Sendable {
     lhs.id == rhs.id && lhs.syntax == rhs.syntax && lhs.result == rhs.result
       && lhs.failureOriginLineNumbers == rhs.failureOriginLineNumbers
       && lhs.failureOriginTableCells == rhs.failureOriginTableCells
+      && lhs.hasUnreviewedModelDependency == rhs.hasUnreviewedModelDependency
   }
 
   public func hash(into hasher: inout Hasher) {
@@ -243,7 +249,10 @@ public struct SheetCalculator: Sendable {
     }
     self.context = context
 
-    let inherited = VariableScope(definitions.variables, functions: definitions.functions)
+    var inherited = VariableScope(definitions.variables, functions: definitions.functions)
+    inherited.unreviewedNames = definitions.unreviewedVariables
+    var unreviewedUnits = definitions.unreviewedUnits
+    var unreviewedLines: Set<LineID> = []
     var scope = inherited
     // The units the lines below may measure with, which grow as lines define
     // them, and the engine that resolves them.
@@ -297,10 +306,19 @@ public struct SheetCalculator: Sendable {
             origins[name] = previousSource
           }
         }
+        var noteWords: [[String]] = []
+        for previous in sheet.lines[..<lineIndex].reversed() {
+          guard case .comment = LineSyntax(previous.text) else { break }
+          if previous.text.trimmingCharacters(in: .whitespaces).hasPrefix("// Request record:") {
+            continue
+          }
+          noteWords += LineSource(previous.text, units, engine, context).words
+        }
         captured = AssistanceScope(
           engine: engine, names: scope.all, functions: scope.functions, rates: scope.rates,
           outcomes: outcomes, origins: origins,
-          matches: Set(scope.values(named: source.words).keys))
+          matches: Set(scope.values(named: source.words + noteWords).keys),
+          unreviewedNames: scope.unreviewedNames, unreviewedUnits: unreviewedUnits)
       }
 
       if case .calculation(_, _, let expressionRange?, _) = source.syntax {
@@ -385,18 +403,59 @@ public struct SheetCalculator: Sendable {
         tables.isActive && !failureOrigins.isEmpty
         ? tables.failures(evaluation?.tableFailures, lines: failureOrigins, at: outcomes.nextLine)
         : []
-      if let function = evaluation?.function {
+      let tree = evaluation?.parsing?.expression ?? evaluation?.function?.body
+      let hasUnreviewedFunctions =
+        evaluation?.functions.values.contains { $0.hasUnreviewedCapture } ?? false
+      let facts =
+        (!unreviewedUnits.isEmpty || evaluation?.function != nil || hasUnreviewedFunctions)
+        ? tree.map {
+          AssistanceExpressionFacts($0, source: "", engine: engine, context: context)
+        } : nil
+      let readIdentifiers: Set<String> =
+        scope.unreviewedNames.isEmpty
+        ? []
+        : (tree?.identifiers ?? []).subtracting(
+          evaluation?.function?.parameters ?? [])
+      let unreviewed =
+        facts?.containsAssistant == true || !(evaluation?.assistantPrompts.isEmpty ?? true)
+        || !readIdentifiers.isDisjoint(with: scope.unreviewedNames)
+        || (facts?.calls.contains { evaluation?.functions[$0]?.hasUnreviewedCapture == true }
+          ?? false)
+        || (facts.map { !$0.unitIdentifiers.isDisjoint(with: unreviewedUnits) } ?? false)
+        || (!unreviewedLines.isEmpty
+          && (evaluation?.references.contains { reference in
+            (outcomes.lineNumbers(for: reference) ?? []).contains {
+              unreviewedLines.contains(sheet.lines[$0 - 1].id)
+            }
+          } ?? false))
+      if unreviewed { unreviewedLines.insert(line.id) }
+      if var function = evaluation?.function {
+        function.hasUnreviewedCapture = unreviewed
         scope.functions[function.name] = function
         declared.functions[function.name] = function
       }
       if let name = source.declaredName, let result {
         scope.declare(name, result: result, failureOrigins: failureOrigins)
+        if unreviewed {
+          scope.unreviewedNames.insert(name)
+        } else if !scope.unreviewedNames.isEmpty {
+          scope.unreviewedNames.remove(name)
+        }
         if case .value(let value) = result {
           declared.variables[name] = value
+          if unreviewed {
+            declared.unreviewedVariables.insert(name)
+          } else if !declared.unreviewedVariables.isEmpty {
+            declared.unreviewedVariables.remove(name)
+          }
         }
       }
       if let unit = evaluation?.unit {
         declared.units.append(unit)
+        if unreviewed {
+          unreviewedUnits.insert(unit.name)
+          declared.unreviewedUnits.insert(unit.name)
+        }
         units.append(unit)
         engine = self.engine.resolving(units)
       }
@@ -425,7 +484,8 @@ public struct SheetCalculator: Sendable {
       results.append(
         SheetLineResult(
           id: line.id, source: source, evaluation: evaluation,
-          result: result, failureOrigins: failureOrigins, tableFailureOrigins: tableFailures))
+          result: result, failureOrigins: failureOrigins, tableFailureOrigins: tableFailures,
+          hasUnreviewedModelDependency: unreviewed))
     }
 
     if cache.count > sheet.lines.count {
@@ -1204,6 +1264,7 @@ private struct VariableScope: Sendable {
   var rates: [CurrencyPair: NumericValue] = [:]
   /// Functions defined above, by lowercased name.
   var functions: [String: CustomFunction]
+  var unreviewedNames: Set<String> = []
 
   init(_ inherited: [String: EngineValue] = [:], functions: [String: CustomFunction] = [:]) {
     self.functions = functions

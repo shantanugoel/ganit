@@ -71,6 +71,7 @@ public struct CustomFunction: Hashable, Sendable {
   let body: Expression
   let variables: [String: EngineValue?]
   let functions: [String: CustomFunction]
+  var hasUnreviewedCapture = false
 }
 
 /// What a sheet evaluates with beyond its own lines: variables, units, and
@@ -85,6 +86,8 @@ public struct SheetDefinitions: Hashable, Sendable {
   public var variables: [String: EngineValue] = [:]
   public var units: [CustomUnit] = []
   public var functions: [String: CustomFunction] = [:]
+  public internal(set) var unreviewedVariables: Set<String> = []
+  public internal(set) var unreviewedUnits: Set<String> = []
 
   public init(
     variables: [String: EngineValue] = [:], units: [CustomUnit] = [],
