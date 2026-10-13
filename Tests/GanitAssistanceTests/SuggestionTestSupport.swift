@@ -187,3 +187,23 @@ actor SuggestionEventLog {
     }
   }
 }
+
+actor SuggestionStartGate {
+  private var continuation: CheckedContinuation<Void, Never>?
+  private var entered: CheckedContinuation<Void, Never>?
+  func wait() async {
+    await withCheckedContinuation {
+      continuation = $0
+      entered?.resume()
+      entered = nil
+    }
+  }
+  func waitUntilWaiting() async {
+    guard continuation == nil else { return }
+    await withCheckedContinuation { entered = $0 }
+  }
+  func open() {
+    continuation?.resume()
+    continuation = nil
+  }
+}

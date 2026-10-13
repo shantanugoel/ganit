@@ -253,4 +253,20 @@ struct AssistanceFunctionContextTests {
     }
   }
 
+  @Test func ordinaryEvaluationRetainsTheLocalOriginWhenItShadowsAnImportedName() throws {
+    let inherited = try SheetDefinitions(source: "factor = 7", context: sheetContext())
+    var calculator = SheetCalculator(definitions: inherited)
+    let exported = try calculator.evaluate(
+      SheetSource("factor = 11\nf(x) = x * factor"), context: sheetContext()
+    ).definitions
+    let snapshot = try snapshot("Use f with two.", definitions: exported)
+    let records = try function(snapshot, name: "f")
+    let captures = try #require(records[0]["captures"] as? [[String: Any]])
+    #expect(captures[0]["source"] as? String == "factor = 11")
+    #expect((captures[0]["origin"] as? String)?.hasPrefix("sheet:") == true)
+    #expect(
+      try AssistanceCandidateChecker.check(candidate("f(2)", snapshot: snapshot), against: snapshot)
+        .result == .number(.integer(IntegerValue(22))))
+  }
+
 }

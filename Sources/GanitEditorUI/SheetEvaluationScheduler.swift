@@ -1,4 +1,5 @@
 import Foundation
+import GanitAssistance
 import GanitDiagnostics
 import GanitEngine
 import GanitSuggestionProtocol
@@ -21,24 +22,6 @@ private actor CalculatorWorker {
     throws -> AssistanceSnapshot
   {
     try calculator.assistanceSnapshot(sheet, context: context, target: target)
-  }
-
-  func checkSuggestion(
-    _ candidate: SuggestionCandidate, snapshot: AssistanceSnapshot,
-    handles: Set<String>, choices: [String: String], assumptions: Set<String>
-  ) throws -> AssistanceCheckedCandidate {
-    try AssistanceCandidateChecker.check(
-      candidate, against: snapshot,
-      permittedHandles: handles, selectedChoices: choices, approvedAssumptions: assumptions)
-  }
-
-  func prepareSuggestion(
-    _ candidate: SuggestionCandidate, snapshot: AssistanceSnapshot,
-    handles: Set<String>, choices: [String: String], assumptions: Set<String>
-  ) throws -> AssistanceSourceEdit {
-    try AssistanceCandidateChecker.prepareSourceEdit(
-      candidate, against: snapshot,
-      permittedHandles: handles, selectedChoices: choices, approvedAssumptions: assumptions)
   }
 
   /// Starts over with new definitions, which every line may read.
@@ -84,20 +67,24 @@ final class SheetEvaluationScheduler {
 
   func checkSuggestion(
     _ candidate: SuggestionCandidate, snapshot: AssistanceSnapshot,
-    handles: Set<String>, choices: [String: String], assumptions: Set<String>
+    handles: Set<String>, choices: [String: String], assumptions: Set<String>,
+    userRevisedInputs: Bool = false
   ) async throws -> AssistanceCheckedCandidate {
-    try await worker.checkSuggestion(
-      candidate, snapshot: snapshot, handles: handles,
-      choices: choices, assumptions: assumptions)
+    try await SuggestionLocalChecking.check(
+      candidate, snapshot: snapshot,
+      handles: handles, choices: choices, assumptions: assumptions,
+      userRevisedInputs: userRevisedInputs)
   }
 
   func prepareSuggestion(
     _ candidate: SuggestionCandidate, snapshot: AssistanceSnapshot,
-    handles: Set<String>, choices: [String: String], assumptions: Set<String>
+    handles: Set<String>, choices: [String: String], assumptions: Set<String>,
+    userRevisedInputs: Bool = false
   ) async throws -> AssistanceSourceEdit {
-    try await worker.prepareSuggestion(
-      candidate, snapshot: snapshot, handles: handles,
-      choices: choices, assumptions: assumptions)
+    try await SuggestionLocalChecking.prepare(
+      candidate, snapshot: snapshot,
+      handles: handles, choices: choices, assumptions: assumptions,
+      userRevisedInputs: userRevisedInputs)
   }
 
   /// Evaluates with new definitions from the next generation on, discarding

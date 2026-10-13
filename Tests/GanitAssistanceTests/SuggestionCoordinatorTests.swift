@@ -546,4 +546,25 @@ struct SuggestionCoordinatorTests {
     #expect(await transport.count() == 2)
   }
 
+  @Test func aCancelledCallerCannotStartAWireRequest() async throws {
+    let snapshot = try assistanceSnapshot(source)
+    let transport = FakeSuggestionTransport([.failure(.unexpectedStatus(500))])
+    let coordinator = SuggestionCoordinator(transport: transport)
+    let gate = SuggestionStartGate()
+    let input = input(snapshot)
+    let task = Task {
+      await gate.wait()
+      let job = await coordinator.start(input)
+      return await job.result.value
+    }
+    await gate.waitUntilWaiting()
+    task.cancel()
+    await gate.open()
+    if case .cancelled = await task.value {
+    } else {
+      Issue.record("Expected cancellation before a request")
+    }
+    #expect(await transport.count() == 0)
+  }
+
 }

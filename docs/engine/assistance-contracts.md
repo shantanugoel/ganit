@@ -151,7 +151,9 @@ quantity and currency literals.
 A proposal cannot hide a native input error by dropping an operand.
 `userRevisedInputs` is an application control for a user-supplied input or
 constraint revision. It is false by default. A model response cannot set it.
-The input revision workflow is not connected to the editor yet.
+A clarification can supply a new input or constraint. The user must select
+the input-revision control before the coordinator permits that revision.
+The control is off by default. A response cannot set it.
 
 ## Request coordinator
 
@@ -261,3 +263,34 @@ The function-context check passed 665 engine tests, 22 coordinator tests,
 226 editor tests, 15 Quick Ganit tests, and 60 workspace tests on 2026-10-13.
 All 988 tests used local calculation or separate test transports. No test
 contacted the configured AI server. Format and whitespace checks also passed.
+
+## Local checking and explicit revisions
+
+Native suggestion checks use a frozen calculator copy on a separate task.
+They do not use the editor's ordinary evaluation worker. The coordinator's
+job deadline also applies to candidate checking. Cancellation stops the
+local task, and late results cannot change the editor state. A cancelled
+caller cannot start a wire request.
+
+Ordinary sheets without custom functions do not build declaration-origin
+records during normal evaluation. The first custom function builds the
+required earlier origins once. Imported names must not hide a local
+redeclared origin.
+
+An explicit clarification uses the native name matcher to include the
+named inputs in its new reviewed scope. A supplied line reference also
+includes its native record. A reference number is a source coordinate;
+it does not supply a calculation amount.
+
+`SuggestionRequestContext` is the shared encoder for the inspector and
+coordinator. It adds app-owned choices and the input-revision control to
+the permitted native context. The same fields are part of the reuse key.
+A user-approved revision can replace a failing input with an explicitly
+supplied input or constraint. The new working retains that task note.
+The model cannot approve a revision or change this control.
+
+The worker and revision check passed 667 engine tests, 227 editor tests,
+23 coordinator tests, 50 data tests, 15 Quick Ganit tests, and 60 workspace
+tests. All 1,042 tests passed with warnings treated as errors. The tests
+used separate test settings and transports. The configured AI server was
+not contacted.

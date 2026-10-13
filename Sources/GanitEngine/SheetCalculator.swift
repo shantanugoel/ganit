@@ -218,6 +218,16 @@ public struct SheetCalculator: Sendable {
       sheet, context: context, target: nil, captured: &captured)
   }
 
+  /// Reuse the native name matcher for an explicit task constraint.
+  package static func assistanceMatches(
+    in text: String, scope: AssistanceScope,
+    context: EvaluationContext
+  ) -> Set<String> {
+    let words = LineSource(text, [], scope.engine, context).words
+    let names = VariableScope(assistanceNames: scope.names, functions: scope.functions)
+    return Set(names.values(named: words).keys).union(names.functions(named: words).keys)
+  }
+
   /// Capture the target's native scope in the same pass as its evaluation.
   /// The normal cache still applies. No other sheet is read or evaluated.
   public mutating func assistanceSnapshot(
@@ -255,6 +265,9 @@ public struct SheetCalculator: Sendable {
     var unreviewedUnits = definitions.unreviewedUnits
     var unreviewedLines: Set<LineID> = []
     var scope = inherited
+    var tracksAssistanceOrigins =
+      target != nil || surface == .definitions
+      || !definitions.functions.isEmpty
     // The units the lines below may measure with, which grow as lines define
     // them, and the engine that resolves them.
     var units = definitions.units
@@ -432,6 +445,20 @@ public struct SheetCalculator: Sendable {
           } ?? false))
       if unreviewed { unreviewedLines.insert(line.id) }
       if var function = evaluation?.function {
+        if !tracksAssistanceOrigins {
+          // Build source origins once, when the first closure needs them.
+          // Ordinary sheets without functions retain their previous fast path.
+          var found: Set<String> = []
+          for (previous, result) in zip(sheet.lines, results).reversed() {
+            if case .divider = result.syntax { break }
+            if let name = result.declaredVariableName, found.insert(name).inserted {
+              scope.assistanceOrigins[name] = AssistanceDeclarationOrigin(
+                scope: "sheet", document: sheet.assistanceIdentity,
+                line: previous.id, source: previous.text)
+            }
+          }
+          tracksAssistanceOrigins = true
+        }
         function.hasUnreviewedCapture = unreviewed
         function.assistanceOrigin = AssistanceDeclarationOrigin(
           scope: surface == .definitions ? "definitions" : "sheet",
@@ -448,13 +475,13 @@ public struct SheetCalculator: Sendable {
       }
       if let name = source.declaredName, let result {
         scope.declare(name, result: result, failureOrigins: failureOrigins)
-        let origin = AssistanceDeclarationOrigin(
-          scope: surface == .definitions ? "definitions" : "sheet",
-          document: sheet.assistanceIdentity,
-          line: line.id, source: line.text
-        )
-        scope.assistanceOrigins[name] = origin
-        if surface == .definitions { declared.assistanceOrigins[name] = origin }
+        if tracksAssistanceOrigins {
+          let origin = AssistanceDeclarationOrigin(
+            scope: surface == .definitions ? "definitions" : "sheet",
+            document: sheet.assistanceIdentity, line: line.id, source: line.text)
+          scope.assistanceOrigins[name] = origin
+          if surface == .definitions { declared.assistanceOrigins[name] = origin }
+        }
         if unreviewed {
           scope.unreviewedNames.insert(name)
         } else if !scope.unreviewedNames.isEmpty {
@@ -1293,6 +1320,12 @@ private struct VariableScope: Sendable {
     }
   }
 
+  init(assistanceNames: [String: EngineValue?], functions: [String: CustomFunction]) {
+    self.functions = functions
+    variables = assistanceNames
+    for name in assistanceNames.keys { indexPrefixes(of: name) }
+  }
+
   /// The functions a word in `runs` names.
   func functions(named runs: [[String]]) -> [String: CustomFunction] {
     guard !functions.isEmpty else {
@@ -1327,6 +1360,10 @@ private struct VariableScope: Sendable {
     } else {
       variables[name] = .some(nil)
     }
+    indexPrefixes(of: name)
+  }
+
+  private mutating func indexPrefixes(of name: String) {
     var prefix = ""
     for word in name.split(separator: " ").dropLast() {
       prefix = prefix.isEmpty ? String(word) : prefix + " " + word

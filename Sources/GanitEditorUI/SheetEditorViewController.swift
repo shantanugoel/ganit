@@ -110,7 +110,9 @@ public final class SheetEditorViewController: NSViewController {
   }
 
   @objc public func suggestExpression(_ sender: Any?) { suggestionSession.prepare() }
-  public func stopSuggestions() { suggestionSession.dismiss() }
+  public func stopSuggestions() {
+    if suggestionSession.isVisible { suggestionSession.dismiss() }
+  }
 
   public override func cancelOperation(_ sender: Any?) {
     if suggestionSession.isVisible {
@@ -122,7 +124,7 @@ public final class SheetEditorViewController: NSViewController {
 
   private func updateSuggestionCard() {
     guard isViewLoaded else { return }
-    suggestionCard.refresh()
+    if suggestionSession.isVisible { suggestionCard.refresh() } else { suggestionCard.clear() }
     view.needsLayout = true
   }
 

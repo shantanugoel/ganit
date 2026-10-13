@@ -98,4 +98,21 @@ struct AssistanceSnapshotTests {
     #expect(spans[0]["utf8End"] == 5)
   }
 
+  @Test func explicitTaskNotesSelectNativeNamesAndReferencesBeforeReview() throws {
+    var calculator = SheetCalculator()
+    let source = SheetSource("hidden = 10\n20\nf(x) = x * 3\nUse the amount above.")
+    let snapshot = try calculator.assistanceSnapshot(
+      source, context: sheetContext(), target: source.lines[3].id)
+    #expect(!String(decoding: try snapshot.permittedContext(), as: UTF8.self).contains("hidden"))
+    let named = try snapshot.addingTaskNote("Use hidden with f.")
+    #expect(named.inventory.first { $0.name == "hidden" }?.matchesTarget == true)
+    #expect(
+      named.inventory.first { $0.kind == "function" && $0.name == "f" }?.matchesTarget == true)
+    let referenced = try snapshot.addingTaskNote("Use the amount on line 2.")
+    #expect(referenced.inventory.first { $0.name == "@2" }?.matchesTarget == true)
+    #expect(!referenced.evidence().contains { $0.kind == "literal" && $0.text == "2" })
+    #expect(referenced.evidence().contains { $0.kind == "literal" && $0.text == "20" })
+    #expect(snapshot.inventory.allSatisfy { !$0.matchesTarget })
+  }
+
 }

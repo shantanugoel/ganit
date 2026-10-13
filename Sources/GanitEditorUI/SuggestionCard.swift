@@ -49,6 +49,17 @@ final class SuggestionCard: NSView {
     needsDisplay = true
   }
 
+  func clear() {
+    popover?.close()
+    popover = nil
+    for view in stack.arrangedSubviews {
+      stack.removeArrangedSubview(view)
+      view.removeFromSuperview()
+    }
+    actions = []
+    isHidden = true
+  }
+
   func refresh() {
     for view in stack.arrangedSubviews {
       stack.removeArrangedSubview(view)
@@ -109,8 +120,12 @@ final class SuggestionCard: NSView {
       field.placeholderString = "Supply a task constraint or missing input"
       field.setAccessibilityLabel("Clarification answer")
       stack.addArrangedSubview(field)
-      button("Review New Request") { [weak self, weak field] in
-        self?.session.submitClarification(field?.stringValue ?? "")
+      let revision = NSButton(
+        checkboxWithTitle: "This answer revises an input or constraint", target: nil, action: nil)
+      stack.addArrangedSubview(revision)
+      button("Review New Request") { [weak self, weak field, weak revision] in
+        self?.session.submitClarification(
+          field?.stringValue ?? "", revisesInputs: revision?.state == .on)
       }
     }
     if session.state == .needsContext {

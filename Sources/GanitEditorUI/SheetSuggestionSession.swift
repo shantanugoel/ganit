@@ -26,6 +26,7 @@ package final class SheetSuggestionSession {
   private var target: LineID?
   private var taskNotes: [String] = []
   private var retry = false
+  private var userRevisedInputs = false
   package var didChange: () -> Void = {}
   package private(set) var isVisible = false
   package private(set) var state: SuggestionJobState = .idle
@@ -65,6 +66,7 @@ package final class SheetSuggestionSession {
     requestBodies = []
     preparedBody = nil
     self.retry = retry
+    userRevisedInputs = false
     isVisible = true
     guard let editor, let configuration = editor.suggestionConfiguration,
       configuration.settings.isReady
@@ -118,7 +120,8 @@ package final class SheetSuggestionSession {
           settings: configuration.settings,
           permission: SuggestionPermission(contextAccepted: true),
           includedRecords: self?.included ?? [], choices: self?.choices ?? [:],
-          approvedAssumptions: self?.assumptions ?? [], retry: self?.retry ?? false),
+          approvedAssumptions: self?.assumptions ?? [], retry: self?.retry ?? false,
+          userRevisedInputs: self?.userRevisedInputs ?? false),
         observer: { [weak self] event in await self?.receive(event, version: version) })
       guard let self, self.revision == version else {
         await configuration.coordinator.cancel(job.id)
@@ -200,7 +203,8 @@ package final class SheetSuggestionSession {
       do {
         let result = try await scheduler.checkSuggestion(
           selected, snapshot: snapshot,
-          handles: self.included, choices: self.choices, assumptions: self.assumptions)
+          handles: self.included, choices: self.choices, assumptions: self.assumptions,
+          userRevisedInputs: self.userRevisedInputs)
         guard self.revision == version else { return }
         self.preview = result
         self.update(
@@ -217,7 +221,7 @@ package final class SheetSuggestionSession {
     }
   }
 
-  package func submitClarification(_ answer: String) {
+  package func submitClarification(_ answer: String, revisesInputs: Bool = false) {
     guard let editor, let target, let configuration, clarification != nil,
       !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     else { return }
@@ -225,6 +229,7 @@ package final class SheetSuggestionSession {
     let version = revision
     clarification = nil
     taskNotes.append(answer)
+    userRevisedInputs = userRevisedInputs || revisesInputs
     update(.preparing, "Prepare the revised request.")
     task = Task { [weak self] in
       guard let self else { return }
@@ -235,7 +240,9 @@ package final class SheetSuggestionSession {
         self.snapshot = snapshot
         self.preparedBody = try SuggestionWireRequest(
           settings: configuration.settings,
-          context: snapshot.permittedContext(including: self.included)
+          context: SuggestionRequestContext.data(
+            snapshot: snapshot, including: self.included,
+            choices: self.choices, userRevisedInputs: self.userRevisedInputs)
         ).body
         self.update(.idle, "Review the added task note in Context, then send the new request.")
       } catch {
@@ -262,7 +269,8 @@ package final class SheetSuggestionSession {
         for note in self.taskNotes { fresh = try fresh.addingTaskNote(note) }
         let edit = try await scheduler.prepareSuggestion(
           selected, snapshot: fresh,
-          handles: self.included, choices: self.choices, assumptions: self.assumptions)
+          handles: self.included, choices: self.choices, assumptions: self.assumptions,
+          userRevisedInputs: self.userRevisedInputs)
         guard self.revision == version, fresh.source.text == editor.sheet.text,
           !editor.textView.hasMarkedText()
         else { return }
@@ -304,6 +312,7 @@ package final class SheetSuggestionSession {
     revision += 1
     task?.cancel()
     if let job, let configuration {
+      job.cancel()
       Task { await configuration.coordinator.cancel(job.id) }
     }
     job = nil

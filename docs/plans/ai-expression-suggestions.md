@@ -752,3 +752,12 @@ and failed or unreviewed captures. Material choices are part of request
 and reuse keys. Complete scalar and table dependency records, rate
 provenance, paragraph and table targets, automatic events, and the remaining
 release checks still need work. No phase exit gate is complete.
+
+Native checking now uses a separate cancellable task. Ordinary evaluation
+keeps its calculation worker. A cancelled caller makes no wire request.
+Clarifications use native name and reference matching for the new reviewed
+scope. The inspector and coordinator share one context encoder. A separate
+user control permits an explicit input revision; it is off by default.
+Tests cover an approved denominator change and retained working. Complete
+dependency records, paragraph and table targets, automatic events, and the
+remaining release checks are still incomplete. No phase exit gate is complete.

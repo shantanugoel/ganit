@@ -15,7 +15,7 @@ public struct AssistanceSnapshot: Sendable {
   public let context: EvaluationContext
   public let target: SheetLine
   public let evaluation: SheetEvaluation
-  public let inventory: [AssistanceSymbol]
+  public private(set) var inventory: [AssistanceSymbol]
   public private(set) var notes: [AssistanceNote]
   package let scope: AssistanceScope
   package let calculator: SheetCalculator
@@ -99,8 +99,37 @@ public struct AssistanceSnapshot: Sendable {
     else { throw AssistanceSnapshotError.contextTooLarge }
     var copy = self
     copy.notes.append(AssistanceNote(source: "// Task: " + text))
+    let matches = SheetCalculator.assistanceMatches(in: text, scope: scope, context: context)
+    let references = taskReferences(in: text)
+    copy.inventory = inventory.map { symbol in
+      AssistanceSymbol(
+        handle: symbol.handle, name: symbol.name, declaration: symbol.declaration,
+        value: symbol.value,
+        matchesTarget: symbol.matchesTarget || matches.contains(symbol.name)
+          || symbol.declaration.map { references.contains($0.id) } == true,
+        kind: symbol.kind, unreviewed: symbol.unreviewed, function: symbol.function)
+    }
     _ = try copy.permittedContext()
     return copy
+  }
+
+  private func taskReferences(in text: String) -> Set<LineID> {
+    let tokens = Lexer(source: text, configuration: context.lexingConfiguration).lex().tokens
+    var references: Set<LineReference> = []
+    for (word, number) in zip(tokens, tokens.dropFirst()) {
+      guard word.kind == .at || word.kind == .identifier("line"),
+        case .number = number.kind,
+        let source = word.range.union(number.range).text(in: text),
+        let reference = scope.engine.assistanceReference(
+          in: String(source), context: context,
+          variables: scope.names.mapValues { $0?.kind ?? .number })
+      else { continue }
+      references.insert(reference)
+    }
+    return Set(
+      references.flatMap { scope.outcomes.lineNumbers(for: $0) ?? [] }.map {
+        source.lines[$0 - 1].id
+      })
   }
 
   /// Additional handles need permission from the coordinator before this call.
@@ -271,4 +300,21 @@ package struct AssistanceScope: Sendable {
   let functionMatches: Set<String>
   let unreviewedNames: Set<String>
   let unreviewedUnits: Set<String>
+}
+
+extension CalculationEngine {
+  /// A task sentence can end immediately after an explicit reference.
+  package func assistanceReference(
+    in source: String, context: EvaluationContext,
+    variables: [String: EngineValueKind]
+  ) -> LineReference? {
+    let fragment = source.hasSuffix(".") ? String(source.dropLast()) : source
+    guard
+      case .reference(let reference, _) = parse(
+        fragment, context: context,
+        variables: variables
+      ).expression
+    else { return nil }
+    return reference
+  }
 }

@@ -29,13 +29,14 @@ public struct SuggestionJobInput: Sendable {
   public let choices: [String: String]
   public let approvedAssumptions: Set<String>
   public let retry: Bool
+  public let userRevisedInputs: Bool
 
   public init(
     document: UUID, snapshot: AssistanceSnapshot, settings: AssistantSettings,
     permission: SuggestionPermission = SuggestionPermission(),
     origin: SuggestionJobOrigin = .manual,
     includedRecords: Set<String> = [], choices: [String: String] = [:],
-    approvedAssumptions: Set<String> = [], retry: Bool = false
+    approvedAssumptions: Set<String> = [], retry: Bool = false, userRevisedInputs: Bool = false
   ) {
     self.document = document
     self.snapshot = snapshot
@@ -46,6 +47,7 @@ public struct SuggestionJobInput: Sendable {
     self.choices = choices
     self.approvedAssumptions = approvedAssumptions
     self.retry = retry
+    self.userRevisedInputs = userRevisedInputs
   }
 }
 

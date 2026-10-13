@@ -81,6 +81,7 @@ public actor SuggestionCoordinator {
     func terminal(_ result: SuggestionJobResult) -> SuggestionJob {
       SuggestionJob(id: id, result: Task { result })
     }
+    guard !Task.isCancelled else { return terminal(.cancelled) }
     guard input.settings.isReady else { return terminal(.failed(.providerNotReady)) }
     guard input.permission.contextAccepted,
       input.origin == .manual || input.permission.automaticArea != nil
@@ -90,6 +91,7 @@ public actor SuggestionCoordinator {
     do { key = try contextKey(input, provider: provider) } catch {
       return terminal(.failed(.contextLimit))
     }
+    guard !Task.isCancelled else { return terminal(.cancelled) }
     if !input.retry, let index = cache.firstIndex(where: { $0.key == key }) {
       let entry = cache.remove(at: index)
       cache.append(entry)
@@ -256,11 +258,17 @@ public actor SuggestionCoordinator {
               return await finish(id, result: .failed(.repeatedCandidate))
             }
             do {
-              checked.append(
-                try AssistanceCandidateChecker.check(
-                  candidate, against: record.input.snapshot,
-                  permittedHandles: record.included, selectedChoices: record.input.choices,
-                  approvedAssumptions: record.input.approvedAssumptions))
+              let input = record.input
+              let included = record.included
+              let result = try await SuggestionDeadline<AssistanceCheckedCandidate>.run(
+                clock: clock, deadline: record.deadline
+              ) {
+                try await SuggestionLocalChecking.check(
+                  candidate, snapshot: input.snapshot,
+                  handles: included, choices: input.choices, assumptions: input.approvedAssumptions,
+                  userRevisedInputs: input.userRevisedInputs)
+              }
+              checked.append(result)
             } catch let error as AssistanceValidationFailure { failures.append(error) }
           }
           try ensureActive(id)
@@ -363,20 +371,24 @@ public actor SuggestionCoordinator {
   }
 
   private func requestContext(_ record: Record, feedback: [String: Any]?) throws -> Data {
-    let data = try record.input.snapshot.permittedContext(including: record.included)
-    guard feedback != nil || !record.input.choices.isEmpty else { return data }
+    let data = try SuggestionRequestContext.data(
+      snapshot: record.input.snapshot,
+      including: record.included, choices: record.input.choices,
+      userRevisedInputs: record.input.userRevisedInputs)
+    guard let feedback else { return data }
     var root = try JSONSerialization.jsonObject(with: data) as! [String: Any]
-    if let feedback { root["feedback"] = feedback }
-    if !record.input.choices.isEmpty { root["selectedChoices"] = record.input.choices }
+    root["feedback"] = feedback
     return try JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])
   }
 
   private func contextKey(
     _ input: SuggestionJobInput, provider: Provider, included: Set<String>? = nil
   ) throws -> CacheKey {
-    let data = try input.snapshot.permittedContext(including: included ?? input.includedRecords)
+    let data = try SuggestionRequestContext.data(
+      snapshot: input.snapshot,
+      including: included ?? input.includedRecords, choices: input.choices,
+      userRevisedInputs: input.userRevisedInputs)
     var root = try JSONSerialization.jsonObject(with: data) as! [String: Any]
-    if !input.choices.isEmpty { root["selectedChoices"] = input.choices }
     var settings = root["settings"] as! [String: Any]
     settings.removeValue(forKey: "now")
     root["settings"] = settings
@@ -393,12 +405,18 @@ public actor SuggestionCoordinator {
     do {
       switch try SuggestionDecoder.decode(payload) {
       case .proposal(let candidates):
-        let checked = candidates.compactMap {
-          try? AssistanceCandidateChecker.check(
-            $0, against: input.snapshot,
-            permittedHandles: input.includedRecords, selectedChoices: input.choices,
-            approvedAssumptions: input.approvedAssumptions)
+        var checked: [AssistanceCheckedCandidate] = []
+        for candidate in candidates {
+          try Task.checkCancellation()
+          if let value = try? await SuggestionLocalChecking.check(
+            candidate, snapshot: input.snapshot,
+            handles: input.includedRecords, choices: input.choices,
+            assumptions: input.approvedAssumptions)
+          {
+            checked.append(value)
+          }
         }
+        try Task.checkCancellation()
         guard !checked.isEmpty else { return .stale }
         await observer(.state(checked.allSatisfy(\.isApplicable) ? .ready : .needsChoice))
         return .proposal(checked)
@@ -410,7 +428,7 @@ public actor SuggestionCoordinator {
         return .unsupported(reason)
       case .needContext: return .failed(.contextDenied)
       }
-    } catch { return .stale }
+    } catch is CancellationError { return .cancelled } catch { return .stale }
   }
 
   private func store(_ payload: Data, key: CacheKey) {

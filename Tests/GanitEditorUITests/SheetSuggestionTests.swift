@@ -300,6 +300,63 @@ struct SheetSuggestionTests {
     #expect(!editor.sheet.text.contains("2 + 3"))
   }
 
+  @Test func anExplicitInputRevisionIsInspectedSentAndSavedAsWorking() async throws {
+    let editor = try await editor("4 / 0")
+    let clarify = try JSONSerialization.data(withJSONObject: [
+      "schemaVersion": 1, "kind": "clarify",
+      "question": "Which denominator should I use?", "choices": [],
+      "missingInput": "A nonzero denominator",
+    ])
+    let snapshot = try await editor.suggestionSnapshot(target: editor.sheet.lines[0].id)
+      .addingTaskNote("Use 2 as the denominator.")
+    let evidence = snapshot.evidence()
+    let candidate = SuggestionCandidate(
+      id: "C1", edits: [SuggestionEdit(target: "T1", replacement: "4 / 2")],
+      bindings: [],
+      literals: [
+        SuggestionLiteral(
+          text: "4", evidence: try #require(evidence.first { $0.text == "4" }?.handle)),
+        SuggestionLiteral(
+          text: "2", evidence: try #require(evidence.first { $0.text == "2" }?.handle)),
+      ],
+      relations: [
+        SuggestionRelation(
+          rule: "interpretation",
+          evidence: try #require(
+            evidence.first { $0.kind == "relation" && $0.source == "N1" }?.handle))
+      ],
+      assumptions: [], summary: "Use the user-supplied denominator.")
+    #expect(throws: AssistanceValidationFailure.self) {
+      try AssistanceCandidateChecker.check(candidate, against: snapshot)
+    }
+    let object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(candidate))
+    let proposal = try JSONSerialization.data(withJSONObject: [
+      "schemaVersion": 1, "kind": "proposal", "candidates": [object],
+    ])
+    let transport = configure(editor, replies: [clarify, proposal])
+    let session = editor.suggestionSession
+    session.prepare()
+    await session.waitUntilIdle()
+    session.send()
+    await session.waitUntilIdle()
+    session.submitClarification("Use 2 as the denominator.", revisesInputs: true)
+    await session.waitUntilIdle()
+    let body = try #require(session.preparedBody)
+    #expect(String(decoding: body, as: UTF8.self).contains("userRevisedInputs"))
+    session.send()
+    await session.waitUntilIdle()
+    #expect(session.requestBodies.last == body)
+    #expect(session.canApply)
+    session.apply()
+    await session.waitUntilIdle()
+    await editor.scheduler?.waitUntilIdle()
+    #expect(editor.latestEvaluation?.lines[0].result == .value(.number(.integer(IntegerValue(2)))))
+    #expect(
+      editor.sheet.text
+        == "4 / 2\n// Request record: 4 / 0\n// Task record: Use 2 as the denominator.")
+    #expect(await transport.count() == 2)
+  }
+
   @Test func partialAndMultiLineSelectionsAreNotSilentlyExpanded() async throws {
     let editor = try await editor(request + "\n" + request)
     let transport = configure(editor, replies: [])

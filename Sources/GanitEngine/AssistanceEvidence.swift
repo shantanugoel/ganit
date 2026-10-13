@@ -50,6 +50,18 @@ extension AssistanceSnapshot {
       for (index, token) in tokens.enumerated() {
         switch token.kind {
         case .number(let number):
+          if index > 0 {
+            let previous = tokens[index - 1]
+            if previous.kind == .at { continue }
+            if previous.kind == .identifier("line"),
+              let reference = previous.range.union(token.range).text(in: text),
+              scope.engine.assistanceReference(
+                in: String(reference), context: context,
+                variables: scope.names.mapValues { $0?.kind ?? .number }) != nil
+            {
+              continue
+            }
+          }
           var range = token.range
           var expression = Expression.literal(number, range: token.range)
           if index + 1 < tokens.count, tokens[index + 1].kind == .percent {
