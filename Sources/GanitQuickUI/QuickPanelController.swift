@@ -166,6 +166,7 @@ public final class QuickPanelController: NSWindowController, NSWindowDelegate {
 
   /// Hides the panel, keeping its text for next time.
   public func hide() {
+    editor.stopSuggestions()
     window?.orderOut(nil)
     saveBuffer(nil)
   }

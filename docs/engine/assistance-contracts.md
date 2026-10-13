@@ -121,9 +121,10 @@ provider settings or keys. The tests cover scope capture, redeclarations,
 dividers, frozen values, source privacy, exact value encoding, strict
 response checks, body privacy, request count, redirect refusal, and limits.
 
-No editor action uses these APIs yet. Source acceptance, reference changes,
-Undo, table validation, scheduling, model evaluation, and user sessions
-remain part of the full [implementation plan](../plans/ai-expression-suggestions.md).
+The editor has an explicit source review and acceptance path for one physical
+line. Paragraph and table targets, automatic scheduling, complete dependency
+records, model evaluation, and user sessions remain part of the full
+[implementation plan](../plans/ai-expression-suggestions.md).
 
 The foundation check passed on 2026-10-13 with Xcode 27.0:
 
@@ -187,3 +188,43 @@ The coordinator passed twenty tests with synthetic replies and a virtual
 clock. These tests cover request counts, context permission, exact request
 bodies, deadlines, late replies, window priority, automatic limits, and
 cache eviction. They do not establish the M2 or release exit gate.
+
+## Explicit editor review
+
+`SheetSuggestionConfiguration` supplies the coordinator and provider settings.
+Workspace sheets and Quick Ganit share the application coordinator. Provider
+setup does not grant context permission. Suggest Expression prepares a scope.
+Send is a separate action. The settings example also prepares a scope before
+it can send a request. Tests inject synthetic replies and separate settings.
+
+The temporary card contains the source edit, local result, interpretation,
+references, choices, and assumption approval. Context shows the exact request
+body. A clarification adds an explicit task note to a new request. The user
+must review and send that request separately. A card cannot supply a normal
+answer, total, export result, or Copy Result value.
+
+Apply takes a fresh native snapshot and checks the complete source change.
+`AssistanceSourceEdit` contains the checked edit and its local evaluation.
+The accepted expression stays on the original physical line. Historical
+request comments follow that line. Approved task notes and assumptions also
+remain in source. Existing references retain the expression's identity;
+references to later lines move through the native reference transformation.
+The editor applies the patches through `SheetSourceCoordinator` in one Undo
+transaction. Undo and Redo restore the source and selection together.
+
+Tab accepts only when Use Expression has focus. Return edits the sheet.
+Escape dismisses the card before it dismisses Quick Ganit. Source edits,
+provider changes, and native namespace changes make the preview stale.
+Closing its window or hiding Quick Ganit cancels the suggestion. If a fresh
+local result differs, Apply first updates the preview for another review.
+
+The current selection must be one complete physical line. A partial line
+or a multi-line selection shows a scope error. These targets still need
+implementation; this restriction does not complete or reduce the plan.
+The current card is in the editor review area. Placement beside the target,
+full accessibility review, real IMEs, visual checks, and release measurements
+still need work. No phase exit gate is complete.
+
+The application no longer attaches the legacy model-answer callbacks or
+opens their answer store. Legacy engine and editor APIs still need removal.
+The new feature does not load cached model values into accepted source.

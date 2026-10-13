@@ -16,7 +16,7 @@ public struct AssistanceSnapshot: Sendable {
   public let target: SheetLine
   public let evaluation: SheetEvaluation
   public let inventory: [AssistanceSymbol]
-  public let notes: [AssistanceNote]
+  public private(set) var notes: [AssistanceNote]
   package let scope: AssistanceScope
   package let calculator: SheetCalculator
 
@@ -82,6 +82,17 @@ public struct AssistanceSnapshot: Sendable {
       attached.insert(AssistanceNote(source: heading.text), at: 0)
     }
     notes = attached
+  }
+
+  /// An explicit user answer supplies a task constraint for a new job.
+  public func addingTaskNote(_ text: String) throws -> AssistanceSnapshot {
+    guard text.utf8.count <= SuggestionLimits.targetBytes,
+      !text.contains("\n"), !text.contains("\r")
+    else { throw AssistanceSnapshotError.contextTooLarge }
+    var copy = self
+    copy.notes.append(AssistanceNote(source: "// Task: " + text))
+    _ = try copy.permittedContext()
+    return copy
   }
 
   /// Additional handles need permission from the coordinator before this call.
@@ -208,7 +219,10 @@ public struct AssistanceSymbol: Sendable {
 public struct AssistanceNote: Encodable, Sendable {
   public let source: String
   public var historical: Bool {
-    source.trimmingCharacters(in: .whitespaces).hasPrefix("// Request record:")
+    let text = source.trimmingCharacters(in: .whitespaces)
+    return ["// Request record:", "// Task record:", "// Approved assumption:"].contains {
+      text.hasPrefix($0)
+    }
   }
 
   public func encode(to encoder: Encoder) throws {

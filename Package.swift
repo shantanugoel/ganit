@@ -36,6 +36,7 @@ let package = Package(
     .executableTarget(
       name: "GanitApp",
       dependencies: [
+        "GanitAssistance",
         "GanitData",
         "GanitDiagnostics",
         "GanitDocuments",
@@ -54,6 +55,7 @@ let package = Package(
     .target(
       name: "GanitWorkspaceUI",
       dependencies: [
+        "GanitAssistance",
         "GanitData",
         "GanitDocuments",
         "GanitEditorUI",
@@ -64,6 +66,9 @@ let package = Package(
     .target(
       name: "GanitEditorUI",
       dependencies: [
+        "GanitAssistance",
+        "GanitData",
+        "GanitSuggestionProtocol",
         "GanitDiagnostics",
         "GanitEngine",
         "GanitFormatting",
@@ -178,7 +183,9 @@ let package = Package(
     ),
     .testTarget(
       name: "GanitEditorUITests",
-      dependencies: ["GanitEditorUI", "GanitEngine"]
+      dependencies: [
+        "GanitEditorUI", "GanitEngine", "GanitAssistance", "GanitData", "GanitSuggestionProtocol",
+      ]
     ),
     .testTarget(
       name: "GanitQuickUITests",

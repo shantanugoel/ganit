@@ -1,6 +1,7 @@
 import Foundation
 import GanitDiagnostics
 import GanitEngine
+import GanitSuggestionProtocol
 
 /// Serializes incremental evaluation off the main actor and owns its cache.
 private actor CalculatorWorker {
@@ -14,6 +15,30 @@ private actor CalculatorWorker {
 
   func evaluate(_ sheet: SheetSource, context: EvaluationContext) throws -> SheetEvaluation {
     try calculator.evaluate(sheet, context: context)
+  }
+
+  func assistanceSnapshot(_ sheet: SheetSource, context: EvaluationContext, target: LineID)
+    throws -> AssistanceSnapshot
+  {
+    try calculator.assistanceSnapshot(sheet, context: context, target: target)
+  }
+
+  func checkSuggestion(
+    _ candidate: SuggestionCandidate, snapshot: AssistanceSnapshot,
+    handles: Set<String>, choices: [String: String], assumptions: Set<String>
+  ) throws -> AssistanceCheckedCandidate {
+    try AssistanceCandidateChecker.check(
+      candidate, against: snapshot,
+      permittedHandles: handles, selectedChoices: choices, approvedAssumptions: assumptions)
+  }
+
+  func prepareSuggestion(
+    _ candidate: SuggestionCandidate, snapshot: AssistanceSnapshot,
+    handles: Set<String>, choices: [String: String], assumptions: Set<String>
+  ) throws -> AssistanceSourceEdit {
+    try AssistanceCandidateChecker.prepareSourceEdit(
+      candidate, against: snapshot,
+      permittedHandles: handles, selectedChoices: choices, approvedAssumptions: assumptions)
   }
 
   /// Starts over with new definitions, which every line may read.
@@ -50,6 +75,29 @@ final class SheetEvaluationScheduler {
     worker = CalculatorWorker(surface: surface)
     self.context = context
     self.commit = commit
+  }
+
+  func assistanceSnapshot(_ sheet: SheetSource, target: LineID) async throws -> AssistanceSnapshot {
+    await waitUntilIdle()
+    return try await worker.assistanceSnapshot(sheet, context: context.at(Date()), target: target)
+  }
+
+  func checkSuggestion(
+    _ candidate: SuggestionCandidate, snapshot: AssistanceSnapshot,
+    handles: Set<String>, choices: [String: String], assumptions: Set<String>
+  ) async throws -> AssistanceCheckedCandidate {
+    try await worker.checkSuggestion(
+      candidate, snapshot: snapshot, handles: handles,
+      choices: choices, assumptions: assumptions)
+  }
+
+  func prepareSuggestion(
+    _ candidate: SuggestionCandidate, snapshot: AssistanceSnapshot,
+    handles: Set<String>, choices: [String: String], assumptions: Set<String>
+  ) async throws -> AssistanceSourceEdit {
+    try await worker.prepareSuggestion(
+      candidate, snapshot: snapshot, handles: handles,
+      choices: choices, assumptions: assumptions)
   }
 
   /// Evaluates with new definitions from the next generation on, discarding

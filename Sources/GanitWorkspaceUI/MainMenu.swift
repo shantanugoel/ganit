@@ -328,6 +328,9 @@ public enum MainMenu {
             #selector(SheetCommands.showInterpretation(_:))
           ),
           item(
+            localized("menu.suggestExpression", "Suggest Expression"),
+            #selector(SheetCommands.suggestExpression(_:)), "i", [.command, .shift]),
+          item(
             localized("menu.askAssistant", "Ask Assistant"),
             #selector(SheetCommands.askAssistant(_:))
           ),

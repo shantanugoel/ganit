@@ -178,6 +178,7 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
     saveNow(nil)
     let closing = sheetID
     sheet?.window = nil
+    editor?.stopSuggestions()
     workspace.windowWillClose(self)
     discardIfUntouched(closing)
   }

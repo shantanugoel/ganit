@@ -1,4 +1,6 @@
 import AppKit
+import GanitAssistance
+import GanitData
 import GanitDiagnostics
 import GanitEngine
 import GanitFormatting
@@ -66,6 +68,62 @@ public final class SheetEditorViewController: NSViewController {
     didSet {
       sheetTextView.openHelp = openHelp
     }
+  }
+
+  /// Provider setup is separate from permission to send source.
+  public var suggestionConfiguration: SheetSuggestionConfiguration? {
+    didSet { suggestionSession.invalidate() }
+  }
+  package lazy var suggestionSession = SheetSuggestionSession(editor: self)
+  private lazy var suggestionCard = SuggestionCard(session: suggestionSession, editor: self)
+
+  package func suggestionSnapshot(target: LineID) async throws -> AssistanceSnapshot {
+    guard let scheduler else { throw AssistanceSnapshotError.unsupportedTarget }
+    return try await scheduler.assistanceSnapshot(sheet, target: target)
+  }
+
+  package func applySuggestionEdit(_ edit: AssistanceSourceEdit) throws {
+    guard sheet.text == edit.sourceBefore, !textView.hasMarkedText(),
+      sheet.lines.contains(where: { $0.id == edit.target })
+    else {
+      throw SheetSourceCoordinator.Failure.staleEdit
+    }
+    try sourceCoordinator.apply(
+      edit.patches, actionName: localized("suggestion.undo", "Use Expression"))
+    guard sheet.text == edit.sourceAfter else {
+      assertionFailure("Source transaction differs from its native check")
+      return
+    }
+  }
+
+  package var suggestionTarget: LineID? {
+    let selection = textView.selectedRange()
+    let index = lineIndex(atUTF16: selection.location)
+    let line = sheet.lines[index]
+    guard !tableLines().contains(index), textView.isEditable else { return nil }
+    if selection.length > 0 {
+      let start = utf16Starts()[index]
+      guard selection.location == start, selection.upperBound == start + line.text.utf16.count
+      else { return nil }
+    }
+    return line.id
+  }
+
+  @objc public func suggestExpression(_ sender: Any?) { suggestionSession.prepare() }
+  public func stopSuggestions() { suggestionSession.dismiss() }
+
+  public override func cancelOperation(_ sender: Any?) {
+    if suggestionSession.isVisible {
+      suggestionSession.dismiss()
+    } else {
+      nextResponder?.tryToPerform(#selector(cancelOperation(_:)), with: sender)
+    }
+  }
+
+  private func updateSuggestionCard() {
+    guard isViewLoaded else { return }
+    suggestionCard.refresh()
+    view.needsLayout = true
   }
 
   private var context: EvaluationContext
@@ -193,6 +251,16 @@ public final class SheetEditorViewController: NSViewController {
     mirroredText = text
     super.init(nibName: nil, bundle: nil)
 
+    suggestionSession.didChange = { [weak self] in self?.updateSuggestionCard() }
+    sheetTextView.canSuggestExpression = { [weak self] in
+      self?.suggestionConfiguration?.settings.isReady == true && self?.suggestionTarget != nil
+    }
+    sheetTextView.onSuggestExpression = { [weak self] in self?.suggestExpression(nil) }
+    sheetTextView.dismissSuggestion = { [weak self] in
+      guard let self, suggestionSession.isVisible else { return false }
+      suggestionSession.dismiss()
+      return true
+    }
     configureTextView(text: text)
     placeAnswers(display)
     sheetTextView.findTableHit = { [weak self] in self?.openTableAtFindSelection() }
@@ -334,6 +402,7 @@ public final class SheetEditorViewController: NSViewController {
     let container = NSView(frame: scrollView.frame)
     container.addSubview(scrollView)
     container.addSubview(summaryBar)
+    container.addSubview(suggestionCard)
     view = container
   }
 
@@ -341,8 +410,14 @@ public final class SheetEditorViewController: NSViewController {
     super.viewDidLayout()
     let height = summaryBar.fittingHeight
     summaryBar.frame = NSRect(x: 0, y: 0, width: view.bounds.width, height: height)
+    let cardHeight: CGFloat =
+      suggestionSession.isVisible
+      ? min(230, max(0, view.bounds.height - 80), max(60, view.bounds.height * 0.45)) : 0
+    suggestionCard.isHidden = cardHeight == 0
+    suggestionCard.frame = NSRect(x: 0, y: height, width: view.bounds.width, height: cardHeight)
     scrollView.frame = NSRect(
-      x: 0, y: height, width: view.bounds.width, height: view.bounds.height - height)
+      x: 0, y: height + cardHeight, width: view.bounds.width,
+      height: max(0, view.bounds.height - height - cardHeight))
   }
 
   public override func viewDidAppear() {
@@ -408,6 +483,7 @@ public final class SheetEditorViewController: NSViewController {
       utf8Range: utf8Lower..<(utf8Lower + utf8.distance(from: lower, to: upper)),
       with: String(current[replacementLower..<replacementUpper])
     )
+    suggestionSession.invalidate()
     mirroredText = current
     cachedUTF16Starts = nil
     cachedLineNumbers = nil
@@ -474,6 +550,7 @@ public final class SheetEditorViewController: NSViewController {
     guard context.angleMode != mode else {
       return
     }
+    suggestionSession.invalidate()
     context = context.with(angleMode: mode)
     scheduler?.context = context
     scheduler?.schedule(sheet)
@@ -490,6 +567,7 @@ public final class SheetEditorViewController: NSViewController {
     else {
       return
     }
+    suggestionSession.invalidate()
     context = context.with(
       localeIdentifier: localeIdentifier, lexingConfiguration: lexingConfiguration)
     resultFormatter = ResultFormatter(context: context, display: displayOptions)
@@ -504,6 +582,7 @@ public final class SheetEditorViewController: NSViewController {
   }
 
   public func setCurrencyRates(_ rates: CurrencyRates) {
+    suggestionSession.invalidate()
     context = context.with(rates)
     scheduler?.context = context
     scheduler?.schedule(sheet)
@@ -514,6 +593,7 @@ public final class SheetEditorViewController: NSViewController {
     guard definitions != scheduler?.definitions else {
       return
     }
+    suggestionSession.invalidate()
     scheduler?.setDefinitions(definitions, of: sheet)
   }
 
@@ -526,6 +606,7 @@ public final class SheetEditorViewController: NSViewController {
   /// at the last completed evaluation.
   @objc public func stopCalculation(_ sender: Any?) {
     scheduler?.cancel()
+    suggestionSession.dismiss()
     cancelAssistantRequests(
       lines: Array(assistantLineInFlight.keys), prompts: Array(assistantPromptsInFlight.keys))
   }
@@ -1120,6 +1201,7 @@ public final class SheetEditorViewController: NSViewController {
       return
     }
     displayOptions = options
+    suggestionSession.invalidate()
     context = context.with(
       dollarCurrency: options.dollarCurrency, isMarkdownMode: options.writesAnswersInline,
       ambiguousSuffixes: options.ambiguousSuffixes)

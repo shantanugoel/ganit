@@ -730,3 +730,17 @@ use synthetic replies and a virtual clock. The editor does not use the
 coordinator yet. Complete dependency fingerprints, session dismissal,
 editor acceptance, and the remaining phase requirements still need work.
 No phase exit gate is complete.
+
+The explicit editor path now prepares context before Send. Its temporary
+card supports local previews, choices, assumption approval, clarification,
+and source acceptance through the existing Undo coordinator. Independent
+checks cover retained working, Unicode ranges, reference identity, and
+local downstream results. Editor tests cover ordinary and Markdown sheets,
+Quick Ganit, Undo and Redo, reopened source, late replies, and keyboard
+behavior. These tests use synthetic replies only.
+
+The app shares one suggestion coordinator and no longer attaches its legacy
+model-answer callbacks. Legacy engine and editor APIs still need removal.
+Paragraph and table targets, complete dependency context, automatic events,
+inline placement, and remaining accessibility and release checks are not
+complete. No phase exit gate is complete.
