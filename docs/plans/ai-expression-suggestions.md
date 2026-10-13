@@ -761,3 +761,11 @@ user control permits an explicit input revision; it is off by default.
 Tests cover an approved denominator change and retained working. Complete
 dependency records, paragraph and table targets, automatic events, and the
 remaining release checks are still incomplete. No phase exit gate is complete.
+
+A paired release editor benchmark used separate baseline and candidate
+builds on the same development Mac. No provider settings were loaded.
+No AI request was sent. Both builds failed the existing edit latency gates.
+The candidate results were close to the baseline results. See
+[the performance record](../../Benchmarks/Results/ai-expression-suggestions-2026-10-13/README.md).
+The gates remain unchanged. Active-job performance and the other required
+release checks still need work. No phase exit gate is complete.
