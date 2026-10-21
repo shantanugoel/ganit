@@ -1,3 +1,5 @@
+import Foundation
+
 /// A unit someone defined, such as `1 bag = 25 kg`.
 ///
 /// A custom unit is a ratio of an existing unit, so it carries that unit's
@@ -61,6 +63,15 @@ public struct CustomUnit: Hashable, Sendable {
   }
 }
 
+/// Native source identity retained with a declaration or a function capture.
+package struct AssistanceDeclarationOrigin: Hashable, Sendable {
+  let scope: String
+  let document: UUID
+  let line: LineID
+  let source: String
+  var identifier: String { scope + ":" + document.uuidString + ":line:" + String(line.rawValue) }
+}
+
 /// A function someone defined, such as `area(w, h) = w * h`.
 ///
 /// Its body reads the variables and functions above its definition, as they
@@ -71,6 +82,9 @@ public struct CustomFunction: Hashable, Sendable {
   let body: Expression
   let variables: [String: EngineValue?]
   let functions: [String: CustomFunction]
+  var hasUnreviewedCapture = false
+  package var assistanceOrigin: AssistanceDeclarationOrigin?
+  package var assistanceCaptures: [String: AssistanceDeclarationOrigin] = [:]
 }
 
 /// What a sheet evaluates with beyond its own lines: variables, units, and
@@ -85,6 +99,9 @@ public struct SheetDefinitions: Hashable, Sendable {
   public var variables: [String: EngineValue] = [:]
   public var units: [CustomUnit] = []
   public var functions: [String: CustomFunction] = [:]
+  package var assistanceOrigins: [String: AssistanceDeclarationOrigin] = [:]
+  public internal(set) var unreviewedVariables: Set<String> = []
+  public internal(set) var unreviewedUnits: Set<String> = []
 
   public init(
     variables: [String: EngineValue] = [:], units: [CustomUnit] = [],

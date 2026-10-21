@@ -339,6 +339,10 @@ final class SheetTextView: NSTextView {
   var ambiguousSuffixes: [String: AmbiguousSuffixMeaning] = [:]
   var onSetSheetDollarCurrency: (String) -> Void = { _ in }
   var onSetSheetSuffixMeaning: (String, AmbiguousSuffixMeaning?) -> Void = { _, _ in }
+  var canSuggestExpression: () -> Bool = { false }
+  var onSuggestExpression: () -> Void = {}
+  var dismissSuggestion: () -> Bool = { false }
+
   /// Whether Ask Assistant can send the current line.
   var canAskAssistant: () -> Bool = { false }
   /// Asks the assistant again about the current line.
@@ -778,6 +782,11 @@ final class SheetTextView: NSTextView {
         String(
           localized: "menu.showInterpretation", defaultValue: "Show Interpretation", bundle: .main),
         #selector(showInterpretation(_:))
+      ),
+      (
+        String(
+          localized: "menu.suggestExpression", defaultValue: "Suggest Expression", bundle: .main),
+        #selector(suggestExpression(_:))
       ),
       (
         String(localized: "menu.askAssistant", defaultValue: "Ask Assistant", bundle: .main),
@@ -1473,6 +1482,7 @@ final class SheetTextView: NSTextView {
   /// Escape dismisses the completion list when it is showing, and otherwise
   /// cancels up the responder chain, such as dismissing Quick Ganit.
   override func complete(_ sender: Any?) {
+    if dismissSuggestion() { return }
     if completionList.isVisible {
       completionList.hide()
       completionDismissed = true
@@ -1835,6 +1845,8 @@ final class SheetTextView: NSTextView {
     findTableHit()
   }
 
+  @objc func suggestExpression(_ sender: Any?) { onSuggestExpression() }
+
   @objc func askAssistant(_ sender: Any?) {
     onAskAssistant()
   }
@@ -1859,6 +1871,8 @@ final class SheetTextView: NSTextView {
       return targetAnswer.map { !$0.cell.isPending } ?? false
     case #selector(showInterpretation(_:)):
       return targetAnswer != nil
+    case #selector(suggestExpression(_:)):
+      return canSuggestExpression()
     case #selector(askAssistant(_:)):
       return canAskAssistant()
     case #selector(changeAssistantAnswer(_:)):

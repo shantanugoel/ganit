@@ -36,6 +36,7 @@ let package = Package(
     .executableTarget(
       name: "GanitApp",
       dependencies: [
+        "GanitAssistance",
         "GanitData",
         "GanitDiagnostics",
         "GanitDocuments",
@@ -54,6 +55,7 @@ let package = Package(
     .target(
       name: "GanitWorkspaceUI",
       dependencies: [
+        "GanitAssistance",
         "GanitData",
         "GanitDocuments",
         "GanitEditorUI",
@@ -64,6 +66,9 @@ let package = Package(
     .target(
       name: "GanitEditorUI",
       dependencies: [
+        "GanitAssistance",
+        "GanitData",
+        "GanitSuggestionProtocol",
         "GanitDiagnostics",
         "GanitEngine",
         "GanitFormatting",
@@ -81,11 +86,16 @@ let package = Package(
       name: "GanitDocuments",
       dependencies: ["GanitData", "GanitEngine", "GanitFormatting"]
     ),
-    .target(name: "GanitData"),
+    .target(name: "GanitSuggestionProtocol"),
+    .target(
+      name: "GanitAssistance",
+      dependencies: ["GanitData", "GanitEngine", "GanitSuggestionProtocol"]),
+    .target(name: "GanitData", dependencies: ["GanitSuggestionProtocol"]),
     .target(
       name: "GanitEngine",
       dependencies: [
-        .product(name: "BigInt", package: "BigInt")
+        .product(name: "BigInt", package: "BigInt"),
+        "GanitSuggestionProtocol",
       ]
     ),
     .target(
@@ -133,7 +143,7 @@ let package = Package(
     ),
     .testTarget(
       name: "GanitEngineTests",
-      dependencies: ["GanitEngine"],
+      dependencies: ["GanitEngine", "GanitSuggestionProtocol"],
       // Byte-exact table block fixtures, read through #filePath.
       exclude: ["Fixtures"]
     ),
@@ -159,8 +169,11 @@ let package = Package(
       dependencies: ["GanitDiagnostics"]
     ),
     .testTarget(
+      name: "GanitAssistanceTests",
+      dependencies: ["GanitAssistance", "GanitData", "GanitEngine", "GanitSuggestionProtocol"]),
+    .testTarget(
       name: "GanitDataTests",
-      dependencies: ["GanitData"]
+      dependencies: ["GanitData", "GanitSuggestionProtocol"]
     ),
     .testTarget(
       name: "GanitDocumentsTests",
@@ -170,7 +183,9 @@ let package = Package(
     ),
     .testTarget(
       name: "GanitEditorUITests",
-      dependencies: ["GanitEditorUI", "GanitEngine"]
+      dependencies: [
+        "GanitEditorUI", "GanitEngine", "GanitAssistance", "GanitData", "GanitSuggestionProtocol",
+      ]
     ),
     .testTarget(
       name: "GanitQuickUITests",

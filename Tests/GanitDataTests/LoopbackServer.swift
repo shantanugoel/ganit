@@ -7,8 +7,10 @@ import Network
 final class LoopbackServer: @unchecked Sendable {
   private let listener: NWListener
   private let queue = DispatchQueue(label: "LoopbackServer")
-  private let body: String
   private let contentType: String
+  private let headers: [String: String]
+  /// What to answer a request with: a fixed body and status, or a rule that
+  /// reads the request first.
   private let responder: @Sendable (String) -> (status: Int, body: String)
   private var received: [String] = []
   private var waiters: [(atLeast: Int, continuation: CheckedContinuation<[String], Never>)] = []
@@ -18,12 +20,13 @@ final class LoopbackServer: @unchecked Sendable {
   }
 
   init(
-    body: String = "<ok/>", contentType: String = "text/xml",
+    body: String = "<ok/>", status: Int = 200, contentType: String = "text/xml",
+    headers: [String: String] = [:],
     responder: (@Sendable (String) -> (status: Int, body: String))? = nil
   ) throws {
-    self.body = body
+    self.responder = responder ?? { _ in (status, body) }
     self.contentType = contentType
-    self.responder = responder ?? { _ in (200, body) }
+    self.headers = headers
     let parameters = NWParameters.tcp
     parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any)
     listener = try NWListener(using: parameters)
@@ -64,6 +67,13 @@ final class LoopbackServer: @unchecked Sendable {
     }
   }
 
+  /// How many requests have arrived, without waiting for one.
+  func requestCount() async -> Int {
+    await withCheckedContinuation { continuation in
+      queue.async { continuation.resume(returning: self.received.count) }
+    }
+  }
+
   private func serve(_ connection: NWConnection) {
     connection.start(queue: queue)
     read(connection, so: "")
@@ -89,8 +99,9 @@ final class LoopbackServer: @unchecked Sendable {
       }
       let answer = responder(raw)
       let response =
-        "HTTP/1.1 \(answer.status) \(answer.status == 200 ? "OK" : "Refused")\r\n"
-        + "Content-Type: \(contentType)\r\nContent-Length: \(answer.body.utf8.count)\r\n"
+        "HTTP/1.1 \(answer.status) Ganit fixture\r\nContent-Type: \(contentType)\r\n"
+        + "Content-Length: \(answer.body.utf8.count)\r\n"
+        + headers.keys.sorted().map { "\($0): \(headers[$0]!)\r\n" }.joined()
         + "Connection: close\r\n\r\n\(answer.body)"
       connection.send(
         content: Data(response.utf8),

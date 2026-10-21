@@ -78,6 +78,13 @@ public final class Workspace {
   /// Called when the definitions sheet's definitions change, so a sheet
   /// outside the library, such as Quick Ganit's buffer, can follow.
   public var definitionsDidChange: ((SheetDefinitions) -> Void)?
+  /// All sheets share the app's coordinator. Source sending needs a separate action.
+  public var suggestionConfiguration: SheetSuggestionConfiguration? {
+    didSet {
+      for sheet in sheets.values { sheet.editor.suggestionConfiguration = suggestionConfiguration }
+    }
+  }
+
   /// Asks the reader's assistant about a line Ganit could not work out. Every
   /// open and newly opened sheet asks through it.
   public var askAssistant: ((String) async -> String?)? {
@@ -298,6 +305,7 @@ public final class Workspace {
       display: stored.metadata.preferences.display
     )
     editor.setDefinitions(definitions)
+    editor.suggestionConfiguration = suggestionConfiguration
     editor.askAssistant = askAssistant
     editor.forgetAssistantAnswer = forgetAssistantAnswer
     editor.openHelp = openHelp

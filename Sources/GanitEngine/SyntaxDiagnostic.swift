@@ -1,5 +1,5 @@
 public struct SyntaxDiagnostic: Hashable, Sendable {
-  public enum Code: String, Hashable, Sendable {
+  public enum Code: String, CaseIterable, Hashable, Sendable {
     case unexpectedCharacter
     case mixedDigitScripts
     case missingRadixDigits

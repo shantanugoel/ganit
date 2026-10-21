@@ -162,6 +162,7 @@ private struct EvaluationWorker {
   // Evaluation recurses once per AST level. The dispatcher stays small and
   // each case lives in a non-inlined method, so a level's stack frame holds
   // only that case's values and deep expressions fit secondary-thread stacks.
+  @inline(never)
   mutating func evaluate(_ expression: Expression) throws -> EngineValue {
     try visit(expression.range)
 
@@ -1117,6 +1118,18 @@ private struct EvaluationWorker {
     guard arguments.count <= limits.maximumFunctionArguments else {
       throw limitError(.functionArguments, range: nameRange)
     }
+    if let function = BuiltInFunction(rawValue: name) {
+      try requireArguments(
+        function.argumentRange, of: name, given: arguments.count, at: nameRange)
+      return .number(try evaluateNumeric(function, arguments, nameRange: nameRange))
+    }
+    return try evaluateOtherCall(name: name, nameRange: nameRange, arguments: arguments)
+  }
+
+  @inline(never)
+  private mutating func evaluateOtherCall(
+    name: String, nameRange: SourceRange, arguments: [Expression]
+  ) throws -> EngineValue {
     if let finance = FinanceFunction(rawValue: name) {
       let expected = FinanceFunction.argumentCount...FinanceFunction.argumentCount
       try requireArguments(expected, of: name, given: arguments.count, at: nameRange)
@@ -1130,15 +1143,10 @@ private struct EvaluationWorker {
         of: try arguments.map { try evaluate($0) }
       )
     }
-    guard let function = BuiltInFunction(rawValue: name) else {
-      guard let custom = functions[name.lowercased()] else {
-        throw EngineError(code: .unknownFunction, ranges: [nameRange])
-      }
-      return try evaluate(custom, arguments, nameRange: nameRange)
+    guard let custom = functions[name.lowercased()] else {
+      throw EngineError(code: .unknownFunction, ranges: [nameRange])
     }
-    try requireArguments(
-      function.argumentRange, of: name, given: arguments.count, at: nameRange)
-    return .number(try evaluateNumeric(function, arguments, nameRange: nameRange))
+    return try evaluate(custom, arguments, nameRange: nameRange)
   }
 
   /// A defined function's body, with its parameters standing for the
@@ -1209,7 +1217,21 @@ private struct EvaluationWorker {
     nameRange: SourceRange
   ) throws -> NumericValue {
 
-    var evaluated = try arguments.map { try evaluate($0) }
+    var evaluated: [EngineValue] = []
+    evaluated.reserveCapacity(arguments.count)
+    for argument in arguments { evaluated.append(try evaluate(argument)) }
+    return try applyNumeric(function, arguments, evaluated: evaluated, nameRange: nameRange)
+  }
+
+  // Apply the function after argument evaluation so recursive frames stay small.
+  @inline(never)
+  private func applyNumeric(
+    _ function: BuiltInFunction,
+    _ arguments: [Expression],
+    evaluated initialValues: [EngineValue],
+    nameRange: SourceRange
+  ) throws -> NumericValue {
+    var evaluated = initialValues
     // `npv(10%, …)` states its rate as a percentage, as a sheet writes rates.
     if function == .netPresentValue, case .percentage(let percentage) = evaluated[0] {
       evaluated[0] = .number(try percentageRate(percentage))

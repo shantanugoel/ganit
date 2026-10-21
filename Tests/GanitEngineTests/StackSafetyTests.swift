@@ -1,4 +1,5 @@
 import Foundation
+import GanitSuggestionProtocol
 import Testing
 
 @testable import GanitEngine
@@ -50,4 +51,39 @@ struct StackSafetyTests {
     }
     #expect(failures.isEmpty, "\(failures)")
   }
+  @Test func suggestionCheckingFitsTheNativeSecondaryThreadDepthBudget() async throws {
+    let context = try sheetContext()
+    let sources = Array(Self.deepestSources.dropLast())
+    let failures = await withCheckedContinuation { continuation in
+      let thread = Thread {
+        var failures: [String] = []
+        do {
+          let sheet = SheetSource("Use one.")
+          var calculator = SheetCalculator()
+          let snapshot = try calculator.assistanceSnapshot(
+            sheet, context: context, target: sheet.lines[0].id)
+          let evidence = snapshot.evidence()
+          let literal = evidence.first { $0.text == "one" }!.handle
+          let relation = evidence.first { $0.kind == "relation" }!.handle
+          for source in sources {
+            let candidate = SuggestionCandidate(
+              id: "C1", edits: [SuggestionEdit(target: "T1", replacement: source)],
+              bindings: [], literals: [SuggestionLiteral(text: "1", evidence: literal)],
+              relations: [SuggestionRelation(rule: "interpretation", evidence: relation)],
+              assumptions: [], summary: "Use the supplied number.")
+            _ = try AssistanceCandidateChecker.check(candidate, against: snapshot)
+          }
+        } catch { failures.append(String(describing: error)) }
+        continuation.resume(returning: failures)
+      }
+      #if DEBUG
+        thread.stackSize = 16 << 20
+      #else
+        thread.stackSize = 512 << 10
+      #endif
+      thread.start()
+    }
+    #expect(failures.isEmpty, "\(failures)")
+  }
+
 }

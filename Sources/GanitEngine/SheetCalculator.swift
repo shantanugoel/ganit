@@ -1,4 +1,5 @@
 import Foundation
+import GanitSuggestionProtocol
 
 public struct SheetLineResult: Hashable, Sendable {
   public let id: LineID
@@ -12,11 +13,12 @@ public struct SheetLineResult: Hashable, Sendable {
   /// a failed cell or range member this line or a line it depends on read,
   /// or a table that could not be calculated. Empty otherwise.
   public let failureOriginTableCells: [TableCellFailureOrigin]
+  public let hasUnreviewedModelDependency: Bool
 
   fileprivate init(
     id: LineID, source: LineSource, evaluation: LineEvaluation?,
     result: CalculationResult?, failureOrigins: [Int],
-    tableFailureOrigins: [TableCellFailureOrigin] = []
+    tableFailureOrigins: [TableCellFailureOrigin] = [], hasUnreviewedModelDependency: Bool = false
   ) {
     self.id = id
     self.source = source
@@ -24,6 +26,7 @@ public struct SheetLineResult: Hashable, Sendable {
     self.result = result
     failureOriginLineNumbers = failureOrigins
     failureOriginTableCells = tableFailureOrigins
+    self.hasUnreviewedModelDependency = hasUnreviewedModelDependency
   }
 
   public var syntax: LineSyntax {
@@ -45,6 +48,9 @@ public struct SheetLineResult: Hashable, Sendable {
   public var financeUses: Set<FinanceFunction> {
     evaluation?.financeUses ?? []
   }
+  /// Whether the native evaluation reads the frozen clock.
+  public var usesClock: Bool { evaluation?.clockInterval != nil }
+
   /// The `ask_assistant` prompts the line needs answered, with their
   /// placeholders filled in.
   public var assistantPrompts: [AssistantPrompt] {
@@ -55,6 +61,7 @@ public struct SheetLineResult: Hashable, Sendable {
     lhs.id == rhs.id && lhs.syntax == rhs.syntax && lhs.result == rhs.result
       && lhs.failureOriginLineNumbers == rhs.failureOriginLineNumbers
       && lhs.failureOriginTableCells == rhs.failureOriginTableCells
+      && lhs.hasUnreviewedModelDependency == rhs.hasUnreviewedModelDependency
   }
 
   public func hash(into hasher: inout Hasher) {
@@ -206,6 +213,71 @@ public struct SheetCalculator: Sendable {
     _ sheet: SheetSource,
     context: EvaluationContext
   ) throws -> SheetEvaluation {
+    var captured: AssistanceScope?
+    return try evaluateCapturingAssistance(
+      sheet, context: context, target: nil, captured: &captured)
+  }
+
+  /// Reuse the native name matcher for an explicit task constraint.
+  package static func assistanceMatches(
+    in text: String, scope: AssistanceScope,
+    context: EvaluationContext
+  ) -> Set<String> {
+    let words = LineSource(text, [], scope.engine, context).words
+    let names = VariableScope(assistanceNames: scope.names, functions: scope.functions)
+    return Set(names.values(named: words).keys).union(names.functions(named: words).keys)
+  }
+
+  /// Capture the target's native scope in the same pass as its evaluation.
+  /// The normal cache still applies. No other sheet is read or evaluated.
+  public mutating func assistanceSnapshot(
+    _ sheet: SheetSource, context: EvaluationContext, target: LineID
+  ) throws -> AssistanceSnapshot {
+    guard let line = sheet.lines.first(where: { $0.id == target }) else {
+      throw AssistanceSnapshotError.unknownTarget
+    }
+    guard line.text.utf8.count <= SuggestionLimits.targetBytes else {
+      throw AssistanceSnapshotError.targetTooLarge
+    }
+    return try assistanceSnapshot(sheet, context: context, targets: [target])
+  }
+
+  /// The selected physical lines form one app-owned source target.
+  public mutating func assistanceSnapshot(
+    _ sheet: SheetSource, context: EvaluationContext,
+    targets: [LineID]
+  ) throws -> AssistanceSnapshot {
+    guard let first = targets.first,
+      let start = sheet.lines.firstIndex(where: { $0.id == first }),
+      !targets.isEmpty, start + targets.count <= sheet.lines.count,
+      Array(sheet.lines[start..<(start + targets.count)].map(\.id)) == targets
+    else {
+      throw AssistanceSnapshotError.unknownTarget
+    }
+    let lines = Array(sheet.lines[start..<(start + targets.count)])
+    let range = lines[0].range.lowerBound..<lines[lines.count - 1].range.upperBound
+    guard targets.count <= SuggestionLimits.targetLines, range.count <= SuggestionLimits.targetBytes
+    else {
+      throw AssistanceSnapshotError.targetTooLarge
+    }
+    guard
+      !TableSourceDocument.blockLineRanges(in: sheet).contains(where: {
+        $0.overlaps(start..<(start + targets.count))
+      })
+    else { throw AssistanceSnapshotError.unsupportedTarget }
+    var captured: AssistanceScope?
+    let evaluation = try evaluateCapturingAssistance(
+      sheet, context: context, target: first, captured: &captured)
+    guard let captured else { throw AssistanceSnapshotError.unsupportedTarget }
+    return AssistanceSnapshot(
+      source: sheet, context: context, target: lines[0],
+      evaluation: evaluation, scope: captured, calculator: self, targetLines: lines)
+  }
+
+  private mutating func evaluateCapturingAssistance(
+    _ sheet: SheetSource, context: EvaluationContext, target: LineID?,
+    captured: inout AssistanceScope?
+  ) throws -> SheetEvaluation {
     generation += 1
     if context.at(self.context?.now ?? context.now) != self.context {
       cache.removeAll()
@@ -213,8 +285,15 @@ public struct SheetCalculator: Sendable {
     }
     self.context = context
 
-    let inherited = VariableScope(definitions.variables, functions: definitions.functions)
+    var inherited = VariableScope(definitions.variables, functions: definitions.functions)
+    inherited.unreviewedNames = definitions.unreviewedVariables
+    inherited.assistanceOrigins = definitions.assistanceOrigins
+    var unreviewedUnits = definitions.unreviewedUnits
+    var unreviewedLines: Set<LineID> = []
     var scope = inherited
+    var tracksAssistanceOrigins =
+      target != nil || surface == .definitions
+      || !definitions.functions.isEmpty
     // The units the lines below may measure with, which grow as lines define
     // them, and the engine that resolves them.
     var units = definitions.units
@@ -259,6 +338,29 @@ public struct SheetCalculator: Sendable {
         ? cached!.source
         : LineSource(line.text, units, engine, context, tableOperands: tableOperands)
       var evaluation = cached?.source === source ? cached?.evaluation : nil
+      if line.id == target {
+        var origins: [String: SheetLine] = [:]
+        for (previousSource, previousResult) in zip(sheet.lines, results).reversed() {
+          if case .divider = previousResult.syntax { break }
+          if let name = previousResult.declaredVariableName, origins[name] == nil {
+            origins[name] = previousSource
+          }
+        }
+        var noteWords: [[String]] = []
+        for previous in sheet.lines[..<lineIndex].reversed() {
+          guard case .comment = LineSyntax(previous.text) else { break }
+          if AssistanceNote(source: previous.text).historical {
+            continue
+          }
+          noteWords += LineSource(previous.text, units, engine, context).words
+        }
+        captured = AssistanceScope(
+          engine: engine, names: scope.all, functions: scope.functions, rates: scope.rates,
+          outcomes: outcomes, origins: origins,
+          matches: Set(scope.values(named: source.words + noteWords).keys),
+          functionMatches: Set(scope.functions(named: source.words + noteWords).keys),
+          unreviewedNames: scope.unreviewedNames, unreviewedUnits: unreviewedUnits)
+      }
 
       if case .calculation(_, _, let expressionRange?, _) = source.syntax {
         let names = scope.values(named: source.words)
@@ -342,18 +444,90 @@ public struct SheetCalculator: Sendable {
         tables.isActive && !failureOrigins.isEmpty
         ? tables.failures(evaluation?.tableFailures, lines: failureOrigins, at: outcomes.nextLine)
         : []
-      if let function = evaluation?.function {
+      let tree = evaluation?.parsing?.expression ?? evaluation?.function?.body
+      let hasUnreviewedFunctions =
+        evaluation?.functions.values.contains { $0.hasUnreviewedCapture } ?? false
+      let facts =
+        (!unreviewedUnits.isEmpty || evaluation?.function != nil || hasUnreviewedFunctions)
+        ? tree.map {
+          AssistanceExpressionFacts($0, source: "", engine: engine, context: context)
+        } : nil
+      let readIdentifiers: Set<String> =
+        scope.unreviewedNames.isEmpty
+        ? []
+        : (tree?.identifiers ?? []).subtracting(
+          evaluation?.function?.parameters ?? [])
+      let unreviewed =
+        facts?.containsAssistant == true || !(evaluation?.assistantPrompts.isEmpty ?? true)
+        || !readIdentifiers.isDisjoint(with: scope.unreviewedNames)
+        || (facts?.calls.contains { evaluation?.functions[$0]?.hasUnreviewedCapture == true }
+          ?? false)
+        || (facts.map { !$0.unitIdentifiers.isDisjoint(with: unreviewedUnits) } ?? false)
+        || (!unreviewedLines.isEmpty
+          && (evaluation?.references.contains { reference in
+            (outcomes.lineNumbers(for: reference) ?? []).contains {
+              unreviewedLines.contains(sheet.lines[$0 - 1].id)
+            }
+          } ?? false))
+      if unreviewed { unreviewedLines.insert(line.id) }
+      if var function = evaluation?.function {
+        if !tracksAssistanceOrigins {
+          // Build source origins once, when the first closure needs them.
+          // Ordinary sheets without functions retain their previous fast path.
+          var found: Set<String> = []
+          for (previous, result) in zip(sheet.lines, results).reversed() {
+            if case .divider = result.syntax { break }
+            if let name = result.declaredVariableName, found.insert(name).inserted {
+              scope.assistanceOrigins[name] = AssistanceDeclarationOrigin(
+                scope: "sheet", document: sheet.assistanceIdentity,
+                line: previous.id, source: previous.text)
+            }
+          }
+          tracksAssistanceOrigins = true
+        }
+        function.hasUnreviewedCapture = unreviewed
+        function.assistanceOrigin = AssistanceDeclarationOrigin(
+          scope: surface == .definitions ? "definitions" : "sheet",
+          document: sheet.assistanceIdentity,
+          line: line.id, source: line.text
+        )
+        function.assistanceCaptures = Dictionary(
+          uniqueKeysWithValues: (facts?.identifiers ?? []).subtracting(function.parameters)
+            .compactMap { name in
+              scope.assistanceOrigins[name].map { (name, $0) }
+            })
         scope.functions[function.name] = function
         declared.functions[function.name] = function
       }
       if let name = source.declaredName, let result {
         scope.declare(name, result: result, failureOrigins: failureOrigins)
+        if tracksAssistanceOrigins {
+          let origin = AssistanceDeclarationOrigin(
+            scope: surface == .definitions ? "definitions" : "sheet",
+            document: sheet.assistanceIdentity, line: line.id, source: line.text)
+          scope.assistanceOrigins[name] = origin
+          if surface == .definitions { declared.assistanceOrigins[name] = origin }
+        }
+        if unreviewed {
+          scope.unreviewedNames.insert(name)
+        } else if !scope.unreviewedNames.isEmpty {
+          scope.unreviewedNames.remove(name)
+        }
         if case .value(let value) = result {
           declared.variables[name] = value
+          if unreviewed {
+            declared.unreviewedVariables.insert(name)
+          } else if !declared.unreviewedVariables.isEmpty {
+            declared.unreviewedVariables.remove(name)
+          }
         }
       }
       if let unit = evaluation?.unit {
         declared.units.append(unit)
+        if unreviewed {
+          unreviewedUnits.insert(unit.name)
+          declared.unreviewedUnits.insert(unit.name)
+        }
         units.append(unit)
         engine = self.engine.resolving(units)
       }
@@ -382,7 +556,8 @@ public struct SheetCalculator: Sendable {
       results.append(
         SheetLineResult(
           id: line.id, source: source, evaluation: evaluation,
-          result: result, failureOrigins: failureOrigins, tableFailureOrigins: tableFailures))
+          result: result, failureOrigins: failureOrigins, tableFailureOrigins: tableFailures,
+          hasUnreviewedModelDependency: unreviewed))
     }
 
     if cache.count > sheet.lines.count {
@@ -1161,12 +1336,20 @@ private struct VariableScope: Sendable {
   var rates: [CurrencyPair: NumericValue] = [:]
   /// Functions defined above, by lowercased name.
   var functions: [String: CustomFunction]
+  var unreviewedNames: Set<String> = []
+  var assistanceOrigins: [String: AssistanceDeclarationOrigin] = [:]
 
   init(_ inherited: [String: EngineValue] = [:], functions: [String: CustomFunction] = [:]) {
     self.functions = functions
     for (name, value) in inherited {
       declare(name, result: .value(value))
     }
+  }
+
+  init(assistanceNames: [String: EngineValue?], functions: [String: CustomFunction]) {
+    self.functions = functions
+    variables = assistanceNames
+    for name in assistanceNames.keys { indexPrefixes(of: name) }
   }
 
   /// The functions a word in `runs` names.
@@ -1203,6 +1386,10 @@ private struct VariableScope: Sendable {
     } else {
       variables[name] = .some(nil)
     }
+    indexPrefixes(of: name)
+  }
+
+  private mutating func indexPrefixes(of name: String) {
     var prefix = ""
     for word in name.split(separator: " ").dropLast() {
       prefix = prefix.isEmpty ? String(word) : prefix + " " + word

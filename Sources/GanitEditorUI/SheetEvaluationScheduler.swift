@@ -1,6 +1,8 @@
 import Foundation
+import GanitAssistance
 import GanitDiagnostics
 import GanitEngine
+import GanitSuggestionProtocol
 
 /// Serializes incremental evaluation off the main actor and owns its cache.
 private actor CalculatorWorker {
@@ -14,6 +16,18 @@ private actor CalculatorWorker {
 
   func evaluate(_ sheet: SheetSource, context: EvaluationContext) throws -> SheetEvaluation {
     try calculator.evaluate(sheet, context: context)
+  }
+
+  func assistanceSnapshot(_ sheet: SheetSource, context: EvaluationContext, target: LineID)
+    throws -> AssistanceSnapshot
+  {
+    try calculator.assistanceSnapshot(sheet, context: context, target: target)
+  }
+
+  func assistanceSnapshot(_ sheet: SheetSource, context: EvaluationContext, targets: [LineID])
+    throws -> AssistanceSnapshot
+  {
+    try calculator.assistanceSnapshot(sheet, context: context, targets: targets)
   }
 
   /// Starts over with new definitions, which every line may read.
@@ -50,6 +64,40 @@ final class SheetEvaluationScheduler {
     worker = CalculatorWorker(surface: surface)
     self.context = context
     self.commit = commit
+  }
+
+  func assistanceSnapshot(_ sheet: SheetSource, target: LineID) async throws -> AssistanceSnapshot {
+    await waitUntilIdle()
+    return try await worker.assistanceSnapshot(sheet, context: context.at(Date()), target: target)
+  }
+
+  func assistanceSnapshot(_ sheet: SheetSource, targets: [LineID]) async throws
+    -> AssistanceSnapshot
+  {
+    await waitUntilIdle()
+    return try await worker.assistanceSnapshot(sheet, context: context.at(Date()), targets: targets)
+  }
+
+  func checkSuggestion(
+    _ candidate: SuggestionCandidate, snapshot: AssistanceSnapshot,
+    handles: Set<String>, choices: [String: String], assumptions: Set<String>,
+    userRevisedInputs: Bool = false
+  ) async throws -> AssistanceCheckedCandidate {
+    try await SuggestionLocalChecking.check(
+      candidate, snapshot: snapshot,
+      handles: handles, choices: choices, assumptions: assumptions,
+      userRevisedInputs: userRevisedInputs)
+  }
+
+  func prepareSuggestion(
+    _ candidate: SuggestionCandidate, snapshot: AssistanceSnapshot,
+    handles: Set<String>, choices: [String: String], assumptions: Set<String>,
+    userRevisedInputs: Bool = false
+  ) async throws -> AssistanceSourceEdit {
+    try await SuggestionLocalChecking.prepare(
+      candidate, snapshot: snapshot,
+      handles: handles, choices: choices, assumptions: assumptions,
+      userRevisedInputs: userRevisedInputs)
   }
 
   /// Evaluates with new definitions from the next generation on, discarding

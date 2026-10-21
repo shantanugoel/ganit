@@ -239,3 +239,36 @@ extension CalculationEngine {
     TableRangeReducer(context: context, limits: evaluationLimits, scalarBudget: scalarBudget)
   }
 }
+
+extension CalculationEngine {
+  func assistanceCatalog(for text: String, context: EvaluationContext) -> AssistanceCatalog {
+    AssistanceCatalog(
+      catalog: unitCatalog, limits: evaluationLimits, text: text, engine: self, context: context)
+  }
+  func assistanceScaleEvidence(
+    token: Token, previous: Token?, source: String,
+    context: EvaluationContext, variables: [String: EngineValueKind]
+  ) -> IntegerValue? {
+    guard case .identifier(let word) = token.kind, variables[word.lowercased()] == nil,
+      let digits = ScaleWord.digits[word.lowercased()], let value = try? IntegerValue(digits)
+    else { return nil }
+    if let previous, case .number = previous.kind {
+      let span = previous.range.union(token.range)
+      guard let slice = span.text(in: source),
+        let expression = parse(
+          String(slice), context: context,
+          origin: SourceLocation(
+            utf8Offset: span.lowerBound, graphemeOffset: span.graphemeLowerBound),
+          variables: variables
+        ).expression
+      else { return nil }
+      let facts = AssistanceExpressionFacts(
+        expression, source: source, engine: self, context: context)
+      return facts.literals.contains {
+        $0.range == token.range && $0.value == .number(.integer(value))
+      } ? value : nil
+    }
+    return unitCatalog.resolveUnit(matching: word) == nil ? value : nil
+  }
+
+}

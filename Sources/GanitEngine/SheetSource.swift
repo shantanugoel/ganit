@@ -1,3 +1,5 @@
+import Foundation
+
 /// Identifies a line independently of its current position in a sheet.
 public struct LineID: Hashable, Sendable {
   public let rawValue: UInt64
@@ -23,6 +25,7 @@ public struct SheetLine: Hashable, Sendable {
 /// terminator, so joining each line's text and terminator reproduces the
 /// source exactly.
 public struct SheetSource: Sendable {
+  package let assistanceIdentity = UUID()
   public private(set) var lines: [SheetLine] = []
   private var nextID: UInt64 = 0
 

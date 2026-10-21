@@ -1,0 +1,5 @@
+fixture=mixed-sheet
+edits=200
+p50_edit_to_answer_ms=28.391
+p95_edit_to_answer_ms=28.824
+2026-10-13 11:37:43.104 GanitBenchmarks[5111:56141413] This NSLayoutConstraint is being configured with a constant that exceeds internal limits.  A smaller value will be substituted, but this problem should be fixed. Break on BOOL _NSLayoutConstraintNumberExceedsLimit(void) to debug.  This will be logged only once.  This may break in the future.

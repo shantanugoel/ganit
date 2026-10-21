@@ -1,5 +1,6 @@
 import AppIntents
 import AppKit
+import GanitAssistance
 import GanitData
 import GanitDiagnostics
 import GanitDocuments
@@ -40,7 +41,6 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   private var quickPanel: QuickPanelController?
   private var quickBufferStore: TextDocumentStore?
   private var rateRefresher: RateRefresher?
-  private var assistantAnswerStore: AssistantAnswerStore?
   private var serviceProvider: ExpressionServiceProvider?
   private let spotlight = SpotlightTitleIndex()
   private static let spotlightDefaultsKey = "SpotlightIndexesSheetTitles"
@@ -57,6 +57,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   /// The assistant's settings, read once so that asking about a line does not
   /// go to the keychain every time.
   private var assistantSettings = AssistantSettings.load()
+  private let suggestionCoordinator = SuggestionCoordinator()
   private lazy var hotKey = GlobalHotKey { [weak self] in
     self?.toggleQuickGanit()
   }
@@ -121,13 +122,8 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       workspace.definitionsDidChange = { [weak self] definitions in
         self?.quickPanel?.editor.setDefinitions(definitions)
       }
-      assistantAnswerStore = try AssistantAnswerStore.applicationSupport()
-      workspace.askAssistant = { [weak self] line in
-        await self?.assistantAnswer(to: line) ?? nil
-      }
-      workspace.forgetAssistantAnswer = { [weak self] line in
-        self?.assistantAnswerStore?.forget(line)
-      }
+      workspace.suggestionConfiguration = SheetSuggestionConfiguration(
+        coordinator: suggestionCoordinator, settings: assistantSettings)
       workspace.openHelp = { [weak self] id in
         self?.showHelp(topicID: id)
       }
@@ -503,9 +499,17 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       assistantWindow.makeKeyAndOrderFront(nil)
       return
     }
-    let settings = AssistantSettingsController(settings: assistantSettings) { [weak self] saved in
+    let settings = AssistantSettingsController(
+      settings: assistantSettings, coordinator: suggestionCoordinator
+    ) { [weak self] saved in
       saved.save()
-      self?.assistantSettings = saved
+      guard let self else { return }
+      assistantSettings = saved
+      let configuration = SheetSuggestionConfiguration(
+        coordinator: suggestionCoordinator, settings: saved)
+      workspace?.suggestionConfiguration = configuration
+      quickPanel?.editor.suggestionConfiguration = configuration
+      Task { await suggestionCoordinator.stopAll() }
     }
     let window = NSWindow(contentViewController: settings)
     window.title = String(
@@ -515,27 +519,6 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     window.center()
     window.makeKeyAndOrderFront(nil)
     assistantWindow = window
-  }
-
-  /// Asks the configured model about a line, or answers nothing when no
-  /// assistant is set up or the request fails. A line Ganit cannot work out is
-  /// already shown as one, so a failed request needs no second complaint.
-  private func assistantAnswer(to line: String) async -> String? {
-    let settings = assistantSettings
-    guard settings.isReady else {
-      return nil
-    }
-    if let recorded = assistantAnswerStore?.answer(to: line) {
-      return recorded
-    }
-    do {
-      let answer = try await Assistant(settings: settings).answer(to: line)
-      assistantAnswerStore?.record(answer, for: line)
-      return answer
-    } catch {
-      // A failed or cancelled request is asked again next time.
-      return nil
-    }
   }
 
   /// Completes function and keyword names while typing, or not.
@@ -731,17 +714,12 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
         try self?.workspace?.openNewSheet(source: source)
         NSApplication.shared.activate()
       }
-      // A quick calculation reads the definitions sheet, and asks the
-      // assistant, like any other.
+      // Quick Ganit reads the same definitions and suggestion service.
       if let definitions = workspace?.definitions {
         quickPanel?.editor.setDefinitions(definitions)
       }
-      quickPanel?.editor.askAssistant = { [weak self] line in
-        await self?.assistantAnswer(to: line) ?? nil
-      }
-      quickPanel?.editor.forgetAssistantAnswer = { [weak self] line in
-        self?.assistantAnswerStore?.forget(line)
-      }
+      quickPanel?.editor.suggestionConfiguration = SheetSuggestionConfiguration(
+        coordinator: suggestionCoordinator, settings: assistantSettings)
       quickPanel?.editor.openHelp = { [weak self] id in
         self?.showHelp(topicID: id)
       }

@@ -1,11 +1,11 @@
-public enum UnaryOperator: Hashable, Sendable {
+public enum UnaryOperator: CaseIterable, Hashable, Sendable {
   case plus
   case minus
   /// `√2`, the same as `sqrt(2)`.
   case squareRoot
 }
 
-public enum BinaryOperator: Hashable, Sendable {
+public enum BinaryOperator: CaseIterable, Hashable, Sendable {
   case add
   case subtract
   case multiply
@@ -17,7 +17,7 @@ public enum BinaryOperator: Hashable, Sendable {
   case shiftRight
 }
 
-public enum PercentageOperator: Hashable, Sendable {
+public enum PercentageOperator: CaseIterable, Hashable, Sendable {
   case of
   case off
   case on

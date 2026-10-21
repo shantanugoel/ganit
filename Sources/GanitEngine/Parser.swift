@@ -178,6 +178,7 @@ private final class TokenParser {
     return token
   }
 
+  @inline(never)
   private func parseExpression(
     minimumBindingPower: Int,
     depth: Int
@@ -484,6 +485,7 @@ private final class TokenParser {
     return left
   }
 
+  @inline(never)
   private func parsePrefix(depth: Int) -> Expression? {
     let token = advance()
     switch token.kind {
@@ -500,51 +502,7 @@ private final class TokenParser {
       return parseCurrencySymbol(symbol, range: token.range, depth: depth)
 
     case .identifier(let name):
-      if variable(name) == nil, let phrase = parseDatePhrase(name, range: token.range) {
-        return phrase
-      }
-      if current.kind == .leftParenthesis {
-        if name == assistantFunctionName {
-          return parseAssistantCall(identifierRange: token.range, depth: depth)
-        }
-        return parseCall(
-          name: name,
-          identifierRange: token.range,
-          depth: depth
-        )
-      }
-      if variable(name) == nil, startsMoneyAmount {
-        if recognizesCurrencyCode(name) {
-          return parsePrefixedCurrency(name.uppercased(), range: token.range, depth: depth)
-        }
-        if let code = CurrencyCatalog.names[name.lowercased()] {
-          return parsePrefixedCurrency(code, range: token.range, depth: depth)
-        }
-        if let period = CalendarPeriodUnit(word: name) {
-          return parsePrefixedPeriod(period, range: token.range, depth: depth)
-        }
-        if ScaleWord.digits[name.lowercased()] != nil,
-          ambiguousSuffixes[name.lowercased()] == .scale
-            || name != "M" && catalog.resolveUnit(matching: name) == nil
-        {
-          return parsePrefixedScale(name, range: token.range, depth: depth)
-        }
-      }
-      if let unit = parseUnitAfterDivide(name, range: token.range, depth: depth) {
-        return unit
-      }
-      if variable(name) == nil, catalog.resolveUnit(matching: name) != nil,
-        hasAmountAfterPrefixedUnit
-      {
-        return parsePrefixedQuantity(alias: name, range: token.range, depth: depth)
-      }
-      if name == "percentage", identifier(at: 0) == "change" {
-        return parsePercentageChange(
-          startRange: token.range,
-          depth: depth
-        )
-      }
-      return variableName(startingWith: name, range: token.range)
+      return parseIdentifierPrefix(name, range: token.range, depth: depth)
 
     case .plus, .minus, .squareRoot:
       guard
@@ -603,6 +561,59 @@ private final class TokenParser {
       )
       return nil
     }
+  }
+
+  // Keep identifier dispatch out of recursive prefix stack frames.
+  @inline(never)
+  private func parseIdentifierPrefix(
+    _ name: String, range: SourceRange, depth: Int
+  ) -> Expression? {
+    if variable(name) == nil, let phrase = parseDatePhrase(name, range: range) {
+      return phrase
+    }
+    if current.kind == .leftParenthesis {
+      if name == assistantFunctionName {
+        return parseAssistantCall(identifierRange: range, depth: depth)
+      }
+      return parseCall(
+        name: name,
+        identifierRange: range,
+        depth: depth
+      )
+    }
+    if variable(name) == nil, startsMoneyAmount {
+      if recognizesCurrencyCode(name) {
+        return parsePrefixedCurrency(name.uppercased(), range: range, depth: depth)
+      }
+      if let code = CurrencyCatalog.names[name.lowercased()] {
+        return parsePrefixedCurrency(code, range: range, depth: depth)
+      }
+      if let period = CalendarPeriodUnit(word: name) {
+        return parsePrefixedPeriod(period, range: range, depth: depth)
+      }
+      if ScaleWord.digits[name.lowercased()] != nil,
+        ambiguousSuffixes[name.lowercased()] == .scale
+          || name != "M" && catalog.resolveUnit(matching: name) == nil
+      {
+        return parsePrefixedScale(name, range: range, depth: depth)
+      }
+    }
+    if let unit = parseUnitAfterDivide(name, range: range, depth: depth) {
+      return unit
+    }
+    if variable(name) == nil, catalog.resolveUnit(matching: name) != nil,
+      hasAmountAfterPrefixedUnit
+    {
+      return parsePrefixedQuantity(alias: name, range: range, depth: depth)
+    }
+    if name == "percentage", identifier(at: 0) == "change" {
+      return parsePercentageChange(
+        startRange: range,
+        depth: depth
+      )
+    }
+    return variableName(startingWith: name, range: range)
+
   }
 
   private func parsePercentageChange(

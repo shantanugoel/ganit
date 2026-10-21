@@ -1,22 +1,20 @@
 import AppKit
+import GanitAssistance
 import GanitData
 import GanitEditorUI
+import GanitEngine
 
-/// Sets up the assistant: whether Ganit asks a model about the lines it cannot
-/// work out, and where it asks.
-///
-/// The window says plainly what leaves the Mac, because that is the whole of
-/// what someone is agreeing to here.
+/// Sets up the provider. Each source request needs a separate review action.
 @MainActor
 public final class AssistantSettingsController: NSViewController {
-  /// The line the “Try It” button asks about, which is the kind of line the
-  /// assistant is for.
-  static let example = "10 kg of water in ml"
+  static let example = "bill = 2400 INR\nAdd a 10% tip to bill, then split it four ways."
+  private let coordinator: SuggestionCoordinator
+  private var exampleWindow: NSWindow?
 
   private let didSave: (AssistantSettings) -> Void
   private let enabled = NSButton(
     checkboxWithTitle: localized(
-      "assistant.enabled", "Ask a model about lines Ganit cannot work out"),
+      "assistant.enabled", "Use this provider for expression suggestions"),
     target: nil,
     action: nil
   )
@@ -30,7 +28,11 @@ public final class AssistantSettingsController: NSViewController {
   private let customEffort = NSTextField(string: "")
   private let status = NSTextField(wrappingLabelWithString: "")
 
-  public init(settings: AssistantSettings, didSave: @escaping (AssistantSettings) -> Void) {
+  public init(
+    settings: AssistantSettings, coordinator: SuggestionCoordinator = SuggestionCoordinator(),
+    didSave: @escaping (AssistantSettings) -> Void
+  ) {
+    self.coordinator = coordinator
     self.didSave = didSave
     super.init(nibName: nil, bundle: nil)
     enabled.state = settings.isEnabled ? .on : .off
@@ -62,7 +64,7 @@ public final class AssistantSettingsController: NSViewController {
     let explanation = NSTextField(
       wrappingLabelWithString: localized(
         "assistant.explanation",
-        "The address is any OpenAI-compatible base, such as https://api.openai.com/v1, http://localhost:11434/v1, or https://host/v1. Ganit POSTs that base's chat/completions with the one line it could not work out, the model's name, and the Effort you picked, and nothing else: not the rest of the sheet, its title, or anything about this Mac. Effort is how hard the model is asked to think; Medium is the default, Off sends no preference at all and leaves it to the model, and Custom sends a word Ganit does not know, such as minimal. Answers can take a while, and a higher Effort takes longer; the sheet stays editable and shows Asking… until a value arrives, drawn in purple because a model's answer is not a calculation."
+        "The address is any OpenAI-compatible base, such as https://api.openai.com/v1, http://localhost:11434/v1, or https://host/v1. Ganit POSTs that base's chat/completions. A request about one line carries that line, the model's name, and the Effort you picked, and nothing else: not the rest of the sheet, its title, or anything about this Mac. Effort is how hard the model is asked to think; Medium is the default, Off sends no preference at all and leaves it to the model, and Custom sends a word Ganit does not know, such as minimal. A suggestion can send selected source, attached notes, matching declarations and their values, and calculation settings; review the context before sending. Provider setup does not grant source permission or enable automatic suggestions. Ganit checks expressions with its local engine, and only an explicit apply changes source."
       )
     )
     status.textColor = VisualStyle.Color.secondary
@@ -104,7 +106,8 @@ public final class AssistantSettingsController: NSViewController {
       title: localized("assistant.save", "Save"), target: self, action: #selector(save(_:)))
     save.keyEquivalent = "\r"
     let test = NSButton(
-      title: localized("assistant.test", "Try It"), target: self, action: #selector(test(_:)))
+      title: localized("assistant.test", "Review Example"), target: self,
+      action: #selector(test(_:)))
     let buttons = NSStackView(views: [test, save])
 
     let stack = NSStackView(views: [explanation, enabled, fields, status, buttons])
@@ -199,23 +202,34 @@ public final class AssistantSettingsController: NSViewController {
     view.window?.close()
   }
 
-  /// Asks the example line and shows what comes back, so a wrong address or
-  /// key is found here rather than in the middle of a sheet.
+  /// Prepare a synthetic example. Opening it makes no network request.
   @objc func test(_ sender: Any?) {
-    let settings = settings
-    status.stringValue = localized("assistant.testing", "Asking…")
-    Task { [weak self] in
-      let outcome: String
-      do {
-        let answer = try await Assistant(settings: settings).answer(to: Self.example)
-        outcome =
-          answer.map { "\(Self.example) → \($0)" }
-          ?? localized("assistant.noAnswer", "The model had no answer for that line.")
-      } catch {
-        outcome = Self.message(for: error)
-      }
-      self?.status.stringValue = outcome
+    guard settings.isReady else {
+      status.stringValue = "Enable the provider and supply an allowed address and model."
+      return
     }
+    do {
+      let context = try EvaluationContext(
+        localeIdentifier: "en-US",
+        lexingConfiguration: .englishUnitedStates, angleMode: .radians,
+        precision: PrecisionContext(significantDecimalDigits: 15), now: Date(),
+        calendar: Calendar(identifier: .gregorian), timeZone: TimeZone(identifier: "UTC")!)
+      let editor = SheetEditorViewController(text: Self.example, context: context)
+      editor.suggestionConfiguration = SheetSuggestionConfiguration(
+        coordinator: coordinator, settings: settings)
+      editor.textView.setSelectedRange(
+        NSRange(location: "bill = 2400 INR\n".utf16.count, length: 0))
+      exampleWindow?.close()
+      let window = NSWindow(contentViewController: editor)
+      window.title = "Suggestion Example"
+      window.setContentSize(NSSize(width: 640, height: 420))
+      window.isReleasedWhenClosed = false
+      window.delegate = self
+      exampleWindow = window
+      window.makeKeyAndOrderFront(nil)
+      editor.suggestExpression(nil)
+      status.stringValue = "Review the synthetic source scope. Send is a separate action."
+    } catch { status.stringValue = "The synthetic example cannot be prepared." }
   }
 
   static func message(for error: any Error) -> String {
@@ -238,5 +252,13 @@ public final class AssistantSettingsController: NSViewController {
     default:
       return error.localizedDescription
     }
+  }
+}
+
+extension AssistantSettingsController: NSWindowDelegate {
+  public func windowWillClose(_ notification: Notification) {
+    guard let window = notification.object as? NSWindow, window === exampleWindow else { return }
+    (window.contentViewController as? SheetEditorViewController)?.stopCalculation(nil)
+    exampleWindow = nil
   }
 }

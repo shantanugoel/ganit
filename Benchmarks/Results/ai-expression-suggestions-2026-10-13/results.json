@@ -1,0 +1,154 @@
+{
+  "date": "2026-10-13",
+  "baselineCommit": "8ef58df",
+  "candidateCommit": "de8b049",
+  "hardware": "MacBookPro18,2; Apple M1 Max; 32 GiB",
+  "macOS": "27.0 (26A428)",
+  "Xcode": "27.0 (27A266a)",
+  "mode": "suggestions disabled",
+  "warmupEditsPerFixture": 20,
+  "editsPerRun": 200,
+  "runs": [
+    {
+      "role": "baseline",
+      "fixture": "mixed-sheet",
+      "trial": 1,
+      "metrics": {
+        "fixture": "mixed-sheet",
+        "edits": "200",
+        "p50_edit_to_answer_ms": "28.391",
+        "p95_edit_to_answer_ms": "28.824"
+      }
+    },
+    {
+      "role": "candidate",
+      "fixture": "mixed-sheet",
+      "trial": 1,
+      "metrics": {
+        "fixture": "mixed-sheet",
+        "edits": "200",
+        "p50_edit_to_answer_ms": "28.178",
+        "p95_edit_to_answer_ms": "28.552"
+      }
+    },
+    {
+      "role": "candidate",
+      "fixture": "mixed-sheet",
+      "trial": 2,
+      "metrics": {
+        "fixture": "mixed-sheet",
+        "edits": "200",
+        "p50_edit_to_answer_ms": "28.130",
+        "p95_edit_to_answer_ms": "28.554"
+      }
+    },
+    {
+      "role": "baseline",
+      "fixture": "mixed-sheet",
+      "trial": 2,
+      "metrics": {
+        "fixture": "mixed-sheet",
+        "edits": "200",
+        "p50_edit_to_answer_ms": "28.423",
+        "p95_edit_to_answer_ms": "28.832"
+      }
+    },
+    {
+      "role": "baseline",
+      "fixture": "mixed-sheet",
+      "trial": 3,
+      "metrics": {
+        "fixture": "mixed-sheet",
+        "edits": "200",
+        "p50_edit_to_answer_ms": "28.408",
+        "p95_edit_to_answer_ms": "28.815"
+      }
+    },
+    {
+      "role": "candidate",
+      "fixture": "mixed-sheet",
+      "trial": 3,
+      "metrics": {
+        "fixture": "mixed-sheet",
+        "edits": "200",
+        "p50_edit_to_answer_ms": "28.161",
+        "p95_edit_to_answer_ms": "28.550"
+      }
+    },
+    {
+      "role": "baseline",
+      "fixture": "chained-dependency-sheet",
+      "trial": 1,
+      "metrics": {
+        "fixture": "chained-dependency-sheet",
+        "edits": "200",
+        "p50_edit_to_answer_ms": "128.605",
+        "p95_edit_to_answer_ms": "131.283"
+      }
+    },
+    {
+      "role": "candidate",
+      "fixture": "chained-dependency-sheet",
+      "trial": 1,
+      "metrics": {
+        "fixture": "chained-dependency-sheet",
+        "edits": "200",
+        "p50_edit_to_answer_ms": "128.402",
+        "p95_edit_to_answer_ms": "131.267"
+      }
+    },
+    {
+      "role": "candidate",
+      "fixture": "chained-dependency-sheet",
+      "trial": 2,
+      "metrics": {
+        "fixture": "chained-dependency-sheet",
+        "edits": "200",
+        "p50_edit_to_answer_ms": "128.389",
+        "p95_edit_to_answer_ms": "130.677"
+      }
+    },
+    {
+      "role": "baseline",
+      "fixture": "chained-dependency-sheet",
+      "trial": 2,
+      "metrics": {
+        "fixture": "chained-dependency-sheet",
+        "edits": "200",
+        "p50_edit_to_answer_ms": "128.649",
+        "p95_edit_to_answer_ms": "130.975"
+      }
+    },
+    {
+      "role": "baseline",
+      "fixture": "chained-dependency-sheet",
+      "trial": 3,
+      "metrics": {
+        "fixture": "chained-dependency-sheet",
+        "edits": "200",
+        "p50_edit_to_answer_ms": "128.660",
+        "p95_edit_to_answer_ms": "130.688"
+      }
+    },
+    {
+      "role": "candidate",
+      "fixture": "chained-dependency-sheet",
+      "trial": 3,
+      "metrics": {
+        "fixture": "chained-dependency-sheet",
+        "edits": "200",
+        "p50_edit_to_answer_ms": "128.258",
+        "p95_edit_to_answer_ms": "130.692"
+      }
+    }
+  ],
+  "fixtureSHA256": {
+    "mixed-sheet-1k.txt": "23711fe867103d1a2e448833695a4f97c3632da102f9856f3c050810679e1ed4",
+    "chained-sheet-10k.txt": "53927332fbd4603bfecf17da0c59ac97ed9a5359a21bc37f6ad795a6d2ff80c5"
+  },
+  "limitations": [
+    "Suggestions were disabled. Active-job performance is not measured.",
+    "The current development Mac is not the required clean 8 GB baseline machine.",
+    "Both revisions exceeded the existing edit latency gates. The gates are unchanged."
+  ]
+}
