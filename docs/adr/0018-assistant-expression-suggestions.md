@@ -1,8 +1,12 @@
 # ADR 0018: Checked AI expression suggestions
 
-- Status: Proposed
+- Status: Superseded in part by
+  [ADR 0019](0019-ask-one-operation-four-outcomes.md), which amends decision 1
+  to permit a marked external fact, defers decision 7, and renames decision 6's
+  command. Decisions 2–5, 8–10 stand, and the harness they describe is merged
+  into the `ai` branch.
 - Date: 2026-10-13
-- Implementation: In progress; no phase exit gate is complete
+- Implementation: Merged; no phase exit gate is complete
 - Companion: [Implementation plan](../plans/ai-expression-suggestions.md)
 - Replaces ADR 0012 only when the new workflow is implemented and released
 

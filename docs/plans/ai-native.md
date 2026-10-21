@@ -1,16 +1,22 @@
 # AI as part of the calculator: experience plan
 
 Date: 2026-10-20
-Status: Design approved. M-1 (the Effort setting) is landed; M0 and later are
-not started and no phase exit gate below is complete. See
+Status: Design approved. M-1 (the Effort setting) and M0 (reconcile and freeze)
+are complete; M1 and later are not started and no gate below them is complete.
+M0's records are [ADR 0019](../adr/0019-ask-one-operation-four-outcomes.md) and
+[the frozen Ask job contract](../design/ai-native/ask-job-contract.md), and the
+harness this plan tells M1 to reuse is now merged into this branch. The legacy
+assistant is still here; M5 removes it. See
 [CHANGELOG](../../CHANGELOG.md) for released behaviour.
 Prototype: [interactive concept](../design/ai-native/prototype.html) ·
 [flow, shapes and decisions](../design/ai-native/index.html)
-Companion records: ADR 0012 (current assistant), ADR 0018 (branch `codex/ai-expression-plan`)
-Prior plan: `docs/plans/ai-expression-suggestions.md` and ADR 0018 on branch
-`codex/ai-expression-plan`, which is ahead of `main` with engine snapshots, a
-candidate checker, a bounded harness, and tests. That file is not on this
-branch; read it there before M0.
+Companion records: ADR 0012 (current assistant, amended), ADR 0018 (checked
+suggestions, superseded in part), ADR 0019 (Ask)
+Prior plan: `docs/plans/ai-expression-suggestions.md` and ADR 0018, both now on
+this branch, describing the engine snapshots, candidate checker, bounded
+harness, and tests that were written on
+`codex/ai-expression-plan`. Read them, and
+[assistance contracts](../engine/assistance-contracts.md), before M1.
 
 ## 1. Outcome
 
@@ -36,16 +42,16 @@ These are the acceptance criteria for every milestone. A change that breaks
 one is a design change, not an implementation detail.
 
 1. **Ganit is the only calculator.** No model-supplied number is ever an
-   answer, and none appears as a literal inside proposed source. A model may
-   only *name* a fact, which becomes a declared, marked, user-editable value
-   (§6). The engine calculates every preview and accepted result, on a frozen
-   snapshot, with no alternate evaluator.
+   answer, never a literal inside an expression, and never a displayed answer. A
+   model may only *name* a fact, which becomes a declared, marked, user-editable
+   value (§6). The engine calculates every preview and accepted result, on a
+   frozen snapshot, with no alternate evaluator.
 2. **The answer column is Ganit-only.** AI output lives in cards or in source.
    This removes today's purple display answers and the
    `evaluation.unusableAssistantAnswer` reference path.
 3. **Detect locally, send on request.** A passive affordance is computed on
    device. Nothing leaves the Mac until ⏎ in the Ask bar. Automatic requests
-   are out of v1 (§9); the automatic path in ADR 0012 is removed, because
+   are out of v1 (§11); the automatic path in ADR 0012 is removed, because
    ADR 0012 already claims the assistant makes "a request nobody makes without
    asking for it".
 4. **Source changes are always previewed** and applied by one explicit action,
@@ -64,7 +70,9 @@ one is a design change, not an implementation detail.
    unmarked. An AI-supplied fact is marked permanently until the user edits it,
    at which point the mark disappears.
 9. **Context is minimal and disclosed.** Selection plus the lines it
-   transitively reads; sheet-level asks send the sheet. The `Context ▸`
+   transitively reads; a sheet-level ask sends the sheet as far as the harness
+   target limits allow — 12 lines, 8 KiB, contiguous, no table block. The
+   `Context ▸`
    disclosure shows the exact lines before they go. Existing transport
    protections remain: HTTPS except loopback, redirect refusal, ephemeral
    session, keychain key, `User-Agent: Ganit`.
@@ -88,13 +96,17 @@ start a second harness, snapshot adapter, or proposal state machine.**
 | Permitted-scope context package with renewed consent | **Adopt**, presented as the `Context ▸` disclosure | rule 9 |
 | State machine, in-memory bounded cache, injected fake transport | **Adopt**; the persisted `AssistantAnswers.json` answer cache is retired with the legacy path | §8 |
 | **Model may not supply a missing fact; ask instead** | **Amend** — see §6 | the density case is the product's own flagship example |
-| Optional automatic suggestions in a session-enabled area | **Defer** to post-v1 (§9) | rule 3; ship request-only first and measure |
+| Optional automatic suggestions in a session-enabled area | **Defer** to post-v1 (§11) | rule 3; ship request-only first and measure |
 | Command named **Suggest Expression** | **Amend** to one command, **Ask Ganit…** | several verbs would force the user to classify intent up front |
 | Question at most one clarification at a time | **Adopt**, capped at 2 per Ask, answered inside the same bar | prototype scenario 5 |
 
-The §6 amendment is the only substantive product disagreement. Resolve it in
-M0 with a written decision; ADR 0018's decision 1 needs an explicit carve-out
-or the assumption UI must be cut from v1.
+The §6 amendment is the only substantive product disagreement. **Resolved at M0
+in favour of the amendment:**
+[ADR 0019](../adr/0019-ask-one-operation-four-outcomes.md) carves ADR 0018's
+decision 1 back to arithmetic and intent, and lets a model *name* a world fact
+that must then become a declared, marked, user-editable value. The assumption UI
+is not cut from v1. Its four divergences from the harness are written into
+[the job contract](../design/ai-native/ask-job-contract.md).
 
 ## 4. Surfaces
 
@@ -219,33 +231,39 @@ high/Max/Custom…, Medium is the default, Custom sends the typed word, Off and 
 empty Custom send no `reasoning_effort` at all, and `NetworkPrivacyTests` names
 every key in the body.
 
-**M0 — Reconcile and freeze.** Decide §3's amendment in writing; supersede or
-amend ADR 0012 with a new ADR naming the Ask outcomes, the assumption carve-out
-and the context disclosure; freeze the job contract, `LineID` addressing for
-proposals, and the classification rule in §6. *Gate:* the ADR is accepted and
-the prior branch's harness API is either reused or a written divergence exists.
+**M0 — Reconcile and freeze.** *Done 2026-10-21.* Decided §3's amendment in
+writing; superseded or amended ADR 0012 with a new ADR naming the Ask outcomes,
+the assumption carve-out and the context disclosure; froze the job contract,
+`LineID` addressing for proposals, and the classification rule in §6.
+*Gate:* **passed** — [ADR 0019](../adr/0019-ask-one-operation-four-outcomes.md)
+is accepted; the prior branch's harness is reused as merged code, with its six
+divergences written down in
+[the job contract](../design/ai-native/ask-job-contract.md).
 
 **M1 — Ask bar and proposal, engine-verified.** Bar at caret, chip, selection
 bar entry, right-click. Proposal panel with live shadow answers, per-line
 opt-out, Apply as one named Undo step, stale checks, Esc cancel. *Gate:* the
-prototype scenarios 1 and 3 pass against a fake provider, including ⌘Z
+`loan` and `trip` scenarios pass against a fake provider, including ⌘Z
 restoring exact bytes and selection.
 
 **M2 — Validation and repair.** Diagnostic-fed repair turn within the shared
 budget, the two visible status lines, the failure card with the four reason
-classes, and `Show what the model meant`. *Gate:* scenario 4 passes with
+classes, and `Show what the model meant`. *Gate:* `repair` passes with
 injected `unknownFunction`, malformed-output and timeout fixtures; no path
 renders an unparseable proposal.
 
 **M3 — Clarification and assumptions.** In-bar question with crumb and
 suggestions, 2-question cap, resume-in-place; assumption declarations,
 provenance comment, badge, dependency dots, assumption card, `Change value…`
-and `Remove` preview. *Gate:* scenarios 2, 5 and 6 pass; editing an assumption
-recalculates with zero requests; editing its value clears all marks.
+and `Remove` preview. *Gate:* `prose`, `clarify` and `water` pass; editing an
+assumption recalculates with zero requests; editing its value
+clears all marks; and `AssistanceSemanticPolicy`'s option-less `missing_density`
+choice is gone, replaced by an assumption with a basis, so the water example
+reaches Apply.
 
 **M4 — Ganit-first explain and fix.** Engine-sourced explain card reusing the
 interpretation card, `Fix it` hand-off on diagnostics, explicit "nothing was
-sent" statement. *Gate:* scenarios 7's three frames pass; the card is correct
+sent" statement. *Gate:* `explain`'s three frames pass; the card is correct
 for `line N` renumbering failures.
 
 **M5 — Removals, privacy, docs, release gates.** §7 deletions, Settings

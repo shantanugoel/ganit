@@ -1,6 +1,9 @@
 # ADR 0012: Ask a configured model about lines Ganit cannot work out
 
-- Status: Accepted
+- Status: Accepted, in part. [ADR 0019](0019-ask-one-operation-four-outcomes.md)
+  withdraws the automatic request and the answer-column AI value, and amends
+  what a request may carry. The rest describes the shipped runtime until
+  milestone M5 of [the plan](../plans/ai-native.md) removes it.
 - Date: 2026-09-16
 - Amended 2026-10-21: the request also carries the reader's chosen reasoning
   Effort, which adds no content of the reader's beyond the word itself.
@@ -35,7 +38,9 @@ is sent.
   Effort is one word (`reasoning_effort`) and the server decides what it
   means; **Off** sends no word at all rather than an empty one.
 - Ganit asks only about lines it flagged as ones it could not work out, once
-  per line, and only after typing stops.
+  per line, and only after typing stops. **Withdrawn by ADR 0019:** Ganit
+  detects such a line on device and offers a quiet **Ask** chip; nothing is
+  sent until the reader presses ⏎ in the Ask bar.
 - The API key is kept in the keychain, not in preferences.
 - An assistant's answer is drawn in its own colour, because a model's answer is
   a guess and a calculation is not.
