@@ -1,0 +1,268 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ganit · AI as part of the calculator — design walkthrough</title>
+<style>
+  :root{
+    --bg:#1c1c1e; --bg2:#26262a; --bg3:#2c2c2e; --fg:#fff; --fg2:#98989d; --fg3:#636366;
+    --sep:rgba(255,255,255,.10); --red:#ff453a; --orange:#ff9f0a; --purple:#bf5af2; --blue:#0a84ff;
+    --green:#32d74b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:#111;color:#eaeaea;font:14px/1.5 -apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
+       padding:28px 32px 90px; max-width:1500px}
+  h1{font-size:22px;margin:0 0 4px}
+  h2{font-size:16px;margin:38px 0 10px;color:#fff}
+  h3{font-size:13px;margin:22px 0 6px;color:var(--purple);text-transform:uppercase;letter-spacing:.06em}
+  p,li{color:#c7c7cc;max-width:100ch}
+  code{font:12.5px ui-monospace,SFMono-Regular,Menlo,monospace;background:#26262a;padding:1px 5px;border-radius:4px;color:#eaeaea}
+  .sub{color:var(--fg2);margin:0 0 22px}
+  .tabs{display:flex;gap:6px;margin:0 0 18px;border-bottom:1px solid var(--sep)}
+  .tabs button{background:none;border:0;border-bottom:2px solid transparent;color:var(--fg2);padding:8px 12px;font:13px -apple-system;cursor:pointer}
+  .tabs button.on{color:#fff;border-color:var(--blue)}
+  section{display:none} section.on{display:block}
+  table{border-collapse:collapse;margin:8px 0 4px;font-size:13px}
+  th,td{border-bottom:1px solid var(--sep);padding:7px 12px 7px 0;text-align:left;vertical-align:top;color:#c7c7cc}
+  th{color:#fff;font-weight:600;border-bottom-color:rgba(255,255,255,.25)}
+  td b{color:#fff}
+  .note{background:#1b1b1e;border-left:2px solid var(--purple);padding:10px 14px;border-radius:0 6px 6px 0;color:#c7c7cc;margin:10px 0;max-width:110ch}
+  .k{color:var(--purple)}
+  .g{color:var(--green)} .r{color:var(--red)}
+  figure{margin:14px 0 26px}
+  figcaption{color:var(--fg2);font-size:12.5px;margin-top:8px;max-width:110ch}
+  svg text{font-family:-apple-system,sans-serif}
+</style>
+</head>
+<body>
+
+<h1>Ganit · AI as part of the calculator</h1>
+<p class="sub">Design walkthrough · prototype only, no production code touched · <a style="color:var(--blue)" href="prototype.html">Open the click-through prototype →</a></p>
+
+<div class="tabs">
+  <button class="on" data-t="flow">Flow</button>
+  <button data-t="shapes">The 4 UI shapes</button>
+  <button data-t="decisions">Key decisions</button>
+  <button data-t="v1">Smallest v1 &amp; deferrals</button>
+</div>
+
+<section class="on" id="flow">
+<h2>One operation, four outcomes</h2>
+<p>Everything below is the same operation — <b>Ask</b> (⌘⇧A). What differs is the <em>shape of the outcome</em>,
+and the shape decides what the user has to do about it. Read-only outcomes are transient and need nothing.
+Source-changing outcomes are always a preview and always need <b>Apply</b>. There is no mode switch, no chat thread, no sidebar.</p>
+
+<figure>
+<svg viewBox="0 0 1380 470" width="1380" height="470">
+  <defs>
+    <marker id="a" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L8,4.5 L0,9 z" fill="#8e8e93"/></marker>
+    <marker id="ap" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto"><path d="M0,0 L8,4.5 L0,9 z" fill="#bf5af2"/></marker>
+  </defs>
+  <style>
+    .box{fill:#26262a;stroke:#48484a;rx:8}
+    .lbl{fill:#fff;font-size:13px;font-weight:600}
+    .sm{fill:#98989d;font-size:10.8px}
+    .ar{stroke:#8e8e93;stroke-width:1.4;fill:none;marker-end:url(#a)}
+    .arp{stroke:#bf5af2;stroke-width:1.6;fill:none;marker-end:url(#ap)}
+    .pill{fill:#1c1c1e;stroke:#5e5e63}
+  </style>
+
+  <rect class="box" x="8" y="30" width="180" height="66" rx="9"/>
+  <text class="lbl" x="26" y="55">User acts</text>
+  <text class="sm" x="26" y="73">types words · selects lines</text>
+  <text class="sm" x="26" y="88">caret on a failing line</text>
+
+  <rect class="box" x="230" y="30" width="170" height="66" rx="9" stroke="#bf5af2"/>
+  <text class="lbl" x="248" y="55">Ask bar</text>
+  <text class="sm" x="248" y="73">transient, at the caret</text>
+  <text class="sm" x="248" y="88">instruction · context ▸</text>
+  <path class="ar" d="M188,63 L228,63"/>
+
+  <rect class="box" x="442" y="14" width="150" height="44" rx="8"/>
+  <text class="sm" x="458" y="33">model translates intent</text>
+  <text class="sm" x="458" y="49">(never calculates)</text>
+  <path class="arp" d="M400,50 L440,38"/>
+
+  <rect class="box" x="442" y="80" width="150" height="52" rx="8" stroke="#32d74b"/>
+  <text class="lbl" x="458" y="102" font-size="12">Ganit validates</text>
+  <text class="sm" x="458" y="120">parse · types · units</text>
+  <path class="ar" d="M400,74 L440,104"/>
+
+  <!-- repair loop -->
+  <path class="arp" d="M517,80 C500,58 520,58 560,58 L590,58" />
+  <rect class="box" x="442" y="152" width="150" height="46" rx="8" stroke="#ff9f0a"/>
+  <text class="lbl" x="458" y="172" font-size="12">Auto-repair ≤2</text>
+  <text class="sm" x="458" y="188">diagnostics fed back</text>
+  <path class="ar" d="M517,132 L517,150"/>
+  <path class="arp" d="M592,164 C640,150 640,80 594,52"/>
+
+  <!-- outcomes -->
+  <rect class="box" x="650" y="14" width="232" height="60" rx="9" stroke="#0a84ff"/>
+  <text class="lbl" x="668" y="36">1 · Explain card</text>
+  <text class="sm" x="668" y="53">transient · Esc closes · nothing saved</text>
+  <text class="sm" x="668" y="68">answered by Ganit first, model second</text>
+  <path class="ar" d="M592,44 L648,44"/>
+
+  <rect class="box" x="650" y="88" width="232" height="60" rx="9" stroke="#0a84ff"/>
+  <text class="lbl" x="668" y="110">2 · Answer card</text>
+  <text class="sm" x="668" y="127">one unverified number, marked</text>
+  <text class="sm" x="668" y="142">never enters a formula</text>
+  <path class="ar" d="M592,120 L648,118"/>
+
+  <rect class="box" x="650" y="162" width="232" height="66" rx="9" stroke="#bf5af2"/>
+  <text class="lbl" x="668" y="184">3 · Proposal</text>
+  <text class="sm" x="668" y="201">source patch, live-evaluated</text>
+  <text class="sm" x="668" y="216">Apply ⌘↩ · per-line opt-out · ⌘Z</text>
+  <path class="ar" d="M592,176 L648,190"/>
+
+  <rect class="box" x="650" y="242" width="232" height="60" rx="9" stroke="#ff9f0a"/>
+  <text class="lbl" x="668" y="264">4 · Question</text>
+  <text class="sm" x="668" y="281">one missing fact only the user knows</text>
+  <text class="sm" x="668" y="296">answered in the same bar → resumes</text>
+  <path class="ar" d="M592,150 C620,180 620,250 648,268"/>
+  <path class="arp" d="M650,272 C520,300 430,140 398,80"/>
+
+  <rect class="box" x="930" y="162" width="240" height="66" rx="9" stroke="#32d74b"/>
+  <text class="lbl" x="948" y="184">Ordinary Ganit source</text>
+  <text class="sm" x="948" y="201">editable · deterministic · ⌘Z removes it</text>
+  <text class="sm" x="948" y="216">AI is gone from the screen</text>
+  <path class="ar" d="M882,195 L928,195"/>
+
+  <rect class="box" x="930" y="242" width="240" height="60" rx="9" stroke="#bf5af2"/>
+  <text class="lbl" x="948" y="264">Assumption line</text>
+  <text class="sm" x="948" y="281"><tspan fill="#bf5af2">AI</tspan> badge · <tspan fill="#98989d">// AI: water density · model · today</tspan></text>
+  <text class="sm" x="948" y="296">a real value the user can edit</text>
+  <path class="ar" d="M950,228 C970,244 970,244 972,240"/>
+
+  <rect class="box" x="930" y="322" width="240" height="60" rx="9" stroke="#ff453a"/>
+  <text class="lbl" x="948" y="344">Honest failure</text>
+  <text class="sm" x="948" y="361">plain reason · never a broken preview</text>
+  <text class="sm" x="948" y="376">Try again · Put it differently · Discard</text>
+  <path class="ar" d="M517,198 C560,350 700,352 928,352"/>
+
+  <text class="sm" x="948" y="420" fill="#636366">After Apply, editing any number re-evaluates locally. No request is made.</text>
+  <line x1="930" y1="404" x2="1160" y2="404" stroke="#3a3a3c"/>
+  <rect class="pill" x="8" y="352" width="180" height="44" rx="8"/>
+  <text class="sm" x="24" y="372">Nothing leaves the Mac</text>
+  <text class="sm" x="24" y="388">until the user presses ⏎</text>
+</svg>
+<figcaption>The Ask operation. Left: how it starts. Middle: the model proposes, Ganit judges (the purple loop is invisible to the user apart from one quiet status line). Right: the four things a user can end up with. Only the two purple-framed things persist.</figcaption>
+</figure>
+
+<h2>What the user sees during the invisible parts</h2>
+<table>
+<tr><th style="width:230px">Behind the scenes</th><th style="width:250px">What the user sees</th><th>Why</th></tr>
+<tr><td>Model returns source that Ganit rejects</td><td>Ask bar still open, status: <code>Ganit is checking…</code></td><td>A rejected attempt is not information for the user.</td></tr>
+<tr><td>Repair attempt 2 begins</td><td>Status gains one quiet line: <em>Ganit asked the model to fix its first attempt.</em></td><td>Honest about the delay without leaking model chatter.</td></tr>
+<tr><td>Repair succeeds</td><td>Proposal appears; footer says <em>Ganit checked these lines · 1 automatic repair</em></td><td>The check is the reason to trust the preview.</td></tr>
+<tr><td>Repair budget exhausted</td><td>Failure card: plain reason + <code>Try again</code> <code>Put it differently</code> <code>Show what the model meant</code></td><td>Never show a broken line as an appliable proposal.</td></tr>
+<tr><td>Model returns prose / garbage</td><td><em>The model didn't answer in a way Ganit could use.</em> + same actions</td><td>Weak local models are expected, not exceptional.</td></tr>
+<tr><td>Model unreachable / bad key</td><td>Same failure card, one line: <em>Ganit couldn't reach &lt;host&gt;.</em></td><td>Reuses the existing Assistant error copy.</td></tr>
+</table>
+</section>
+
+<section id="shapes">
+<h2>The four UI shapes, and the rule that keeps them out of the way</h2>
+<div class="note"><b>The answer column is sacred.</b> Only Ganit ever writes an answer there. AI output lives in
+<em>cards</em> (transient) or in <em>source</em> (permanent). This one rule removes the current wart where a purple
+AI value sits in the answer column and formulas are told not to use it.</div>
+
+<table>
+<tr><th style="width:160px">Shape</th><th style="width:190px">Looks like</th><th>Lifetime · identity</th></tr>
+<tr><td><b>Ask bar</b></td><td>The Find bar / completion list: one field, one status line, anchored at the caret</td><td>Transient. Esc or typing dismisses. Only entry point.</td></tr>
+<tr><td><b>Explain / Answer card</b></td><td>The existing <em>interpretation card</em>, same popover grid style</td><td>Transient. Never saved, never referenced, Esc closes.</td></tr>
+<tr><td><b>Proposal</b></td><td>A small panel under the affected lines with its own live answer column, <code>+</code>/<code>~</code> marks</td><td>Transient until Apply. Apply = one named Undo step.</td></tr>
+<tr><td><b>Assumption line</b></td><td>Ordinary Ganit line + purple <code>AI</code> badge + <code>// AI: …</code> comment</td><td>Permanent sheet source. Badge + purple dot on dependents.</td></tr>
+</table>
+
+<h3>Provenance is about the origin of a <em>number</em>, not who typed it</h3>
+<p>AI-written <b>formula structure</b> is verified by Ganit and then belongs to the user — it is not marked, because a
+permanent "AI wrote this" badge would say <em>distrust this line</em> when Ganit has actually checked it.
+An <b>AI-supplied value</b> (water density, a typical rent-growth rate) is a number that came from neither the user
+nor Ganit's arithmetic. That is what gets the badge, permanently, until the user edits it — editing a value makes it
+the user's number and drops the badge.</p>
+<p>Downstream lines that transitively read an assumption get a small purple dot before their answer. Ganit already
+carries line dependency provenance, so this is derivable, not a new bookkeeping burden. <b>View ▸ Mark AI-derived answers</b>
+turns the dots off for people who find them noisy; the origin badge never disappears.</p>
+
+<h3>Where Ask is reachable from (four doors, one room)</h3>
+<table>
+<tr><th style="width:220px">Door</th><th>Discovery cost</th></tr>
+<tr><td>⌘⇧A anywhere in the editor</td><td>The command. <b>Calculate ▸ Ask Ganit…</b></td></tr>
+<tr><td>A quiet <code>Ask</code> chip at the right edge of <b>the caret's line</b> only, when Ganit can't read it</td><td>Zero new chrome: it lives in the answer gutter, next to the red message that is already there. Never shown on more than one line at a time.</td></tr>
+<tr><td>The existing <b>selection summary bar</b> grows one trailing action <code>Ask Ganit…</code></td><td>Reuses a bar that already appears exactly when a transform makes sense.</td></tr>
+<tr><td>Right-click ▸ Ask Ganit…</td><td>Replaces <em>Ask Assistant</em> / <em>Change Answer…</em> / <em>Cancel Request</em> — three menu items become one.</td></tr>
+</table>
+<p>Removed: the 1.2-second automatic request. ADR 0012 claims the assistant makes "a request nobody makes without asking
+for it" — the automatic fallback contradicts that. Ganit now <em>detects</em> locally and offers; text leaves the Mac only on ⏎.</p>
+</section>
+
+<section id="decisions">
+<h2>Key product decisions</h2>
+<table>
+<tr><th style="width:220px">Question</th><th style="width:180px">Decision</th><th>Reasoning</th></tr>
+<tr><td>Primary invocation</td><td>One command: <b>Ask</b> ⌘⇧A</td><td>Context (caret line / selection / sheet) already says what the target is. Modes would duplicate it.</td></tr>
+<tr><td>User types natural language into a line</td><td>It stays prose. Ganit does <b>not</b> auto-send.</td><td>Markdown Mode makes prose a legitimate first-class line. Auto-sending is a privacy surprise and produces purple answers nobody asked for.</td></tr>
+<tr><td>Failed lines auto-offer AI?</td><td><b>Offer, never act.</b> Chip on the caret's line only.</td><td>Keeps the "correct before clever" promise: Ganit's own diagnostic is still the first word.</td></tr>
+<tr><td>"Answer/explain" vs "change my calculation"</td><td>Not asked. The <b>outcome shape</b> distinguishes them.</td><td>Read-only outcomes are free and transient; anything touching source requires Apply. Guessing wrong is therefore cheap and always one ⌘Z away.</td></tr>
+<tr><td>Source vs prose from the model</td><td>Default to <b>source</b>. Prose only when there is nothing to calculate.</td><td>"Once AI helps create a calculation, changing inputs must keep working without AI."</td></tr>
+<tr><td>Preview / partial accept</td><td>Proposal is <b>live-evaluated by Ganit</b>; each line toggleable</td><td>Answers in the preview are real answers, not model claims. Per-line opt-out covers the 80% case without a diff editor.</td></tr>
+<tr><td>Undo</td><td>Apply is one named step, <em>"Apply AI change"</em>, in the sheet's own Undo manager</td><td>Ganit already does named one-step source patches for tables. No AI-specific undo stack.</td></tr>
+<tr><td>Validation failure</td><td>Automatic repair ≤2 turns, one status line; then an honest failure card</td><td>Model retries are plumbing. The failure reason is translated into Ganit's own words (<em>mortgage isn't a Ganit function; Ganit has pmt, fv and pv</em>).</td></tr>
+<tr><td>Clarification</td><td>The Ask bar <b>becomes</b> the question; answered in place; original instruction shown as a crumb</td><td>Completing an action, not starting a thread. Capped at 2 questions per Ask.</td></tr>
+<tr><td>Missing knowledge vs missing intent</td><td>World knows → assumption + badge. Only user knows → question.</td><td>Keeps AI useful without silently inventing user intent.</td></tr>
+<tr><td>Context sent</td><td>Selection + transitive dependency lines only; sheet-level Ask sends the sheet. Shown in a <code>Context ▸</code> disclosure</td><td>Extends the existing per-line privacy discipline to bigger asks, and makes it inspectable instead of implicit.</td></tr>
+<tr><td><code>ask_assistant(prompt)</code></td><td><b>Remove.</b></td><td>Non-deterministic source that silently re-asks when inputs change — the direct opposite of "change inputs, recalculate normally", and the least auditable surface. Assumption lines replace it.</td></tr>
+<tr><td>Automatic fallback</td><td><b>Remove</b>, replaced by the passive chip.</td><td>See above. The reply cache survives, narrowed to a per-session request cache for repair cost control.</td></tr>
+<tr><td>Answer-column AI values</td><td><b>Remove.</b> Answer column is Ganit-only.</td><td>Kills the "AI display answer, which formulas cannot use" error and the two-tier answer concept.</td></tr>
+</table>
+
+<h2>Alternatives considered, and rejected</h2>
+<table>
+<tr><th style="width:230px">Alternative</th><th>Why not</th></tr>
+<tr><td>Chat sidebar</td><td>Makes the answer live in a transcript instead of the sheet; permanent chrome; re-asks instead of recalculating.</td></tr>
+<tr><td>Two commands ("Explain" / "Change")</td><td>Users can't reliably pre-classify their intent; the accept step already does the classifying for free.</td></tr>
+<tr><td>Apply-on-Type (AI writes directly into the sheet, ⌘Z to undo)</td><td>Violates "changes should be visible and reviewable"; a wrong insert shifts line numbers, which Ganit's <code>line N</code> references follow silently.</td></tr>
+<tr><td>Keep <code>ask_assistant</code> "for power users"</td><td>Two AI mental models in one product. Anything it can do, an assumption line does deterministically and inspectably.</td></tr>
+<tr><td>Send the whole sheet as context</td><td>Worst privacy story, weakest-model-unfriendly token cost, and mostly irrelevant context.</td></tr>
+</table>
+</section>
+
+<section id="v1">
+<h2>Smallest coherent v1</h2>
+<p>V1 is coherent — it is not a subset that leaves the product incoherent. Roughly: one bar, one card type, one
+proposal type, one marked-value type, minus the speculative bits.</p>
+<table>
+<tr><th style="width:250px">In v1</th><th>Notes</th></tr>
+<tr><td>Ask bar (⌘⇧A, right-click) + instruction field + <code>Context ▸</code> disclosure</td><td>Reuses Find-bar/completion chrome. Selection and caret-line targets.</td></tr>
+<tr><td>Proposal with live Ganit evaluation, per-line opt-out, Apply / Discard / Ask again, one Undo step</td><td>The core of the whole design.</td></tr>
+<tr><td>Validation + automatic repair (≤2, Settings-tunable 0–3) + honest failure card</td><td>Reuse existing engine diagnostics; reuse existing Assistant error copy.</td></tr>
+<tr><td>Clarification question in-bar, max 2</td><td></td></tr>
+<tr><td>Assumption lines: <code>// AI:</code> comment + badge + click-for-card + Change value…</td><td>Follows the existing <code>// Manual answer; original:</code> comment precedent.</td></tr>
+<tr><td>Purple dependency dots + <b>View ▸ Mark AI-derived answers</b></td><td>Uses existing dependency provenance.</td></tr>
+<tr><td>Explain card answered <b>from Ganit's evaluation</b> (expression, result, what it reads, its assumptions, its diagnostic) with a <code>Fix it</code> hand-off to the model</td><td>Most "why is this X" questions need no model at all.</td></tr>
+<tr><td>Delete <code>ask_assistant</code>, auto-fallback, answer-column AI values, <em>Change Answer…</em>, <em>Cancel Request</em> (Esc in the bar covers it)</td><td>Net reduction in commands, settings and error codes.</td></tr>
+</table>
+
+<h2>Deliberately deferred</h2>
+<ul>
+<li><b>Inline diff editing</b> of a proposal (per-line opt-out covers most; a real diff editor is its own project).</li>
+<li><b>Ask in Quick Ganit, Services, Shortcuts, <code>ganit://</code></b> — keep the scratchpad pure; revisit after v1 usage.</li>
+<li><b>Multi-turn "make this sheet do X"</b> beyond the 2-question cap; sheet-wide re-modelling; table-block targets (tables stay fully local).</li>
+<li><b>Streaming answers</b> and progressive proposals — needs a different Ask bar and buys little on local models.</li>
+<li><b>Assumption freshness / provenance lookup</b> (was that density from a paper or from Reddit?) and citation chips.</li>
+<li><b>Model routing</b> (a small model for repair, a big one for modelling), per-sheet model choice, cost display.</li>
+<li><b>Learning the user's conventions</b> across sheets (their usual tax rate), which needs a durable preferences layer.</li>
+<li><b>Undo grouping across many Applies</b>, proposal history, and "undo everything AI did in this sheet".</li>
+</ul>
+</section>
+
+<script>
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on'));
+  document.querySelectorAll('section').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); document.getElementById(b.dataset.t).classList.add('on');
+});
+</script>
+</body>
+</html>

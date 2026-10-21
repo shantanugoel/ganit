@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ganit · Ask — click-through prototype</title>
+<style>
+  :root{
+    --winbg:#1e1e1e; --side:#28282a; --fg:#fff; --fg2:#98989d; --fg3:#5e5e63;
+    --sep:rgba(255,255,255,.10); --red:#ff453a; --orange:#ff9f0a; --purple:#bf5af2;
+    --blue:#0a84ff; --green:#32d74b; --field:#3a3a3c;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{background:#0d0d0e;color:#eaeaea;font:14px/1.5 -apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+       display:flex;gap:22px;padding:20px 24px;align-items:flex-start}
+  @media (max-width:1520px){ #stage{flex:0 1 auto;min-width:0} .win{width:min(1010px,calc(100vw - 430px))}
+                             #rail{min-width:330px} }
+  code{font:12px ui-monospace,Menlo,monospace}
+
+  /* ── left: the app ─────────────────────────────────────────── */
+  #stage{flex:0 0 1010px}
+  .win{width:1010px;height:640px;background:var(--winbg);border-radius:11px;overflow:hidden;
+       box-shadow:0 26px 70px rgba(0,0,0,.65),0 0 0 1px rgba(255,255,255,.09);display:flex;position:relative}
+  .side{width:196px;flex:0 0 196px;background:var(--side);border-right:1px solid var(--sep);padding:0 10px;font-size:13px}
+  .lights{display:flex;gap:8px;padding:14px 6px 12px}
+  .lights i{width:12px;height:12px;border-radius:50%;background:#545456;display:block}
+  .grp{color:var(--fg3);font-size:11px;font-weight:600;padding:12px 8px 5px;letter-spacing:.02em}
+  .nav{display:flex;gap:8px;align-items:center;padding:5px 8px;border-radius:6px;color:#d8d8dc}
+  .nav svg{opacity:.75}
+  .nav.sel{background:rgba(255,255,255,.10);color:var(--blue)}
+  .nav.sel svg{opacity:1}
+  .sub-date{color:var(--fg3);font-size:11px;padding:0 8px 2px 32px;margin-top:-4px}
+  .main{flex:1;display:flex;flex-direction:column;min-width:0}
+  .bar{height:52px;flex:0 0 52px;display:flex;align-items:center;gap:12px;padding:0 18px;border-bottom:1px solid transparent}
+  .bar .t{font-weight:600;color:#8e8e93;font-size:15px}
+  .bar .sp{flex:1}
+  .iconbtn{width:30px;height:30px;border-radius:7px;background:rgba(255,255,255,.07);display:grid;place-items:center;color:var(--fg2);font-size:13px}
+  .search{width:300px;height:28px;border-radius:8px;background:rgba(255,255,255,.07);color:var(--fg2);
+          display:flex;align-items:center;gap:7px;padding:0 10px;font-size:13px}
+  #editor{flex:1;position:relative;padding:14px 26px 40px 24px;overflow:hidden}
+  .row{display:grid;grid-template-columns:1fr 208px;grid-template-rows:26px;align-items:center}
+  .row .src{white-space:pre;overflow:hidden;font-size:14.5px;color:#f2f2f4;position:relative}
+  .row .ans{text-align:right;font-family:ui-monospace,Menlo,monospace;font-variant-numeric:tabular-nums;
+            font-size:14px;color:#f2f2f4;border-left:1px solid rgba(255,255,255,.055);padding-left:18px;padding-right:2px;
+            overflow:hidden;white-space:nowrap}
+  .h .src{font-weight:650}
+  .h .src b{color:var(--fg3);font-weight:500}
+  .c .src{color:var(--fg3)}
+  .md .src{color:#d6d6da}
+  .err{border-bottom:2px dotted var(--red)}
+  .failmsg{color:var(--red);font-family:-apple-system,system-ui;font-size:13px}
+  .row.on .src{background:rgba(10,132,255,.26);border-radius:3px}
+  .caret{display:inline-block;width:1.5px;height:17px;background:var(--blue);vertical-align:-3px;margin-left:1px;animation:bl 1.1s steps(1) infinite}
+  @keyframes bl{50%{opacity:0}}
+  .num{position:absolute;left:-19px;color:var(--fg3);font-size:11px;font-family:ui-monospace,Menlo}
+  .askchip{font-size:11px;color:var(--purple);border:1px solid rgba(191,90,242,.55);border-radius:5px;
+           padding:0 6px;line-height:16px;background:none;font-family:-apple-system;cursor:pointer}
+  .askchip:hover{background:rgba(191,90,242,.14)}
+  .aibadge{font-size:10px;color:var(--purple);border:1px solid rgba(191,90,242,.6);border-radius:4px;
+           padding:0 4px;line-height:14px;margin-left:8px;vertical-align:1px;font-family:-apple-system;font-weight:600;cursor:pointer}
+  .saidbadge{font-size:10px;color:var(--blue);border:1px solid rgba(10,132,255,.55);border-radius:4px;
+             padding:0 4px;line-height:14px;margin-left:8px;vertical-align:1px;font-family:-apple-system;font-weight:600}
+  .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--purple);margin-right:6px;vertical-align:1px}
+  .aicomment{color:rgba(191,90,242,.62)}
+  .sumbar{position:absolute;left:0;right:0;bottom:0;border-top:1px solid var(--sep);padding:6px 26px;
+          font-size:12px;color:var(--fg2);display:flex;gap:16px;align-items:center;background:var(--winbg)}
+  .sumbar .go{color:var(--blue);cursor:pointer;margin-left:auto}
+
+  /* ── overlays ──────────────────────────────────────────────── */
+  .panel{position:absolute;background:#2b2b2e;border:1px solid rgba(255,255,255,.16);border-radius:10px;
+         box-shadow:0 14px 40px rgba(0,0,0,.6);z-index:9}
+  .ask{left:24px;width:600px;padding:10px 12px 9px}
+  .ask .field{display:flex;align-items:center;gap:8px;background:var(--field);border-radius:7px;padding:7px 10px}
+  .ask .field .glyph{color:var(--purple);font-weight:700;font-size:12px}
+  .ask .q{font-size:14.5px;color:#fff}
+  .ask .q.ph{color:var(--fg3)}
+  .ask .meta{display:flex;gap:14px;align-items:center;color:var(--fg3);font-size:11.5px;padding:7px 2px 0}
+  .ask .meta b{color:var(--fg2);font-weight:500}
+  .ask .status{color:var(--fg2);font-size:12px;padding:7px 2px 0}
+  .ask .quiet{color:var(--fg3);font-size:11.5px;padding:2px 2px 0}
+  .ctxbox{margin:8px 2px 0;border:1px solid var(--sep);border-radius:7px;padding:7px 10px;font-size:11.5px;color:var(--fg2)}
+  .ctxbox div{font-family:ui-monospace,Menlo;color:#cfcfd3;padding:1px 0}
+  .chips{display:flex;gap:6px;padding:8px 2px 0}
+  .chips span{border:1px solid var(--sep);border-radius:20px;padding:2px 10px;font-size:12px;color:#d8d8dc;cursor:pointer}
+  .crumb{display:flex;gap:8px;align-items:center;color:var(--fg2);font-size:12px;padding:0 2px 7px}
+  .crumb b{color:#fff;font-weight:500}
+
+  .prop{left:24px;width:660px;padding:0;overflow:hidden}
+  .prop .hd{display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(255,255,255,.05);
+            font-size:12px;color:var(--fg2);border-bottom:1px solid var(--sep)}
+  .prop .hd b{color:#fff;font-weight:600;font-size:12.5px}
+  .prop .body{padding:6px 12px 8px}
+  .pl{display:grid;grid-template-columns:1fr 208px;align-items:center;grid-template-rows:25px;cursor:pointer}
+  .pl .s{font-size:14px;white-space:pre;overflow:hidden}
+  .pl .a{text-align:right;font-family:ui-monospace,Menlo;font-variant-numeric:tabular-nums;font-size:13.5px;
+         border-left:1px solid rgba(255,255,255,.055);padding-left:18px;white-space:nowrap;overflow:hidden}
+  .pl .mk{display:inline-block;width:64px;font-size:10px;font-weight:700;letter-spacing:.05em;
+          text-transform:uppercase;margin-left:-2px;padding-right:8px}
+  .pl.add .mk{color:var(--green)} .pl.del .mk{color:var(--red)} .pl.chg .mk{color:var(--orange)}
+  .pl.del,.pl.off{opacity:.45;text-decoration:line-through}
+  .pl.off .mk{color:var(--fg3)}
+  .pl .tk{font-size:10px;color:var(--fg3);border:1px solid var(--sep);border-radius:3px;padding:0 3px;margin-right:6px}
+  .prop .ft{display:flex;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid var(--sep);
+            background:rgba(255,255,255,.03);font-size:12px;color:var(--fg2)}
+  .prop .ft .ok{color:var(--green)}
+  .prop .ft .sp{flex:1}
+  button.b{font:12.5px -apple-system;background:rgba(255,255,255,.09);color:#eaeaea;border:1px solid rgba(255,255,255,.12);
+           border-radius:6px;padding:4px 11px;cursor:pointer}
+  button.b:hover{background:rgba(255,255,255,.15)}
+  button.pri{background:var(--blue);border-color:transparent;color:#fff;font-weight:500}
+  button.pri:hover{background:#339cff}
+
+  .card{width:400px;padding:12px 14px 10px;right:26px}
+  .card .ch{font-size:11px;color:var(--fg3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+  .card .ch .k{color:var(--purple)}
+  .card table{border-collapse:collapse;width:100%;font-size:12.5px}
+  .card td{padding:3px 0;vertical-align:top;color:#cfcfd3}
+  .card td.k{color:var(--fg2);width:88px;text-align:right;padding-right:12px}
+  .card .mono{font-family:ui-monospace,Menlo}
+  .card .ft{display:flex;gap:7px;justify-content:flex-end;margin-top:11px}
+  .card .fine{color:var(--fg3);font-size:11.5px;margin-top:9px;border-top:1px solid var(--sep);padding-top:8px}
+
+  .failcard{width:470px;left:24px;padding:13px 15px}
+  .failcard .t{font-weight:600;margin-bottom:4px}
+  .failcard .m{font-size:13px;color:#cfcfd3}
+  .failcard .m code{background:rgba(255,255,255,.08);color:#fff}
+  .failcard .ft{display:flex;gap:7px;justify-content:flex-end;margin-top:12px}
+
+  .menu{position:absolute;top:44px;left:330px;width:266px;padding:5px;z-index:20}
+  .menu div{padding:4px 10px;border-radius:5px;font-size:13px;color:#d8d8dc;display:flex}
+  .menu div.dis{color:var(--fg3)}
+  .menu div .k{margin-left:auto;color:var(--fg3);font-size:11.5px}
+  .menu div.hi{background:var(--blue);color:#fff}
+  .menu div.se{border-top:1px solid var(--sep);margin:4px 0;padding:0}
+
+  .settings{position:absolute;inset:0;background:var(--winbg);padding:22px 26px;z-index:12;overflow:auto}
+  .settings h4{margin:0 0 3px;font-size:15px}
+  .settings p.lead{color:var(--fg2);font-size:12.5px;max-width:640px;margin:0 0 16px}
+  .sgrid{display:grid;grid-template-columns:120px 380px;gap:8px 12px;align-items:center;font-size:13px}
+  .sgrid label{color:var(--fg2);text-align:right}
+  .sgrid input,.sgrid select{background:var(--field);border:1px solid rgba(255,255,255,.14);border-radius:6px;
+        color:#fff;padding:5px 8px;font:13px -apple-system;width:100%}
+  .settings .rowb{display:flex;gap:8px;margin:16px 0 0 132px}
+  .settings .priv{margin:18px 0 0 132px;color:var(--fg3);font-size:11.5px;max-width:560px;border-top:1px solid var(--sep);padding-top:12px}
+
+  /* ── right: walkthrough rail ───────────────────────────────── */
+  #rail{flex:1;min-width:400px;max-width:470px;position:sticky;top:20px}
+  #rail h1{font-size:17px;margin:0 0 2px}
+  #rail .sub{color:var(--fg3);font-size:12px;margin:0 0 14px}
+  .scens{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:14px}
+  .scens button{font:11.5px -apple-system;background:#1b1b1e;border:1px solid var(--sep);color:var(--fg2);
+                border-radius:20px;padding:3px 10px;cursor:pointer}
+  .scens button.on{background:rgba(191,90,242,.17);border-color:rgba(191,90,242,.6);color:#fff}
+  .step{font-size:13px;color:#c7c7cc;background:#171719;border:1px solid var(--sep);border-radius:9px;padding:12px 14px;margin-bottom:10px}
+  .step .st{color:#fff;font-weight:600;font-size:14px;margin-bottom:6px}
+  .step .you{color:var(--green);font-weight:600}
+  .step .bg{color:var(--fg3);font-size:12px;border-top:1px solid var(--sep);margin-top:9px;padding-top:8px}
+  .step .bg b{color:var(--purple);font-weight:600}
+  .nav-b{display:flex;gap:8px;align-items:center}
+  .nav-b .dots{margin-left:auto;color:var(--fg3);font-size:12px}
+  .kbd{font:11px ui-monospace,Menlo;border:1px solid var(--sep);border-radius:4px;padding:1px 5px;color:var(--fg2)}
+  .hint{color:var(--fg3);font-size:11.5px;margin-top:10px}
+</style>
+</head>
+<body>
+<div id="stage"><div class="win" id="win"></div></div>
+<div id="rail">
+  <h1>Ganit · <span style="color:var(--purple)">Ask</span></h1>
+  <p class="sub">Click-through prototype · one operation, four outcomes · nothing here is production code</p>
+  <div class="scens" id="scens"></div>
+  <div class="step" id="step"></div>
+  <div class="nav-b">
+    <button class="b" id="prev">◀ Back</button>
+    <button class="b pri" id="next">Next ▶</button>
+    <span class="dots" id="dots"></span>
+  </div>
+  <p class="hint">Keys: <span class="kbd">→</span> <span class="kbd">←</span> move between states. Things that look
+  clickable in the window (the <b>Ask</b> chip, <b>Ask Ganit…</b>, <b>Apply</b>) advance the story.</p>
+</div>
+
+<script>
+/* ───────────────────────── data ───────────────────────── */
+const A=(t,k)=>({t,k});                       // answer: k = ok|fail|pend|none
+const sidebar = `
+ <div class="lights"><i></i><i></i><i></i></div>
+ <div class="grp">Library</div>
+ <div class="nav"><svg width="14" height="14"><path d="M1 5h12v7H1z M3 5l1-2h6l1 2" fill="none" stroke="currentColor"/></svg>All Sheets</div>
+ <div class="nav"><svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="none" stroke="currentColor"/><path d="M7 4v3l2 2" stroke="currentColor" fill="none"/></svg>Recent</div>
+ <div class="nav"><svg width="14" height="14"><path d="M7 1l2 4 4 .5-3 3 .8 4L7 10.6 3.2 12.5 4 8.5 1 5.5 5 5z" fill="none" stroke="currentColor"/></svg>Favorites</div>
+ <div class="nav"><svg width="14" height="14"><path d="M1 5h12v7H1z M1 5l1.5-3h9L13 5" fill="none" stroke="currentColor"/></svg>Archive</div>
+ <div class="nav"><svg width="14" height="14"><path d="M2 4h10l-1 9H3z" fill="none" stroke="currentColor"/></svg>Trash</div>
+ <div class="grp" style="border-top:1px solid var(--sep);margin-top:10px;padding-top:12px">Scratch</div>
+ <div class="sub-date">now</div>`;
+
+const L=(o)=>o;   // line: {t,kind,ans,sel,caret,chip,err,ai,said,dot}
+const tripSheet=[
+ L({t:'<b>#</b> Trip to Goa',kind:'h'}),
+ L({t:''}),
+ L({t:'hotel = 185 USD',ans:A('185 USD')}),
+ L({t:'nights = 6',ans:A('6')}),
+ L({t:'flight = 680 USD',ans:A('680 USD')}),
+ L({t:''}),
+ L({t:'trip_total = hotel * nights + flight',ans:A('1,790 USD')}),
+];
+const partySheet=[
+ L({t:'<b>#</b> Party for 20',kind:'h'}),
+ L({t:''}),
+ L({t:'drinks = 2,400',ans:A('2,400')}),
+ L({t:'food = 5,600',ans:A('5,600')}),
+ L({t:'cake = 1,200',ans:A('1,200')}),
+ L({t:'subtotal',ans:A('9,200')}),
+ L({t:''}),
+ L({t:'// a tenth for the tip',kind:'c'}),
+ L({t:'10% of line 6',ans:A('920')}),
+];
+
+const SC=[
+/* ── 1 ─────────────────────────────────────────────────── */
+{id:'plain',name:'Plain Ganit',title:'Baseline — no AI anywhere',steps:[
+ {you:'You just use Ganit.',
+  note:'This is the whole product with AI switched off: source on the left, answers on the right, nothing purple, no buttons. Everything below has to leave this screen untouched.',
+  bg:'<b>Design rule:</b> the answer column is written only by Ganit. That is what makes a purple mark on it meaningful later.',
+  sheet:tripSheet},
+]},
+
+/* ── 2 ─────────────────────────────────────────────────── */
+{id:'loan',name:'1 · Words → calculation',title:'',steps:[
+ {you:'You type a sentence into a line and stop.',
+  note:'Ganit can’t read it, so it says so — and puts a quiet <b>Ask</b> on <em>that one line only</em>. Nothing has left the Mac: detecting prose is local.',
+  bg:'<b>Ganit:</b> classifies the line as prose. <b>Model:</b> not contacted. The old 1.2-second auto-request is gone — ADR 0012 promises “a request nobody makes without asking for it”, and auto-sending broke that promise.',
+  sheet:[L({t:'<b>#</b> Home loan',kind:'h'}),L({t:''}),
+         L({t:'I’m borrowing ₹25 lakh for 5 years at 8.2%. What will I pay monthly?',kind:'md',caret:1,chip:1})]},
+
+ {you:'You press <span class="kbd">⌘⇧A</span> (or click <b>Ask</b>).',
+  note:'The Ask bar opens at the caret with the line already in it, so an unparseable line needs no typing. The <code>Context</code> line says exactly what will be sent, before it is sent.',
+  bg:'<b>One door.</b> ⌘⇧A, right-click, the caret chip and the selection bar all open this same bar — no separate “explain”, “transform”, “generate” commands.',
+  sheet:[L({t:'<b>#</b> Home loan',kind:'h'}),L({t:''}),
+         L({t:'I’m borrowing ₹25 lakh for 5 years at 8.2%. What will I pay monthly?',kind:'md'}),
+        ],
+  ov:{type:'ask',at:2,q:'I’m borrowing ₹25 lakh for 5 years at 8.2%. What will I pay monthly?',meta:'Context: this line only · gpt-4o-mini',hint:'⏎ to ask · Esc to dismiss'}},
+
+ {you:'⏎',
+  note:'The bar stays open, the sheet stays editable, and the status line is the entire UI for “the model is working”.',
+  bg:'<b>Model:</b> translates intent into Ganit source. <b>Ganit:</b> parses, type-checks, units-checks and evaluates the patch on a shadow copy of the sheet. <b>The model never produces the number.</b>',
+  sheet:[L({t:'<b>#</b> Home loan',kind:'h'}),L({t:''}),
+         L({t:'I’m borrowing ₹25 lakh for 5 years at 8.2%. What will I pay monthly?',kind:'md'})],
+  ov:{type:'ask',at:2,q:'I’m borrowing ₹25 lakh for 5 years at 8.2%. What will I pay monthly?',status:'Ganit is checking…'}},
+
+ {you:'A proposal appears where the prose was.',
+  note:'These are <b>not</b> pictures of an answer — Ganit really evaluated them, which is why the answer column is populated. Nothing has been written to the sheet yet. Note the comment line: the model’s interpretation is offered as ordinary, deletable text.',
+  bg:'<b>Shape = contract.</b> Anything that touches source is previewed and needs Apply. Anything read-only is a transient card. There is no mode switch because the outcome tells you which it was.',
+  sheet:[L({t:'<b>#</b> Home loan',kind:'h'}),L({t:''}),
+         L({t:'I’m borrowing ₹25 lakh for 5 years at 8.2%. What will I pay monthly?',kind:'md'})],
+  ov:{type:'prop',at:2,hd:'<b>Proposed</b> · replaces 1 line with 7',
+      lines:[{m:'del',s:'I’m borrowing ₹25 lakh for 5 years at 8.2%. What will I pay monthly?'},
+             {m:'add',s:'principal = 2500000 INR',a:'₹2,500,000'},
+             {m:'add',s:'annual_rate = 8.2%',a:'8.2%'},
+             {m:'add',s:'years = 5',a:'5'},
+             {m:'add',s:'monthly = pmt(principal, annual_rate / 12, years * 12)',a:'₹50,931'},
+             {m:'add',s:'total_paid = monthly * years * 12',a:'₹3,055,860'},
+             {m:'add',s:'interest = total_paid - principal',a:'₹555,860'},
+             {m:'add',s:'<span class="aicomment">// 8.2% is the annual rate → charged monthly; 5 years = 60 payments</span>'}],
+      ft:'<span class="ok">✓</span> Ganit checked all 7 lines · they calculate · no model-supplied numbers',
+      btns:['Apply ⌘↩','Ask again','Discard ⎋']}},
+
+ {you:'⌘↩ — Apply.',
+  note:'Ordinary source. The purple is gone from the screen; what remains is a comment you can edit or delete. It is <b>not</b> badged as AI-written, because Ganit verified it — badges mark where a <em>number</em> came from, not who typed it.',
+  bg:'<b>Apply is one Undo step</b> named <em>“Apply AI change”</em>, using the sheet’s existing named-patch machinery (tables already do this). No AI-specific undo stack.',
+  sheet:[L({t:'<b>#</b> Home loan',kind:'h'}),L({t:''}),
+         L({t:'principal = 2500000 INR',ans:A('₹2,500,000')}),
+         L({t:'annual_rate = 8.2%',ans:A('8.2%')}),
+         L({t:'years = 5',ans:A('5')}),
+         L({t:'monthly = pmt(principal, annual_rate / 12, years * 12)',ans:A('₹50,931')}),
+         L({t:'total_paid = monthly * years * 12',ans:A('₹3,055,860')}),
+         L({t:'interest = total_paid - principal',ans:A('₹555,860')}),
+         L({t:'<span class="aicomment">// 8.2% is the annual rate → charged monthly; 5 years = 60 payments</span>',kind:'c'})]},
+
+ {you:'Next week you change 2500000 to 3000000.',
+  note:'Same digits you’d change in any notepad. No AI, no waiting, no confirmation.',
+  bg:'<b>The whole point.</b> Because AI wrote source rather than an answer, the work is now subject to Ganit’s normal determinism. Had the model returned “₹61,117”, this edit would need a second question to a model.',
+  sheet:[L({t:'<b>#</b> Home loan',kind:'h'}),L({t:''}),
+         L({t:'principal = <span class="err" style="border:0">3000000</span> INR',ans:A('₹3,000,000')}),
+         L({t:'annual_rate = 8.2%',ans:A('8.2%')}),
+         L({t:'years = 5',ans:A('5')}),
+         L({t:'monthly = pmt(principal, annual_rate / 12, years * 12)',ans:A('₹61,117')}),
+         L({t:'total_paid = monthly * years * 12',ans:A('₹3,667,020')}),
+         L({t:'interest = total_paid - principal',ans:A('₹667,020')}),
+         L({t:'<span class="aicomment">// 8.2% is the annual rate → charged monthly; 5 years = 60 payments</span>',kind:'c'})]},
+]},
+
+/* ── 3 ─────────────────────────────────────────────────── */
+{id:'prose',name:'2 · Prose → a model',title:'',steps:[
+ {you:'A paragraph, and an instruction on what to do with it.',
+  note:'Same bar. The difference is only that a multi-line result is expected, so the target is the selection.',
+  bg:'<b>Context sent:</b> the selected lines, plus the declaration lines they transitively read — not the sheet, its title, or the machine.',
+  sheet:[L({t:'<b>#</b> Flat vs rent',kind:'h'}),L({t:''}),
+         L({t:'The apartment costs 1.8 crore. I can put down 50 lakh. The loan is around 8%.',kind:'md',sel:1}),
+         L({t:'I would otherwise pay 65k a month in rent.',kind:'md',sel:1}),
+         L({t:'Compare 10, 15 and 20 year loans.',kind:'md',sel:1})],
+  sum:'Selected 3 · 3 need Ganit',
+  ov:{type:'ask',at:4,q:'Turn this into a model comparing 10, 15 and 20 year loans.',meta:'Context: 3 lines · gpt-4o-mini'}},
+
+ {you:'The proposal shows its guesses rather than hiding them.',
+  note:'Two markers. <b>AI</b> (purple) = a number from the model’s own knowledge. <b>said</b> (blue) = a number the model chose from your vague wording — “around 8%”. Both are ordinary editable values; the marks are decoration, not text.',
+  bg:'<b>Rule:</b> if the <em>world</em> knows the number, assume it and mark it. If only <em>you</em> know it, ask. A number that was simply never mentioned becomes a visible hole (`0  // not given`) instead of an invention.',
+  sheet:[L({t:'<b>#</b> Flat vs rent',kind:'h'}),L({t:''}),
+         L({t:'The apartment costs 1.8 crore. I can put down 50 lakh. The loan is around 8%.',kind:'md'}),
+         L({t:'I would otherwise pay 65k a month in rent.',kind:'md'}),
+         L({t:'Compare 10, 15 and 20 year loans.',kind:'md'})],
+  ov:{type:'prop',at:4,hd:'<b>Proposed</b> · adds 10 lines · 2 numbers from the model · 1 hole',
+      lines:[{m:'add',s:'price = 18000000 INR',a:'₹1,80,00,000'},
+             {m:'add',s:'down = 5000000 INR',a:'₹50,00,000',b:'said'},
+             {m:'add',s:'annual_rate = 8%',a:'8%',b:'said'},
+             {m:'add',s:'rent = 65000 INR',a:'₹65,000'},
+             {m:'add',s:'rent_growth = 3%<span class="aibadge">AI</span><span class="aicomment">  // AI: typical long-run rent growth · gpt-4o-mini · today</span>',a:'3%'},
+             {m:'add',s:'maintenance = 0 INR<span class="saidbadge">?</span><span class="aicomment">  // not given — set me</span>',a:'₹0'},
+             {m:'add',s:'emi_10 = pmt(price - down, annual_rate / 12, 10 * 12)',a:'₹1,24,982'},
+             {m:'add',s:'emi_15 = pmt(price - down, annual_rate / 12, 15 * 12)',a:'₹1,03,240'},
+             {m:'add',s:'emi_20 = pmt(price - down, annual_rate / 12, 20 * 12)',a:'₹90,616'},
+             {m:'add',s:'<span class="aicomment">// rent rises 3% a year; maintenance not supplied</span>'}],
+      ft:'<span class="ok">✓</span> Ganit checked all 10 lines · the purple numbers came from the model, not from Ganit',
+      btns:['Apply ⌘↩','Ask again','Discard ⎋']}},
+
+ {you:'Click the <b>AI</b> badge on any assumption, before or after applying.',
+  note:'The same card style as Ganit’s existing interpretation card — the AI UI deliberately borrows chrome the app already has. <em>Change value…</em> is the intended action: edit it and it stops being an assumption.',
+  bg:'Provenance is plain text in the sheet (`// AI: … · model · date`), so it survives copy, export and grep. The badge is just that comment, decorated — the same trick Ganit already uses for <code>// Manual answer; original:</code>.',
+  sheet:[L({t:'<b>#</b> Flat vs rent',kind:'h'}),L({t:''}),
+         L({t:'price = 18000000 INR',ans:A('₹1,80,00,000')}),
+         L({t:'down = 5000000 INR',ans:A('₹50,00,000')}),
+         L({t:'annual_rate = 8%',ans:A('8%')}),
+         L({t:'rent = 65000 INR',ans:A('₹65,000')}),
+         L({t:'rent_growth = 3%<span class="aibadge">AI</span><span class="aicomment">  // AI: typical long-run rent growth · gpt-4o-mini · today</span>',ans:A('3%')}),
+         L({t:'emi_10 = pmt(price - down, annual_rate / 12, 10 * 12)',ans:A('₹1,24,982'),dot:1}),
+         L({t:'emi_15 = pmt(price - down, annual_rate / 12, 15 * 12)',ans:A('₹1,03,240'),dot:1})],
+  ov:{type:'card',at:6,head:'<span class="k">AI</span> assumption',
+      rows:[['Value','3% <span style="color:var(--fg3)">a year</span>'],
+            ['What it is','Typical long-run residential rent growth. Not from your note.'],
+            ['From','gpt-4o-mini · asked 10:42'],
+            ['Ganit did','All the compounding. <code>pmt</code> is exact.']],
+      fine:'Editing this value makes it yours and removes the mark.',
+      btns:['Change value…','Remove','Copy']}},
+]},
+
+/* ── 4 ─────────────────────────────────────────────────── */
+{id:'trip',name:'3 · Transform a selection',title:'',steps:[
+ {you:'You select four lines.',
+  note:'The <b>selection summary bar that already exists</b> gains one trailing action. No floating toolbar, no AI strip, no new chrome — the bar appears exactly when a bulk action on a selection makes sense.',
+  bg:'<b>Ganit</b> already counts the selection and knows which lines are calculations.',
+  sheet:tripSheet.map((l,i)=>({...l,sel:[2,3,4,6].includes(i)})),
+  sum:'Selected 4 · Calculated 4 · no Total — money in two currencies can’t be added',sumGo:1},
+
+ {you:'Ask Ganit…',
+  note:'Anchored under the selection. The <code>Context ▸</code> disclosure is one click from the truth about what leaves the Mac.',
+  bg:'<b>Context sent:</b> the 4 selected lines + the 1 line they depend on. Not the sheet.',
+  sheet:tripSheet.map((l,i)=>({...l,sel:[2,3,4,6].includes(i)})),
+  ov:{type:'ask',at:6,q:'Compare this trip in USD and INR, and add a 12% contingency.',meta:'Context: 4 lines + 1 they depend on ▸ · gpt-4o-mini',
+      ctx:['hotel = 185 USD','nights = 6','flight = 680 USD','trip_total = hotel * nights + flight']}},
+
+ {you:'The proposal. Click the − on any line to leave it out.',
+  note:'Look at the conversions: <code>trip_total in INR</code> is ordinary Ganit — Ganit owns currency, so the model only had to <em>write the line</em>, never to know a rate. That is the division of labour in one line of source.',
+  bg:'<b>Partial accept</b> is per-line rather than a diff editor: it covers “I want four of those five” without inventing a merge UI.',
+  sheet:tripSheet,
+  ov:{type:'prop',at:6,hd:'<b>Proposed</b> · 4 added, 1 changed · click a line to leave it out',
+      lines:[{m:'chg',s:'trip_base = hotel * nights + flight',a:'1,790 USD'},
+             {m:'add',s:'contingency = trip_base * 12%',a:'214.80 USD'},
+             {m:'add',s:'trip_usd = trip_base + contingency',a:'2,004.80 USD'},
+             {m:'add',s:'trip_inr = trip_usd in INR',a:'₹1,81,234',off:1},
+             {m:'add',s:'<span class="aicomment">// contingency: 12% · INR at today’s ECB rate</span>'}],
+      ft:'<span class="ok">✓</span> Ganit checked 5 lines · 4 selected to apply',
+      btns:['Apply 4 ⌘↩','Apply all','Discard ⎋']}},
+
+ {you:'⌘↩.',
+  note:'Ordinary Ganit again — names you can use in later lines, a comment you can delete, ⌘⇧A-free from here on.',
+  bg:'<b>No marks</b>, because every number is either yours (12%) or something Ganit computed (the currency rate).',
+  sheet:[...tripSheet.slice(0,6),
+         L({t:'trip_base = hotel * nights + flight',ans:A('1,790 USD')}),
+         L({t:'contingency = trip_base * 12%',ans:A('214.80 USD')}),
+         L({t:'trip_usd = trip_base + contingency',ans:A('2,004.80 USD')}),
+         L({t:'trip_inr = trip_usd in INR',ans:A('₹1,81,234')}),
+         L({t:'<span class="aicomment">// contingency: 12% · INR at today’s ECB rate</span>',kind:'c'})]},
+
+ {you:'⌘Z.',
+  note:'Exactly the pre-Apply state, selection and caret included. One keystroke, because Apply was one named step.',
+  bg:'<b>Contrast with the alternative:</b> “AI writes straight into the sheet” makes Undo a per-insertion scavenger hunt, and inserted lines silently renumber everyone’s <code>line N</code> references.',
+  sheet:tripSheet.map((l,i)=>({...l,sel:[2,3,4,6].includes(i)})),
+  sum:'Selected 4 · Calculated 4 · no Total — money in two currencies can’t be added',sumGo:1},
+]},
+
+/* ── 5 ─────────────────────────────────────────────────── */
+{id:'repair',name:'4 · Broken output → repair',title:'',steps:[
+ {you:'You ask for the EMI on a line of your own.',
+  note:'The caret line is the target; the three lines above it are the context, because they are what the new line must read.',
+  bg:'<b>Model, attempt 1:</b> <code>five_year_payment = mortgage(principal, annual_rate, 5 years)</code>. Plausible, and wrong.',
+  sheet:[L({t:'<b>#</b> Home loan',kind:'h'}),L({t:''}),
+         L({t:'principal = 2500000 INR',ans:A('₹2,500,000')}),
+         L({t:'annual_rate = 8.2%',ans:A('8.2%')}),
+         L({t:'years = 5',ans:A('5')}),L({t:''}),L({t:'',caret:1})],
+  ov:{type:'ask',at:6,q:'add the EMI for 5 years',status:'Ganit is checking…'}},
+
+ {you:'You see nothing new. Then one quiet line.',
+  note:'This is the entire visible surface of the repair loop: one status line, no model output, no red text, no retry counter to babysit.',
+  bg:'<b>Ganit</b> rejected attempt 1 with <code>evaluation.unknownFunction</code> at <code>mortgage</code>. The diagnostic, its range, and the nearby function names (<code>pmt</code>, <code>fv</code>, <code>pv</code>) went back to the model as the repair turn. Ganit judges; the model rewrites.',
+  sheet:[L({t:'<b>#</b> Home loan',kind:'h'}),L({t:''}),
+         L({t:'principal = 2500000 INR',ans:A('₹2,500,000')}),
+         L({t:'annual_rate = 8.2%',ans:A('8.2%')}),
+         L({t:'years = 5',ans:A('5')}),L({t:''}),L({t:''})],
+  ov:{type:'ask',at:6,q:'add the EMI for 5 years',status:'Ganit is checking…',quiet:'Ganit asked the model to fix its first attempt.'}},
+
+ {you:'A proposal you never knew was nearly broken.',
+  note:'The footer records that a repair happened — one line of honesty, no detail — because it explains the delay and because it is true.',
+  bg:'<b>Now</b> it is Ganit’s own <code>pmt</code>: exact arithmetic, typed arguments, real <code>₹50,931</code>. Note what Ganit refused to accept: a function name the model invented, and <code>5 years</code> where a count of periods was required.',
+  sheet:[L({t:'<b>#</b> Home loan',kind:'h'}),L({t:''}),
+         L({t:'principal = 2500000 INR',ans:A('₹2,500,000')}),
+         L({t:'annual_rate = 8.2%',ans:A('8.2%')}),
+         L({t:'years = 5',ans:A('5')}),L({t:''}),L({t:''})],
+  ov:{type:'prop',at:6,hd:'<b>Proposed</b> · adds 1 line',
+      lines:[{m:'add',s:'five_year_payment = pmt(principal, annual_rate / 12, years * 12)',a:'₹50,931'}],
+      ft:'<span class="ok">✓</span> Ganit checked this line · 1 automatic repair',
+      btns:['Apply ⌘↩','Ask again','Discard ⎋']}},
+
+ {you:'When repair runs out, you get an actual reason.',
+  note:'Never a broken preview. A line that does not calculate is not offered for Apply at all — it is a failure, described in Ganit’s own words, and Ganit happens to know what the alternatives are.',
+  bg:'<b>Repair budget:</b> 2 by default, 0–3 in Settings (0 turns Ask into a strict validate-once loop, which is the right setting for weak local models).',
+  sheet:[L({t:'<b>#</b> Home loan',kind:'h'}),L({t:''}),
+         L({t:'principal = 2500000 INR',ans:A('₹2,500,000')}),
+         L({t:'annual_rate = 8.2%',ans:A('8.2%')}),
+         L({t:'years = 5',ans:A('5')}),L({t:''}),L({t:''})],
+  ov:{type:'fail',at:6,t:'Ganit couldn’t make this calculate.',
+      m:'<code>mortgage</code> isn’t a Ganit function. Ganit has <code>pmt</code>, <code>fv</code> and <code>pv</code>.',
+      btns:['Try again','Put it differently','Show what the model meant','Discard']}},
+
+ {you:'…and when the model answers with prose instead of a calculation.',
+  note:'Same card, one different sentence. Malformed output is a routine failure mode, not an error state to be decoded. <em>Show what the model meant</em> opens the rejected source read-only, so a clever-but-wrong answer is still worth something to you.',
+  bg:'<b>This is the weak-model path.</b> Ganit already strips fences, think-tags and “Answer:” prefixes today; when even that fails, it stops cleanly rather than putting a guess in your sheet.',
+  sheet:[L({t:'<b>#</b> Home loan',kind:'h'}),L({t:''}),
+         L({t:'principal = 2500000 INR',ans:A('₹2,500,000')}),
+         L({t:'annual_rate = 8.2%',ans:A('8.2%')}),
+         L({t:'years = 5',ans:A('5')}),L({t:''}),L({t:''})],
+  ov:{type:'fail',at:6,t:'The model didn’t answer in a way Ganit could use.',
+      m:'It replied with 4 sentences of explanation. Try asking for one calculation, or pick a stronger model.',
+      btns:['Try again','Put it differently','Show what the model meant','Discard']}},
+]},
+
+/* ── 6 ─────────────────────────────────────────────────── */
+{id:'clarify',name:'5 · One clarification',title:'',steps:[
+ {you:'Select three lines, ask for something the sheet can’t answer.',
+  note:'Nothing here says “chat”. It says “this operation is running, and it is at your caret”.',
+  bg:'<b>Model:</b> recognises a required operand with no source, and asks for it instead of picking 18% because 18% is common.',
+  sheet:[L({t:'<b>#</b> Team dinner',kind:'h'}),L({t:''}),
+         L({t:'food = 4200 INR',ans:A('₹4,200'),sel:1}),
+         L({t:'drinks = 1800 INR',ans:A('₹1,800'),sel:1}),
+         L({t:'venue = 3500 INR',ans:A('₹3,500'),sel:1})],
+  ov:{type:'ask',at:5,q:'Add tax to this.',meta:'Context: 3 lines · gpt-4o-mini'}},
+
+ {you:'The bar <em>becomes</em> the question.',
+  note:'One field, one question, a crumb back to what you asked, and <b>Cancel</b>. No thread, no history, nothing to close later. The <code>‹</code> puts your original wording back so you can rephrase instead of answering.',
+  bg:'<b>Why asking beats assuming here:</b> only you know your tax rate. <em>Ask</em> is capped at 2 questions; past that, Ganit fails honestly rather than turning into a conversation.',
+  sheet:[L({t:'<b>#</b> Team dinner',kind:'h'}),L({t:''}),
+         L({t:'food = 4200 INR',ans:A('₹4,200'),sel:1}),
+         L({t:'drinks = 1800 INR',ans:A('₹1,800'),sel:1}),
+         L({t:'venue = 3500 INR',ans:A('₹3,500'),sel:1})],
+  ov:{type:'ask',at:5,crumb:'Add tax to this.',q:'',ph:'What tax rate should I use?',
+      chips:['5%','12%','18%','28%'],meta:'Question 1 of 2 · Esc cancels the whole ask'}},
+
+ {you:'You type 18% and press ⏎.',
+  note:'The same operation resumes with your answer folded in — you are back at the instruction you typed, now annotated with what you supplied.',
+  bg:'The answer is <b>not</b> a chat message; it goes into the model’s next turn as a stated operand, and then into the source as a named line.',
+  sheet:[L({t:'<b>#</b> Team dinner',kind:'h'}),L({t:''}),
+         L({t:'food = 4200 INR',ans:A('₹4,200'),sel:1}),
+         L({t:'drinks = 1800 INR',ans:A('₹1,800'),sel:1}),
+         L({t:'venue = 3500 INR',ans:A('₹3,500'),sel:1})],
+  ov:{type:'ask',at:5,crumb:'Add tax to this.',badge:'rate · 18%',status:'Ganit is checking…'}},
+
+ {you:'Proposal → Apply.',
+  note:'<code>tax_rate = 18%</code> is a real line: change it to 5% later and everything below follows, with no model involved. That is the difference between “answering a question” and “building a calculation”.',
+  bg:'<b>Not badged:</b> the 18% came from you, just via a question rather than via typing.',
+  sheet:[L({t:'<b>#</b> Team dinner',kind:'h'}),L({t:''}),
+         L({t:'food = 4200 INR',ans:A('₹4,200')}),
+         L({t:'drinks = 1800 INR',ans:A('₹1,800')}),
+         L({t:'venue = 3500 INR',ans:A('₹3,500')}),
+         L({t:'tax_rate = 18%',ans:A('18%')}),
+         L({t:'tax = (food + drinks + venue) * tax_rate',ans:A('₹1,710')}),
+         L({t:'with_tax = food + drinks + venue + tax',ans:A('₹11,210')})],
+  ov:{type:'prop',at:5,hd:'<b>Proposed</b> · adds 3 lines',
+      lines:[{m:'add',s:'tax_rate = 18%',a:'18%'},
+             {m:'add',s:'tax = (food + drinks + venue) * tax_rate',a:'₹1,710'},
+             {m:'add',s:'with_tax = food + drinks + venue + tax',a:'₹11,210'}],
+      ft:'<span class="ok">✓</span> Ganit checked all 3 lines',btns:['Apply ⌘↩','Ask again','Discard ⎋']}},
+]},
+
+/* ── 7 ─────────────────────────────────────────────────── */
+{id:'water',name:'6 · AI supplies a fact',title:'',steps:[
+ {you:'The classic line Ganit cannot do.',
+  note:'<code>10 kg of water in mL</code> is missing a fact about the world, not a rule of arithmetic. Ganit’s diagnostic comes first; the <b>Ask</b> chip is beside it, not instead of it.',
+  bg:'<b>Ask is not a calculator.</b> Asking it “what is 10 kg of water in mL” is the wrong shape — the model would be doing arithmetic it can’t be trusted with.',
+  sheet:[L({t:'<b>#</b> Density',kind:'h'}),L({t:''}),
+         L({t:'<span class="err">10 kg of water in mL</span>',ans:A('Ganit can’t read this line','fail'),caret:1,chip:1}),
+         L({t:'1,500 mL + 500 mL',ans:A('2,000 mL')})]},
+
+ {you:'Ask with no instruction — just the intent chip.',
+  note:'For a line Ganit can’t read, the bar opens with the field empty and two obvious intents. You rarely need to type anything.',
+  bg:'The prompt asks the model for <b>Ganit source plus any external constant it needs, with its reasoning for the constant</b>. It never asks for the answer.',
+  sheet:[L({t:'<b>#</b> Density',kind:'h'}),L({t:''}),
+         L({t:'<span class="err">10 kg of water in mL</span>',ans:A('Ganit can’t read this line','fail')}),
+         L({t:'1,500 mL + 500 mL',ans:A('2,000 mL')})],
+  ov:{type:'ask',at:2,q:'',ph:'Make this line calculate…',chips:['Make it calculate','Explain why it fails'],meta:'Context: this line · gpt-4o-mini'}},
+
+ {you:'Two lines, and you can see who contributed what.',
+  note:'The model supplied <b>one number</b> — a fact about water. The dimensional arithmetic is on the next line in your own grammar, and Ganit evaluated it. The proposal header says so in one sentence.',
+  bg:'This is the shape that replaces <code>ask_assistant(…)</code>. Where <code>ask_assistant</code> put a non-deterministic hole in your source that re-asked on every edit, an assumption line is a plain value: change <code>10 kg</code> to <code>12 kg</code> and only Ganit runs.',
+  sheet:[L({t:'<b>#</b> Density',kind:'h'}),L({t:''}),
+         L({t:'<span class="err">10 kg of water in mL</span>',ans:A('Ganit can’t read this line','fail')}),
+         L({t:'1,500 mL + 500 mL',ans:A('2,000 mL')})],
+  ov:{type:'prop',at:2,hd:'<b>Proposed</b> · replaces 1 line with 2 · the model supplied 1 number',
+      lines:[{m:'del',s:'10 kg of water in mL'},
+             {m:'add',s:'density_water = 1 kg / L<span class="aibadge">AI</span><span class="aicomment">  // AI: density of water at 4 °C · gpt-4o-mini · today</span>',a:'1 kg/L'},
+             {m:'add',s:'water_volume = 10 kg / density_water in mL',a:'10,000 mL'}],
+      ft:'<span class="ok">✓</span> Ganit did the arithmetic · the model supplied 1 number',
+      btns:['Apply ⌘↩','Ask again','Discard ⎋']}},
+
+ {you:'Apply. The mark stays, and it spreads — carefully.',
+  note:'The badge sits on the <b>origin</b>. Everything that transitively reads it gets one small purple dot before its answer, and nothing else. <b>View ▸ Mark AI-derived answers</b> turns the dots off; the origin badge never goes away.',
+  bg:'<b>Ganit already tracks which lines each line reads,</b> so this is derived from the dependency graph, not new bookkeeping. Hovering a dotted answer lists its assumptions.',
+  sheet:[L({t:'<b>#</b> Density',kind:'h'}),L({t:''}),
+         L({t:'density_water = 1 kg / L<span class="aibadge">AI</span><span class="aicomment">  // AI: density of water at 4 °C · gpt-4o-mini · today</span>',ans:A('1 kg/L')}),
+         L({t:'water_volume = 10 kg / density_water in mL',ans:A('10,000 mL'),dot:1}),
+         L({t:'three_buckets = water_volume * 3',ans:A('30,000 mL'),dot:1}),
+         L({t:'1,500 mL + 500 mL',ans:A('2,000 mL')})]},
+
+ {you:'Click the badge.',
+  note:'Same popover grid Ganit already uses for interpretation cards, so this is not a new kind of UI — it is an existing one with three new rows. <em>Remove</em> would show you what breaks before it breaks it.',
+  bg:'<b>Provenance is text:</b> <code>// AI: density of water at 4 °C · gpt-4o-mini · today</code>. It is in the file, survives export, and a sceptical colleague grepping the sheet finds it.',
+  sheet:[L({t:'<b>#</b> Density',kind:'h'}),L({t:''}),
+         L({t:'density_water = 1 kg / L<span class="aibadge">AI</span><span class="aicomment">  // AI: density of water at 4 °C · gpt-4o-mini · today</span>',ans:A('1 kg/L')}),
+         L({t:'water_volume = 10 kg / density_water in mL',ans:A('10,000 mL'),dot:1}),
+         L({t:'three_buckets = water_volume * 3',ans:A('30,000 mL'),dot:1})],
+  ov:{type:'card',at:2,head:'<span class="k">AI</span> assumption',
+      rows:[['Value','1 kg/L'],
+            ['What it is','Density of water at 4 °C. A common value, not a measured one.'],
+            ['From','gpt-4o-mini · asked 10:42'],
+            ['Used by','<span class="mono" style="color:var(--purple)">●</span> line 4 · <span class="mono" style="color:var(--purple)">●</span> line 5']],
+      fine:'Ganit did every calculation on these lines.',
+      btns:['Change value…','Remove','Copy']}},
+
+ {you:'You change it to 0.997 kg/L.',
+  note:'Downstream answers move instantly, with no request. And because you typed that number, it is yours: badge and dots are gone. Provenance tracks the origin of a value, not its ancestry of ideas.',
+  bg:'<b>This is the state the design is aiming at:</b> a sheet that looks exactly like a hand-written Ganit sheet, because it now is one.',
+  sheet:[L({t:'<b>#</b> Density',kind:'h'}),L({t:''}),
+         L({t:'density_water = <span style="border:0">0.997</span> kg / L',ans:A('0.997 kg/L')}),
+         L({t:'water_volume = 10 kg / density_water in mL',ans:A('10,030 mL')}),
+         L({t:'three_buckets = water_volume * 3',ans:A('30,090 mL')})]},
+]},
+
+/* ── 8 ─────────────────────────────────────────────────── */
+{id:'explain',name:'7 · Explain & fix',title:'',steps:[
+ {you:'Caret on a line, ⌘⇧A, “why is this 920?”',
+  note:'Nothing here needs a model. Ganit knows the expression, the result, exactly which lines it read, and the grammar rule that applied — and it already renders that kind of card.',
+  bg:'<b>Explain is Ganit-first.</b> The model is the fallback (<em>Ask the model instead</em>) for intent-level questions Ganit genuinely can’t answer — “is this the right way to model a tip?”',
+  sheet:partySheet.map((l,i)=>({...l,caret:i===8})),
+  ov:{type:'ask',at:8,q:'why is this 920?',meta:'Context: this line + line 6 · gpt-4o-mini'}},
+
+ {you:'A card, not a chat message.',
+  note:'Identical in shape to the interpretation card Space already opens on an answer. It has no composer, no avatar, no scrollback — which is why it can appear over a calculation without turning Ganit into a chatbot.',
+  bg:'<b>Nothing was sent.</b> The card says so, because a user who can’t tell is a user who will distrust the number.',
+  sheet:partySheet,
+  ov:{type:'card',at:8,head:'Interpretation',
+      rows:[['Expression','<span class="mono">10% of line 6</span>'],
+            ['Result','<span class="mono">920</span>'],
+            ['Reads','<span class="mono">line 6</span> → <span class="mono">subtotal</span> = 9,200'],
+            ['Rule','<span class="mono">X% of line N</span> — 10% of that line’s answer'],
+            ['Exact','920, no rounding']],
+      fine:'Answered by Ganit’s own evaluation. Nothing was sent to a model.',
+      btns:['Ask the model instead','Copy','Dismiss']}},
+
+ {you:'Now ask about a line that fails.',
+  note:'Where / message / what to fix first — again Ganit’s own diagnostic, plus one button that hands off.',
+  bg:'The failure here is the real one from the UX audit: a line was inserted above, <code>line 6</code> quietly followed its old text, and now <code>savings</code> subtracts the wrong thing. Ganit knows this because it owns the graph.',
+  sheet:[L({t:'<b>#</b> Budget',kind:'h'}),L({t:''}),
+         L({t:'salary = 62000',ans:A('62,000')}),
+         L({t:'rent = 21000',ans:A('21,000')}),
+         L({t:'net = salary - rent',ans:A('41,000')}),
+         L({t:'Netflix = 649',ans:A('649')}),
+         L({t:''}),
+         L({t:'<span class="err">savings = salary - line 6</span>',ans:A('line 6 isn’t a value','fail'),caret:1})],
+  ov:{type:'card',at:7,head:'Problem',
+      rows:[['Where','<span class="mono">line 6</span>'],
+            ['Message','Line 6 has no answer to read — it names <span class="mono">Netflix</span>.'],
+            ['Fix first','<span class="mono" style="color:var(--blue);text-decoration:underline">line 5 · net</span>'],
+            ['Cause','A line was inserted above, and <span class="mono">line 6</span> followed the text it was written against.']],
+      fine:'Use “Fix it” to have the model rewrite these lines to what you meant.',
+      btns:['Fix it','Ask the model instead','Dismiss']}},
+
+ {you:'Fix it → the model works from the diagnostic, not from the raw text.',
+  note:'The fix names the variable instead of a moving line number, which is the fix a human would make — and it arrives as a preview, because it changes work.',
+  bg:'<b>Feeding the model Ganit’s state is the whole trick:</b> it stops guessing from characters and starts repairing a diagnosed failure. Same call shape as the repair loop in scenario 4.',
+  sheet:[L({t:'<b>#</b> Budget',kind:'h'}),L({t:''}),
+         L({t:'salary = 62000',ans:A('62,000')}),
+         L({t:'rent = 21000',ans:A('21,000')}),
+         L({t:'net = salary - rent',ans:A('41,000')}),
+         L({t:'Netflix = 649',ans:A('649')}),
+         L({t:''}),
+         L({t:'<span class="err">savings = salary - line 6</span>',ans:A('line 6 isn’t a value','fail')})],
+  ov:{type:'prop',at:7,hd:'<b>Proposed fix</b> · 1 line',
+      lines:[{m:'del',s:'savings = salary - line 6'},
+             {m:'add',s:'savings = salary - rent - Netflix',a:'40,351'},
+             {m:'add',s:'<span class="aicomment">// was: salary − line 6, which no longer names net</span>'}],
+      ft:'<span class="ok">✓</span> Ganit checked this line · 1 automatic repair',
+      btns:['Apply ⌘↩','Ask again','Discard ⎋']}},
+]},
+
+/* ── 9 ─────────────────────────────────────────────────── */
+{id:'off',name:'8 · No model set up',title:'',steps:[
+ {you:'Same product, no purple.',
+  note:'Without a model the chip never appears, the selection bar ends where it always did, and <b>Ask Ganit…</b> is simply disabled. The calculator is complete on its own; nothing about Ganit assumes AI is present.',
+  bg:'<b>Also removed from the product:</b> the 1.2s auto-request, <code>ask_assistant(prompt)</code>, purple values in the answer column, and the <em>Ask Assistant</em> / <em>Change Answer…</em> / <em>Cancel Request</em> trio (Esc in the bar covers cancel).',
+  sheet:[L({t:'<b>#</b> Density',kind:'h'}),L({t:''}),
+         L({t:'<span class="err">10 kg of water in mL</span>',ans:A('Ganit can’t read this line','fail'),caret:1}),
+         L({t:'1,500 mL + 500 mL',ans:A('2,000 mL')})],
+  ov:{type:'menu',items:['Copy Result','Copy with Results','Show Interpretation','—','Ask Ganit… ⌘⇧A|dis','Set up a model…','—','Insert Reference','Insert Subtotal']}},
+
+ {you:'Settings ▸ AI.',
+  note:'What exists today, plus three fields the new model needs: repair attempts, whether to mark derived answers, and a plain statement of what gets sent — because context is now chosen per operation, “nothing but the one line” is no longer the whole truth.',
+  bg:'Still one OpenAI-compatible base, HTTPS except loopback, key in the keychain, no key shipped, no proxy of Ganit’s own, <em>Try It</em> to catch a bad address before you are mid-sheet.',
+  sheet:[L({t:'<b>#</b> Density',kind:'h'}),L({t:''}),
+         L({t:'<span class="err">10 kg of water in mL</span>',ans:A('Ganit can’t read this line','fail')})],
+  ov:{type:'settings'}},
+]},
+];
+
+/* ───────────────────────── render ───────────────────────── */
+let si=0, ti=0;
+const $=s=>document.querySelector(s);
+function renderScens(){
+  $('#scens').innerHTML=SC.map((s,i)=>`<button class="${i===si?'on':''}" data-i="${i}">${s.name}</button>`).join('');
+  $('#scens').querySelectorAll('button').forEach(b=>b.onclick=()=>{si=+b.dataset.i;ti=0;render()});
+}
+function esc(x){return x}
+function renderSheet(s){
+  return s.map((l,i)=>{
+    const cls=['row',l.kind||'',l.sel?'on':''].filter(Boolean).join(' ');
+    let ans='';
+    if(l.chip) ans=`<button class="askchip adv">Ask</button>`;
+    else if(l.ans){ ans = l.ans.k==='fail' ? `<span class="failmsg">${l.ans.t}</span>` :
+                (l.dot?`<span class="dot"></span>`:'')+l.ans.t; }
+    return `<div class="${cls}" data-r="${i}"><div class="src">${l.t||''}${l.caret?'<span class="caret"></span>':''}</div><div class="ans">${ans}</div></div>`;
+  }).join('');
+}
+function askBar(o){
+  let h=`<div class="panel ask" data-at="${o.at}">`;
+  if(o.crumb) h+=`<div class="crumb"><span style="color:var(--fg3)">‹</span>“<b>${o.crumb}</b>”${o.badge?` <span style="border:1px solid var(--sep);border-radius:20px;padding:0 8px;font-size:11px">${o.badge}</span>`:''}</div>`;
+  h+=`<div class="field"><span class="glyph">AI</span><span class="q ${o.q?'':'ph'}">${o.q||o.ph||''}</span></div>`;
+  if(o.chips) h+=`<div class="chips">${o.chips.map(c=>`<span class="adv">${c}</span>`).join('')}</div>`;
+  if(o.status) h+=`<div class="status">${o.status}</div>`;
+  if(o.quiet) h+=`<div class="quiet">${o.quiet}</div>`;
+  if(o.ctx) h+=`<div class="ctxbox">${o.ctx.map(c=>`<div>${c}</div>`).join('')}</div>`;
+  if(o.meta) h+=`<div class="meta"><b>${o.meta}</b>${o.hint?`<span style="margin-left:auto">${o.hint}</span>`:''}</div>`;
+  return h+'</div>';
+}
+function propBar(o){
+  let h=`<div class="panel prop" data-at="${o.at}"><div class="hd">${o.hd}</div><div class="body">`;
+  const MK={add:'＋ add',del:'− remove',chg:'~ change'};
+  o.lines.forEach(l=>{h+=`<div class="pl ${l.m} ${l.off?'off':''}"><div class="s"><span class="mk">${l.off?'· off':MK[l.m]}</span>${l.s}${l.b?`<span class="${l.b==='ai'?'aibadge':'saidbadge'}">${l.b==='ai'?'AI':'said'}</span>`:''}</div><div class="a">${l.a||''}</div></div>`});
+  h+=`</div><div class="ft"><span>${o.ft}</span><span class="sp"></span>${o.btns.map((b,i)=>`<button class="b ${i===0?'pri adv':''}">${b}</button>`).join('')}</div></div>`;
+  return h;
+}
+function card(o){
+  let h=`<div class="panel card" data-at="${o.at}"><div class="ch">${o.head}</div><table>`;
+  o.rows.forEach(r=>h+=`<tr><td class="k">${r[0]}</td><td>${r[1]}</td></tr>`);
+  h+=`</table>${o.fine?`<div class="fine">${o.fine}</div>`:''}<div class="ft">${o.btns.map((b,i)=>`<button class="b ${i===0?'pri adv':''}">${b}</button>`).join('')}</div></div>`;
+  return h;
+}
+function fail(o){
+  return `<div class="panel failcard" data-at="${o.at}"><div class="t">${o.t}</div><div class="m">${o.m}</div>
+   <div class="ft">${o.btns.map((b,i)=>`<button class="b ${i===0?'pri adv':''}">${b}</button>`).join('')}</div></div>`;
+}
+const SETTINGS=`<div class="settings">
+ <h4>AI</h4>
+ <p class="lead">Ganit does every calculation. A model only turns what you mean into Ganit source, and supplies facts about the world that Ganit doesn’t have. Nothing is sent until you press ⏎ in the Ask bar.</p>
+ <div class="sgrid">
+   <label><input type="checkbox" style="width:auto;vertical-align:-1px"> Turn AI on</label><span style="color:var(--fg2);font-size:12px">Off until you set it up, as today.</span>
+   <label>Address</label><input value="http://localhost:11434/v1">
+   <label>Model</label><input value="qwen2.5-coder:7b">
+   <label>API key</label><input type="password" placeholder="Not needed for a local model">
+   <label>Repair attempts</label><select><option>0 — validate once</option><option selected>2 (default)</option><option>3</option></select>
+   <label>Answers</label><span style="color:var(--fg2);font-size:12px"><input type="checkbox" checked style="width:auto;vertical-align:-1px"> Mark answers that depend on an AI-supplied value</span>
+ </div>
+ <div class="rowb"><button class="b">Try It</button><button class="b pri">Save</button></div>
+ <div class="priv"><b style="color:#98989d">What leaves this Mac.</b> One Ask request carries the lines you selected plus the lines they read, the instruction you typed, and the model name. Not the rest of the sheet, not its title, nothing else about this Mac. The <code>Context ▸</code> disclosure in the Ask bar always shows the exact lines before they go. HTTPS, except on this Mac. The key lives in the keychain.</div>
+</div>`;
+
+function render(){
+  const S=SC[si], st=S.steps[ti];
+  $('#win').innerHTML=`<div class="side">${sidebar}</div><div class="main">
+    <div class="bar"><span class="t">${(st.sheet&&st.sheet[0]&&st.sheet[0].t.replace(/<[^>]+>/g,'').replace(/^#\s*/,''))||S.name}</span><span class="sp"></span>
+      <span class="iconbtn">✎</span><span class="search"><span style="opacity:.6">⌕</span> Search</span></div>
+    <div id="editor">${st.sheet?renderSheet(st.sheet):''}
+      ${st.sum?`<div class="sumbar"><span>${st.sum}</span>${st.sumGo?'<span class="go adv">Ask Ganit…</span>':''}</div>`:''}
+      ${st.ov&&({ask:askBar,prop:propBar,card:card,fail:fail})[st.ov.type]?({ask:askBar,prop:propBar,card:card,fail:fail})[st.ov.type](st.ov):''}
+      ${st.ov&&st.ov.type==='menu'?`<div class="panel menu">${st.ov.items.map(i=>{const[d,dis]=i.split('|');return i==='—'?'<div class="se"></div>':`<div class="${dis||d.startsWith('Ask')?'dis':''}">${d}</div>`}).join('')}</div>`:''}
+      ${st.ov&&st.ov.type==='settings'?SETTINGS:''}
+    </div></div>`;
+  // anchor panels to their line
+  const ed=$('#editor');
+  if(ed){ ed.querySelectorAll('.panel[data-at]').forEach(p=>{
+    const at=+p.dataset.at; const row=ed.querySelector(`[data-r="${at}"]`);
+    if(row){ const r=row.getBoundingClientRect(), e=ed.getBoundingClientRect();
+      p.style.top=(r.bottom-e.top+5)+'px';
+      if(p.classList.contains('card')) p.style.top=(r.bottom-e.top+5)+'px'; }
+  }); }
+  const title=st.you;
+  $('#step').innerHTML=`<div class="st">${title}</div><p style="margin:0 0 8px">${st.note||''}</p><div class="bg">${st.bg||''}</div>`;
+  $('#dots').textContent=`${si+1}/${SC.length} · ${ti+1}/${S.steps.length}`;
+  $('#win').querySelectorAll('.adv').forEach(el=>el.onclick=next);
+  renderScens();
+}
+function next(){const S=SC[si]; if(ti<S.steps.length-1){ti++;render()} }
+function prev(){if(ti>0){ti--;render()}}
+$('#next').onclick=next; $('#prev').onclick=prev;
+addEventListener('keydown',e=>{if(e.key==='ArrowRight')next(); if(e.key==='ArrowLeft')prev();});
+render();
+</script>
+</body>
+</html>
