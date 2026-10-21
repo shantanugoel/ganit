@@ -16,17 +16,22 @@ public struct AssistantSettings: Equatable, Sendable {
   public var endpoint: URL
   public var model: String
   public var apiKey: String
+  /// How hard the model is asked to think. `AssistantEffort.default` is what
+  /// someone gets who never opened Settings.
+  public var effort: AssistantEffort
 
   public init(
     isEnabled: Bool = false,
     endpoint: URL = AssistantSettings.defaultEndpoint,
     model: String = AssistantSettings.defaultModel,
-    apiKey: String = ""
+    apiKey: String = "",
+    effort: AssistantEffort = .default
   ) {
     self.isEnabled = isEnabled
     self.endpoint = endpoint
     self.model = model
     self.apiKey = apiKey
+    self.effort = effort
   }
 
   /// Whether these settings name somewhere a line can actually be sent.
@@ -39,6 +44,7 @@ public struct AssistantSettings: Equatable, Sendable {
   private static let enabledKey = "AssistantAnswersUnknownLines"
   private static let endpointKey = "AssistantEndpoint"
   private static let modelKey = "AssistantModel"
+  private static let effortKey = "AssistantEffort"
 
   /// Preferences say where to ask; the keychain holds the key.
   public static func load(from defaults: UserDefaults = .standard) -> AssistantSettings {
@@ -56,7 +62,8 @@ public struct AssistantSettings: Equatable, Sendable {
     AssistantSettings(
       isEnabled: defaults.bool(forKey: enabledKey),
       endpoint: defaults.string(forKey: endpointKey).flatMap(URL.init(string:)) ?? defaultEndpoint,
-      model: defaults.string(forKey: modelKey) ?? defaultModel
+      model: defaults.string(forKey: modelKey) ?? defaultModel,
+      effort: AssistantEffort(storage: defaults.string(forKey: effortKey))
     )
   }
 
@@ -64,6 +71,7 @@ public struct AssistantSettings: Equatable, Sendable {
     defaults.set(isEnabled, forKey: Self.enabledKey)
     defaults.set(endpoint.absoluteString, forKey: Self.endpointKey)
     defaults.set(model, forKey: Self.modelKey)
+    defaults.set(effort.storageValue, forKey: Self.effortKey)
   }
 }
 

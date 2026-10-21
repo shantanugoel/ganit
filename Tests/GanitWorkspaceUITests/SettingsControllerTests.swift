@@ -1,4 +1,5 @@
 import AppKit
+import GanitData
 import Testing
 
 @testable import GanitWorkspaceUI
@@ -58,5 +59,113 @@ extension NSView {
     subviews.flatMap { view in
       [view as? NSButton].compactMap { $0 } + view.buttons
     }
+  }
+
+  fileprivate var editableFields: [NSTextField] {
+    subviews.flatMap { view in
+      (view as? NSTextField).map { $0.isEditable ? [$0] : [] } ?? []
+    } + subviews.flatMap { $0.editableFields }
+  }
+}
+
+/// Effort is one control made of two, so the tests read both together.
+@MainActor
+@Suite
+struct AssistantSettingsEffortTests {
+  private func controller(_ effort: AssistantEffort) -> AssistantSettingsController {
+    let settings = AssistantSettings(effort: effort)
+    let controller = AssistantSettingsController(settings: settings) { _ in }
+    controller.loadView()
+    return controller
+  }
+
+  private func popup(in controller: AssistantSettingsController) throws -> NSPopUpButton {
+    try #require(
+      controller.view.popUpButtons.first { $0.numberOfItems > 3 }, "the Effort popup")
+  }
+
+  private func customField(
+    in controller: AssistantSettingsController
+  ) throws -> NSTextField {
+    try #require(
+      controller.view.editableFields.first { $0.accessibilityLabel() == "Custom effort" },
+      "the custom Effort field")
+  }
+
+  @Test
+  func theChoiceStartsOnMediumAndOffersTheWholeRange() throws {
+    let controller = self.controller(.medium)
+    let popup = try popup(in: controller)
+
+    #expect(
+      popup.itemTitles == [
+        "Off", "Low", "Medium", "High", "Extra high", "Max", "Custom…",
+      ])
+    #expect(popup.titleOfSelectedItem == "Medium")
+    #expect(controller.settings.effort == .medium)
+  }
+
+  @Test(
+    arguments: [
+      ("Off", AssistantEffort.off), ("Low", .low), ("Medium", .medium), ("High", .high),
+      ("Extra high", .xhigh), ("Max", .max),
+    ]
+  )
+  func choosingANamedLevelIsWhatSaveReports(title: String, effort: AssistantEffort) throws {
+    let controller = self.controller(.low)
+    let popup = try popup(in: controller)
+
+    popup.selectItem(withTitle: title)
+    _ = popup.target?.perform(popup.action, with: popup)
+
+    #expect(controller.settings.effort == effort)
+  }
+
+  /// Custom is the way out for a word Ganit has never heard; with nothing
+  /// typed it asks for nothing, and its leftover text is not a preference
+  /// once a named level is chosen again.
+  @Test
+  func customSendsWhatWasTyped() throws {
+    let controller = self.controller(.medium)
+    let popup = try popup(in: controller)
+    let field = try customField(in: controller)
+    #expect(!field.isEnabled)
+
+    popup.selectItem(at: AssistantEffort.choices.count)
+    _ = popup.target?.perform(popup.action, with: popup)
+    #expect(field.isEnabled)
+    #expect(controller.settings.effort == .off)
+
+    field.stringValue = "minimal"
+    #expect(controller.settings.effort == .custom("minimal"))
+
+    popup.selectItem(withTitle: "Low")
+    _ = popup.target?.perform(popup.action, with: popup)
+    #expect(!field.isEnabled)
+    #expect(controller.settings.effort == .low)
+  }
+
+  @Test
+  func aLevelSavedAsCustomComesBackSelectedAndFilled() throws {
+    let controller = self.controller(.custom("none"))
+    let popup = try popup(in: controller)
+    let field = try customField(in: controller)
+
+    #expect(popup.indexOfSelectedItem == AssistantEffort.choices.count)
+    #expect(field.isEnabled)
+    #expect(field.stringValue == "none")
+    #expect(controller.settings.effort == .custom("none"))
+  }
+
+  /// Try It asks with the settings on screen, Effort included.
+  @Test
+  func theExampleIsAskedWithTheEffortOnScreen() throws {
+    let controller = self.controller(.medium)
+    let popup = try popup(in: controller)
+    popup.selectItem(withTitle: "Max")
+    _ = popup.target?.perform(popup.action, with: popup)
+
+    #expect(controller.settings.effort == .max)
+    #expect(controller.settings.isReady == false)
   }
 }

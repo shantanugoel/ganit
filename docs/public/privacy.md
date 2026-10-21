@@ -27,11 +27,13 @@ you declare.
 The second is the assistant, and it is off. Nothing is sent until you fill in
 an address and a model under **Ganit ▸ Assistant…** and turn it on. From then
 on, a line Ganit could not work out — and only such a line, one at a time,
-after you stop typing on it — is sent to the address you chose, with nothing
-else: not the rest of the sheet, its title, or anything about your Mac. What
-comes back is written in purple, because a model's answer is a guess and a
-calculation is not. Your key is kept in the keychain. Pointing the address at
-a model running on your Mac keeps even these lines at home.
+after you stop typing on it — is sent to the address you chose, with the
+model's name and the Effort you picked, and nothing else: not the rest of the
+sheet, its title, or anything about your Mac. Effort is one word saying how
+hard the model should think; **Off** sends no word at all. What comes back is
+written in purple, because a model's answer is a guess and a calculation is
+not. Your key is kept in the keychain. Pointing the address at a model running
+on your Mac keeps even these lines at home.
 
 The third is the update check, and it is also off. A fresh copy of Ganit never
 asks GitHub whether a newer version exists; choosing **Ganit ▸ Check for

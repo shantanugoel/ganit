@@ -1,7 +1,9 @@
 # AI as part of the calculator: experience plan
 
 Date: 2026-10-20
-Status: Design approved. Implementation not started. No phase exit gate is complete.
+Status: Design approved. M-1 (the Effort setting) is landed; M0 and later are
+not started and no phase exit gate below is complete. See
+[CHANGELOG](../../CHANGELOG.md) for released behaviour.
 Prototype: [interactive concept](../design/ai-native/prototype.html) ·
 [flow, shapes and decisions](../design/ai-native/index.html)
 Companion records: ADR 0012 (current assistant), ADR 0018 (branch `codex/ai-expression-plan`)
@@ -185,7 +187,17 @@ Land these with the milestone that replaces each behaviour, not before.
 | Help-search pointer to `ask_assistant(…)` | Ask |
 
 `AssistantSettings` keeps the endpoint, model and keychain key, and gains
-`Repair attempts` (0–3) and `Mark AI-derived answers`.
+`Repair attempts` (0–3), `Mark AI-derived answers`, and `Effort`.
+
+**Effort** (M-1, landed) is how hard a model is asked to think: Off, Low,
+Medium, High, Extra high, Max, or Custom with a free-text word. It is stored in
+preferences as one key (`AssistantEffort`), defaults to **Medium**, and goes out
+as the request's `reasoning_effort`. Off sends no word at all, and a Custom with
+nothing typed in it is Off, because a field the server has never heard of is
+likelier to be accepted when absent than when empty or wrong. It is a preference
+for the server and nothing else: no Ganit behaviour depends on it, and every
+Milestone gate below still holds with it set to any value. Every Ask request
+from M1 on carries it the same way the line-level request does.
 
 ## 8. Ownership
 
@@ -199,6 +211,13 @@ Land these with the milestone that replaces each behaviour, not before.
 | Quick Ganit | — | untouched in v1 |
 
 ## 9. Milestones and exit gates
+
+**M-1 — Effort.** Add the reasoning Effort setting to `AssistantSettings`, the
+Settings window, and the request, with its own tests, before any Ask surface
+exists. *Gate:* done 2026-10-21 — the popup offers Off/Low/Medium/High/Extra
+high/Max/Custom…, Medium is the default, Custom sends the typed word, Off and an
+empty Custom send no `reasoning_effort` at all, and `NetworkPrivacyTests` names
+every key in the body.
 
 **M0 — Reconcile and freeze.** Decide §3's amendment in writing; supersede or
 amend ADR 0012 with a new ADR naming the Ask outcomes, the assumption carve-out

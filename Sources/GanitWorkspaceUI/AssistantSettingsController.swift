@@ -23,6 +23,11 @@ public final class AssistantSettingsController: NSViewController {
   private let endpoint = NSTextField(string: "")
   private let model = NSTextField(string: "")
   private let key = NSSecureTextField(string: "")
+  /// The named levels, then Custom, which hands the word to the field beside
+  /// it instead of naming one of Ganit's own.
+  private let effort = NSPopUpButton(frame: .zero, pullsDown: false)
+  /// The word to send when the popup says Custom.
+  private let customEffort = NSTextField(string: "")
   private let status = NSTextField(wrappingLabelWithString: "")
 
   public init(settings: AssistantSettings, didSave: @escaping (AssistantSettings) -> Void) {
@@ -32,6 +37,20 @@ public final class AssistantSettingsController: NSViewController {
     endpoint.stringValue = settings.endpoint.absoluteString
     model.stringValue = settings.model
     key.stringValue = settings.apiKey
+    for level in AssistantEffort.choices {
+      effort.addItem(withTitle: Self.title(for: level))
+    }
+    effort.addItem(withTitle: localized("assistant.effort.custom", "Custom…"))
+    customEffort.stringValue = {
+      if case .custom(let word) = settings.effort {
+        return word
+      }
+      return ""
+    }()
+    effort.selectItem(
+      at: settings.effort.isCustom
+        ? AssistantEffort.choices.count
+        : AssistantEffort.choices.firstIndex(of: settings.effort) ?? AssistantEffort.choices.count)
   }
 
   @available(*, unavailable)
@@ -43,25 +62,41 @@ public final class AssistantSettingsController: NSViewController {
     let explanation = NSTextField(
       wrappingLabelWithString: localized(
         "assistant.explanation",
-        "The address is any OpenAI-compatible base, such as https://api.openai.com/v1, http://localhost:11434/v1, or https://host/v1. Ganit POSTs that base's chat/completions with the one line it could not work out, and nothing else: not the rest of the sheet, its title, or anything about this Mac. Answers can take a while; the sheet stays editable and shows Asking… until a value arrives, drawn in purple because a model's answer is not a calculation."
+        "The address is any OpenAI-compatible base, such as https://api.openai.com/v1, http://localhost:11434/v1, or https://host/v1. Ganit POSTs that base's chat/completions with the one line it could not work out, the model's name, and the Effort you picked, and nothing else: not the rest of the sheet, its title, or anything about this Mac. Effort is how hard the model is asked to think; Medium is the default, Off sends no preference at all and leaves it to the model, and Custom sends a word Ganit does not know, such as minimal. Answers can take a while, and a higher Effort takes longer; the sheet stays editable and shows Asking… until a value arrives, drawn in purple because a model's answer is not a calculation."
       )
     )
     status.textColor = VisualStyle.Color.secondary
     endpoint.setAccessibilityLabel(localized("assistant.address", "Address"))
     model.setAccessibilityLabel(localized("assistant.model", "Model"))
     key.setAccessibilityLabel(localized("assistant.key", "API Key"))
+    effort.setAccessibilityLabel(localized("assistant.effort", "Effort"))
+    effort.target = self
+    effort.action = #selector(effortChanged(_:))
+    customEffort.setAccessibilityLabel(
+      localized("assistant.effort.customField", "Custom effort"))
+    customEffort.placeholderString = localized(
+      "assistant.effort.customPlaceholder", "A word the server knows")
     endpoint.placeholderString = AssistantSettings.defaultEndpoint.absoluteString
     model.placeholderString = AssistantSettings.defaultModel
     key.placeholderString = localized("assistant.keyPlaceholder", "Not needed for a local model")
+
+    let effortField = NSStackView(views: [effort, customEffort])
+    effortField.orientation = .horizontal
+    effortField.spacing = VisualStyle.Spacing.related
 
     let fields = NSGridView(views: [
       [label(localized("assistant.address", "Address")), endpoint],
       [label(localized("assistant.model", "Model")), model],
       [label(localized("assistant.key", "API Key")), key],
+      [label(localized("assistant.effort", "Effort")), effortField],
     ])
     fields.rowSpacing = VisualStyle.Spacing.related
     fields.columnSpacing = VisualStyle.Spacing.related
     fields.column(at: 0).xPlacement = .trailing
+    // The word belongs to Custom alone, so it is dimmed and uneditable
+    // otherwise rather than sitting there looking settable.
+    effortField.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+    customEffort.widthAnchor.constraint(greaterThanOrEqualToConstant: 140).isActive = true
     // Spare height belongs to the wrapping explanation, not between rows.
     fields.setContentHuggingPriority(.defaultHigh, for: .vertical)
 
@@ -90,7 +125,45 @@ public final class AssistantSettingsController: NSViewController {
       status.widthAnchor.constraint(equalToConstant: 440),
       fields.widthAnchor.constraint(equalToConstant: 440),
     ])
+    syncCustomEffortField()
     view = container
+  }
+
+  /// The name Settings shows for a level.
+  static func title(for effort: AssistantEffort) -> String {
+    switch effort {
+    case .off:
+      return localized("assistant.effort.off", "Off")
+    case .low:
+      return localized("assistant.effort.low", "Low")
+    case .medium:
+      return localized("assistant.effort.medium", "Medium")
+    case .high:
+      return localized("assistant.effort.high", "High")
+    case .xhigh:
+      return localized("assistant.effort.xhigh", "Extra high")
+    case .max:
+      return localized("assistant.effort.max", "Max")
+    case .custom:
+      return localized("assistant.effort.custom", "Custom…")
+    }
+  }
+
+  @objc private func effortChanged(_ sender: Any?) {
+    syncCustomEffortField()
+    if effort.indexOfSelectedItem == AssistantEffort.choices.count {
+      view.window?.makeFirstResponder(customEffort)
+    }
+  }
+
+  /// Only Custom has a word to type, so only then is the field live.
+  private func syncCustomEffortField() {
+    let isCustom = effort.indexOfSelectedItem == AssistantEffort.choices.count
+    customEffort.isEnabled = isCustom
+    customEffort.placeholderString =
+      isCustom
+      ? localized("assistant.effort.customPlaceholder", "A word the server knows")
+      : nil
   }
 
   private func label(_ text: String) -> NSTextField {
@@ -106,8 +179,19 @@ public final class AssistantSettingsController: NSViewController {
       endpoint: URL(string: endpoint.stringValue.trimmingCharacters(in: .whitespaces))
         ?? AssistantSettings.defaultEndpoint,
       model: model.stringValue.trimmingCharacters(in: .whitespaces),
-      apiKey: key.stringValue.trimmingCharacters(in: .whitespaces)
+      apiKey: key.stringValue.trimmingCharacters(in: .whitespaces),
+      effort: chosenEffort
     )
+  }
+
+  /// The popup and the field beside it read as one setting: whatever the
+  /// popup last said, not what the field still holds from an earlier Custom.
+  private var chosenEffort: AssistantEffort {
+    let index = effort.indexOfSelectedItem
+    guard index >= 0, index < AssistantEffort.choices.count else {
+      return AssistantEffort(storage: "custom:\(customEffort.stringValue)")
+    }
+    return AssistantEffort.choices[index]
   }
 
   @objc func save(_ sender: Any?) {

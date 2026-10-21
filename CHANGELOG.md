@@ -3,6 +3,13 @@
 Notable changes to Ganit's behavior, especially anything that changes an
 existing answer. See the [release train](docs/release/release-train.md).
 
+## Unreleased
+
+- Ask a configured model how hard to think. **Ganit ▸ Assistant…** gained an
+  **Effort** popup — Off, Low, Medium, High, Extra high, Max, or Custom… with a
+  field for a word Ganit does not know — and it is sent as the request's
+  `reasoning_effort`. Medium is the default, and Off sends no preference at all.
+
 ## 0.6.4
 
 - Accept a decimal separator before the first digit. For example, `.085` is

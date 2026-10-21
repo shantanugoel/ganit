@@ -95,6 +95,35 @@ struct NetworkPrivacyTests {
       #expect(!raw.localizedCaseInsensitiveContains(identifier), "\(identifier)")
     }
   }
+
+  /// The body is where a new field hides, so its keys are named one by one.
+  /// Effort is a word Ganit chose, not a fact about the Mac.
+  @Test
+  func theAssistantBodyHoldsTheLineTheModelAndTheChosenEffortOnly() async throws {
+    let server = try LoopbackServer(body: "{\"choices\":[]}", contentType: "application/json")
+    defer { server.stop() }
+    let settings = AssistantSettings(
+      isEnabled: true,
+      endpoint: URL(string: "http://127.0.0.1:\(server.port)/v1/chat/completions")!,
+      model: "a-model",
+      apiKey: "a-key",
+      effort: .high
+    )
+
+    _ = try await Assistant(settings: settings).answer(to: "10 kg of water in ml")
+    let raw = try #require(await server.request())
+    let body = try #require(raw.components(separatedBy: "\r\n\r\n").last)
+    let json = try #require(
+      JSONSerialization.jsonObject(with: Data(body.utf8)) as? [String: Any])
+
+    #expect(
+      Set(json.keys) == ["model", "messages", "stream", "response_format", "reasoning_effort"],
+      "\(json.keys.sorted())")
+    #expect(json["model"] as? String == "a-model")
+    #expect(json["reasoning_effort"] as? String == "high")
+    let messages = try #require(json["messages"] as? [[String: String]])
+    #expect(messages.map(\.["content"]) == [Assistant.instruction, "10 kg of water in ml"])
+  }
 }
 
 /// Sparkle is the third thing that can reach the network, and it is a

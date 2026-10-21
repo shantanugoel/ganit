@@ -94,15 +94,18 @@ public final class Assistant: NSObject, URLSessionTaskDelegate {
     guard !asked.isEmpty, asked.count <= Self.maximumLine else {
       return nil
     }
-    var structured = true
+    var style = RequestStyle.strict
     while true {
       let (data, response) = try await session.data(
-        for: try request(for: asked, structured: structured), delegate: self)
+        for: try request(for: asked, style: style), delegate: self)
       guard let status = (response as? HTTPURLResponse)?.statusCode else {
         throw AssistantError.malformedPayload
       }
-      if status == 400 || status == 422, structured {
-        structured = false
+      // A server that does not implement one of the optional fields says so by
+      // refusing the whole body. It is asked again without either of them:
+      // the answer matters more than the shape it arrives in.
+      if status == 400 || status == 422, style == .strict {
+        style = .relaxed
         continue
       }
       guard status == 200 else {
@@ -121,8 +124,9 @@ public final class Assistant: NSObject, URLSessionTaskDelegate {
     }
   }
 
-  /// The only request Ganit sends for a line.
-  func request(for line: String, structured: Bool = true) throws -> URLRequest {
+  /// The only request Ganit sends for a line, unless it is refused for
+  /// naming a field the server does not know.
+  func request(for line: String, style: RequestStyle = .strict) throws -> URLRequest {
     guard Self.isAllowed(settings.endpoint) else {
       throw AssistantError.disallowedURL
     }
@@ -141,7 +145,8 @@ public final class Assistant: NSObject, URLSessionTaskDelegate {
           ChatRequest.Message(role: "system", content: Self.instruction),
           ChatRequest.Message(role: "user", content: line),
         ],
-        structured: structured
+        style: style,
+        reasoningEffort: settings.effort.wireValue
       )
     )
     return request
@@ -159,6 +164,13 @@ public final class Assistant: NSObject, URLSessionTaskDelegate {
   }
 }
 
+/// Whether a request names the two optional fields. `relaxed` is the same ask
+/// without them, for a server that rejects one as unknown.
+enum RequestStyle: Equatable {
+  case strict
+  case relaxed
+}
+
 private struct ChatRequest: Encodable {
   struct Message: Encodable {
     let role: String
@@ -171,15 +183,19 @@ private struct ChatRequest: Encodable {
 
   let model: String
   let messages: [Message]
-  let structured: Bool
+  let style: RequestStyle
+  /// Absent rather than empty: a server that has never heard of the field
+  /// should not be handed a value it has to reject.
+  let reasoningEffort: String?
 
   func encode(to encoder: Encoder) throws {
     var container = encoder.container(keyedBy: CodingKeys.self)
     try container.encode(model, forKey: .model)
     try container.encode(messages, forKey: .messages)
     try container.encode(false, forKey: .stream)
-    if structured {
+    if style == .strict {
       try container.encode(ResponseFormat(type: "json_object"), forKey: .responseFormat)
+      try container.encodeIfPresent(reasoningEffort, forKey: .reasoningEffort)
     }
   }
 
@@ -188,6 +204,7 @@ private struct ChatRequest: Encodable {
     case messages
     case stream
     case responseFormat = "response_format"
+    case reasoningEffort = "reasoning_effort"
   }
 }
 

@@ -2,6 +2,8 @@
 
 - Status: Accepted
 - Date: 2026-09-16
+- Amended 2026-10-21: the request also carries the reader's chosen reasoning
+  Effort, which adds no content of the reader's beyond the word itself.
 
 ## Context
 
@@ -26,10 +28,12 @@ is sent.
   no key, no default provider account, and no proxy of its own.
 - HTTPS is required, except on the loopback address, where a local model
   answers without anything leaving the Mac.
-- A request carries one line: the text of the line, the model name, and the
-  instruction to answer with a value. It carries nothing else from the sheet,
-  the library, or the machine, and `NetworkPrivacyTests` reads the bytes on the
-  wire to keep that true.
+- A request carries one line: the text of the line, the model name, the
+  reasoning Effort the reader chose, and the instruction to answer with a
+  value. It carries nothing else from the sheet, the library, or the machine,
+  and `NetworkPrivacyTests` reads the bytes on the wire to keep that true.
+  Effort is one word (`reasoning_effort`) and the server decides what it
+  means; **Off** sends no word at all rather than an empty one.
 - Ganit asks only about lines it flagged as ones it could not work out, once
   per line, and only after typing stops.
 - The API key is kept in the keychain, not in preferences.

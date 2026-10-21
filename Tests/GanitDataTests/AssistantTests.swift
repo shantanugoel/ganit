@@ -5,12 +5,15 @@ import Testing
 
 @Suite
 struct AssistantTests {
-  private func settings(_ port: UInt16, key: String = "a-key") -> AssistantSettings {
+  private func settings(_ port: UInt16, key: String = "a-key", effort: AssistantEffort = .medium)
+    -> AssistantSettings
+  {
     AssistantSettings(
       isEnabled: true,
       endpoint: URL(string: "http://127.0.0.1:\(port)/v1/chat/completions")!,
       model: "a-model",
-      apiKey: key
+      apiKey: key,
+      effort: effort
     )
   }
 
@@ -130,6 +133,92 @@ struct AssistantTests {
     #expect(body.contains("\"stream\":false"))
   }
 
+  /// Effort is a preference for the server, not a Ganit behaviour, so the one
+  /// thing to prove is that the word asked for is the word sent.
+  @Test(
+    arguments: [
+      (AssistantEffort.low, "low"), (.medium, "medium"), (.high, "high"), (.xhigh, "xhigh"),
+      (.max, "max"), (.custom("minimal"), "minimal"), (.custom("none"), "none"),
+    ]
+  )
+  func sendsTheEffortItWasGiven(effort: AssistantEffort, word: String) throws {
+    var configured = settings(1_234, key: "")
+    configured.effort = effort
+
+    let body = try body(of: Assistant(settings: configured).request(for: "a line"))
+
+    #expect(body.contains("\"reasoning_effort\":\"\(word)\""), "\(body)")
+  }
+
+  /// Off asks for nothing, and so does a Custom level with nothing typed in
+  /// it. A field the server has never heard of is better absent than empty.
+  @Test(arguments: [AssistantEffort.off, .custom("")])
+  func sendsNoEffortPreferenceAtAll(effort: AssistantEffort) throws {
+    var configured = settings(1_234, key: "")
+    configured.effort = effort
+
+    let body = try body(of: Assistant(settings: configured).request(for: "a line"))
+
+    #expect(!body.contains("reasoning_effort"), "\(body)")
+  }
+
+  /// A server that does not implement one of the optional fields refuses the
+  /// whole body, so Ganit is asked again without either of them. The answer
+  /// matters more than the shape it arrives in.
+  @Test
+  func aServerThatRefusesTheOptionalFieldsIsAskedAgainWithoutThem() async throws {
+    let server = try LoopbackServer { request in
+      if request.contains("reasoning_effort") || request.contains("response_format") {
+        return (400, "{\"error\":\"unknown field\"}")
+      }
+      return (200, self.completion("10000 ml"))
+    }
+    defer { server.stop() }
+
+    let answer = try await Assistant(settings: settings(server.port, effort: .max))
+      .answer(to: "10 kg of water in ml")
+
+    #expect(answer == "10000 ml")
+    let asked = await server.requests(atLeast: 2)
+    #expect(asked.count == 2, "\(asked)")
+    #expect(asked[0].contains("reasoning_effort") && asked[0].contains("response_format"))
+    #expect(!asked[1].contains("reasoning_effort"))
+    #expect(!asked[1].contains("response_format"))
+    #expect(asked[1].contains("10 kg of water in ml"))
+  }
+
+  /// A refusal that outlives the relaxed ask is reported, and the one retry is
+  /// the last word: Ganit does not knock forever.
+  @Test
+  func aServerThatKeepsRefusingIsReported() async throws {
+    let server = try LoopbackServer { _ in (400, "{}") }
+    defer { server.stop() }
+
+    await #expect(throws: AssistantError.unexpectedStatus(400)) {
+      try await Assistant(settings: settings(server.port, effort: .high))
+        .answer(to: "a line")
+    }
+    #expect(await server.requests(atLeast: 2).count == 2)
+  }
+
+  /// A refusal that has nothing to do with the optional fields is not worth a
+  /// second request: the body was already accepted.
+  @Test
+  func aServerThatRefusesForAnotherReasonIsAskedOnce() async throws {
+    let server = try LoopbackServer { _ in (401, "{}") }
+    defer { server.stop() }
+
+    await #expect(throws: AssistantError.unexpectedStatus(401)) {
+      try await Assistant(settings: settings(server.port, effort: .high))
+        .answer(to: "a line")
+    }
+    #expect(await server.requests(atLeast: 1).count == 1)
+  }
+
+  private func body(of request: URLRequest) throws -> String {
+    String(decoding: try #require(request.httpBody), as: UTF8.self)
+  }
+
   @Test
   func readsAJSONValueOutOfTheReply() async throws {
     let content = try String(
@@ -191,18 +280,74 @@ struct AssistantTests {
     var settings = AssistantSettings.read(from: defaults)
     #expect(!settings.isEnabled)
     #expect(settings.endpoint == AssistantSettings.defaultEndpoint)
+    #expect(settings.effort == .medium)
     #expect(!settings.isReady)
 
     settings.isEnabled = true
     settings.endpoint = URL(string: "http://localhost:11434/v1/chat/completions")!
     settings.model = "a-local-model"
+    settings.effort = .custom("minimal")
     settings.write(to: defaults)
 
     let read = AssistantSettings.read(from: defaults)
     #expect(read.isEnabled)
     #expect(read.endpoint == settings.endpoint)
     #expect(read.model == "a-local-model")
+    #expect(read.effort == .custom("minimal"))
     #expect(read.isReady)
+  }
+}
+
+/// Effort is one preferences key holding both which level was chosen and,
+/// for Custom, what was typed.
+@Suite
+struct AssistantEffortTests {
+  @Test
+  func asksAMediumAmountOfThinkingOfAnyoneWhoNeverChose() {
+    #expect(AssistantEffort(storage: nil) == .medium)
+    #expect(AssistantEffort(storage: "") == .medium)
+    #expect(AssistantEffort(storage: "   ") == .medium)
+    // A level from a newer Ganit is not a preference this one can honour, and
+    // inventing one would be worse than the default.
+    #expect(AssistantEffort(storage: "unobtainium") == .medium)
+  }
+
+  @Test(
+    arguments: zip(AssistantEffort.choices, ["off", "low", "medium", "high", "xhigh", "max"])
+  )
+  func everyNamedLevelSurvivesAWriteAndARead(effort: AssistantEffort, stored: String) {
+    #expect(effort.storageValue == stored)
+    #expect(AssistantEffort(storage: stored) == effort)
+  }
+
+  @Test(arguments: ["custom:minimal", " custom: minimal ", "custom:   minimal"])
+  func aCustomWordSurvivesBeingStoredAndReadBack(stored: String) {
+    #expect(AssistantEffort(storage: stored) == .custom("minimal"))
+    #expect(AssistantEffort.custom("minimal").storageValue == "custom:minimal")
+    #expect(AssistantEffort.custom("minimal").wireValue == "minimal")
+  }
+
+  /// A Custom level with nothing in it is Off wearing a different hat, and one
+  /// long enough to be a sentence is truncated rather than rejected.
+  @Test
+  func aCustomLevelWithNothingTypedIsOff() {
+    #expect(AssistantEffort(storage: "custom:") == .off)
+    #expect(AssistantEffort(storage: "custom:   ") == .off)
+    let long = AssistantEffort(storage: "custom:\(String(repeating: "x", count: 200))")
+    #expect(long.wireValue?.count == AssistantEffort.maximumCustomLength)
+  }
+
+  @Test
+  func onlyTheFirstWordOfACustomLevelIsUsed() {
+    #expect(AssistantEffort(storage: "custom:think hard please") == .custom("think"))
+  }
+
+  @Test
+  func customIsTheOnlyLevelThatWantsSomethingTyped() {
+    #expect(AssistantEffort.custom("minimal").isCustom)
+    for level in AssistantEffort.choices {
+      #expect(!level.isCustom)
+    }
   }
 }
 

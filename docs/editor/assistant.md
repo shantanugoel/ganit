@@ -8,9 +8,9 @@ why it works this way.
 
 ## Setting one up
 
-**Ganit ▸ Assistant…** holds four things: whether to ask at all, the address,
-the model, and the key. The address is any OpenAI-compatible **base**, so
-these are all valid:
+**Ganit ▸ Assistant…** holds five things: whether to ask at all, the address,
+the model, the key, and the Effort. The address is any OpenAI-compatible
+**base**, so these are all valid:
 
 | Where the model runs | Address | Key |
 |---|---|---|
@@ -27,9 +27,31 @@ else is HTTPS.
 
 **Try It** asks the example line and shows the answer, or what went wrong, so a
 wrong address or key is found here rather than in the middle of a sheet.
-`AssistantSettings` keeps the address, model, and switch in preferences; the
-key goes in the keychain, since preferences are a file any process running as
+`AssistantSettings` keeps the address, model, switch, and Effort in preferences;
+the key goes in the keychain, since preferences are a file any process running as
 this user can read.
+
+### Effort
+
+**Effort** is how hard the model is asked to think. It is one word in the
+request — `reasoning_effort` — and the server decides what to do with it, so
+Ganit names a preference and never promises a behaviour.
+
+| Effort | Sent | Meaning |
+|---|---|---|
+| Off | nothing | No preference at all; the model answers however it answers by default |
+| Low … Max | `low`, `medium`, `high`, `xhigh`, `max` | Ask for more thinking, and wait longer for it |
+| Custom… | whatever you type | A word Ganit has never heard, such as `minimal` or `none` |
+
+**Medium is the default**, for someone who never opened the window. A server
+that does not implement the field ignores the word, so a wrong Effort is a
+wasted second, not a wrong answer — but a model on a slow host may answer 400
+for a word it does not accept, which **Try It** shows here rather than in the
+middle of a sheet. Off omits the field entirely rather than sending an empty
+one, because a field the server has never heard of is likelier to be accepted
+when absent. A Custom level with nothing typed in it is Off. Nothing else in
+Ganit changes with Effort: Ganit still does every calculation, still refuses a
+line it cannot parse, and still draws a model's value in purple.
 
 ## What is asked, and when
 
@@ -82,10 +104,10 @@ fails the line and nothing is sent. The same pause and privacy rules apply:
 one prompt is one request, and nothing else from the sheet is sent than the
 values its placeholders name.
 
-`Assistant` sends one `POST` carrying the line, the model name, and the
-instruction to reply with `{"value":"…"}`. It sends nothing else from the
-sheet, the library, or the machine, and `NetworkPrivacyTests` reads the bytes
-on the wire to keep that true. HTTPS is required except on the loopback
+`Assistant` sends one `POST` carrying the line, the model name, the Effort you
+chose, and the instruction to reply with `{"value":"…"}`. It sends nothing else
+from the sheet, the library, or the machine, and `NetworkPrivacyTests` reads the
+bytes on the wire to keep that true. HTTPS is required except on the loopback
 address; redirects are refused, because a redirect would carry the line, and
 the key, somewhere the settings never named. A host that rejects structured
 output is asked again without it. The request may take a few minutes; the
