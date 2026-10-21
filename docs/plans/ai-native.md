@@ -240,19 +240,35 @@ is accepted; the prior branch's harness is reused as merged code, with its six
 divergences written down in
 [the job contract](../design/ai-native/ask-job-contract.md).
 
-**M1 — Ask bar and proposal, engine-verified.** *In progress 2026-10-21.* Bar at
-caret, chip, selection bar entry, right-click. Proposal panel with live shadow
-answers, per-line opt-out, Apply as one named Undo step, stale checks, Esc
-cancel. *Gate:* the `loan` and `trip` scenarios pass against a fake provider,
-including ⌘Z restoring exact bytes and selection. **Passed in part:** the bar
-opens from all four doors and floats at the caret; the typed words go as a task
-note with `reasoning_effort`; `Context ▸` renders the disclosure in words, with
-the exact bytes one click away; Apply is one Undo step named *Apply AI Change*
-and ⌘Z restores bytes and selection (`loan`, `trip` fixtures, fake transport);
-Esc closes; nothing is sent without ⏎. **Outstanding:** per-line opt-out — the
-harness produces a single `T1` replacement, so declining one proposed line means
-rebuilding the replacement and re-checking it, which is not built yet. Until it
-is, the bar offers all-or-nothing Apply and the gate is not fully met.
+**M1 — Ask bar and proposal, engine-verified.** *In progress 2026-10-21.* Bar,
+chip, selection bar entry, right-click. Proposal panel with live shadow answers,
+per-line opt-out, Apply as one named Undo step, stale checks, Esc cancel. *Gate:*
+the `loan` and `trip` scenarios pass against a fake provider, including ⌘Z
+restoring exact bytes and selection. **Passed in the harness:** the bar opens
+from all four doors; the typed words go as a task note with `reasoning_effort`;
+`Context ▸` renders the disclosure in words, with the exact bytes one click
+away; Apply is one Undo step named *Apply AI Change* and ⌘Z restores bytes and
+selection (`loan`, `trip` fixtures, fake transport); Esc closes; nothing is sent
+without ⏎; the `Ask` chip appears on the caret's failing line and only there,
+and makes no request.
+
+**Two defects found by driving the built app, both open:**
+
+1. **While the bar is open the sheet's source stops drawing** — the text and its
+   gutter vanish, and clicks in the text region do not move the caret, while the
+   accessibility value still reports the text. It happens docked and floating
+   alike, so it is not the bar's frame. Nothing in the suite asserts that the
+   text view still renders beside an open bar, which is why 20 green tests missed
+   it. This is the blocker: a review surface that hides what is under review
+   fails the plan's own rule about the reader seeing the line.
+2. The floating bar, before it was reverted to the docked layout the suggestion
+   card shipped with, covered the caret's line. Reverted; the bar is docked under
+   the text and the plan's "at the caret" is deferred until 1 is understood.
+
+**Also outstanding:** per-line opt-out — the harness produces a single `T1`
+replacement, so declining one proposed line means rebuilding the replacement and
+re-checking it, which is not built yet. Until it is, the bar offers
+all-or-nothing Apply.
 
 **M2 — Validation and repair.** Diagnostic-fed repair turn within the shared
 budget, the two visible status lines, the failure card with the four reason

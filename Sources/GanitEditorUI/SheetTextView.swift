@@ -512,12 +512,17 @@ final class SheetTextView: NSTextView {
     let title = Self.askChipTitle as NSString
     let size = title.size(withAttributes: askChipAttributes)
     let width = ceil(size.width) + Self.badgePadding * 2
-    let rightEdge = (textContainerInset.width + gutterWidth + contentWidth).rounded()
+    // Just past what the line actually says. The right edge of the container is
+    // inside the answer column, and a chip drawn there hides under the very
+    // message that made it worth asking about.
+    let x =
+      (textContainerInset.width + gutterWidth
+      + row.firstRow.typographicBounds.width + Self.columnGap / 2).rounded()
     let y = row.frame.minY + row.firstRow.typographicBounds.minY
     return (
       caret,
       NSRect(
-        x: rightEdge - width, y: y + (row.firstRow.typographicBounds.height - size.height - 2) / 2,
+        x: x, y: y + (row.firstRow.typographicBounds.height - size.height - 2) / 2,
         width: width, height: size.height + 2)
     )
   }

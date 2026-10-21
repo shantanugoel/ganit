@@ -34,14 +34,14 @@ reference, formatting, and Ask Assistant commands; the editor controller, next
 in the responder chain, handles Recalculate and Stop. New Sheet opens a
 workspace window with an empty sheet.
 
-- **Ask Ganit…** (⌘⇧A) opens the Ask bar at the caret: one field for the words
-  you would type to a colleague, one status line, and `Context ▸` naming exactly
-  what will be sent. Nothing leaves the Mac until ⏎. Ganit checks any proposal
-  against the engine before it appears, and **Apply** (⌘↩) is the only thing that
-  changes source, as one Undo step named *Apply AI Change*. The same command is
-  on the selection summary bar's trailing edge, in the answer right-click menu,
-  and offered by a quiet `Ask` chip beside a line Ganit cannot read. See
-  docs/design/ai-native/.
+- **Ask Ganit…** (⌘⇧A) opens the Ask bar under the sheet: one field for the
+  words you would type to a colleague, one status line, and `Context ▸` naming
+  exactly what will be sent. Nothing leaves the Mac until ⏎. Ganit checks any
+  proposal against the engine before it appears, and **Apply** (⌘↩) is the only
+  thing that changes source, as one Undo step named *Apply AI Change*. The same
+  command is on the selection summary bar's trailing edge, in the answer
+  right-click menu, and offered by a quiet `Ask` chip beside a line Ganit cannot
+  read. See docs/design/ai-native/.
 
 - **Ask Assistant** sends the insertion point's line, or the selected answer's,
   to the configured assistant again: a line Ganit could not work out, or an

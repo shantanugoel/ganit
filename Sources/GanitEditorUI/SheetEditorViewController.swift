@@ -436,50 +436,24 @@ public final class SheetEditorViewController: NSViewController {
     container.addSubview(summaryBar)
     container.addSubview(askBar)
     view = container
-    // The bar is anchored to the caret's line, so scrolling has to move it.
-    scrollView.contentView.postsBoundsChangedNotifications = true
-    NotificationCenter.default.addObserver(
-      self, selector: #selector(sheetScrolled(_:)),
-      name: NSView.boundsDidChangeNotification, object: scrollView.contentView)
-  }
-
-  @objc private func sheetScrolled(_ note: Notification) {
-    view.needsLayout = true
   }
 
   public override func viewDidLayout() {
     super.viewDidLayout()
     let height = summaryBar.fittingHeight
     summaryBar.frame = NSRect(x: 0, y: 0, width: view.bounds.width, height: height)
+    // Docked under the text, the way the card that shipped was laid out: the bar
+    // takes its height from the sheet and the text keeps the rest, so opening a
+    // request never hides the line being asked about. A bar that floated at the
+    // caret covered it, and covering the thing under review is not a trade.
+    let barHeight: CGFloat =
+      suggestionSession.isVisible
+      ? min(230, max(0, view.bounds.height - 80), max(60, view.bounds.height * 0.45)) : 0
+    askBar.isHidden = barHeight == 0
+    askBar.frame = NSRect(x: 0, y: height, width: view.bounds.width, height: barHeight)
     scrollView.frame = NSRect(
-      x: 0, y: height, width: view.bounds.width,
-      height: max(0, view.bounds.height - height))
-    layoutAskBar(above: height)
-  }
-
-  /// The Ask bar floats over the text at the caret's line, the way the design's
-  /// "transient, at the caret" asks for. It takes no space of its own, so the
-  /// sheet does not jump when a request starts.
-  private func layoutAskBar(above bottom: CGFloat) {
-    guard suggestionSession.isVisible else {
-      askBar.isHidden = true
-      askBar.frame = .zero
-      return
-    }
-    askBar.isHidden = false
-    let margin = VisualStyle.Spacing.card
-    let width = min(560, max(280, view.bounds.width - 2 * margin))
-    let tallest = view.bounds.height - bottom - 2 * margin
-    let height = min(240, max(96, tallest * 0.6))
-    let x = max(margin, min(textView.textContainerOrigin.x, view.bounds.width - width - margin))
-    var y = bottom + margin
-    if let caret = sheetTextView.caretLineRect() {
-      let anchor = textView.convert(caret, to: view)
-      // Hang it just below the line, and pull it up when the line is near the bottom.
-      y = min(anchor.minY - margin / 2, view.bounds.maxY - bottom - height - margin)
-      y = max(bottom + margin, y)
-    }
-    askBar.frame = NSRect(x: x, y: y, width: width, height: min(height, tallest))
+      x: 0, y: height + barHeight, width: view.bounds.width,
+      height: max(0, view.bounds.height - height - barHeight))
   }
 
   public override func viewDidAppear() {

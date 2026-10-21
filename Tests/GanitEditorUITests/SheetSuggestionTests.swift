@@ -545,17 +545,22 @@ struct SheetSuggestionTests {
   @Test func theChipWaitsOnTheCaretsFailingLineAndMakesNoRequest() async throws {
     // An unknown function, not a half-typed line: Ganit stays silent about a line
     // it reads as unfinished, and a chip on silence would nag.
-    let editor = try await editor("nope(1)\n7")
+    let editor = try await editor("price = 12\ntotal = nope(3)\ntax = 1")
     let transport = configure(editor, replies: [])
     let sheet = try #require(editor.textView as? SheetTextView)
     editor.view.layoutSubtreeIfNeeded()
-    editor.textView.setSelectedRange(NSRange(location: 0, length: 0))
+    editor.textView.setSelectedRange(NSRange(location: 11, length: 0))
     editor.view.layoutSubtreeIfNeeded()
-    #expect(sheet.askChipRect != nil)
-    editor.textView.setSelectedRange(NSRange(location: 8, length: 0))
+    let chip = try #require(sheet.askChipRect)
+    // The chip belongs in the source, beside what the line says — never inside
+    // the answer column, where it would hide under the failure message.
+    if let separator = sheet.answerSeparatorX {
+      #expect(chip.maxX <= separator)
+    }
+    editor.textView.setSelectedRange(NSRange(location: 27, length: 0))
     editor.view.layoutSubtreeIfNeeded()
     #expect(sheet.askChipRect == nil)
-    editor.textView.setSelectedRange(NSRange(location: 0, length: 0))
+    editor.textView.setSelectedRange(NSRange(location: 11, length: 0))
     editor.view.layoutSubtreeIfNeeded()
     sheet.askChipClicked()
     await editor.suggestionSession.waitUntilIdle()
