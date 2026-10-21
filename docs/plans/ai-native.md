@@ -240,11 +240,19 @@ is accepted; the prior branch's harness is reused as merged code, with its six
 divergences written down in
 [the job contract](../design/ai-native/ask-job-contract.md).
 
-**M1 — Ask bar and proposal, engine-verified.** Bar at caret, chip, selection
-bar entry, right-click. Proposal panel with live shadow answers, per-line
-opt-out, Apply as one named Undo step, stale checks, Esc cancel. *Gate:* the
-`loan` and `trip` scenarios pass against a fake provider, including ⌘Z
-restoring exact bytes and selection.
+**M1 — Ask bar and proposal, engine-verified.** *In progress 2026-10-21.* Bar at
+caret, chip, selection bar entry, right-click. Proposal panel with live shadow
+answers, per-line opt-out, Apply as one named Undo step, stale checks, Esc
+cancel. *Gate:* the `loan` and `trip` scenarios pass against a fake provider,
+including ⌘Z restoring exact bytes and selection. **Passed in part:** the bar
+opens from all four doors and floats at the caret; the typed words go as a task
+note with `reasoning_effort`; `Context ▸` renders the disclosure in words, with
+the exact bytes one click away; Apply is one Undo step named *Apply AI Change*
+and ⌘Z restores bytes and selection (`loan`, `trip` fixtures, fake transport);
+Esc closes; nothing is sent without ⏎. **Outstanding:** per-line opt-out — the
+harness produces a single `T1` replacement, so declining one proposed line means
+rebuilding the replacement and re-checking it, which is not built yet. Until it
+is, the bar offers all-or-nothing Apply and the gate is not fully met.
 
 **M2 — Validation and repair.** Diagnostic-fed repair turn within the shared
 budget, the two visible status lines, the failure card with the four reason

@@ -1,6 +1,261 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "ask.context.effort" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Effort" } }
+      }
+    },
+    "ask.context.model" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Model" } }
+      }
+    },
+    "ask.context.notes" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Notes attached to those lines" } }
+      }
+    },
+    "ask.context.provider" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Where it goes" } }
+      }
+    },
+    "ask.context.settings" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Calculation settings" } }
+      }
+    },
+    "ask.context.symbols" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Source records Ganit matched" } }
+      }
+    },
+    "ask.context.target" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Lines you asked about" } }
+      }
+    },
+    "ask.context.words" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The words you typed" } }
+      }
+    },
+    "ask.noContext" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Nothing has been prepared to send." } }
+      }
+    },
+    "ask.applied" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Applied." } }
+      }
+    },
+    "ask.apply" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Apply" } }
+      }
+    },
+    "ask.applyStale" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This proposal no longer passes the local checks. Ask again." } }
+      }
+    },
+    "ask.badTarget" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Select complete source lines. Table targets need a separate scope." } }
+      }
+    },
+    "ask.bar" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ask" } }
+      }
+    },
+    "ask.calculated" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ganit calculated: " } }
+      }
+    },
+    "ask.checked" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ganit checked these lines. Review them before Apply." } }
+      }
+    },
+    "ask.checking" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ganit is checking\u2026" } }
+      }
+    },
+    "ask.checkingBeforeApply" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ganit is checking the sheet again\u2026" } }
+      }
+    },
+    "ask.choiceUnsatisfied" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "This expression does not satisfy that choice. Change the words and ask again." } }
+      }
+    },
+    "ask.context" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Context \u25b8" } }
+      }
+    },
+    "ask.failed.busy" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Another Ask is already running for this provider." } }
+      }
+    },
+    "ask.failed.contextDenied" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The extra source records were not included." } }
+      }
+    },
+    "ask.failed.contextLimit" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "That is too much for one Ask. Select fewer lines." } }
+      }
+    },
+    "ask.failed.deadline" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "That took too long. Ask again or ask about fewer lines." } }
+      }
+    },
+    "ask.failed.permission" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Review what would be sent before sending it." } }
+      }
+    },
+    "ask.failed.repeated" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The model gave the same answer that Ganit already rejected." } }
+      }
+    },
+    "ask.failed.repeatedFailure" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The model kept giving an answer Ganit could not use." } }
+      }
+    },
+    "ask.failed.requestLimit" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ganit asked the model to fix its answer too many times." } }
+      }
+    },
+    "ask.failed.schema" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The reply was not something Ganit could read." } }
+      }
+    },
+    "ask.failed.transport" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ganit could not reach the provider." } }
+      }
+    },
+    "ask.failed.validation" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The model did not answer in a way Ganit could use. Try different words." } }
+      }
+    },
+    "ask.field" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "What to ask Ganit" } }
+      }
+    },
+    "ask.includingContext" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Sending the records you included." } }
+      }
+    },
+    "ask.keys" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "\u23ce asks. \u2318\u21a9 applies when Apply has focus. Esc closes." } }
+      }
+    },
+    "ask.noProvider" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Set up a provider in Assistant settings." } }
+      }
+    },
+    "ask.paused" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ask is paused." } }
+      }
+    },
+    "ask.placeholder" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ask Ganit about these lines\u2026" } }
+      }
+    },
+    "ask.preparing" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Read the lines you selected." } }
+      }
+    },
+    "ask.preparingRevised" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Preparing the revised Ask." } }
+      }
+    },
+    "ask.previewChanged" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The local preview changed. Review the current result before Apply." } }
+      }
+    },
+    "ask.ready" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ready to send %1$d line(s), %2$d source record(s), and these calculation settings to %3$@. Open Context to see them." } }
+      }
+    },
+    "ask.requesting" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ganit is asking\u2026" } }
+      }
+    },
+    "ask.reviewNote" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Your added words are listed in Context." } }
+      }
+    },
+    "ask.revisedTooLarge" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "That revised Ask is too large, or the sheet changed." } }
+      }
+    },
+    "ask.send" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ask" } }
+      }
+    },
+    "ask.stale" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The sheet changed under this proposal. Ask again." } }
+      }
+    },
+    "ask.stopped" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ask stopped." } }
+      }
+    },
+    "ask.tooLarge" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "That is too much for one Ask. Select fewer lines and try again." } }
+      }
+    },
+    "ask.undoApply" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Apply AI change" } }
+      }
+    },
+    "menu.askGanit" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ask Ganit\u2026" } }
+      }
+    },
+    "selection.ask" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ask Ganit about the selected lines" } }
+      }
+    },
     "interpretation.errorOrigin" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Fix first" } }

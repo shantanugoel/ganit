@@ -227,7 +227,7 @@ public final class AssistantSettingsController: NSViewController {
       window.delegate = self
       exampleWindow = window
       window.makeKeyAndOrderFront(nil)
-      editor.suggestExpression(nil)
+      editor.askGanit(nil)
       status.stringValue = "Review the synthetic source scope. Send is a separate action."
     } catch { status.stringValue = "The synthetic example cannot be prepared." }
   }

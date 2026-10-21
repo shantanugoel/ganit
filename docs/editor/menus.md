@@ -10,7 +10,7 @@ when the focused editor or window can perform it.
 | Ganit | About, Settings… ⌘,, Check for Updates…, Check for Updates Automatically, Stay in the Menu Bar, Show Sheet Titles in Spotlight, Assistant…, Hide ⌘H, Hide Others ⌥⌘H, Show All, Quit ⌘Q |
 | File | New Sheet ⌘N, Close ⌘W, Print… ⌘P |
 | Edit | Undo ⌘Z, Redo ⇧⌘Z, Cut ⌘X, Copy ⌘C, Paste ⌘V, Delete, Select All ⌘A, Find ▸ (Find… ⌘F, Find and Replace… ⌥⌘F, Find Next ⌘G, Find Previous ⇧⌘G, Use Selection for Find ⌘E), Go to Line… ⌘L, Autocomplete, Insert Table…, Open Table ⇧⌘T, Return to Sheet |
-| Calculate | Copy Result ⇧⌘C, Copy with Results, Copy Full Precision ⌥⇧⌘C, Show Interpretation, Ask Assistant, Change Answer…, Cancel Request, Insert Reference ⌘\, Insert Subtotal ⌘T, Insert Answer Arrow ⌘↩, Recalculate ⌘R, Stop ⌘. |
+| Calculate | Copy Result ⇧⌘C, Copy with Results, Copy Full Precision ⌥⇧⌘C, Show Interpretation, **Ask Ganit… ⌘⇧A**, Ask Assistant, Change Answer…, Cancel Request, Insert Reference ⌘\, Insert Subtotal ⌘T, Insert Answer Arrow ⌘↩, Recalculate ⌘R, Stop ⌘. |
 | Format | Heading, Comment ⌘/, Divider, Step Number Up ⌃↑, Step Number Down ⌃↓, Number Format, Group Digits, Group Digits in Lakhs, Angles in Degrees, Decimal Comma (1.234,56), Markdown Mode, Dollar Means |
 | View | Bigger ⌘+, Smaller ⌘-, Actual Size ⌘0, Show Answer Separator, Show Line Numbers, Enter Full Screen ⌃⌘F |
 | Window | Minimize ⌘M, Zoom, Scratch ⇧⌘S, Definitions ⌘⇧D, Quick Ganit items, Bring All to Front, and the window list |
@@ -33,6 +33,15 @@ items.
 reference, formatting, and Ask Assistant commands; the editor controller, next
 in the responder chain, handles Recalculate and Stop. New Sheet opens a
 workspace window with an empty sheet.
+
+- **Ask Ganit…** (⌘⇧A) opens the Ask bar at the caret: one field for the words
+  you would type to a colleague, one status line, and `Context ▸` naming exactly
+  what will be sent. Nothing leaves the Mac until ⏎. Ganit checks any proposal
+  against the engine before it appears, and **Apply** (⌘↩) is the only thing that
+  changes source, as one Undo step named *Apply AI Change*. The same command is
+  on the selection summary bar's trailing edge, in the answer right-click menu,
+  and offered by a quiet `Ask` chip beside a line Ganit cannot read. See
+  docs/design/ai-native/.
 
 - **Ask Assistant** sends the insertion point's line, or the selected answer's,
   to the configured assistant again: a line Ganit could not work out, or an

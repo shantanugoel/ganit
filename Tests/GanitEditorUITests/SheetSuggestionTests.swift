@@ -78,6 +78,15 @@ struct SheetSuggestionTests {
     return transport
   }
 
+  /// Programmatic selection does not go through the delegate, and the selection
+  /// summary is fed from there, so a test has to say it out loud.
+  private func select(_ editor: SheetEditorViewController, _ range: NSRange) {
+    editor.textView.setSelectedRange(range)
+    editor.textView.delegate?.textViewDidChangeSelection?(
+      Notification(name: NSTextView.didChangeSelectionNotification, object: editor.textView))
+    editor.view.layoutSubtreeIfNeeded()
+  }
+
   @Test func scopeReviewMakesZeroRequestsAndSendingShowsACheckedPreviewWithoutChangingSource()
     async throws
   {
@@ -119,7 +128,7 @@ struct SheetSuggestionTests {
     await session.waitUntilIdle()
     #expect(session.state == .applied)
     #expect(editor.sheet.text == "2 + 3\n// Request record: " + request + "\nx = 8\n@3 + @1")
-    #expect(editor.documentUndoManager.undoActionName == "Use Expression")
+    #expect(editor.documentUndoManager.undoActionName == "Apply AI change")
     let accepted = editor.sheet.text
     await editor.scheduler?.waitUntilIdle()
     #expect(
@@ -259,7 +268,7 @@ struct SheetSuggestionTests {
         (view as? NSButton).map { [$0] } ?? view.subviews.flatMap(buttons)
       }
       editor.textView.setSelectedRange(NSRange(location: 0, length: 0))
-      let apply = try #require(buttons(editor.view).first { $0.title == "Use Expression" })
+      let apply = try #require(buttons(editor.view).first { $0.title == "Apply ⌘↩" })
       #expect(editor.view.window?.makeFirstResponder(apply) == true)
       let event = try #require(
         NSEvent.keyEvent(
@@ -472,6 +481,144 @@ struct SheetSuggestionTests {
       #expect(!editor.suggestionSession.canSend)
     }
     #expect(await transport.count() == 0)
+  }
+
+  // MARK: - M1: the Ask surface
+
+  /// The words in the bar are the words the model reads, and they go in one
+  /// gesture: ⏎ prepares the scope and sends it.
+  @Test func theWordsInTheBarAreTheWordsTheModelReads() async throws {
+    let editor = try await editor(request)
+    let transport = configure(editor, replies: [try await proposal(editor)])
+    let session = editor.suggestionSession
+    session.prepare(instruction: "make it monthly", autoSend: true)
+    await session.waitUntilIdle()
+    #expect(await transport.count() == 1)
+    let body = String(decoding: try #require(session.requestBodies.first), as: UTF8.self)
+    #expect(body.contains("make it monthly"))
+    #expect(body.contains("reasoning_effort"))
+    #expect(body.contains("\"medium\""))
+    #expect(session.canApply)
+    #expect(editor.sheet.text == request)
+  }
+
+  /// Off sends no effort word at all, on the Ask path as on the line path.
+  @Test func anEffortOfOffSendsNoWordOnTheAskPath() async throws {
+    let editor = try await editor(request)
+    let transport = EditorSuggestionTransport([try await proposal(editor)])
+    editor.suggestionConfiguration = SheetSuggestionConfiguration(
+      coordinator: SuggestionCoordinator(transport: transport),
+      settings: AssistantSettings(
+        isEnabled: true, endpoint: URL(string: "https://fixture.invalid/v1")!,
+        model: "synthetic", effort: .off))
+    let session = editor.suggestionSession
+    session.prepare(instruction: "add them", autoSend: true)
+    await session.waitUntilIdle()
+    #expect(await transport.count() == 1)
+    let body = String(decoding: try #require(session.requestBodies.first), as: UTF8.self)
+    #expect(!body.contains("reasoning_effort"))
+  }
+
+  /// One command, one bar, and the caret lands in the field so words can be typed.
+  @Test func theAskCommandOpensTheBarWithTheCaretInTheField() async throws {
+    let editor = try await editor(request)
+    _ = configure(editor, replies: [try await proposal(editor)])
+    let window = try #require(editor.view.window)
+    window.makeKey()
+    #expect(editor.openAskBar() == true)
+    await editor.suggestionSession.waitUntilIdle()
+    #expect(editor.suggestionSession.isVisible)
+    func fields(_ view: NSView) -> [NSTextField] {
+      (view as? NSTextField).map { [$0] } ?? view.subviews.flatMap(fields)
+    }
+    let field = try #require(
+      fields(editor.view).first { $0.placeholderString?.contains("Ask Ganit") == true })
+    // A focused text field owns a field editor, and the window's first responder
+    // is that editor rather than the control.
+    #expect(window.firstResponder === field.currentEditor())
+    #expect(field.stringValue.isEmpty)
+  }
+
+  /// The chip is the passive half: detection without a request, on the caret's
+  /// failing line and nowhere else, and it asks nothing of the provider until it
+  /// is clicked and ⏎ follows.
+  @Test func theChipWaitsOnTheCaretsFailingLineAndMakesNoRequest() async throws {
+    // An unknown function, not a half-typed line: Ganit stays silent about a line
+    // it reads as unfinished, and a chip on silence would nag.
+    let editor = try await editor("nope(1)\n7")
+    let transport = configure(editor, replies: [])
+    let sheet = try #require(editor.textView as? SheetTextView)
+    editor.view.layoutSubtreeIfNeeded()
+    editor.textView.setSelectedRange(NSRange(location: 0, length: 0))
+    editor.view.layoutSubtreeIfNeeded()
+    #expect(sheet.askChipRect != nil)
+    editor.textView.setSelectedRange(NSRange(location: 8, length: 0))
+    editor.view.layoutSubtreeIfNeeded()
+    #expect(sheet.askChipRect == nil)
+    editor.textView.setSelectedRange(NSRange(location: 0, length: 0))
+    editor.view.layoutSubtreeIfNeeded()
+    sheet.askChipClicked()
+    await editor.suggestionSession.waitUntilIdle()
+    #expect(editor.suggestionSession.isVisible)
+    #expect(await transport.count() == 0)
+  }
+
+  /// A provider that is not set up leaves the chip, the menu item and the
+  /// selection action unavailable, so there is nothing to click into a failure.
+  @Test func withoutAProviderNothingOffersAsk() async throws {
+    let editor = try await editor("a = 1\nb = nope(2)")
+    let sheet = try #require(editor.textView as? SheetTextView)
+    editor.view.layoutSubtreeIfNeeded()
+    editor.textView.setSelectedRange(NSRange(location: 0, length: 0))
+    editor.view.layoutSubtreeIfNeeded()
+    #expect(sheet.askChipRect == nil)
+    let item = NSMenuItem(
+      title: "", action: #selector(SheetCommands.askGanit(_:)), keyEquivalent: "")
+    #expect(!sheet.validateUserInterfaceItem(item))
+    select(editor, NSRange(location: 0, length: 17))
+    func buttons(_ view: NSView) -> [NSButton] {
+      (view as? NSButton).map { [$0] } ?? view.subviews.flatMap(buttons)
+    }
+    let ask = try #require(buttons(editor.summaryBar).first { $0.title == "Ask Ganit…" })
+    #expect(!editor.summaryBar.isHidden)
+    #expect(ask.isHidden)
+  }
+
+  /// A multi-line selection grows the one trailing action the design allows.
+  /// A multi-line selection grows the one trailing action the design allows.
+  @Test func theSelectionBarOffersAskForAnAskableSelection() async throws {
+    let editor = try await editor("a = 1\nb = nope(2)")
+    _ = configure(editor, replies: [])
+    select(editor, NSRange(location: 0, length: 17))
+    func buttons(_ view: NSView) -> [NSButton] {
+      (view as? NSButton).map { [$0] } ?? view.subviews.flatMap(buttons)
+    }
+    let ask = try #require(buttons(editor.summaryBar).first { $0.title == "Ask Ganit…" })
+    #expect(!editor.summaryBar.isHidden)
+    #expect(!ask.isHidden)
+    ask.performClick(nil)
+    await editor.suggestionSession.waitUntilIdle()
+    #expect(editor.suggestionSession.isVisible)
+  }
+
+  /// Rule 4: the disclosure says what leaves the Mac, in words the reader can
+  /// check against their own sheet, and it is readable before the send.
+  @Test func theContextDisclosureNamesWhatLeavesTheMac() async throws {
+    let editor = try await editor("a = 1\nb = a + 2")
+    _ = configure(editor, replies: [])
+    let session = editor.suggestionSession
+    session.prepare(instruction: "round it to whole numbers")
+    await session.waitUntilIdle()
+    let body = try #require(session.preparedBody)
+    let text = try #require(AskBar.contextSummary(for: body))
+    #expect(text.contains("round it to whole numbers"))
+    #expect(text.contains("a = 1"))
+    #expect(text.contains("synthetic"))
+    #expect(text.contains("medium"))
+    #expect(!text.contains("apiKey"))
+    #expect(!text.contains("fixture.invalid"))
+    // The exact bytes remain available to anyone who would rather check the claim.
+    #expect(AskBar.contextJSON(body).contains("\"reasoning_effort\""))
   }
 }
 

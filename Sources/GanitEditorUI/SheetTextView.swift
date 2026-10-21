@@ -339,8 +339,8 @@ final class SheetTextView: NSTextView {
   var ambiguousSuffixes: [String: AmbiguousSuffixMeaning] = [:]
   var onSetSheetDollarCurrency: (String) -> Void = { _ in }
   var onSetSheetSuffixMeaning: (String, AmbiguousSuffixMeaning?) -> Void = { _, _ in }
-  var canSuggestExpression: () -> Bool = { false }
-  var onSuggestExpression: () -> Void = {}
+  var canAskGanit: () -> Bool = { false }
+  var onAskGanit: () -> Void = {}
   var dismissSuggestion: () -> Bool = { false }
 
   /// Whether Ask Assistant can send the current line.
@@ -484,6 +484,55 @@ final class SheetTextView: NSTextView {
     return NSRect(x: x - 4, y: bounds.minY, width: 8, height: bounds.height)
   }
 
+  /// The quiet chip that invites a request. Detection happens here, on device;
+  /// the request itself happens only when the reader clicks it and presses ⏎.
+  static let askChipTitle = "Ask"
+
+  /// Where the chip is right now. Computed, not cached: a click or a cursor-rect
+  /// pass must never act on a stale position.
+  var askChipRect: NSRect? { askChipLayout(in: bounds)?.rect }
+
+  var askChipAttributes: [NSAttributedString.Key: Any] {
+    [
+      .font: NSFont.systemFont(
+        ofSize: VisualStyle.Typography.answer(scale: textScale).pointSize * 0.7,
+        weight: .semibold),
+      .foregroundColor: VisualStyle.Color.secondary,
+    ]
+  }
+
+  /// The chip belongs on the caret's line and nowhere else, and only where Ganit
+  /// already shows a red message: a chip on a line Ganit is merely silent about
+  /// would nag, and a half-typed line is not a failure.
+  func askChipLayout(in rect: NSRect) -> (line: LineID, rect: NSRect)? {
+    guard canAskGanit(), let caret = lineID(selectedRange().location),
+      lineDiagnostic(caret) != nil,
+      let row = visibleLines(in: rect).first(where: { $0.id == caret })
+    else { return nil }
+    let title = Self.askChipTitle as NSString
+    let size = title.size(withAttributes: askChipAttributes)
+    let width = ceil(size.width) + Self.badgePadding * 2
+    let rightEdge = (textContainerInset.width + gutterWidth + contentWidth).rounded()
+    let y = row.frame.minY + row.firstRow.typographicBounds.minY
+    return (
+      caret,
+      NSRect(
+        x: rightEdge - width, y: y + (row.firstRow.typographicBounds.height - size.height - 2) / 2,
+        width: width, height: size.height + 2)
+    )
+  }
+
+  func askChipClicked() {
+    onAskGanit()
+  }
+
+  /// The chip belongs to the caret's line, so any caret move redraws the gutter.
+  @objc private func caretMoved(_ note: Notification) {
+    guard let overlay else { return }
+    overlay.needsDisplay = true
+    window?.invalidateCursorRects(for: overlay)
+  }
+
   /// Where the rule between source and answers belongs, or `nil` when it is
   /// hidden or there is no column for it to mark.
   var answerSeparatorX: CGFloat? {
@@ -547,12 +596,28 @@ final class SheetTextView: NSTextView {
     let overlay = AnswerOverlayView(textView: self)
     self.overlay = overlay
     addSubview(overlay)
+    // The gutter carries the Ask chip, which follows the caret.
+    NotificationCenter.default.addObserver(
+      self, selector: #selector(caretMoved(_:)),
+      name: NSTextView.didChangeSelectionNotification, object: self)
     return overlay
   }
 
   /// The answers to draw for lines whose layout fragment intersects `rect`:
   /// right-aligned in the answer column on the line's first row, or, written
   /// inline, just past where the line's last row of text ends.
+  /// Where the caret's line is drawn, for chrome anchored to it. The rect is
+  /// already offset by `textContainerOrigin`, so it sits in this view's flipped
+  /// coordinates like every other rect-producing API here.
+  func caretLineRect() -> NSRect? {
+    guard let target = lineID(selectedRange().location) else { return nil }
+    return visibleLines(in: visibleRect).first { $0.id == target }.map {
+      NSRect(
+        x: $0.frame.minX, y: $0.frame.minY + $0.firstRow.typographicBounds.minY,
+        width: $0.frame.width, height: $0.firstRow.typographicBounds.height)
+    }
+  }
+
   func answerLayout(in rect: NSRect) -> [(line: LineID, cell: AnswerCell, rect: NSRect)] {
     let rightEdge = textContainerInset.width + gutterWidth + contentWidth
     let columnWidth = answerColumnWidth
@@ -785,8 +850,8 @@ final class SheetTextView: NSTextView {
       ),
       (
         String(
-          localized: "menu.suggestExpression", defaultValue: "Suggest Expression", bundle: .main),
-        #selector(suggestExpression(_:))
+          localized: "menu.askGanit", defaultValue: "Ask Ganit…", bundle: .main),
+        #selector(askGanit(_:))
       ),
       (
         String(localized: "menu.askAssistant", defaultValue: "Ask Assistant", bundle: .main),
@@ -1845,7 +1910,7 @@ final class SheetTextView: NSTextView {
     findTableHit()
   }
 
-  @objc func suggestExpression(_ sender: Any?) { onSuggestExpression() }
+  @objc func askGanit(_ sender: Any?) { onAskGanit() }
 
   @objc func askAssistant(_ sender: Any?) {
     onAskAssistant()
@@ -1871,8 +1936,8 @@ final class SheetTextView: NSTextView {
       return targetAnswer.map { !$0.cell.isPending } ?? false
     case #selector(showInterpretation(_:)):
       return targetAnswer != nil
-    case #selector(suggestExpression(_:)):
-      return canSuggestExpression()
+    case #selector(askGanit(_:)):
+      return canAskGanit()
     case #selector(askAssistant(_:)):
       return canAskAssistant()
     case #selector(changeAssistantAnswer(_:)):
@@ -2381,11 +2446,18 @@ private final class AnswerOverlayView: NSView {
 
   override func hitTest(_ point: NSPoint) -> NSView? {
     let local = convert(point, from: superview)
+    if textView.askChipRect?.contains(local) == true { return self }
     return textView.answerResizeRect?.contains(local) == true ? self : nil
   }
 
   override func resetCursorRects() {
     super.resetCursorRects()
+    if let rect = textView.askChipRect {
+      let visible = rect.intersection(visibleRect)
+      if !visible.isEmpty, visible.origin.x.isFinite, visible.origin.y.isFinite {
+        addCursorRect(visible, cursor: .pointingHand)
+      }
+    }
     if let rect = textView.answerResizeRect {
       let visible = rect.intersection(visibleRect)
       guard !visible.isEmpty, visible.origin.x.isFinite, visible.origin.y.isFinite else { return }
@@ -2394,6 +2466,11 @@ private final class AnswerOverlayView: NSView {
   }
 
   override func mouseDown(with event: NSEvent) {
+    let local = convert(event.locationInWindow, from: nil)
+    if textView.askChipRect?.contains(local) == true {
+      textView.askChipClicked()
+      return
+    }
     textView.mouseDown(with: event)
   }
 
@@ -2460,10 +2537,27 @@ private final class AnswerOverlayView: NSView {
         attributes: textView.attributes(for: cell, selected: isSelected)
       )
     }
+    drawAskChip()
   }
 }
 
 extension AnswerOverlayView {
+  /// The quiet `Ask` chip beside a failure the reader can ask about. It is drawn,
+  /// not inserted, like everything else here, and its rect is what hit-tests.
+  fileprivate func drawAskChip() {
+    guard let chip = textView.askChipLayout(in: textView.bounds) else { return }
+    var attributes = textView.askChipAttributes
+    let title = SheetTextView.askChipTitle as NSString
+    let color = attributes[.foregroundColor] as? NSColor ?? VisualStyle.Color.secondary
+    color.setStroke()
+    let outline = NSBezierPath(
+      roundedRect: chip.rect.insetBy(dx: 0.5, dy: 0.5), xRadius: 3, yRadius: 3)
+    outline.lineWidth = 1
+    outline.stroke()
+    title.draw(
+      at: NSPoint(x: chip.rect.minX + SheetTextView.badgePadding, y: chip.rect.minY + 1),
+      withAttributes: attributes)
+  }
   /// Draws the AI badge at the leading edge of an assisted answer's `rect`.
   fileprivate func drawBadge(at rect: NSRect, selected: Bool) {
     var attributes = textView.badgeAttributes

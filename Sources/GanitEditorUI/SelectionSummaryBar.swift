@@ -18,6 +18,14 @@ struct SelectionSummary: Equatable {
 /// aggregates when calculations are unresolved or values cannot be added.
 final class SelectionSummaryBar: NSView {
   private let label = NSTextField(labelWithString: "")
+  private let askButton = NSButton()
+
+  /// The bar grows one trailing action: a multi-line selection is exactly when a
+  /// transform makes sense, so Ask belongs here and nowhere else.
+  var onAsk: (() -> Void)?
+  var canAsk: () -> Bool = { false } {
+    didSet { needsLayout = true }
+  }
 
   var summary: SelectionSummary? {
     didSet {
@@ -45,7 +53,19 @@ final class SelectionSummaryBar: NSView {
       )
     )
     addSubview(label)
+    askButton.title = localized("menu.askGanit", "Ask Ganit…")
+    askButton.bezelStyle = .inline
+    askButton.font = VisualStyle.Typography.caption
+    askButton.target = self
+    askButton.action = #selector(ask)
+    askButton.setAccessibilityLabel(
+      localized("selection.ask", "Ask Ganit about the selected lines"))
+    askButton.translatesAutoresizingMaskIntoConstraints = true
+    askButton.isHidden = true
+    addSubview(askButton)
   }
+
+  @objc private func ask() { onAsk?() }
 
   @available(*, unavailable)
   required init?(coder: NSCoder) {
@@ -54,13 +74,27 @@ final class SelectionSummaryBar: NSView {
 
   /// The height the bar needs, or zero when it has nothing to show.
   var fittingHeight: CGFloat {
-    isHidden ? 0 : label.fittingSize.height + 2 * VisualStyle.Spacing.compact
+    isHidden
+      ? 0
+      : max(label.fittingSize.height, askButton.fittingSize.height)
+        + 2 * VisualStyle.Spacing.compact
   }
 
   override func layout() {
     super.layout()
-    label.frame = bounds.insetBy(
-      dx: VisualStyle.Spacing.standard, dy: VisualStyle.Spacing.compact)
+    let showAsk = summary != nil && canAsk()
+    askButton.isHidden = !showAsk
+    let width = showAsk ? askButton.fittingSize.width + VisualStyle.Spacing.standard : 0
+    askButton.frame =
+      showAsk
+      ? NSRect(
+        x: bounds.maxX - width, y: (bounds.height - askButton.fittingSize.height) / 2,
+        width: askButton.fittingSize.width, height: askButton.fittingSize.height)
+      : .zero
+    label.frame = NSRect(
+      x: VisualStyle.Spacing.standard, y: VisualStyle.Spacing.compact,
+      width: max(0, bounds.width - 2 * VisualStyle.Spacing.standard - width),
+      height: bounds.height - 2 * VisualStyle.Spacing.compact)
   }
 
   override func draw(_ dirtyRect: NSRect) {

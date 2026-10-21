@@ -5,6 +5,16 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Ask Ganit. **⌘⇧A** anywhere in the editor, a quiet **Ask** chip beside a line
+  Ganit cannot read, the trailing action on the selection bar, and the answer
+  right-click menu all open one bar at the caret: type what you want in plain
+  words, press ⏎, and Ganit sends that — with the lines you selected, the records
+  it matched, and your calculation settings, all listed under **Context ▸**
+  before anything goes. A provider that refuses the ask loses both optional
+  fields, as the line-level request already does. Ganit checks every proposal
+  against its own engine before it appears, and **Apply** (⌘↩) is the only thing
+  that changes source — as one Undo step named *Apply AI Change*, restoring bytes
+  and selection. Nothing is sent while you type, and Esc closes the bar.
 - Ask a configured model how hard to think. **Ganit ▸ Assistant…** gained an
   **Effort** popup — Off, Low, Medium, High, Extra high, Max, or Custom… with a
   field for a word Ganit does not know — and it is sent as the request's

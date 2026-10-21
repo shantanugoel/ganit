@@ -9,7 +9,7 @@ import AppKit
   func copyFullPrecision(_ sender: Any?)
   func copyLinesWithResults(_ sender: Any?)
   func showInterpretation(_ sender: Any?)
-  func suggestExpression(_ sender: Any?)
+  func askGanit(_ sender: Any?)
   func askAssistant(_ sender: Any?)
   func changeAssistantAnswer(_ sender: Any?)
   func cancelAssistantRequest(_ sender: Any?)

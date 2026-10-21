@@ -29,6 +29,7 @@ package final class SheetSuggestionSession {
   private var userRevisedInputs = false
   package var didChange: () -> Void = {}
   package private(set) var isVisible = false
+  package private(set) var instruction = ""
   package private(set) var state: SuggestionJobState = .idle
   package private(set) var message = ""
   package private(set) var preview: AssistanceCheckedCandidate?
@@ -52,9 +53,13 @@ package final class SheetSuggestionSession {
 
   package init(editor: SheetEditorViewController) { self.editor = editor }
 
-  package func prepare(retry: Bool = false) {
+  /// Opens the Ask bar on a target. `instruction` is what the reader typed; it
+  /// travels as a task note, so the model reads it and Ganit never parses it.
+  /// `autoSend` is the ⏎ path: prepare the scope and send it in one gesture.
+  package func prepare(retry: Bool = false, instruction: String = "", autoSend: Bool = false) {
     dismiss()
-    taskNotes = []
+    self.instruction = instruction.trimmingCharacters(in: .whitespacesAndNewlines)
+    taskNotes = self.instruction.isEmpty ? [] : [self.instruction]
     included = []
     choices = [:]
     assumptions = []
@@ -71,22 +76,27 @@ package final class SheetSuggestionSession {
     guard let editor, let configuration = editor.suggestionConfiguration,
       configuration.settings.isReady
     else {
-      update(.failed, "Set up a provider in Assistant settings.")
+      update(.failed, localized("ask.noProvider", "Set up a provider in Assistant settings."))
       return
     }
     // An explicit request commits the composition before taking a snapshot.
     if editor.textView.hasMarkedText() { editor.textView.unmarkText() }
     guard !editor.textView.hasMarkedText(), let target = editor.suggestionTargets else {
-      update(.failed, "Select complete source lines. Table targets need a separate scope.")
+      update(
+        .failed,
+        localized(
+          "ask.badTarget",
+          "Select complete source lines. Table targets need a separate scope."))
       return
     }
     self.configuration = configuration
     self.target = target
-    update(.preparing, "Prepare the source scope.")
+    update(.preparing, localized("ask.preparing", "Read the lines you selected."))
     let version = revision
     task = Task { [weak self] in
       do {
-        let snapshot = try await editor.suggestionSnapshot(targets: target)
+        var snapshot = try await editor.suggestionSnapshot(targets: target)
+        for note in self?.taskNotes ?? [] { snapshot = try snapshot.addingTaskNote(note) }
         guard let self, self.revision == version, snapshot.source.text == editor.sheet.text else {
           return
         }
@@ -94,15 +104,35 @@ package final class SheetSuggestionSession {
         self.preparedBody = try SuggestionWireRequest(
           settings: configuration.settings, context: snapshot.permittedContext()
         ).body
-        self.update(
-          .idle,
-          "Send the selected source, attached notes, matching declarations, and calculation settings to the provider. Review Context before you send."
-        )
+        if autoSend {
+          // send() only accepts an idle job, so the scope has to be reported ready
+          // first even when nobody will see the intermediate state.
+          self.update(.idle, Self.contextSummary(snapshot, model: configuration.settings.model))
+          self.send()
+          return
+        }
+        self.update(.idle, Self.contextSummary(snapshot, model: configuration.settings.model))
       } catch {
         guard let self, self.revision == version else { return }
-        self.update(.failed, "The source scope cannot be prepared. Select a smaller target.")
+        self.update(
+          .failed,
+          localized(
+            "ask.tooLarge",
+            "That is too much for one Ask. Select fewer lines and try again."))
       }
     }
+  }
+
+  /// Names what is about to leave the Mac, in the same words the disclosure uses.
+  /// Every specifier is positional: one that is not, sitting after ones that are,
+  /// reuses the previous argument and reads an `Int` as an object.
+  private static func contextSummary(_ snapshot: AssistanceSnapshot, model: String) -> String {
+    String(
+      format: localized(
+        "ask.ready",
+        "Ready to send %1$d line(s), %2$d source record(s), and these calculation settings to %3$@. Open Context to see them."
+      ),
+      snapshot.targetLines.count, snapshot.inventory.filter(\.matchesTarget).count, model)
   }
 
   /// Only this explicit action grants permission for the frozen context.
@@ -112,7 +142,7 @@ package final class SheetSuggestionSession {
     else { return }
     let version = revision
     preparedBody = nil
-    update(.requesting, "Request an expression.")
+    update(.requesting, localized("ask.requesting", "Ganit is asking…"))
     task = Task { [weak self] in
       let job = await configuration.coordinator.start(
         SuggestionJobInput(
@@ -142,9 +172,11 @@ package final class SheetSuggestionSession {
         self.update(.needsChoice, value.question)
       case .unsupported(let reason): self.update(.failed, reason)
       case .failed(let failure): self.update(.failed, Self.failureMessage(failure))
-      case .paused: self.update(.paused, "Automatic suggestions paused.")
-      case .stale: self.update(.stale, "The source scope changed. Request a new suggestion.")
-      case .cancelled: self.update(.cancelled, "The request stopped.")
+      case .paused: self.update(.paused, localized("ask.paused", "Ask is paused."))
+      case .stale:
+        self.update(
+          .stale, localized("ask.stale", "The sheet changed under this proposal. Ask again."))
+      case .cancelled: self.update(.cancelled, localized("ask.stopped", "Ask stopped."))
       case .dismissed: self.dismiss()
       }
     }
@@ -167,7 +199,7 @@ package final class SheetSuggestionSession {
     let handles = Set(requestedContext.map(\.handle))
     included.formUnion(handles)
     requestedContext = []
-    update(.repairing, "Send the included source records.")
+    update(.repairing, localized("ask.includingContext", "Sending the records you included."))
     Task { await configuration.coordinator.includeContext(job: job.id, handles: handles) }
   }
 
@@ -178,8 +210,7 @@ package final class SheetSuggestionSession {
     choices = [:]
     assumptions = []
     update(
-      preview!.isApplicable ? .ready : .needsChoice,
-      "Arithmetic checked. Review the interpretation and source edit.")
+      preview!.isApplicable ? .ready : .needsChoice, Self.checkedMessage)
   }
 
   package func choose(_ id: String, option: String) {
@@ -197,7 +228,7 @@ package final class SheetSuggestionSession {
     task?.cancel()
     revision += 1
     let version = revision
-    update(.checking, "Check the selected interpretation.")
+    update(.checking, localized("ask.checking", "Ganit is checking…"))
     task = Task { [weak self] in
       guard let self else { return }
       do {
@@ -207,16 +238,15 @@ package final class SheetSuggestionSession {
           userRevisedInputs: self.userRevisedInputs)
         guard self.revision == version else { return }
         self.preview = result
-        self.update(
-          result.isApplicable ? .ready : .needsChoice,
-          "Arithmetic checked. Review the interpretation and source edit.")
+        self.update(result.isApplicable ? .ready : .needsChoice, Self.checkedMessage)
       } catch {
         guard self.revision == version else { return }
         self.preview = nil
         self.update(
           .needsChoice,
-          "This expression does not satisfy that choice. Edit the request and ask for a new expression."
-        )
+          localized(
+            "ask.choiceUnsatisfied",
+            "This expression does not satisfy that choice. Change the words and ask again."))
       }
     }
   }
@@ -230,7 +260,7 @@ package final class SheetSuggestionSession {
     clarification = nil
     taskNotes.append(answer)
     userRevisedInputs = userRevisedInputs || revisesInputs
-    update(.preparing, "Prepare the revised request.")
+    update(.preparing, localized("ask.preparingRevised", "Preparing the revised Ask."))
     task = Task { [weak self] in
       guard let self else { return }
       do {
@@ -244,10 +274,16 @@ package final class SheetSuggestionSession {
             snapshot: snapshot, including: self.included,
             choices: self.choices, userRevisedInputs: self.userRevisedInputs)
         ).body
-        self.update(.idle, "Review the added task note in Context, then send the new request.")
+        self.update(
+          .idle,
+          Self.contextSummary(snapshot, model: configuration.settings.model)
+            + " "
+            + localized("ask.reviewNote", "Your added words are listed in Context."))
       } catch {
         guard self.revision == version else { return }
-        self.update(.failed, "The revised request is too large or its source changed.")
+        self.update(
+          .failed,
+          localized("ask.revisedTooLarge", "That revised Ask is too large, or the sheet changed."))
       }
     }
   }
@@ -257,7 +293,7 @@ package final class SheetSuggestionSession {
       let target, let selected, let original = snapshot
     else { return }
     let version = revision
-    update(.checking, "Check the current source before Apply.")
+    update(.checking, localized("ask.checkingBeforeApply", "Ganit is checking the sheet again…"))
     task = Task { [weak self] in
       guard let self else { return }
       do {
@@ -279,15 +315,21 @@ package final class SheetSuggestionSession {
           self.preview = edit.checked
           self.update(
             edit.checked.isApplicable ? .ready : .needsChoice,
-            "The local preview changed. Review the current result before Use Expression.")
+            localized(
+              "ask.previewChanged",
+              "The local preview changed. Review the current result before Apply."))
           return
         }
         try editor.applySuggestionEdit(edit)
         self.isVisible = false
-        self.update(.applied, "Expression applied.")
+        self.update(.applied, localized("ask.applied", "Applied."))
       } catch {
         guard self.revision == version else { return }
-        self.update(.stale, "The edit no longer passes the local checks. Request a new suggestion.")
+        self.update(
+          .stale,
+          localized(
+            "ask.applyStale",
+            "This proposal no longer passes the local checks. Ask again."))
       }
     }
   }
@@ -323,7 +365,9 @@ package final class SheetSuggestionSession {
     proposals = []
     clarification = nil
     requestedContext = []
-    if isVisible { update(.stale, "The source scope changed. Request a new suggestion.") }
+    if isVisible {
+      update(.stale, localized("ask.stale", "The sheet changed under this proposal. Ask again."))
+    }
   }
 
   package func dismiss() {
@@ -345,16 +389,41 @@ package final class SheetSuggestionSession {
     didChange()
   }
 
+  private static var checkedMessage: String {
+    localized("ask.checked", "Ganit checked these lines. Review them before Apply.")
+  }
+
   private static func failureMessage(_ failure: SuggestionJobFailure) -> String {
     switch failure {
-    case .deadline: "The request reached its deadline. Retry or edit the request."
-    case .providerBusy: "Another manual request is active for this provider."
-    case .providerNotReady: "Set up a provider in Assistant settings."
-    case .permissionRequired: "Review the source scope before sending a request."
-    case .contextLimit: "The source scope is too large. Select a smaller target."
-    case .contextDenied: "The requested source records were not included."
-    default:
-      "The provider did not return an expression that passes the local checks. Retry or edit the request."
+    case .deadline:
+      localized("ask.failed.deadline", "That took too long. Ask again or ask about fewer lines.")
+    case .providerBusy:
+      localized("ask.failed.busy", "Another Ask is already running for this provider.")
+    case .providerNotReady:
+      localized("ask.noProvider", "Set up a provider in Assistant settings.")
+    case .permissionRequired:
+      localized("ask.failed.permission", "Review what would be sent before sending it.")
+    case .contextLimit:
+      localized("ask.failed.contextLimit", "That is too much for one Ask. Select fewer lines.")
+    case .contextDenied:
+      localized("ask.failed.contextDenied", "The extra source records were not included.")
+    case .requestLimit:
+      localized(
+        "ask.failed.requestLimit", "Ganit asked the model to fix its answer too many times.")
+    case .repeatedCandidate:
+      localized(
+        "ask.failed.repeated", "The model gave the same answer that Ganit already rejected.")
+    case .repeatedFailure:
+      localized(
+        "ask.failed.repeatedFailure", "The model kept giving an answer Ganit could not use.")
+    case .validation:
+      localized(
+        "ask.failed.validation",
+        "The model did not answer in a way Ganit could use. Try different words.")
+    case .transport:
+      localized("ask.failed.transport", "Ganit could not reach the provider.")
+    case .schema:
+      localized("ask.failed.schema", "The reply was not something Ganit could read.")
     }
   }
 }

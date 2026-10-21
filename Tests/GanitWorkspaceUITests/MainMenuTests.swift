@@ -47,12 +47,19 @@ struct MainMenuTests {
       (#selector(SheetCommands.insertSubtotal(_:)), "t", .command),
       (#selector(SheetCommands.recalculate(_:)), "r", .command),
       (#selector(SheetCommands.toggleComment(_:)), "/", .command),
+      (#selector(SheetCommands.askGanit(_:)), "A", [.command, .shift]),
     ]
     for (action, key, modifiers) in expected {
       let item = items.first { $0.action == action }
       #expect(item?.keyEquivalent == key, "\(action)")
       #expect(item?.keyEquivalentModifierMask == modifiers, "\(action)")
     }
+    // One Ask command, one shortcut: the old Suggest Expression chord is gone.
+    #expect(
+      !items.contains {
+        $0.keyEquivalent == "i" && $0.keyEquivalentModifierMask == [.command, .shift]
+      }
+    )
     let find = items.first {
       $0.action == #selector(NSResponder.performTextFinderAction(_:))
         && $0.tag == NSTextFinder.Action.showFindInterface.rawValue

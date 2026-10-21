@@ -95,7 +95,7 @@ struct TextAccessibilityTests {
     #expect(
       actions.map(\.name) == [
         "Copy Result", "Copy with Results", "Copy Full Precision", "Show Interpretation",
-        "Suggest Expression", "Ask Assistant", "Change Answer…", "Cancel Request",
+        "Ask Ganit…", "Ask Assistant", "Change Answer…", "Cancel Request",
         "Insert Reference",
       ]
     )

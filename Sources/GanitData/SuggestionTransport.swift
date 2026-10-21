@@ -22,7 +22,11 @@ public struct SuggestionWireRequest: Sendable {
   public let timeout: TimeInterval
   private let apiKey: String
 
-  public init(settings: AssistantSettings, context: Data, structured: Bool = true) throws {
+  /// `structured` and `effort` are the two fields a strict server may never have
+  /// heard of, so a refusal drops both together rather than one at a time.
+  public init(
+    settings: AssistantSettings, context: Data, structured: Bool = true, effort: Bool = true
+  ) throws {
     guard Assistant.isAllowed(settings.endpoint) else {
       throw SuggestionTransportError.disallowedURL
     }
@@ -40,6 +44,7 @@ public struct SuggestionWireRequest: Sendable {
       ],
     ]
     if structured { payload["response_format"] = ["type": "json_object"] }
+    if effort, let level = settings.effort.wireValue { payload["reasoning_effort"] = level }
     body = try JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys])
     guard body.count <= SuggestionLimits.requestBytes else {
       throw SuggestionTransportError.requestTooLarge

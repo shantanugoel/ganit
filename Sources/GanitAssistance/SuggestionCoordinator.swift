@@ -172,6 +172,7 @@ public actor SuggestionCoordinator {
         return await finish(id, result: .paused)
       }
       var structured = true
+      var effort = true
       var feedback: [String: Any]?
       var seenSources: Set<String> = []
       var seenFailures: Set<String> = []
@@ -179,7 +180,8 @@ public actor SuggestionCoordinator {
         try ensureActive(id)
         let context = try requestContext(record, feedback: feedback)
         let wire = try SuggestionWireRequest(
-          settings: record.input.settings, context: context, structured: structured)
+          settings: record.input.settings, context: context, structured: structured,
+          effort: effort)
         guard record.input.origin != .automatic || reserveAutomaticWire(record) else {
           return await finish(id, result: .paused)
         }
@@ -198,7 +200,11 @@ public actor SuggestionCoordinator {
         } catch SuggestionTransportError.unexpectedStatus(let status)
           where structured && [400, 422].contains(status)
         {
+          // A server that refuses the ask itself drops both optional fields, the
+          // way the line-level request does: an unknown field is likelier to be
+          // accepted absent than present and wrong.
           structured = false
+          effort = false
           feedback = nil
           continue
         } catch is SuggestionDecodingError {

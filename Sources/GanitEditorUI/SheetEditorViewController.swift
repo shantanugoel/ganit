@@ -75,7 +75,7 @@ public final class SheetEditorViewController: NSViewController {
     didSet { suggestionSession.invalidate() }
   }
   package lazy var suggestionSession = SheetSuggestionSession(editor: self)
-  private lazy var suggestionCard = SuggestionCard(session: suggestionSession, editor: self)
+  private lazy var askBar = AskBar(session: suggestionSession, editor: self)
 
   package func suggestionSnapshot(target: LineID) async throws -> AssistanceSnapshot {
     guard let scheduler else { throw AssistanceSnapshotError.unsupportedTarget }
@@ -96,7 +96,7 @@ public final class SheetEditorViewController: NSViewController {
     assistanceReferenceMapping = edit.referenceMapping
     defer { assistanceReferenceMapping = [:] }
     try sourceCoordinator.apply(
-      edit.patches, actionName: localized("suggestion.undo", "Use Expression"))
+      edit.patches, actionName: localized("ask.undoApply", "Apply AI change"))
     guard sheet.text == edit.sourceAfter else {
       assertionFailure("Source transaction differs from its native check")
       return
@@ -123,7 +123,19 @@ public final class SheetEditorViewController: NSViewController {
     return Array(sheet.lines[first...last].map(\.id))
   }
 
-  @objc public func suggestExpression(_ sender: Any?) { suggestionSession.prepare() }
+  /// One command, one bar: ⌘⇧A, the chip, the selection bar, and right-click all
+  /// land here. The reader's words arrive in the bar's own field. Nothing opens
+  /// when there is nothing to ask about or no provider to ask.
+  @objc public func askGanit(_ sender: Any?) { _ = openAskBar() }
+
+  @discardableResult
+  public func openAskBar() -> Bool {
+    guard textView.isEditable, suggestionTargets != nil,
+      suggestionConfiguration?.settings.isReady == true
+    else { return false }
+    suggestionSession.prepare()
+    return askBar.focusField()
+  }
   public func stopSuggestions() {
     if suggestionSession.isVisible { suggestionSession.dismiss() }
   }
@@ -136,9 +148,9 @@ public final class SheetEditorViewController: NSViewController {
     }
   }
 
-  private func updateSuggestionCard() {
+  private func updateAskBar() {
     guard isViewLoaded else { return }
-    if suggestionSession.isVisible { suggestionCard.refresh() } else { suggestionCard.clear() }
+    if suggestionSession.isVisible { askBar.refresh() } else { askBar.clear() }
     view.needsLayout = true
   }
 
@@ -267,11 +279,15 @@ public final class SheetEditorViewController: NSViewController {
     mirroredText = text
     super.init(nibName: nil, bundle: nil)
 
-    suggestionSession.didChange = { [weak self] in self?.updateSuggestionCard() }
-    sheetTextView.canSuggestExpression = { [weak self] in
-      self?.suggestionConfiguration?.settings.isReady == true && self?.suggestionTarget != nil
+    suggestionSession.didChange = { [weak self] in self?.updateAskBar() }
+    summaryBar.onAsk = { [weak self] in _ = self?.openAskBar() }
+    summaryBar.canAsk = { [weak self] in
+      self?.suggestionConfiguration?.settings.isReady == true && self?.suggestionTargets != nil
     }
-    sheetTextView.onSuggestExpression = { [weak self] in self?.suggestExpression(nil) }
+    sheetTextView.canAskGanit = { [weak self] in
+      self?.suggestionConfiguration?.settings.isReady == true && self?.suggestionTargets != nil
+    }
+    sheetTextView.onAskGanit = { [weak self] in self?.askGanit(nil) }
     sheetTextView.dismissSuggestion = { [weak self] in
       guard let self, suggestionSession.isVisible else { return false }
       suggestionSession.dismiss()
@@ -418,22 +434,52 @@ public final class SheetEditorViewController: NSViewController {
     let container = NSView(frame: scrollView.frame)
     container.addSubview(scrollView)
     container.addSubview(summaryBar)
-    container.addSubview(suggestionCard)
+    container.addSubview(askBar)
     view = container
+    // The bar is anchored to the caret's line, so scrolling has to move it.
+    scrollView.contentView.postsBoundsChangedNotifications = true
+    NotificationCenter.default.addObserver(
+      self, selector: #selector(sheetScrolled(_:)),
+      name: NSView.boundsDidChangeNotification, object: scrollView.contentView)
+  }
+
+  @objc private func sheetScrolled(_ note: Notification) {
+    view.needsLayout = true
   }
 
   public override func viewDidLayout() {
     super.viewDidLayout()
     let height = summaryBar.fittingHeight
     summaryBar.frame = NSRect(x: 0, y: 0, width: view.bounds.width, height: height)
-    let cardHeight: CGFloat =
-      suggestionSession.isVisible
-      ? min(230, max(0, view.bounds.height - 80), max(60, view.bounds.height * 0.45)) : 0
-    suggestionCard.isHidden = cardHeight == 0
-    suggestionCard.frame = NSRect(x: 0, y: height, width: view.bounds.width, height: cardHeight)
     scrollView.frame = NSRect(
-      x: 0, y: height + cardHeight, width: view.bounds.width,
-      height: max(0, view.bounds.height - height - cardHeight))
+      x: 0, y: height, width: view.bounds.width,
+      height: max(0, view.bounds.height - height))
+    layoutAskBar(above: height)
+  }
+
+  /// The Ask bar floats over the text at the caret's line, the way the design's
+  /// "transient, at the caret" asks for. It takes no space of its own, so the
+  /// sheet does not jump when a request starts.
+  private func layoutAskBar(above bottom: CGFloat) {
+    guard suggestionSession.isVisible else {
+      askBar.isHidden = true
+      askBar.frame = .zero
+      return
+    }
+    askBar.isHidden = false
+    let margin = VisualStyle.Spacing.card
+    let width = min(560, max(280, view.bounds.width - 2 * margin))
+    let tallest = view.bounds.height - bottom - 2 * margin
+    let height = min(240, max(96, tallest * 0.6))
+    let x = max(margin, min(textView.textContainerOrigin.x, view.bounds.width - width - margin))
+    var y = bottom + margin
+    if let caret = sheetTextView.caretLineRect() {
+      let anchor = textView.convert(caret, to: view)
+      // Hang it just below the line, and pull it up when the line is near the bottom.
+      y = min(anchor.minY - margin / 2, view.bounds.maxY - bottom - height - margin)
+      y = max(bottom + margin, y)
+    }
+    askBar.frame = NSRect(x: x, y: y, width: width, height: min(height, tallest))
   }
 
   public override func viewDidAppear() {
