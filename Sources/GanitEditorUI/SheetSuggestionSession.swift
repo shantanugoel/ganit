@@ -2,6 +2,7 @@ import AppKit
 import GanitAssistance
 import GanitData
 import GanitEngine
+import GanitFormatting
 import GanitSuggestionProtocol
 
 public struct SheetSuggestionConfiguration: Sendable {
@@ -32,6 +33,47 @@ package final class SheetSuggestionSession {
   package private(set) var instruction = ""
   package private(set) var state: SuggestionJobState = .idle
   package private(set) var message = ""
+  package private(set) var failure: AskFailure?
+  package private(set) var rejectedSource: String?
+  package private(set) var rejection: AssistanceValidationFailure?
+  package private(set) var automaticRepairs = 0
+  package var repairNotice: String? {
+    guard automaticRepairs > 0 else { return nil }
+    return localized("ask.repairNotice", "Ganit asked the model to fix its first attempt.")
+  }
+  package var checkedFooter: String {
+    guard automaticRepairs > 0 else { return Self.checkedMessage }
+    return String(
+      format: automaticRepairs == 1
+        ? localized("ask.checkedOneRepair", "Ganit checked these lines · %1$d automatic repair")
+        : localized("ask.checkedRepairs", "Ganit checked these lines · %1$d automatic repairs"),
+      automaticRepairs)
+  }
+  package var rejectedInspection: String? {
+    rejectedSource.map {
+      localized("ask.rejectedInspection", "Ganit rejected this reply. It cannot be applied.")
+        + "\n\n" + $0
+    }
+  }
+  package var nativeFunctionAlternatives: [String] {
+    guard let failure, case .rejectedByEngine(let validation) = failure,
+      case .evaluationFailure(let error) = validation.engineResult,
+      error.code == .unknownFunction,
+      rejectedSource?.lowercased().contains("mortgage") == true
+    else { return [] }
+    // Use only names in the catalog that was sent for this job.
+    guard let body = requestBodies.first,
+      let payload = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+      let messages = payload["messages"] as? [[String: Any]],
+      let text = messages.last?["content"] as? String,
+      let data = text.data(using: .utf8),
+      let context = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+      let catalog = context["catalog"] as? [String: Any],
+      let functions = catalog["functions"] as? [[String: Any]]
+    else { return [] }
+    let names = Set(functions.compactMap { $0["name"] as? String })
+    return ["pmt", "fv", "pv"].filter { names.contains($0) }
+  }
   package private(set) var preview: AssistanceCheckedCandidate?
   package private(set) var proposals: [AssistanceCheckedCandidate] = []
   package private(set) var clarification: SuggestionClarification?
@@ -91,6 +133,10 @@ package final class SheetSuggestionSession {
     requestedContext = []
     requestBodies = []
     preparedBody = nil
+    failure = nil
+    rejectedSource = nil
+    rejection = nil
+    automaticRepairs = 0
     self.retry = retry
     userRevisedInputs = false
     isVisible = true
@@ -193,8 +239,14 @@ package final class SheetSuggestionSession {
       case .clarify(let value):
         self.clarification = value
         self.update(.needsChoice, value.question)
-      case .unsupported(let reason): self.update(.failed, reason)
-      case .failed(let failure): self.update(.failed, Self.failureMessage(failure))
+      case .unsupported:
+        self.reportFailure(self.failure ?? .noUsefulAnswer)
+      case .failed(let failure):
+        if let classified = self.failure {
+          self.reportFailure(classified)
+        } else {
+          self.update(.failed, Self.failureMessage(failure))
+        }
       case .paused: self.update(.paused, localized("ask.paused", "Ask is paused."))
       case .stale:
         self.update(
@@ -208,13 +260,60 @@ package final class SheetSuggestionSession {
   private func receive(_ event: SuggestionJobEvent, version: Int) {
     guard revision == version, isVisible else { return }
     switch event {
-    case .state(let state): self.state = state
+    case .state(let state):
+      self.state = state
+      if state == .checking || state == .repairing {
+        message = localized("ask.checking", "Ganit is checking…")
+      }
+    case .failure(let failure): reportFailure(failure)
+    case .rejectedReply(let source):
+      rejectedSource = String(source.prefix(16_384))
+      if source.count > 16_384 {
+        rejectedSource? +=
+          "\n\n" + localized("ask.replyShortened", "The reply was shortened for display.")
+      }
+      rejection = nil
+    case .rejectedCandidate(let source, let failure):
+      rejectedSource = source
+      rejection = failure
+    case .repairStarted(let count): automaticRepairs = count
     case .requestBody(let body): requestBodies.append(body)
     case .includeContext(let records, let reason):
       requestedContext = records
       message = reason
     }
     didChange()
+  }
+
+  private func reportFailure(_ failure: AskFailure) {
+    self.failure = failure
+    preview = nil
+    proposals = []
+    selected = nil
+    clarification = nil
+    let message: String
+    switch failure {
+    case .notGanitSource:
+      message = localized(
+        "ask.failure.notSource", "Ganit could not turn the reply into Ganit source.")
+    case .rejectedByEngine(let validation):
+      let formatter = DiagnosticFormatter(
+        localeIdentifier: snapshot?.context.localeIdentifier ?? "en-US")
+      switch validation.engineResult {
+      case .evaluationFailure(let error): message = formatter.format(error).message
+      case .syntaxFailure(let diagnostics):
+        message = diagnostics.first.map { formatter.format($0).message } ?? validation.message
+      default: message = validation.message
+      }
+    case .unreachable:
+      message = String(
+        format: localized("ask.failure.unreachable", "Ganit could not reach %1$@."),
+        configuration?.settings.endpoint.host ?? localized("ask.provider", "the provider"))
+    case .noUsefulAnswer:
+      message = localized(
+        "ask.failure.noUsefulAnswer", "The model did not answer in a way Ganit could use.")
+    }
+    update(.failed, message)
   }
 
   package func includeContext() {
@@ -398,6 +497,10 @@ package final class SheetSuggestionSession {
       Task { await configuration.coordinator.cancel(job.id) }
     }
     job = nil
+    failure = nil
+    rejectedSource = nil
+    rejection = nil
+    automaticRepairs = 0
     snapshot = nil
     preparedBody = nil
     preview = nil

@@ -19,19 +19,26 @@ public struct AssistantSettings: Equatable, Sendable {
   /// How hard the model is asked to think. `AssistantEffort.default` is what
   /// someone gets who never opened Settings.
   public var effort: AssistantEffort
+  /// The maximum automatic repair attempts for one Ask. The request limit can
+  /// reduce this number.
+  public var repairAttempts: Int {
+    didSet { repairAttempts = min(3, max(0, repairAttempts)) }
+  }
 
   public init(
     isEnabled: Bool = false,
     endpoint: URL = AssistantSettings.defaultEndpoint,
     model: String = AssistantSettings.defaultModel,
     apiKey: String = "",
-    effort: AssistantEffort = .default
+    effort: AssistantEffort = .default,
+    repairAttempts: Int = 2
   ) {
     self.isEnabled = isEnabled
     self.endpoint = endpoint
     self.model = model
     self.apiKey = apiKey
     self.effort = effort
+    self.repairAttempts = min(3, max(0, repairAttempts))
   }
 
   /// Whether these settings name somewhere a line can actually be sent.
@@ -45,6 +52,7 @@ public struct AssistantSettings: Equatable, Sendable {
   private static let endpointKey = "AssistantEndpoint"
   private static let modelKey = "AssistantModel"
   private static let effortKey = "AssistantEffort"
+  private static let repairAttemptsKey = "AssistantRepairAttempts"
 
   /// Preferences say where to ask; the keychain holds the key.
   public static func load(from defaults: UserDefaults = .standard) -> AssistantSettings {
@@ -63,7 +71,8 @@ public struct AssistantSettings: Equatable, Sendable {
       isEnabled: defaults.bool(forKey: enabledKey),
       endpoint: defaults.string(forKey: endpointKey).flatMap(URL.init(string:)) ?? defaultEndpoint,
       model: defaults.string(forKey: modelKey) ?? defaultModel,
-      effort: AssistantEffort(storage: defaults.string(forKey: effortKey))
+      effort: AssistantEffort(storage: defaults.string(forKey: effortKey)),
+      repairAttempts: defaults.object(forKey: repairAttemptsKey) as? Int ?? 2
     )
   }
 
@@ -72,6 +81,7 @@ public struct AssistantSettings: Equatable, Sendable {
     defaults.set(endpoint.absoluteString, forKey: Self.endpointKey)
     defaults.set(model, forKey: Self.modelKey)
     defaults.set(effort.storageValue, forKey: Self.effortKey)
+    defaults.set(repairAttempts, forKey: Self.repairAttemptsKey)
   }
 }
 

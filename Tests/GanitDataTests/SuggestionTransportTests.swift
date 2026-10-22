@@ -136,4 +136,39 @@ struct SuggestionTransportTests {
     }
   }
 
+  @Test func rejectedProviderContentRemainsAvailableForExplicitInspection() async throws {
+    let raw = "Here is the result: 42."
+    let completion = try JSONSerialization.data(withJSONObject: [
+      "choices": [["message": ["content": raw]]]
+    ])
+    #expect(throws: SuggestionTransportError.rejectedReply(Data(raw.utf8))) {
+      try ProviderSuggestionTransport.content(from: completion)
+    }
+    let server = try LoopbackServer(
+      body: String(decoding: completion, as: UTF8.self), contentType: "application/json")
+    defer { server.stop() }
+    let wire = try SuggestionWireRequest(
+      settings: settings("http://127.0.0.1:\(server.port)/v1"), context: Data("{}".utf8))
+    await #expect(throws: SuggestionTransportError.rejectedReply(Data(raw.utf8))) {
+      try await ProviderSuggestionTransport().send(wire)
+    }
+    #expect(await server.requestCount() == 1)
+  }
+
+  @Test func rejectionDetailsDoNotExtractReasoningOrContentParts() throws {
+    let raw = "The private reasoning must not supply a source proposal."
+    let reasoning = try JSONSerialization.data(withJSONObject: [
+      "choices": [["message": ["content": "", "reasoning_content": raw]]]
+    ])
+    #expect(throws: SuggestionTransportError.rejectedReply(Data())) {
+      try ProviderSuggestionTransport.content(from: reasoning)
+    }
+    let parts = try JSONSerialization.data(withJSONObject: [
+      "choices": [["message": ["content": [["text": raw]]]]]
+    ])
+    #expect(throws: SuggestionTransportError.malformedCompletion) {
+      try ProviderSuggestionTransport.content(from: parts)
+    }
+  }
+
 }

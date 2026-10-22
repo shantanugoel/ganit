@@ -33,6 +33,9 @@ public actor SuggestionCoordinator {
     let deadline: TimeInterval
     var included: Set<String>
     var requests = 0
+    var repairs = 0
+    var pendingRepair = false
+    var failure: AskFailure?
     var task: Task<SuggestionJobResult, Never>?
     var override: SuggestionJobResult?
     var requestedContext: Set<String> = []
@@ -79,7 +82,15 @@ public actor SuggestionCoordinator {
   {
     let id = UUID()
     func terminal(_ result: SuggestionJobResult) -> SuggestionJob {
-      SuggestionJob(id: id, result: Task { result })
+      SuggestionJob(
+        id: id,
+        result: Task {
+          if case .failed = result {
+            await observer(.failure(.noUsefulAnswer))
+            await observer(.state(.failed))
+          }
+          return result
+        })
     }
     guard !Task.isCancelled else { return terminal(.cancelled) }
     guard input.settings.isReady else { return terminal(.failed(.providerNotReady)) }
@@ -188,6 +199,12 @@ public actor SuggestionCoordinator {
         await record.observer(.requestBody(wire.body))
         try ensureActive(id)
         await record.observer(.state(record.requests == 0 ? .requesting : .repairing))
+        if record.pendingRepair {
+          record.repairs += 1
+          record.pendingRepair = false
+          await record.observer(.repairStarted(record.repairs))
+          try ensureActive(id)
+        }
         record.requests += 1
         let payload: Data
         do {
@@ -205,22 +222,50 @@ public actor SuggestionCoordinator {
           // accepted absent than present and wrong.
           structured = false
           effort = false
-          feedback = nil
           continue
-        } catch is SuggestionDecodingError {
+        } catch let error where Self.isInvalidReply(error) {
+          if let transportError = error as? SuggestionTransportError,
+            case .rejectedReply(let reply) = transportError
+          {
+            await record.observer(
+              .rejectedReply(
+                String(decoding: reply.prefix(SuggestionLimits.payloadBytes), as: UTF8.self)))
+          }
+          record.failure = .notGanitSource
           guard seenFailures.insert("schema").inserted else {
             return await finish(id, result: .failed(.repeatedFailure))
           }
-          feedback = ["code": "schema.invalidResponse"]
+          guard scheduleRepair(record) else {
+            return await finish(
+              id,
+              result: .failed(
+                record.requests == SuggestionLimits.requestsPerJob ? .requestLimit : .schema))
+          }
+          feedback = [
+            "code": "schema.invalidResponse",
+            "message": "Return one response that matches the supplied JSON schema.",
+          ]
           continue
         }
         try ensureActive(id)
         let outcome: SuggestionOutcome
         do { outcome = try SuggestionDecoder.decode(payload) } catch {
+          let raw = String(decoding: payload.prefix(SuggestionLimits.payloadBytes), as: UTF8.self)
+          await record.observer(.rejectedReply(raw))
+          record.failure = .notGanitSource
           guard seenFailures.insert("schema").inserted else {
             return await finish(id, result: .failed(.repeatedFailure))
           }
-          feedback = ["code": "schema.invalidResponse"]
+          guard scheduleRepair(record) else {
+            return await finish(
+              id,
+              result: .failed(
+                record.requests == SuggestionLimits.requestsPerJob ? .requestLimit : .schema))
+          }
+          feedback = [
+            "code": "schema.invalidResponse",
+            "message": "Return one response that matches the supplied JSON schema.",
+          ]
           continue
         }
         switch outcome {
@@ -258,6 +303,7 @@ public actor SuggestionCoordinator {
           await record.observer(.state(.checking))
           var checked: [AssistanceCheckedCandidate] = []
           var failures: [AssistanceValidationFailure] = []
+          var rejectedSources: [String] = []
           for candidate in candidates {
             let source = candidate.edits.map(\.replacement).joined(separator: "\n")
             guard seenSources.insert(source).inserted else {
@@ -275,7 +321,12 @@ public actor SuggestionCoordinator {
                   userRevisedInputs: input.userRevisedInputs)
               }
               checked.append(result)
-            } catch let error as AssistanceValidationFailure { failures.append(error) }
+            } catch let error as AssistanceValidationFailure {
+              failures.append(error)
+              rejectedSources.append(source)
+              record.failure = .rejectedByEngine(error)
+              await record.observer(.rejectedCandidate(source: source, failure: error))
+            }
           }
           try ensureActive(id)
           if !checked.isEmpty {
@@ -288,17 +339,20 @@ public actor SuggestionCoordinator {
           guard let failure = failures.first else {
             return await finish(id, result: .failed(.validation))
           }
+          record.failure = .rejectedByEngine(failure)
           let code = failure.code.rawValue
           guard seenFailures.insert(code).inserted else {
             return await finish(id, result: .failed(.repeatedFailure))
           }
-          feedback = [
-            "code": code,
-            "spans": failure.ranges.map { ["start": $0.lowerBound, "end": $0.upperBound] },
-          ]
-          if case .evaluationFailure(let error) = failure.engineResult {
-            feedback?["engineCode"] = error.code.rawValue
+          guard scheduleRepair(record) else {
+            return await finish(
+              id,
+              result: .failed(
+                record.requests == SuggestionLimits.requestsPerJob ? .requestLimit : .validation))
           }
+          feedback = Self.validationFeedback(
+            failure, source: rejectedSources.first ?? "", context: context)
+          feedback?["rejectedSource"] = rejectedSources.first
         }
       }
       return await finish(id, result: .failed(.requestLimit))
@@ -311,6 +365,68 @@ public actor SuggestionCoordinator {
     } catch is SuggestionTransportError {
       return await finish(id, result: .failed(.transport))
     } catch { return await finish(id, result: .failed(.transport)) }
+  }
+
+  private static func isInvalidReply(_ error: any Error) -> Bool {
+    if error is SuggestionDecodingError { return true }
+    guard let error = error as? SuggestionTransportError else { return false }
+    switch error {
+    case .malformedCompletion, .rejectedReply: return true
+    default: return false
+    }
+  }
+
+  private func scheduleRepair(_ record: Record) -> Bool {
+    guard record.requests < SuggestionLimits.requestsPerJob,
+      record.repairs
+        < min(max(0, record.input.settings.repairAttempts), SuggestionLimits.requestsPerJob - 1)
+    else { return false }
+    record.pendingRepair = true
+    return true
+  }
+
+  private static func validationFeedback(
+    _ failure: AssistanceValidationFailure, source: String, context: Data
+  ) -> [String: Any] {
+    func spans(_ ranges: [SourceRange]) -> [[String: Int]] {
+      ranges.map { ["start": $0.lowerBound, "end": $0.upperBound] }
+    }
+    var feedback: [String: Any] = [
+      "code": failure.code.rawValue, "message": failure.message, "spans": spans(failure.ranges),
+    ]
+    switch failure.engineResult {
+    case .evaluationFailure(let error):
+      feedback["engineCode"] = error.code.rawValue
+      if error.code == .unknownFunction,
+        let root = try? JSONSerialization.jsonObject(with: context) as? [String: Any],
+        let catalog = root["catalog"] as? [String: Any],
+        let functions = catalog["functions"] as? [[String: Any]]
+      {
+        let names = functions.compactMap { $0["name"] as? String }
+        feedback["availableFunctions"] =
+          source.lowercased().contains("mortgage")
+          ? ["pmt", "fv", "pv"].filter { names.contains($0) } : names
+      }
+      feedback["engineDiagnostic"] =
+        [
+          "code": error.code.rawValue, "messageKey": error.messageKey,
+          "severity": error.severity.rawValue, "spans": spans(error.ranges),
+          "fixes": error.fixIts.map {
+            [
+              "span": ["start": $0.range.lowerBound, "end": $0.range.upperBound],
+              "replacement": $0.replacement, "messageKey": $0.messageKey,
+            ] as [String: Any]
+          },
+        ] as [String: Any]
+    case .syntaxFailure(let diagnostics):
+      feedback["engineDiagnostics"] = diagnostics.map {
+        [
+          "code": $0.messageKey, "severity": $0.severity.rawValue, "spans": spans([$0.range]),
+        ] as [String: Any]
+      }
+    default: break
+    }
+    return feedback
   }
 
   private func ensureActive(_ id: UUID) throws {
@@ -372,6 +488,15 @@ public actor SuggestionCoordinator {
     case .stale: state = .stale
     case .paused: state = .paused
     }
+    if state == .failed {
+      let failure: AskFailure
+      switch result {
+      case .failed(.transport), .failed(.deadline): failure = .unreachable
+      case .unsupported: failure = .noUsefulAnswer
+      default: failure = record.failure ?? .noUsefulAnswer
+      }
+      await record.observer(.failure(failure))
+    }
     await record.observer(.state(state))
     return result
   }
@@ -430,6 +555,7 @@ public actor SuggestionCoordinator {
         await observer(.state(.needsChoice))
         return .clarify(value)
       case .unsupported(let reason):
+        await observer(.failure(.noUsefulAnswer))
         await observer(.state(.failed))
         return .unsupported(reason)
       case .needContext: return .failed(.contextDenied)

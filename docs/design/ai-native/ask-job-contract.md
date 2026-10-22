@@ -194,6 +194,27 @@ The repair turns are invisible except for one status line the second turn adds
 — *Ganit asked the model to fix its first attempt.* — and one footer clause
 once a proposal appears — *Ganit checked these lines · 1 automatic repair*.
 
+M2 retains the native diagnostic and its source ranges in repair feedback.
+Unknown function feedback includes function names from the supplied catalog.
+Schema corrections count as repairs. A format fallback or context follow-up
+uses the shared request budget but does not increase the repair count.
+With Repair attempts set to zero, a rejected reply stops after its first
+check. A setting of three still permits at most two repairs because the
+shared request limit is three.
+
+The coordinator emits a classified failure before the terminal state.
+The editor removes all proposal controls on failure. A separate action can
+show rejected source or a malformed reply as read-only text. The text is
+explicitly marked as rejected. It is not a preview and has no Apply action.
+The editor limits this view to 16,384 characters and identifies shortened
+text. Retry starts a new explicit job. It does not bypass the size limits
+or the engine checks.
+
+The real transport keeps strict reply validation. If a text reply fails that
+validation, a bounded transport error retains its bytes. The coordinator
+uses these bytes only for the rejected-reply view and repair accounting.
+Reasoning fields and content-part arrays cannot supply this text.
+
 ## The classification rule
 
 The one decision the model is not trusted with, stated once:

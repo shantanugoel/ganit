@@ -26,6 +26,7 @@ public final class AssistantSettingsController: NSViewController {
   private let effort = NSPopUpButton(frame: .zero, pullsDown: false)
   /// The word to send when the popup says Custom.
   private let customEffort = NSTextField(string: "")
+  private let repairAttempts = NSPopUpButton(frame: .zero, pullsDown: false)
   private let status = NSTextField(wrappingLabelWithString: "")
 
   public init(
@@ -53,6 +54,8 @@ public final class AssistantSettingsController: NSViewController {
       at: settings.effort.isCustom
         ? AssistantEffort.choices.count
         : AssistantEffort.choices.firstIndex(of: settings.effort) ?? AssistantEffort.choices.count)
+    repairAttempts.addItems(withTitles: (0...3).map(String.init))
+    repairAttempts.selectItem(at: settings.repairAttempts)
   }
 
   @available(*, unavailable)
@@ -72,6 +75,11 @@ public final class AssistantSettingsController: NSViewController {
     model.setAccessibilityLabel(localized("assistant.model", "Model"))
     key.setAccessibilityLabel(localized("assistant.key", "API Key"))
     effort.setAccessibilityLabel(localized("assistant.effort", "Effort"))
+    repairAttempts.setAccessibilityLabel(localized("assistant.repairAttempts", "Repair attempts"))
+    repairAttempts.toolTip = localized(
+      "assistant.repairAttempts.help",
+      "Maximum automatic repair attempts for each Ask. The request limit can reduce this number.")
+    repairAttempts.setAccessibilityHelp(repairAttempts.toolTip)
     effort.target = self
     effort.action = #selector(effortChanged(_:))
     customEffort.setAccessibilityLabel(
@@ -91,6 +99,7 @@ public final class AssistantSettingsController: NSViewController {
       [label(localized("assistant.model", "Model")), model],
       [label(localized("assistant.key", "API Key")), key],
       [label(localized("assistant.effort", "Effort")), effortField],
+      [label(localized("assistant.repairAttempts", "Repair attempts")), repairAttempts],
     ])
     fields.rowSpacing = VisualStyle.Spacing.related
     fields.columnSpacing = VisualStyle.Spacing.related
@@ -183,7 +192,8 @@ public final class AssistantSettingsController: NSViewController {
         ?? AssistantSettings.defaultEndpoint,
       model: model.stringValue.trimmingCharacters(in: .whitespaces),
       apiKey: key.stringValue.trimmingCharacters(in: .whitespaces),
-      effort: chosenEffort
+      effort: chosenEffort,
+      repairAttempts: max(0, repairAttempts.indexOfSelectedItem)
     )
   }
 

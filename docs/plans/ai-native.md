@@ -1,8 +1,8 @@
 # AI as part of the calculator: experience plan
 
 Date: 2026-10-20
-Status: Design approved. M-1, M0, and M1 are complete.
-M2 through M5 are not started. Their exit gates are not complete.
+Status: Design approved. M-1 through M2 are complete.
+M3 through M5 are not started. Their exit gates are not complete.
 M0's records are [ADR 0019](../adr/0019-ask-one-operation-four-outcomes.md) and
 [the frozen Ask job contract](../design/ai-native/ask-job-contract.md), and the
 harness this plan tells M1 to reuse is now merged into this branch. The legacy
@@ -310,11 +310,38 @@ The provider received only the two explicit test requests. No configured
 provider was contacted. This does not establish VoiceOver, real IME, or
 performance release coverage. Those release checks remain open.
 
-**M2 — Validation and repair.** Diagnostic-fed repair turn within the shared
+**M2 — Validation and repair.** *Done 2026-10-22.* Diagnostic-fed repair turn within the shared
 budget, the two visible status lines, the failure card with the four reason
 classes, and `Show what the model meant`. *Gate:* `repair` passes with
 injected `unknownFunction`, malformed-output and timeout fixtures; no path
 renders an unparseable proposal.
+
+M2 uses the existing coordinator and checker. Repair attempts defaults to two
+and stores a value from zero to three. The shared three-request limit can
+reduce the effective repair count to two. Format fallback and context
+follow-ups use the same request budget. They do not increase the repair count.
+Repair feedback retains the native diagnostic, ranges, and catalog function
+names. A changed output line cannot retain an existing calculation failure.
+
+The editor shows checking and repair status, then either checked source or
+one of four failure classes. A failed job has no proposal or Apply action.
+Rejected text is available only through a separate read-only action. Desktop
+testing found that the real transport discarded malformed text before this
+action could retain it. A bounded transport error now retains that text
+without weakening strict validation. Loopback transport tests cover this path.
+
+**M2 gate: passed, 2026-10-22.** Injected unknown-function, malformed-output,
+and timeout fixtures pass. Request-count tests cover zero and one repair,
+the effective two-repair ceiling, format fallback, and late replies. The
+full package suite passes: 1,335 tests. Formatting, whitespace, the app
+build, and bundle verification pass.
+
+Computer use tested an isolated app with synthetic source and a loopback
+provider. The checks cover a repaired proposal and its footer, all four
+failure classes, native function alternatives, rejected source inspection,
+malformed text inspection, Retry, and the Repair attempts control. Rejected
+text had no Apply action. The source remained unchanged during these checks.
+No configured provider was contacted.
 
 **M3 — Clarification and assumptions.** In-bar question with crumb and
 suggestions, 2-question cap, resume-in-place; assumption declarations,

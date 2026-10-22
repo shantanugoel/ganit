@@ -5,6 +5,14 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Set the maximum AI repair attempts from 0 to 3. The default is 2. All
+  requests, including format fallback and context requests, share a limit of
+  3 per Ask. Ganit shows when it checks a reply and requests a repair.
+- Show a distinct Ask failure when the reply is not source, the engine
+  rejects it, the provider cannot be reached, or the reply is not useful.
+  Rejected source is available in a separate read-only view. It cannot be
+  applied as a proposal.
+
 - Select which proposed AI lines to apply. A declined replacement keeps its
   original source. A declined insertion is removed. Ganit checks the revised
   source and each result before Apply. Apply remains one Undo operation.

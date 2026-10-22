@@ -136,6 +136,13 @@ final class AskBar: NSView {
     actions = []
     instructionField.isHidden = !session.isVisible
     label(session.message)
+    if let notice = session.repairNotice { label(notice) }
+    if !session.nativeFunctionAlternatives.isEmpty {
+      label(
+        String(
+          format: localized("ask.failure.nativeFunctions", "Ganit has these functions: %1$@."),
+          session.nativeFunctionAlternatives.joined(separator: ", ")))
+    }
     for (index, line) in session.proposalLines.enumerated() {
       let control = NSButton(
         checkboxWithTitle: line, target: self, action: #selector(run(_:)))
@@ -158,6 +165,7 @@ final class AskBar: NSView {
       let result = editor?.formatTableValue(preview.result)?.display ?? ""
       label(localized("ask.calculated", "Ganit calculated: ") + result, bold: true)
       label(preview.interpretation)
+      if session.automaticRepairs > 0 { label(session.checkedFooter) }
       if !preview.changedResults.isEmpty {
         label(String(preview.changedResults.count) + " downstream results change.")
       }
@@ -236,11 +244,27 @@ final class AskBar: NSView {
       row.addButton(apply)
       addButton("Show Working", to: row) { [weak self] in self?.showWorking() }
     }
-    addButton("Edit Request", to: row) { [weak self] in self?.session.editRequest() }
+    if session.state == .failed {
+      addButton(localized("ask.editWords", "Edit words"), to: row) { [weak self] in
+        guard let self else { return }
+        _ = self.focusField()
+        self.instructionField.selectText(nil)
+      }
+      if session.rejectedInspection != nil {
+        addButton(localized("ask.showRejected", "Show what the model meant"), to: row) {
+          [weak self] in
+          guard let self, let text = self.session.rejectedInspection else { return }
+          self.inspect(text, title: localized("ask.rejectedSource", "Rejected model reply"))
+        }
+      }
+    } else {
+      addButton("Edit Request", to: row) { [weak self] in self?.session.editRequest() }
+    }
     addButton(localized("ask.context", "Context ▸"), to: row) { [weak self] in self?.showContext() }
     if [.failed, .stale, .cancelled].contains(session.state) {
-      addButton("Retry", to: row) { [weak self] in
-        self?.session.prepare(retry: true, instruction: self?.session.instruction ?? "")
+      addButton(localized("ask.retry", "Retry"), to: row) { [weak self] in
+        self?.session.prepare(
+          retry: true, instruction: self?.session.instruction ?? "", autoSend: true)
       }
     }
     addButton(session.isRunning ? "Stop" : "Dismiss", to: row) { [weak self] in

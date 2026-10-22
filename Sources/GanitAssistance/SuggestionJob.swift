@@ -55,6 +55,10 @@ public enum SuggestionJobEvent: Sendable {
   case state(SuggestionJobState)
   case requestBody(Data)
   case includeContext(records: [AssistanceSymbol], reason: String)
+  case failure(AskFailure)
+  case rejectedCandidate(source: String, failure: AssistanceValidationFailure)
+  case repairStarted(Int)
+  case rejectedReply(String)
 }
 
 public enum SuggestionJobFailure: String, Error, Equatable, Sendable {

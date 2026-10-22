@@ -53,6 +53,18 @@ when absent. A Custom level with nothing typed in it is Off. Nothing else in
 Ganit changes with Effort: Ganit still does every calculation, still refuses a
 line it cannot parse, and still draws a model's value in purple.
 
+### Ask repair attempts
+
+The Ask command uses **Repair attempts** in Assistant settings. The range is
+0 to 3. The default is 2. Zero disables automatic correction of a rejected
+reply. Each Ask has a shared limit of three requests. Thus, format fallback
+or a context follow-up can reduce the number of available repairs.
+
+Ask shows `Ganit is checking…` during native validation. A repair adds one
+status line and a count on the checked proposal. A rejected reply never
+becomes a proposal. The failure card gives the reason and can show rejected
+text in a separate read-only view. Retry sends a new explicit Ask.
+
 ## What is asked, and when
 
 `SheetEditorViewController` asks about a line when all of these hold:

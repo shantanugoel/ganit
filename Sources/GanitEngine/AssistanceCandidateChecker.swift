@@ -324,10 +324,6 @@ public enum AssistanceCandidateChecker {
       throw AssistanceValidationFailure(
         .missingEvidence, "An assumption has no supplied task evidence.")
     }
-    guard plan.locals.allSatisfy({ $0.value != nil }) else {
-      throw AssistanceValidationFailure(
-        .evaluation, "Every line of the proposed working must calculate.")
-    }
     var shadow = plan.shadow
     let originalText = snapshot.source.text
     let utf8 = originalText.utf8
@@ -355,9 +351,19 @@ public enum AssistanceCandidateChecker {
     let baselineResults = Dictionary(
       uniqueKeysWithValues: safeBaseline.lines.map { ($0.id, $0.result) })
     for line in evaluation.lines where plan.outputLines.contains(line.id) {
-      if isFailure(line.result), baselineResults[line.id] != line.result {
+      let unchanged =
+        snapshot.source.lines.first { $0.id == line.id }?.text
+        == shadow.lines.first { $0.id == line.id }?.text
+      if isFailure(line.result), !unchanged || baselineResults[line.id] != line.result {
+        let ranges: [SourceRange]
+        switch line.result {
+        case .evaluationFailure(let error): ranges = error.ranges
+        case .syntaxFailure(let diagnostics): ranges = diagnostics.map(\.range)
+        default: ranges = []
+        }
         throw AssistanceValidationFailure(
-          .evaluation, "The engine cannot calculate a proposed line.", engineResult: line.result)
+          .evaluation, "The engine cannot calculate a proposed line.",
+          ranges: ranges, engineResult: line.result)
       }
     }
     guard let line = evaluation.lines.first(where: { $0.id == plan.resultLine }),

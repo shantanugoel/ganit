@@ -52,6 +52,56 @@ struct AssistanceWorkingTests {
     #expect(assistanceValuesEqual(checked.result, expected, context: try sheetContext()))
   }
 
+  @Test func repairKeepsTheNativeUnknownFunctionDiagnosticAndRanges() throws {
+    let snapshot = try snapshot(
+      (["bill = 2400 INR"] + request).joined(separator: "\n"), target: 1..<3)
+    let candidate = try proposal("share = (mortgage(bill) + 10%) / 4", snapshot: snapshot)
+    do {
+      _ = try AssistanceCandidateChecker.check(candidate, against: snapshot)
+      Issue.record("The unknown function must fail before preview.")
+    } catch let failure as AssistanceValidationFailure {
+      guard case .evaluationFailure(let error) = failure.engineResult else {
+        Issue.record("The repair must retain the native diagnostic.")
+        return
+      }
+      #expect(error.code == .unknownFunction)
+      #expect(!error.ranges.isEmpty)
+      #expect(failure.ranges == error.ranges)
+    }
+  }
+
+  @Test func aChangedOutputCannotKeepAnExistingNativeFailure() throws {
+    let snapshot = try snapshot("bad = nope(3) + 0\nAdd two and three.", target: 0..<2)
+    let evidence = snapshot.evidence()
+    let candidate = SuggestionCandidate(
+      id: "C1", edits: [SuggestionEdit(target: "T1", replacement: "bad = nope(3) - 0\n2 + 3")],
+      bindings: [],
+      literals: try ["3", "0", "2"].map { number in
+        SuggestionLiteral(
+          text: number,
+          evidence: try #require(
+            evidence.first {
+              $0.kind == "literal" && $0.text == (number == "2" ? "two" : number)
+            }?.handle))
+      },
+      relations: [
+        SuggestionRelation(
+          rule: "interpretation",
+          evidence: try #require(evidence.first { $0.kind == "relation" }?.handle))
+      ],
+      assumptions: [], summary: "Add the supplied numbers.")
+    do {
+      _ = try AssistanceCandidateChecker.check(candidate, against: snapshot)
+      Issue.record("A changed line must calculate before preview.")
+    } catch let failure as AssistanceValidationFailure {
+      guard case .evaluationFailure(let error) = failure.engineResult else {
+        Issue.record("Expected the unchanged native error to block the changed line.")
+        return
+      }
+      #expect(error.code == .unknownFunction)
+    }
+  }
+
   @Test(arguments: ["\n", "\r\n", "\r"])
   func aParagraphIsOneBoundedTargetWithExactSource(_ separator: String) throws {
     let source = ["bill = 2400 INR"] + request + ["other = 7", "@4"]

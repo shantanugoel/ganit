@@ -1,6 +1,86 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "ask.failure.noUsefulAnswer" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The model did not answer in a way Ganit could use." } }
+      }
+    },
+    "ask.provider" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "the provider" } }
+      }
+    },
+    "ask.failure.unreachable" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ganit could not reach %1$@." } }
+      }
+    },
+    "ask.failure.notSource" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ganit could not turn the reply into Ganit source." } }
+      }
+    },
+    "ask.replyShortened" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The reply was shortened for display." } }
+      }
+    },
+    "ask.rejectedInspection" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ganit rejected this reply. It cannot be applied." } }
+      }
+    },
+    "ask.checkedRepairs" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ganit checked these lines · %1$d automatic repairs" } }
+      }
+    },
+    "ask.checkedOneRepair" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ganit checked these lines · %1$d automatic repair" } }
+      }
+    },
+    "ask.repairNotice" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ganit asked the model to fix its first attempt." } }
+      }
+    },
+    "ask.retry" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Retry" } }
+      }
+    },
+    "ask.rejectedSource" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Rejected model reply" } }
+      }
+    },
+    "ask.showRejected" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Show what the model meant" } }
+      }
+    },
+    "ask.editWords" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Edit words" } }
+      }
+    },
+    "ask.failure.nativeFunctions" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ganit has these functions: %1$@." } }
+      }
+    },
+    "assistant.repairAttempts" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Repair attempts" } }
+      }
+    },
+    "assistant.repairAttempts.help" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Maximum automatic repair attempts for each Ask. The request limit can reduce this number." } }
+      }
+    },
     "ask.context.dependencies" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Lines these calculations read" } }

@@ -13,6 +13,7 @@ public enum SuggestionTransportError: Error, Equatable, Sendable {
   case payloadTooLarge
   case unexpectedStatus(Int)
   case malformedCompletion
+  case rejectedReply(Data)
 }
 
 /// Freeze the body before transmission. The inspector can show this exact body.
@@ -148,7 +149,9 @@ public final class ProviderSuggestionTransport: NSObject, SuggestionTransport,
       let text = completion.choices.first?.message.content
     else { throw SuggestionTransportError.malformedCompletion }
     let content = Data(text.utf8)
-    _ = try SuggestionDecoder.decode(content)
+    do { _ = try SuggestionDecoder.decode(content) } catch {
+      throw SuggestionTransportError.rejectedReply(content)
+    }
     return content
   }
 }
