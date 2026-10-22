@@ -5,6 +5,10 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Fix a long-standing defect that is now impossible to miss: opening the
+  suggestion panel (now the Ask bar) blanked the sheet behind it, hiding the
+  very lines under review. Present since the panel shipped.
+
 - Ask Ganit. **⌘⇧A** anywhere in the editor, a quiet **Ask** chip beside a line
   Ganit cannot read, the trailing action on the selection bar, and the answer
   right-click menu all open one bar at the caret: type what you want in plain
