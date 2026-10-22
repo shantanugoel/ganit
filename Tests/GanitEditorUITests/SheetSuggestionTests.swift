@@ -625,6 +625,58 @@ struct SheetSuggestionTests {
     // The exact bytes remain available to anyone who would rather check the claim.
     #expect(AskBar.contextJSON(body).contains("\"reasoning_effort\""))
   }
+
+  /// The pixels, not the property list: driving the built app showed the source
+  /// text vanishing while the bar is open, and every view property looked fine.
+  /// So the sheet's own ink has to survive the bar.
+  @Test func theSourceStaysInkWhileTheBarIsOpen() async throws {
+    let editor = try await editor("price = 12\ntotal = nope(3)")
+    _ = configure(editor, replies: [])
+    let sheet = editor.textView
+    editor.view.window?.orderFrontRegardless()
+    editor.view.layoutSubtreeIfNeeded()
+    // Where the source lives: the document's own rect as the container sees it.
+    let source = sheet.convert(sheet.bounds, to: editor.view)
+    let closed = ink(editor.view, source)
+    #expect(editor.openAskBar() == true)
+    await editor.suggestionSession.waitUntilIdle()
+    editor.view.layoutSubtreeIfNeeded()
+    let opened = ink(editor.view, source)
+    #expect(editor.suggestionSession.isVisible)
+    #expect(closed > 20, "the source draws nothing even with the bar closed")
+    #expect(opened > 20, "the source vanished while the bar is open")
+  }
+
+  /// A review surface must not hide what is under review. Driving the built app
+  /// found the source text vanishing while the bar is open, so the sheet has to
+  /// stay drawable and inside its own scroll view the whole time.
+  @Test func theSheetStillDrawsWhileTheBarIsOpen() async throws {
+    let editor = try await editor("price = 12\ntotal = nope(3)")
+    _ = configure(editor, replies: [])
+    let sheet = editor.textView
+    let text = sheet.string
+    #expect(editor.openAskBar() == true)
+    await editor.suggestionSession.waitUntilIdle()
+    editor.view.layoutSubtreeIfNeeded()
+    #expect(editor.suggestionSession.isVisible)
+    #expect(sheet.isHidden == false)
+    #expect(sheet.alphaValue == 1)
+    #expect(sheet.isSelectable == true)
+    #expect(sheet.textColor != nil)
+    #expect(sheet.string == text)
+    #expect(sheet.enclosingScrollView?.isHidden == false)
+    #expect(sheet.frame.height > 8)
+    for sub in sheet.subviews where String(describing: type(of: sub)) != "_NSTextSelectionView" {
+      #expect(sub.isHidden == false, "hidden: \(String(describing: type(of: sub)))")
+    }
+    // The document has to sit inside the clip view: if a layout pass leaves it
+    // outside, the source disappears while the answer overlay keeps drawing.
+    if let clip = sheet.enclosingScrollView?.contentView {
+      let visible = sheet.convert(sheet.bounds, to: clip)
+      #expect(!visible.intersection(clip.bounds).isEmpty)
+      #expect(clip.bounds.minY == clip.documentView?.frame.minY)
+    }
+  }
 }
 
 private actor EditorSuggestionTransport: SuggestionTransport {
@@ -649,4 +701,31 @@ private actor EditorSuggestionTransport: SuggestionTransport {
     continuation?.resume(returning: reply)
     continuation = nil
   }
+}
+
+/// How many dark pixels a region of a view actually draws. View properties can
+/// all read healthy while the view paints nothing, which is how the blank sheet
+/// hid from the suite.
+@MainActor
+private func ink(_ view: NSView, _ rect: NSRect) -> Int {
+  guard let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return -1 }
+  view.cacheDisplay(in: view.bounds, to: rep)
+  let wide = rep.pixelsWide
+  let tall = rep.pixelsHigh
+  guard wide > 0, tall > 0, view.bounds.width > 0, view.bounds.height > 0 else { return -1 }
+  let sx = CGFloat(wide) / view.bounds.width
+  let sy = CGFloat(tall) / view.bounds.height
+  let x0 = max(0, Int((rect.minX * sx).rounded()))
+  let x1 = min(wide - 1, Int((rect.maxX * sx).rounded()))
+  let y0 = max(0, Int((rect.minY * sy).rounded()))
+  let y1 = min(tall - 1, Int((rect.maxY * sy).rounded()))
+  guard x1 > x0, y1 > y0 else { return 0 }
+  var dark = 0
+  for y in y0...y1 {
+    for x in x0...x1 {
+      guard let color = rep.colorAt(x: x, y: y) else { continue }
+      if color.usingColorSpace(.genericGray)?.whiteComponent ?? 1 < 0.7 { dark += 1 }
+    }
+  }
+  return dark
 }

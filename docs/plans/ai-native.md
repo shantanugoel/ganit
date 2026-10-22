@@ -254,16 +254,23 @@ and makes no request.
 
 **Two defects found by driving the built app, both open:**
 
-1. **While the bar is open the sheet's source stops drawing** — the text and its
-   gutter vanish, and clicks in the text region do not move the caret, while the
-   accessibility value still reports the text. It happens docked and floating
-   alike, so it is not the bar's frame. Nothing in the suite asserts that the
-   text view still renders beside an open bar, which is why 20 green tests missed
-   it. This is the blocker: a review surface that hides what is under review
-   fails the plan's own rule about the reader seeing the line.
-2. The floating bar, before it was reverted to the docked layout the suggestion
-   card shipped with, covered the caret's line. Reverted; the bar is docked under
-   the text and the plan's "at the caret" is deferred until 1 is understood.
+1. **While the bar is open the sheet's source stops drawing** — text and gutter
+   vanish, though the accessibility value still reports the text. Ruled out by
+   evidence, not by feel: it is not the bar's frame (docked and floating blank
+   alike), not layer-backing (the text view is layer-backed before the bar ever
+   opens), not hiddenness or alpha (a suite assertion covers every subview), and
+   not the text (still reported, still selectable). It does not reproduce in the
+   harness: `cacheDisplay` paints the source correctly with the bar open, so the
+   failure is in the display-invalidation path, which a suite that forces its own
+   draws cannot reach. Fixing it needs the app, not the test runner.
+   Two guards now stand in the suite so a regression here is not invisible
+   again: every subview of the sheet must stay visible, and the source region
+   must still hold ink while the bar is open.
+2. The chip was drawn where it should be but was inert: its hit-test compared
+   the text view's rect against the overlay's own coordinate space, so clicks
+   fell through to the text and moved the caret. Fixed by converting between the
+   two spaces in `hitTest`, `mouseDown`, and the cursor rects; verified by
+   clicking the chip in the built app and watching the bar open.
 
 **Also outstanding:** per-line opt-out — the harness produces a single `T1`
 replacement, so declining one proposed line means rebuilding the replacement and

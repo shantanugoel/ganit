@@ -35,7 +35,10 @@ final class AskBar: NSView {
     self.session = session
     self.editor = editor
     super.init(frame: .zero)
-    wantsLayer = true
+    // No layer here on purpose. One view asking for a layer makes the whole
+    // window layer-backed, and the sheet's text view stops repainting: the
+    // source vanishes behind an open bar while the answer overlay, which draws
+    // its own layer, stays. The bar draws with `draw(_:)` and needs nothing.
     stack.orientation = .vertical
     stack.alignment = .leading
     stack.spacing = 8

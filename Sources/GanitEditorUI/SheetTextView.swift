@@ -505,9 +505,13 @@ final class SheetTextView: NSTextView {
   /// already shows a red message: a chip on a line Ganit is merely silent about
   /// would nag, and a half-typed line is not a failure.
   func askChipLayout(in rect: NSRect) -> (line: LineID, rect: NSRect)? {
-    guard canAskGanit(), let caret = lineID(selectedRange().location),
-      lineDiagnostic(caret) != nil,
-      let row = visibleLines(in: rect).first(where: { $0.id == caret })
+    // A caret at the very end of the text is still on the last line, but the
+    // character at that index does not exist, so ask about the one before it.
+    let caret = selectedRange().location
+    let probe = caret > 0 && caret == (string as NSString).length ? caret - 1 : caret
+    guard canAskGanit(), let line = lineID(probe),
+      lineDiagnostic(line) != nil,
+      let row = visibleLines(in: rect).first(where: { $0.id == line })
     else { return nil }
     let title = Self.askChipTitle as NSString
     let size = title.size(withAttributes: askChipAttributes)
@@ -520,7 +524,7 @@ final class SheetTextView: NSTextView {
       + row.firstRow.typographicBounds.width + Self.columnGap / 2).rounded()
     let y = row.frame.minY + row.firstRow.typographicBounds.minY
     return (
-      caret,
+      line,
       NSRect(
         x: x, y: y + (row.firstRow.typographicBounds.height - size.height - 2) / 2,
         width: width, height: size.height + 2)
@@ -2451,14 +2455,19 @@ private final class AnswerOverlayView: NSView {
 
   override func hitTest(_ point: NSPoint) -> NSView? {
     let local = convert(point, from: superview)
-    if textView.askChipRect?.contains(local) == true { return self }
+    // The chip's rect is the text view's, and the overlay does not necessarily
+    // share that origin. Comparing them without converting leaves the chip
+    // visible but inert, and the click lands on the text underneath it.
+    if let chip = textView.askChipRect, convert(chip, from: textView).contains(local) {
+      return self
+    }
     return textView.answerResizeRect?.contains(local) == true ? self : nil
   }
 
   override func resetCursorRects() {
     super.resetCursorRects()
-    if let rect = textView.askChipRect {
-      let visible = rect.intersection(visibleRect)
+    if let chip = textView.askChipRect {
+      let visible = convert(chip, from: textView).intersection(bounds)
       if !visible.isEmpty, visible.origin.x.isFinite, visible.origin.y.isFinite {
         addCursorRect(visible, cursor: .pointingHand)
       }
@@ -2472,7 +2481,7 @@ private final class AnswerOverlayView: NSView {
 
   override func mouseDown(with event: NSEvent) {
     let local = convert(event.locationInWindow, from: nil)
-    if textView.askChipRect?.contains(local) == true {
+    if let chip = textView.askChipRect, convert(chip, from: textView).contains(local) {
       textView.askChipClicked()
       return
     }
