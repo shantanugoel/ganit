@@ -30,6 +30,7 @@ final class AskBar: NSView {
   private let instructionField = NSTextField()
   private var actions: [() -> Void] = []
   private var popover: NSPopover?
+  private var displayedClarification: Int?
 
   init(session: SheetSuggestionSession, editor: SheetEditorViewController) {
     self.session = session
@@ -58,6 +59,14 @@ final class AskBar: NSView {
   }
 
   @objc private func submitInstruction() {
+    if session.clarification != nil {
+      session.submitClarification(instructionField.stringValue, autoSend: true)
+      return
+    }
+    if session.canSend && instructionField.stringValue == session.instruction {
+      session.send()
+      return
+    }
     session.prepare(instruction: instructionField.stringValue, autoSend: true)
   }
 
@@ -135,6 +144,25 @@ final class AskBar: NSView {
     }
     actions = []
     instructionField.isHidden = !session.isVisible
+    // The field is never disabled: a disabled control resigns first responder,
+    // and the caret would leave the bar the reader just opened. Editing the
+    // words while a request is in flight only changes what the next send carries.
+    var focusQuestion = false
+    if let question = session.clarification {
+      if displayedClarification != session.clarificationCount {
+        instructionField.stringValue = ""
+        focusQuestion = true
+      }
+      displayedClarification = session.clarificationCount
+      instructionField.placeholderString = question.question
+      instructionField.setAccessibilityLabel(question.question)
+    } else {
+      if displayedClarification != nil { instructionField.stringValue = session.instruction }
+      displayedClarification = nil
+      instructionField.placeholderString = localized(
+        "ask.placeholder", "Ask Ganit about these lines…")
+      instructionField.setAccessibilityLabel(localized("ask.field", "What to ask Ganit"))
+    }
     label(session.message)
     if let notice = session.repairNotice { label(notice) }
     if !session.nativeFunctionAlternatives.isEmpty {
@@ -188,6 +216,14 @@ final class AskBar: NSView {
         }
       }
       for assumption in preview.candidate.assumptions {
+        if assumption.id == preview.candidate.assumptions.first?.id {
+          // The reader is about to be asked to trust a number Ganit found. Say
+          // why this one was assumed and a tax rate was not (plan §6).
+          label(
+            localized(
+              "ask.assumeOrAsk",
+              "Ganit asks when only you know; it assumes and marks when the world knows."))
+        }
         let button = NSButton(
           checkboxWithTitle: assumption.text, target: self, action: #selector(run(_:)))
         button.state = session.assumptions.contains(assumption.id) ? .on : .off
@@ -205,21 +241,24 @@ final class AskBar: NSView {
       }
     }
     if let question = session.clarification {
+      button("‹ " + session.originalWording) { [weak self] in
+        guard let self else { return }
+        let wording = self.session.originalWording
+        self.session.rephraseClarification()
+        self.instructionField.stringValue = wording
+        _ = self.focusField()
+        self.instructionField.selectText(nil)
+      }
+      label(
+        String(
+          format: localized("ask.questionCount", "Question %1$d of 2 · Esc cancels the whole Ask"),
+          session.clarificationCount))
       for choice in question.choices {
-        button(choice) { [weak self] in self?.session.submitClarification(choice) }
+        button(choice) { [weak self] in
+          self?.session.submitClarification(choice, autoSend: true)
+        }
       }
       if let input = question.missingInput { label(input) }
-      let field = NSTextField()
-      field.placeholderString = "Supply a task constraint or missing input"
-      field.setAccessibilityLabel("Clarification answer")
-      stack.addArrangedSubview(field)
-      let revision = NSButton(
-        checkboxWithTitle: "This answer revises an input or constraint", target: nil, action: nil)
-      stack.addArrangedSubview(revision)
-      button("Review New Request") { [weak self, weak field, weak revision] in
-        self?.session.submitClarification(
-          field?.stringValue ?? "", revisesInputs: revision?.state == .on)
-      }
     }
     if session.state == .needsContext {
       label("Additional source records", bold: true)
@@ -230,7 +269,10 @@ final class AskBar: NSView {
     }
     let row = AskActionRow()
     if canSubmitInstruction {
-      addButton(localized("ask.send", "Ask"), to: row) { [weak self] in
+      addButton(
+        session.clarification == nil
+          ? localized("ask.send", "Ask") : localized("ask.answer", "Answer"), to: row
+      ) { [weak self] in
         self?.submitInstruction()
       }
     }
@@ -257,7 +299,7 @@ final class AskBar: NSView {
           self.inspect(text, title: localized("ask.rejectedSource", "Rejected model reply"))
         }
       }
-    } else {
+    } else if session.clarification == nil {
       addButton("Edit Request", to: row) { [weak self] in self?.session.editRequest() }
     }
     addButton(localized("ask.context", "Context ▸"), to: row) { [weak self] in self?.showContext() }
@@ -267,7 +309,11 @@ final class AskBar: NSView {
           retry: true, instruction: self?.session.instruction ?? "", autoSend: true)
       }
     }
-    addButton(session.isRunning ? "Stop" : "Dismiss", to: row) { [weak self] in
+    addButton(
+      session.clarification != nil
+        ? localized("ask.cancel", "Cancel")
+        : session.isRunning ? "Stop" : "Dismiss", to: row
+    ) { [weak self] in
       self?.session.dismiss()
     }
     stack.addArrangedSubview(row)
@@ -277,6 +323,7 @@ final class AskBar: NSView {
     // on screen, so unhiding belongs here and not only in the editor's layout.
     isHidden = false
     needsLayout = true
+    if focusQuestion { _ = focusField() }
   }
 
   private func label(_ text: String, bold: Bool = false, mono: Bool = false) {

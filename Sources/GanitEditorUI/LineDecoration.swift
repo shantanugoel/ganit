@@ -17,6 +17,7 @@ struct LineDecoration: Equatable {
     /// Markdown `*italic*`.
     case italic
     case interpretation
+    case aiAssumption
     case error
     case warning
   }
@@ -33,7 +34,8 @@ struct LineDecoration: Equatable {
   /// flagged once the insertion point has left the line.
   init(
     text: String, syntax: LineSyntax, result: CalculationResult?, isEditing: Bool,
-    lexingConfiguration: LexingConfiguration = .englishUnitedStates
+    lexingConfiguration: LexingConfiguration = .englishUnitedStates,
+    aiAssumption: Bool = false
   ) {
     var runs: [Run] = []
     func add(_ range: SourceRange, _ style: Style) {
@@ -70,7 +72,7 @@ struct LineDecoration: Equatable {
       runs.append(contentsOf: markdownEmphasis(in: text))
     case .calculation(let label, _, _, let comment):
       label.map { add($0, .secondary) }
-      comment.map { add($0, .secondary) }
+      comment.map { add($0, aiAssumption ? .aiAssumption : .secondary) }
     }
 
     // An accent marks a choice, not an error. Diagnostics still draw after it.
@@ -145,6 +147,8 @@ extension LineDecoration.Style {
       return [.foregroundColor: VisualStyle.Color.tertiary]
     case .interpretation:
       return [.foregroundColor: VisualStyle.Color.interpretation]
+    case .aiAssumption:
+      return [.foregroundColor: VisualStyle.Color.aiAssumption]
     case .heading:
       return [
         .font: NSFont.systemFont(ofSize: VisualStyle.Typography.editorSize, weight: .semibold)
@@ -171,6 +175,10 @@ extension LineDecoration.Style {
     switch self {
     case .secondary, .tertiary, .heading, .bold, .italic, .interpretation:
       return nil
+    case .aiAssumption:
+      // The origin of an assumed value shows in purple; the dotted underline
+      // carries the same information without relying on colour.
+      return VisualStyle.Color.aiAssumption
     case .error:
       return VisualStyle.Color.failure
     case .warning:

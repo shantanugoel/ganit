@@ -31,6 +31,8 @@ struct MainMenuTests {
     #expect(items.contains { $0.action == #selector(ApplicationCommands.showSettings(_:)) })
     #expect(items.contains { $0.action == #selector(ApplicationCommands.showTour(_:)) })
     #expect(items.contains { $0.action == #selector(ApplicationCommands.toggleAutocomplete(_:)) })
+    #expect(
+      items.contains { $0.action == #selector(ApplicationCommands.toggleAIDerivedAnswers(_:)) })
 
     let expected: [(Selector, String, NSEvent.ModifierFlags)] = [
       (#selector(WorkspaceCommands.newSheet(_:)), "n", .command),

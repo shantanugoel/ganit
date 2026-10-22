@@ -11,11 +11,13 @@ import Security
 public struct AssistantSettings: Equatable, Sendable {
   public static let defaultEndpoint = URL(string: "https://api.openai.com/v1")!
   public static let defaultModel = "gpt-4o-mini"
+  public static let markAIDerivedAnswersKey = "AssistantMarkAIDerivedAnswers"
 
   public var isEnabled: Bool
   public var endpoint: URL
   public var model: String
   public var apiKey: String
+  public var markAIDerivedAnswers: Bool
   /// How hard the model is asked to think. `AssistantEffort.default` is what
   /// someone gets who never opened Settings.
   public var effort: AssistantEffort
@@ -31,12 +33,14 @@ public struct AssistantSettings: Equatable, Sendable {
     model: String = AssistantSettings.defaultModel,
     apiKey: String = "",
     effort: AssistantEffort = .default,
-    repairAttempts: Int = 2
+    repairAttempts: Int = 2,
+    markAIDerivedAnswers: Bool = true
   ) {
     self.isEnabled = isEnabled
     self.endpoint = endpoint
     self.model = model
     self.apiKey = apiKey
+    self.markAIDerivedAnswers = markAIDerivedAnswers
     self.effort = effort
     self.repairAttempts = min(3, max(0, repairAttempts))
   }
@@ -72,7 +76,8 @@ public struct AssistantSettings: Equatable, Sendable {
       endpoint: defaults.string(forKey: endpointKey).flatMap(URL.init(string:)) ?? defaultEndpoint,
       model: defaults.string(forKey: modelKey) ?? defaultModel,
       effort: AssistantEffort(storage: defaults.string(forKey: effortKey)),
-      repairAttempts: defaults.object(forKey: repairAttemptsKey) as? Int ?? 2
+      repairAttempts: defaults.object(forKey: repairAttemptsKey) as? Int ?? 2,
+      markAIDerivedAnswers: defaults.object(forKey: markAIDerivedAnswersKey) as? Bool ?? true
     )
   }
 
@@ -82,6 +87,7 @@ public struct AssistantSettings: Equatable, Sendable {
     defaults.set(model, forKey: Self.modelKey)
     defaults.set(effort.storageValue, forKey: Self.effortKey)
     defaults.set(repairAttempts, forKey: Self.repairAttemptsKey)
+    defaults.set(markAIDerivedAnswers, forKey: Self.markAIDerivedAnswersKey)
   }
 }
 

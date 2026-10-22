@@ -5,6 +5,30 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Answer a question inside the Ask bar. When Ganit needs something it cannot
+  work out, the bar becomes the question, keeps your own words above it as a
+  crumb you can take back and rephrase, and offers up to three suggestions as
+  buttons. Two questions per Ask, then Ganit says it could not answer instead
+  of turning into a conversation. Esc cancels the whole Ask. An answer that
+  would send more of your source asks you to open **Context ▸** first.
+- Let Ganit assume one world fact. A reply may name one physical constant, a
+  typical rate, or a material property — never a tax rate, salary, budget, or
+  price, which Ganit asks you for instead. Ganit checks the declared value in
+  its own engine, requires it to sit as a plain named value on its own line,
+  and writes the origin comment itself:
+  `// AI: density of water at 4 °C · <model> · <date>`. That line carries an
+  **AI** badge, and every answer that reads it, directly or through a function,
+  carries a purple dot. Click either for the value, what it is, the model and
+  time, and which lines use it, with **Change value…** and **Remove**, which
+  first previews the lines that would fail. Editing the value in the sheet
+  removes the comment, the badge and the dots in one Undo step, and asks the
+  model nothing. A conversion that needs a density no one supplied now asks,
+  or assumes and marks, instead of offering a choice with no options.
+- **View ▸ Mark AI-derived answers** hides the dots on answers that read an
+  assumed value. The **AI** badge on the value itself never hides, and the
+  dotted underline keeps both readable without colour. Assistant settings carry
+  the same checkbox.
+
 - Set the maximum AI repair attempts from 0 to 3. The default is 2. All
   requests, including format fallback and context requests, share a limit of
   3 per Ask. Ganit shows when it checks a reply and requests a repair.

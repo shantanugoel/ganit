@@ -341,6 +341,7 @@ final class SheetTextView: NSTextView {
   var onSetSheetSuffixMeaning: (String, AmbiguousSuffixMeaning?) -> Void = { _, _ in }
   var canAskGanit: () -> Bool = { false }
   var onAskGanit: () -> Void = {}
+  var onInspectAssumption: (LineID, NSRect) -> Void = { _, _ in }
   var dismissSuggestion: () -> Bool = { false }
 
   /// Whether Ask Assistant can send the current line.
@@ -415,11 +416,21 @@ final class SheetTextView: NSTextView {
 
   /// The width the badge and its gap take before an assisted answer.
   func badgeWidth(for cell: AnswerCell) -> CGFloat {
-    guard cell.isAssisted else {
+    if cell.isAIDerived { return 9 + Self.badgeGap }
+    guard cell.isAssisted || cell.isAIAssumption else {
       return 0
     }
     return ceil((Self.assistedBadge as NSString).size(withAttributes: badgeAttributes).width)
       + Self.badgePadding * 2 + Self.badgeGap
+  }
+
+  func assumptionBadgeHit(at point: NSPoint) -> (line: LineID, rect: NSRect)? {
+    guard let hit = answerHit(at: point), hit.cell.isAIAssumption || hit.cell.isAIDerived else {
+      return nil
+    }
+    let badge = NSRect(
+      x: hit.rect.minX, y: hit.rect.minY, width: badgeWidth(for: hit.cell), height: hit.rect.height)
+    return badge.contains(point) ? (hit.line, badge) : nil
   }
 
   static let badgePadding: CGFloat = 3
@@ -2457,6 +2468,7 @@ private final class AnswerOverlayView: NSView {
     // The chip's rect is the text view's, and the overlay does not necessarily
     // share that origin. Comparing them without converting leaves the chip
     // visible but inert, and the click lands on the text underneath it.
+    if textView.assumptionBadgeHit(at: convert(local, to: textView)) != nil { return self }
     if let chip = textView.askChipRect, convert(chip, from: textView).contains(local) {
       return self
     }
@@ -2480,6 +2492,10 @@ private final class AnswerOverlayView: NSView {
 
   override func mouseDown(with event: NSEvent) {
     let local = convert(event.locationInWindow, from: nil)
+    if let badge = textView.assumptionBadgeHit(at: convert(local, to: textView)) {
+      textView.onInspectAssumption(badge.line, badge.rect)
+      return
+    }
     if let chip = textView.askChipRect, convert(chip, from: textView).contains(local) {
       textView.askChipClicked()
       return
@@ -2538,8 +2554,14 @@ private final class AnswerOverlayView: NSView {
         NSBezierPath(roundedRect: rect.insetBy(dx: -4, dy: 0), xRadius: 4, yRadius: 4).fill()
       }
       var rect = rect
-      if cell.isAssisted {
-        drawBadge(at: rect, selected: isSelected)
+      if cell.isAssisted || cell.isAIAssumption || cell.isAIDerived {
+        if cell.isAIDerived {
+          VisualStyle.Color.aiAssumption.setFill()
+          NSBezierPath(ovalIn: NSRect(x: rect.minX + 2, y: rect.midY - 2, width: 4, height: 4))
+            .fill()
+        } else {
+          drawBadge(at: rect, selected: isSelected)
+        }
         let badge = textView.badgeWidth(for: cell)
         rect.origin.x += badge
         rect.size.width = max(rect.width - badge, 0)

@@ -19,6 +19,8 @@ struct AnswerCell: Equatable {
   /// An answer from the assistant, which Ganit did not work out itself and so
   /// writes in a colour of its own.
   var isAssisted = false
+  var isAIAssumption = false
+  var isAIDerived = false
   /// A request is in flight; the sheet stays editable.
   var isPending = false
   /// The value to fewer digits, marked `≈`, drawn when `text` does not fit so

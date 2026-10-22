@@ -81,7 +81,13 @@ public final class Workspace {
   /// All sheets share the app's coordinator. Source sending needs a separate action.
   public var suggestionConfiguration: SheetSuggestionConfiguration? {
     didSet {
+      markAIDerivedAnswers = suggestionConfiguration?.settings.markAIDerivedAnswers ?? true
       for sheet in sheets.values { sheet.editor.suggestionConfiguration = suggestionConfiguration }
+    }
+  }
+  public var markAIDerivedAnswers = true {
+    didSet {
+      for sheet in sheets.values { sheet.editor.markAIDerivedAnswers = markAIDerivedAnswers }
     }
   }
 
@@ -307,6 +313,7 @@ public final class Workspace {
     )
     editor.setDefinitions(definitions)
     editor.suggestionConfiguration = suggestionConfiguration
+    editor.markAIDerivedAnswers = markAIDerivedAnswers
     editor.askAssistant = askAssistant
     editor.forgetAssistantAnswer = forgetAssistantAnswer
     editor.openHelp = openHelp

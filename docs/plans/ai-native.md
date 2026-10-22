@@ -1,8 +1,8 @@
 # AI as part of the calculator: experience plan
 
 Date: 2026-10-20
-Status: Design approved. M-1 through M2 are complete.
-M3 through M5 are not started. Their exit gates are not complete.
+Status: Design approved. M-1 through M3 are complete.
+M4 and M5 are not started. Their exit gates are not complete.
 M0's records are [ADR 0019](../adr/0019-ask-one-operation-four-outcomes.md) and
 [the frozen Ask job contract](../design/ai-native/ask-job-contract.md), and the
 harness this plan tells M1 to reuse is now merged into this branch. The legacy
@@ -351,6 +351,31 @@ assumption recalculates with zero requests; editing its value
 clears all marks; and `AssistanceSemanticPolicy`'s option-less `missing_density`
 choice is gone, replaced by an assumption with a basis, so the water example
 reaches Apply.
+
+**M3 gate: passed, 2026-10-22.** `prose`, `clarify` and `water` pass in the
+editor suite. A third question in one Ask fails it as `noUsefulAnswer` instead
+of becoming a conversation, Esc cancels the whole operation from either the
+question or the answer, and an answer that would carry more source stops at
+**Context ▸** rather than sending. Editing an assumed value recalculates with
+the fake transport's request count unchanged, takes the comment, the badge and
+the dots with it, and comes back in one Undo step with its marks. The
+option-less `missing_density` choice is gone from `AssistanceSemanticPolicy`:
+the density now arrives as one named value with a basis, which the engine
+checks as a plain literal on its own line before Ganit writes the
+`// AI: basis · model · date` comment itself, so the water example reaches
+Apply, and a working assumption the model invented is refused rather than
+offered for approval. The badge and the dots follow the dependency graph
+through insertion, deletion, function capture, line renumbering and divider
+clearing. The full package suite passes: 1,366 tests. Formatting, whitespace,
+the app build, and bundle verification pass.
+
+Computer use tested the release app against a loopback provider. The checks
+cover the Ask bar becoming the question while keeping the caret and the reader's
+own words as a crumb, the one assumption checkbox, Apply writing the origin
+comment, the **AI** badge on the value, the purple dot on the answer that reads
+it, and the card that lists the value, its basis, the model, the date, and the
+line that uses it. The test sheet was trashed and the assistant settings were
+put back as they were. No configured provider was contacted.
 
 **M4 — Ganit-first explain and fix.** Engine-sourced explain card reusing the
 interpretation card, `Fix it` hand-off on diagnostics, explicit "nothing was

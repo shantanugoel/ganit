@@ -27,7 +27,8 @@ package enum SuggestionLocalChecking {
   package static func prepare(
     _ candidate: SuggestionCandidate, snapshot: AssistanceSnapshot,
     handles: Set<String>, choices: [String: String], assumptions: Set<String>,
-    userRevisedInputs: Bool = false, omittedLines: Set<Int> = []
+    userRevisedInputs: Bool = false, omittedLines: Set<Int> = [],
+    assumptionModel: String = "AI"
   ) async throws -> AssistanceSourceEdit {
     let task = Task.detached(priority: .utility) {
       let revised = try AssistanceCandidateChecker.selectingLines(
@@ -35,7 +36,7 @@ package enum SuggestionLocalChecking {
       return try AssistanceCandidateChecker.prepareSourceEdit(
         revised, against: snapshot,
         permittedHandles: handles, selectedChoices: choices, approvedAssumptions: assumptions,
-        userRevisedInputs: userRevisedInputs)
+        userRevisedInputs: userRevisedInputs, assumptionModel: assumptionModel)
     }
     return try await withTaskCancellationHandler {
       try await task.value

@@ -18,6 +18,8 @@ private actor CalculatorWorker {
     try calculator.evaluate(sheet, context: context)
   }
 
+  func frozenCalculator() -> SheetCalculator { calculator }
+
   func assistanceSnapshot(_ sheet: SheetSource, context: EvaluationContext, target: LineID)
     throws -> AssistanceSnapshot
   {
@@ -92,12 +94,29 @@ final class SheetEvaluationScheduler {
   func prepareSuggestion(
     _ candidate: SuggestionCandidate, snapshot: AssistanceSnapshot,
     handles: Set<String>, choices: [String: String], assumptions: Set<String>,
-    userRevisedInputs: Bool = false, omittedLines: Set<Int> = []
+    userRevisedInputs: Bool = false, omittedLines: Set<Int> = [],
+    assumptionModel: String = "AI"
   ) async throws -> AssistanceSourceEdit {
     try await SuggestionLocalChecking.prepare(
       candidate, snapshot: snapshot,
       handles: handles, choices: choices, assumptions: assumptions,
-      userRevisedInputs: userRevisedInputs, omittedLines: omittedLines)
+      userRevisedInputs: userRevisedInputs, omittedLines: omittedLines,
+      assumptionModel: assumptionModel)
+  }
+
+  func previewSource(_ sheet: SheetSource) async throws -> SheetEvaluation {
+    await waitUntilIdle()
+    let calculator = await worker.frozenCalculator()
+    let context = context
+    let preview = Task.detached(priority: .utility) {
+      var calculator = calculator
+      return try calculator.evaluate(sheet, context: context)
+    }
+    return try await withTaskCancellationHandler {
+      try await preview.value
+    } onCancel: {
+      preview.cancel()
+    }
   }
 
   /// Evaluates with new definitions from the next generation on, discarding

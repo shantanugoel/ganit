@@ -74,7 +74,12 @@ public struct SuggestionWireRequest: Sendable {
     The last proposed calculation is the result to review. Keep all original inputs as evidence.
     Edit only supplied target handles. Use only supplied symbol and evidence handles.
     Cite evidence for each numeric literal and each interpretation rule.
-    Keep derived amounts as expressions. Do not invent facts, rates, or values.
+    Keep derived amounts as expressions. Do not invent user inputs or calculated answers.
+    One missing world fact may be a named assumption A1 with a clear basis and supplied relation evidence.
+    Declare its plain value on its own line and cite A1 as that literal's evidence.
+    Use its declared name in calculations. Never embed an assumed literal in arithmetic.
+    Ask for tax rates, salaries, budgets, prices, and uncertain facts; these are user inputs.
+    Do not write // AI: comments. Ganit writes origin comments after approval.
     Ask one question when an input or a material choice is missing.
     Request named context records when the supplied records are insufficient.
     Do not return a calculated result or a confidence score.

@@ -81,8 +81,9 @@ struct AssistanceSourceEditTests {
     #expect(throws: AssistanceValidationFailure.self) {
       try AssistanceCandidateChecker.prepareSourceEdit(candidate, against: snapshot)
     }
-    let edit = try AssistanceCandidateChecker.prepareSourceEdit(
-      candidate, against: snapshot, approvedAssumptions: ["A1"])
-    #expect(edit.sourceAfter.hasSuffix("// Approved assumption: Use equal weights."))
+    #expect(throws: AssistanceValidationFailure.self) {
+      try AssistanceCandidateChecker.prepareSourceEdit(
+        candidate, against: snapshot, approvedAssumptions: ["A1"])
+    }
   }
 }

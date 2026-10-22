@@ -400,25 +400,37 @@ struct SheetSuggestionTests {
     }
   }
 
-  @Test func assumptionsBlockApplyAndApprovedWorkingEntersSource() async throws {
+  /// Section 2's second rule: an assumption the model invented — no declared
+  /// value, no basis, nothing Ganit can check — is not a source change at all.
+  /// Ganit refuses the reply, asks for it to be fixed twice, then fails
+  /// honestly. The reader is never offered a checkbox for a number that cannot
+  /// be verified, and no comment of Ganit's makes one look sanctioned.
+  @Test func aWorkingAssumptionTheModelInventedIsRefusedNotApproved() async throws {
     let editor = try await editor(request)
-    let transport = configure(editor, replies: [try await proposal(editor, assumption: true)])
+    let reply = try await proposal(editor, assumption: true)
+    let transport = configure(editor, replies: [reply, reply, reply])
     let session = editor.suggestionSession
     session.prepare()
     await session.waitUntilIdle()
     session.send()
     await session.waitUntilIdle()
-    #expect(session.state == .needsChoice)
+    #expect(session.state == .failed)
+    #expect(session.failure != nil)
     #expect(!session.canApply)
-    session.apply()
+    let bar = try #require(editor.view.subviews.compactMap { $0 as? AskBar }.first)
+    func titles(_ view: NSView) -> [String] {
+      (view as? NSButton).map { [$0.title] } ?? view.subviews.flatMap(titles)
+    }
+    #expect(
+      !titles(bar).contains("Use equal weights."),
+      "An unverifiable assumption is never offered for approval")
     #expect(editor.sheet.text == request)
-    session.approve("A1", approved: true)
-    await session.waitUntilIdle()
-    #expect(session.canApply)
-    session.apply()
-    await session.waitUntilIdle()
-    #expect(editor.sheet.text.hasSuffix("// Approved assumption: Use equal weights."))
-    #expect(await transport.count() == 1)
+    #expect(!editor.sheet.text.contains("Approved assumption"))
+    #expect(!editor.sheet.text.contains("// AI:"))
+    // It asked once to have the reply fixed, got the same reply back, and
+    // stopped rather than looping at the provider (plan §5).
+    #expect(await transport.count() == 2)
+    #expect(session.message.localizedCaseInsensitiveContains("assumption"))
   }
 
   @Test func aClarificationStartsANewReviewedJobAndKeepsItsConstraint() async throws {

@@ -22,6 +22,7 @@ import GanitEditorUI
   func checkForUpdates(_ sender: Any?)
   func toggleAutomaticUpdateChecks(_ sender: Any?)
   func toggleAutocomplete(_ sender: Any?)
+  func toggleAIDerivedAnswers(_ sender: Any?)
   func showTour(_ sender: Any?)
 }
 
@@ -439,6 +440,9 @@ public enum MainMenu {
           item(
             localized("menu.showLineNumbers", "Show Line Numbers"),
             #selector(WorkspaceCommands.toggleLineNumbers(_:))),
+          item(
+            localized("menu.markAIDerivedAnswers", "Mark AI-derived answers"),
+            #selector(ApplicationCommands.toggleAIDerivedAnswers(_:))),
           item(
             localized("menu.enterFullScreen", "Enter Full Screen"),
             #selector(NSWindow.toggleFullScreen(_:)),

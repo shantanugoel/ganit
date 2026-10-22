@@ -13,12 +13,15 @@ public struct SheetLineResult: Hashable, Sendable {
   /// a failed cell or range member this line or a line it depends on read,
   /// or a table that could not be calculated. Empty otherwise.
   public let failureOriginTableCells: [TableCellFailureOrigin]
+  public let aiAssumption: AIAssumption?
+  public let aiAssumptionOrigins: Set<LineID>
   public let hasUnreviewedModelDependency: Bool
 
   fileprivate init(
     id: LineID, source: LineSource, evaluation: LineEvaluation?,
     result: CalculationResult?, failureOrigins: [Int],
-    tableFailureOrigins: [TableCellFailureOrigin] = [], hasUnreviewedModelDependency: Bool = false
+    tableFailureOrigins: [TableCellFailureOrigin] = [], hasUnreviewedModelDependency: Bool = false,
+    aiAssumption: AIAssumption? = nil, aiAssumptionOrigins: Set<LineID> = []
   ) {
     self.id = id
     self.source = source
@@ -26,6 +29,8 @@ public struct SheetLineResult: Hashable, Sendable {
     self.result = result
     failureOriginLineNumbers = failureOrigins
     failureOriginTableCells = tableFailureOrigins
+    self.aiAssumption = aiAssumption
+    self.aiAssumptionOrigins = aiAssumptionOrigins
     self.hasUnreviewedModelDependency = hasUnreviewedModelDependency
   }
 
@@ -62,6 +67,8 @@ public struct SheetLineResult: Hashable, Sendable {
       && lhs.failureOriginLineNumbers == rhs.failureOriginLineNumbers
       && lhs.failureOriginTableCells == rhs.failureOriginTableCells
       && lhs.hasUnreviewedModelDependency == rhs.hasUnreviewedModelDependency
+      && lhs.aiAssumption == rhs.aiAssumption
+      && lhs.aiAssumptionOrigins == rhs.aiAssumptionOrigins
   }
 
   public func hash(into hasher: inout Hasher) {
@@ -290,6 +297,9 @@ public struct SheetCalculator: Sendable {
     inherited.assistanceOrigins = definitions.assistanceOrigins
     var unreviewedUnits = definitions.unreviewedUnits
     var unreviewedLines: Set<LineID> = []
+    var assumptionNames: [String: Set<LineID>] = [:]
+    var assumptionFunctions: [String: Set<LineID>] = [:]
+    var assumptionLines: [LineID: Set<LineID>] = [:]
     var scope = inherited
     var tracksAssistanceOrigins =
       target != nil || surface == .definitions
@@ -448,7 +458,8 @@ public struct SheetCalculator: Sendable {
       let hasUnreviewedFunctions =
         evaluation?.functions.values.contains { $0.hasUnreviewedCapture } ?? false
       let facts =
-        (!unreviewedUnits.isEmpty || evaluation?.function != nil || hasUnreviewedFunctions)
+        (!unreviewedUnits.isEmpty || evaluation?.function != nil || hasUnreviewedFunctions
+          || !assumptionFunctions.isEmpty)
         ? tree.map {
           AssistanceExpressionFacts($0, source: "", engine: engine, context: context)
         } : nil
@@ -470,6 +481,26 @@ public struct SheetCalculator: Sendable {
             }
           } ?? false))
       if unreviewed { unreviewedLines.insert(line.id) }
+      let assumption = AIAssumption.parse(line.text, syntax: source.syntax, context: context)
+      var assumptionOrigins: Set<LineID> = assumption == nil ? [] : [line.id]
+      for name in (tree?.identifiers ?? []).subtracting(evaluation?.function?.parameters ?? []) {
+        assumptionOrigins.formUnion(assumptionNames[name] ?? [])
+      }
+      for name in facts?.calls ?? [] {
+        assumptionOrigins.formUnion(assumptionFunctions[name] ?? [])
+      }
+      for reference in evaluation?.references ?? [] {
+        for number in outcomes.lineNumbers(for: reference) ?? []
+        where sheet.lines.indices.contains(number - 1) {
+          assumptionOrigins.formUnion(assumptionLines[sheet.lines[number - 1].id] ?? [])
+        }
+      }
+      assumptionLines[line.id] = assumptionOrigins
+      if let name = source.declaredName { assumptionNames[name] = assumptionOrigins }
+      if let function = evaluation?.function {
+        assumptionFunctions[function.name] = assumptionOrigins
+      }
+
       if var function = evaluation?.function {
         if !tracksAssistanceOrigins {
           // Build source origins once, when the first closure needs them.
@@ -549,6 +580,8 @@ public struct SheetCalculator: Sendable {
       case .divider:
         outcomes.endBlock()
         scope = inherited
+        assumptionNames = [:]
+        assumptionFunctions = [:]
         tables.divide()
       case .comment, .calculation, .markdown:
         break
@@ -557,7 +590,8 @@ public struct SheetCalculator: Sendable {
         SheetLineResult(
           id: line.id, source: source, evaluation: evaluation,
           result: result, failureOrigins: failureOrigins, tableFailureOrigins: tableFailures,
-          hasUnreviewedModelDependency: unreviewed))
+          hasUnreviewedModelDependency: unreviewed,
+          aiAssumption: assumption, aiAssumptionOrigins: assumptionOrigins))
     }
 
     if cache.count > sheet.lines.count {

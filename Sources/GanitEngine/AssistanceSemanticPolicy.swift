@@ -49,6 +49,31 @@ struct AssistanceSemanticPolicy {
         || task.contains("exclude shipping"))
   }
 
+  func needsDensity(
+    snapshot: AssistanceSnapshot, usedSymbols: Set<String>, literalValues: [EngineValue]
+  ) -> Bool {
+    let massInput =
+      snapshot.inventory.contains { record in
+        if case .quantity(let value) = record.value {
+          return value.unit.dimension == Dimension(.mass)
+        }
+        return false
+      } || task.range(of: "\\b(g|grams?|kg|kilograms?)\\b", options: .regularExpression) != nil
+    let densityDimension = try? Dimension(.mass).divided(by: Dimension(.length).raised(to: 3))
+    let densityInput = snapshot.inventory.contains { record in
+      guard usedSymbols.contains(record.name) else { return false }
+      if case .quantity(let value) = record.value {
+        return value.unit.dimension == densityDimension
+      }
+      return false
+    }
+    let literalDensity = literalValues.contains { value in
+      if case .quantity(let quantity) = value { return quantity.unit.dimension == densityDimension }
+      return false
+    }
+    return expectedVolume && massInput && !densityInput && !literalDensity
+  }
+
   func requiredChoices(
     snapshot: AssistanceSnapshot, result proposed: EngineValue? = nil,
     usedSymbols: Set<String> = [], literalValues: [EngineValue] = []
@@ -95,30 +120,6 @@ struct AssistanceSemanticPolicy {
       add(
         "date_order", "What is the date order?",
         [("day_month", "Day, month, year"), ("month_day", "Month, day, year")])
-    }
-    let massInput =
-      snapshot.inventory.contains { record in
-        if case .quantity(let value) = record.value {
-          return value.unit.dimension == Dimension(.mass)
-        }
-        return false
-      } || task.range(of: "\\b(g|grams?|kg|kilograms?)\\b", options: .regularExpression) != nil
-    let densityDimension = try? Dimension(.mass).divided(by: Dimension(.length).raised(to: 3))
-    let densityInput = snapshot.inventory.contains { record in
-      guard usedSymbols.contains(record.name) else { return false }
-      if case .quantity(let value) = record.value {
-        return value.unit.dimension == densityDimension
-      }
-      return false
-    }
-    let literalDensity = literalValues.contains { value in
-      if case .quantity(let quantity) = value { return quantity.unit.dimension == densityDimension }
-      return false
-    }
-    if expectedVolume && massInput && !densityInput && !literalDensity {
-      result.append(
-        AssistanceChoice(
-          id: "missing_density", question: "What density should this conversion use?", options: []))
     }
     if !expectedVolume, let proposed, case .quantity(let next) = proposed,
       case .value(.quantity(let old)) = snapshot.evaluation.lines.first(where: {

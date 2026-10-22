@@ -310,9 +310,9 @@ struct AssistanceCandidateCheckerTests {
     #expect(
       failureCode { try AssistanceCandidateChecker.check(wrongButParsable, against: snapshot) }
         == .missingEvidence)
-    let missing = AssistanceSemanticPolicy(snapshot: snapshot, choices: [:]).requiredChoices(
-      snapshot: snapshot)
-    #expect(missing.map(\.id) == ["missing_density"])
+    let policy = AssistanceSemanticPolicy(snapshot: snapshot, choices: [:])
+    #expect(policy.needsDensity(snapshot: snapshot, usedSymbols: [], literalValues: []))
+    #expect(policy.requiredChoices(snapshot: snapshot).isEmpty)
   }
 
   @Test func selectedTaxInclusionCannotAddTaxAgain() throws {

@@ -72,6 +72,15 @@ public enum AssistanceCandidateChecker {
       }
     }
     let replacement = candidate.edits[0].replacement
+    for line in SheetSource(replacement).lines {
+      if case .calculation(_, _, _, let range?) = LineSyntax(line.text),
+        range.text(in: line.text)?.hasPrefix("// AI:") == true,
+        !snapshot.targetLines.contains(where: { $0.text == line.text })
+      {
+        throw AssistanceValidationFailure(
+          .unsupportedOperation, "Ganit writes assumption origin comments.")
+      }
+    }
     let plan = try AssistanceProposalPlan(candidate, snapshot: snapshot, choices: selectedChoices)
     let expression = plan.expression
     let facts = plan.facts
@@ -208,7 +217,25 @@ public enum AssistanceCandidateChecker {
     let policy = AssistanceSemanticPolicy(snapshot: snapshot, choices: selectedChoices)
     let evidence = Dictionary(
       uniqueKeysWithValues: snapshot.evidence(including: permittedHandles).map { ($0.handle, $0) })
+    let assumed = try AssistanceAssumptionDeclaration.validate(
+      candidate, snapshot: snapshot, evidence: evidence)
     for claim in candidate.literals {
+      if claim.evidence == candidate.assumptions.first?.id, let assumed {
+        guard
+          case .value(let claimed) = snapshot.scope.engine.evaluate(
+            claim.text, context: snapshot.context),
+          assistanceLiteralValuesEqual(claimed, assumed.value, context: snapshot.context),
+          facts.literals.contains(where: {
+            assumed.range.lowerBound <= $0.range.lowerBound
+              && assumed.range.upperBound >= $0.range.upperBound
+              && assistanceLiteralValuesEqual($0.value, assumed.value, context: snapshot.context)
+          })
+        else {
+          throw AssistanceValidationFailure(
+            .missingEvidence, "The assumption must name its declared value.")
+        }
+        continue
+      }
       if claim.evidence.hasPrefix("K:") {
         guard
           ["K:identity", "K:profit_margin_identity", "K:nominal_months"].contains(claim.evidence),
@@ -248,7 +275,12 @@ public enum AssistanceCandidateChecker {
       }
     }
     for literal in facts.literals {
-      var grounded = false
+      var grounded =
+        assumed.map {
+          $0.range.lowerBound <= literal.range.lowerBound
+            && $0.range.upperBound >= literal.range.upperBound
+            && assistanceLiteralValuesEqual($0.value, literal.value, context: snapshot.context)
+        } ?? false
       for claim in candidate.literals {
         guard let record = evidence[claim.evidence], let value = record.value,
           record.kind == "literal",
@@ -482,6 +514,15 @@ public enum AssistanceCandidateChecker {
     else {
       throw AssistanceValidationFailure(
         .unknownBinding, "A line reference is outside the permitted context.")
+    }
+    guard
+      !policy.needsDensity(
+        snapshot: snapshot, usedSymbols: facts.identifiers,
+        literalValues: facts.literals.map(\.value))
+    else {
+      throw AssistanceValidationFailure(
+        .relation, "Declare a density with a world-fact basis, or ask for the material and density."
+      )
     }
     return AssistanceCheckedCandidate(
       candidate: candidate, result: result, resultLineID: plan.resultLine, evaluation: evaluation,

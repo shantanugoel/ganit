@@ -493,6 +493,14 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
 
   // MARK: The assistant
 
+  @objc func toggleAIDerivedAnswers(_ sender: Any?) {
+    assistantSettings.markAIDerivedAnswers.toggle()
+    UserDefaults.standard.set(
+      assistantSettings.markAIDerivedAnswers, forKey: AssistantSettings.markAIDerivedAnswersKey)
+    workspace?.markAIDerivedAnswers = assistantSettings.markAIDerivedAnswers
+    quickPanel?.editor.markAIDerivedAnswers = assistantSettings.markAIDerivedAnswers
+  }
+
   /// Sets up where Ganit asks about the lines it cannot work out.
   @objc func showAssistantSettings(_ sender: Any?) {
     if let assistantWindow {
@@ -509,6 +517,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
         coordinator: suggestionCoordinator, settings: saved)
       workspace?.suggestionConfiguration = configuration
       quickPanel?.editor.suggestionConfiguration = configuration
+      quickPanel?.editor.markAIDerivedAnswers = saved.markAIDerivedAnswers
       Task { await suggestionCoordinator.stopAll() }
     }
     let window = NSWindow(contentViewController: settings)
@@ -687,6 +696,8 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       menuItem.state = UserDefaults.standard.bool(forKey: Self.startsEmptyDefaultsKey) ? .on : .off
     case #selector(toggleAutocomplete(_:)):
       menuItem.state = GanitPreferences.completesWhileTyping ? .on : .off
+    case #selector(toggleAIDerivedAnswers(_:)):
+      menuItem.state = assistantSettings.markAIDerivedAnswers ? .on : .off
     case #selector(toggleAutomaticExchangeRateUpdates(_:)):
       menuItem.state = rateRefresher?.isAutomatic == true ? .on : .off
     case #selector(updateExchangeRates(_:)):
@@ -720,6 +731,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       }
       quickPanel?.editor.suggestionConfiguration = SheetSuggestionConfiguration(
         coordinator: suggestionCoordinator, settings: assistantSettings)
+      quickPanel?.editor.markAIDerivedAnswers = assistantSettings.markAIDerivedAnswers
       quickPanel?.editor.openHelp = { [weak self] id in
         self?.showHelp(topicID: id)
       }

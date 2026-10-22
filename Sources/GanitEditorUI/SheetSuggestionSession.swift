@@ -31,6 +31,11 @@ package final class SheetSuggestionSession {
   package var didChange: () -> Void = {}
   package private(set) var isVisible = false
   package private(set) var instruction = ""
+  package private(set) var continuousAsk = UUID()
+  package private(set) var clarificationCount = 0
+  package var originalWording: String {
+    instruction.isEmpty ? snapshot?.targetText ?? "" : instruction
+  }
   package private(set) var state: SuggestionJobState = .idle
   package private(set) var message = ""
   package private(set) var failure: AskFailure?
@@ -120,12 +125,22 @@ package final class SheetSuggestionSession {
   /// travels as a task note, so the model reads it and Ganit never parses it.
   /// `autoSend` is the ⏎ path: prepare the scope and send it in one gesture.
   package func prepare(retry: Bool = false, instruction: String = "", autoSend: Bool = false) {
+    let continuesAsk = retry && isVisible
+    let previousNotes = taskNotes
+    let previousIncluded = included
+    let previousChoices = choices
+    let previousAssumptions = assumptions
+    let previousRevision = userRevisedInputs
     dismiss()
+    if !continuesAsk {
+      continuousAsk = UUID()
+      clarificationCount = 0
+    }
     self.instruction = instruction.trimmingCharacters(in: .whitespacesAndNewlines)
-    taskNotes = self.instruction.isEmpty ? [] : [self.instruction]
-    included = []
-    choices = [:]
-    assumptions = []
+    taskNotes = continuesAsk ? previousNotes : self.instruction.isEmpty ? [] : [self.instruction]
+    included = continuesAsk ? previousIncluded : []
+    choices = continuesAsk ? previousChoices : [:]
+    assumptions = continuesAsk ? previousAssumptions : []
     proposals = []
     preview = nil
     selected = nil
@@ -138,7 +153,7 @@ package final class SheetSuggestionSession {
     rejection = nil
     automaticRepairs = 0
     self.retry = retry
-    userRevisedInputs = false
+    userRevisedInputs = continuesAsk && previousRevision
     isVisible = true
     guard let editor, let configuration = editor.suggestionConfiguration,
       configuration.settings.isReady
@@ -168,7 +183,8 @@ package final class SheetSuggestionSession {
           return
         }
         let body = try await SuggestionRequestContext.requestBody(
-          settings: configuration.settings, snapshot: snapshot)
+          settings: configuration.settings, snapshot: snapshot, including: self.included,
+          choices: self.choices, userRevisedInputs: self.userRevisedInputs)
         guard self.revision == version, snapshot.source.text == editor.sheet.text else { return }
         self.snapshot = snapshot
         self.preparedBody = body
@@ -237,6 +253,11 @@ package final class SheetSuggestionSession {
         self.proposals = candidates
         self.selectProposal(0)
       case .clarify(let value):
+        guard self.clarificationCount < 2 else {
+          self.reportFailure(.noUsefulAnswer)
+          return
+        }
+        self.clarificationCount += 1
         self.clarification = value
         self.update(.needsChoice, value.question)
       case .unsupported:
@@ -381,14 +402,18 @@ package final class SheetSuggestionSession {
     }
   }
 
-  package func submitClarification(_ answer: String, revisesInputs: Bool = false) {
+  package func submitClarification(
+    _ answer: String, revisesInputs: Bool = false, autoSend: Bool = false
+  ) {
     guard let editor, let target, let configuration, clarification != nil,
       !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     else { return }
+    let permittedRecords = Set(snapshot?.inventory.filter(\.matchesTarget).map(\.handle) ?? [])
+      .union(included)
     revision += 1
     let version = revision
     clarification = nil
-    taskNotes.append(answer)
+    taskNotes.append(answer.trimmingCharacters(in: .whitespacesAndNewlines))
     userRevisedInputs = userRevisedInputs || revisesInputs
     update(.preparing, localized("ask.preparingRevised", "Preparing the revised Ask."))
     task = Task { [weak self] in
@@ -403,11 +428,18 @@ package final class SheetSuggestionSession {
         guard self.revision == version, snapshot.source.text == editor.sheet.text else { return }
         self.snapshot = snapshot
         self.preparedBody = body
+        let addsSource = !Set(snapshot.inventory.filter(\.matchesTarget).map(\.handle))
+          .isSubset(of: permittedRecords)
         self.update(
           .idle,
           Self.contextSummary(snapshot, model: configuration.settings.model)
             + " "
-            + localized("ask.reviewNote", "Your added words are listed in Context."))
+            + (addsSource
+              ? localized(
+                "ask.reviewAddedSource",
+                "Your answer adds source records. Open Context before you send.")
+              : localized("ask.reviewNote", "Your added words are listed in Context.")))
+        if autoSend && !addsSource { self.send() }
       } catch {
         guard self.revision == version else { return }
         self.update(
@@ -415,6 +447,13 @@ package final class SheetSuggestionSession {
           localized("ask.revisedTooLarge", "That revised Ask is too large, or the sheet changed."))
       }
     }
+  }
+
+  package func rephraseClarification() {
+    guard clarification != nil else { return }
+    clarification = nil
+    preparedBody = nil
+    update(.idle, localized("ask.rephrase", "Change your original words, then press Return."))
   }
 
   package func apply() {
@@ -435,7 +474,8 @@ package final class SheetSuggestionSession {
         let edit = try await scheduler.prepareSuggestion(
           selected, snapshot: fresh,
           handles: self.included, choices: self.choices, assumptions: self.assumptions,
-          userRevisedInputs: self.userRevisedInputs, omittedLines: self.omittedLines)
+          userRevisedInputs: self.userRevisedInputs, omittedLines: self.omittedLines,
+          assumptionModel: self.configuration?.settings.model ?? "AI")
         guard self.revision == version, fresh.source.text == editor.sheet.text,
           !editor.textView.hasMarkedText()
         else { return }

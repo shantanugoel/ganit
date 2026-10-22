@@ -17,7 +17,8 @@ extension AssistanceCandidateChecker {
   public static func prepareSourceEdit(
     _ candidate: SuggestionCandidate, against snapshot: AssistanceSnapshot,
     permittedHandles: Set<String> = [], selectedChoices: [String: String] = [:],
-    approvedAssumptions: Set<String> = [], userRevisedInputs: Bool = false
+    approvedAssumptions: Set<String> = [], userRevisedInputs: Bool = false,
+    assumptionModel: String = "AI", assumptionDate: String? = nil
   ) throws -> AssistanceSourceEdit {
     let checked = try check(
       candidate, against: snapshot, permittedHandles: permittedHandles,
@@ -26,21 +27,49 @@ extension AssistanceCandidateChecker {
     guard checked.isApplicable else {
       throw AssistanceValidationFailure(.relation, "Review each required choice and assumption.")
     }
+    let evidence = Dictionary(
+      uniqueKeysWithValues: snapshot.evidence(including: permittedHandles).map { ($0.handle, $0) })
+    let assumed = try AssistanceAssumptionDeclaration.validate(
+      candidate, snapshot: snapshot, evidence: evidence)
+    var working = candidate.edits[0].replacement
+    if let assumed, let assumption = candidate.assumptions.first {
+      let date =
+        assumptionDate
+        ?? String(ISO8601DateFormatter().string(from: snapshot.context.now).prefix(10))
+      let marker = AIAssumption(
+        basis: oneLine(assumption.text),
+        model: oneLine(assumptionModel).replacingOccurrences(of: " · ", with: " ")
+          .trimmingCharacters(in: .whitespaces), date: date)
+      let rows = SheetSource(working).lines
+      guard
+        AIAssumption.parse(
+          rows[assumed.lineIndex].text + " " + marker.comment, context: snapshot.context) != nil
+      else {
+        throw AssistanceValidationFailure(
+          .invalidBounds, "The assumption origin needs a model and a valid date.")
+      }
+      working = rows.enumerated().map { index, line in
+        line.text + (index == assumed.lineIndex ? " " + marker.comment : "")
+          + (line.terminator?.rawValue ?? "")
+      }.joined()
+    }
     let target = snapshot.targetLines.last!
     let separator = target.terminator?.rawValue ?? "\n"
     var comments = snapshot.targetLines.map { "// Request record: " + $0.text }
     comments += snapshot.notes.filter { $0.source.hasPrefix("// Task: ") }.map {
       "// Task record: " + String($0.source.dropFirst("// Task: ".count))
     }
-    comments += candidate.assumptions.map { "// Approved assumption: " + oneLine($0.text) }
     // Put historical records after the proposed working. Existing references
     // use the reviewed mapping through the same source transaction.
     let insertion = target.range.upperBound + (target.terminator?.rawValue.utf8.count ?? 0)
     let record =
       (target.terminator == nil ? separator : "")
       + comments.joined(separator: separator) + (target.terminator == nil ? "" : separator)
+    let workingPatches = checked.patches.map {
+      TableSourcePatch(utf8Range: $0.utf8Range, expected: $0.expected, replacement: working)
+    }
     let patches =
-      checked.patches + [
+      workingPatches + [
         TableSourcePatch(utf8Range: insertion..<insertion, expected: "", replacement: record)
       ]
     var shadow = snapshot.source

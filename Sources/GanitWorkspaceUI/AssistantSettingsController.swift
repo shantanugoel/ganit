@@ -27,6 +27,9 @@ public final class AssistantSettingsController: NSViewController {
   /// The word to send when the popup says Custom.
   private let customEffort = NSTextField(string: "")
   private let repairAttempts = NSPopUpButton(frame: .zero, pullsDown: false)
+  private let markAIDerivedAnswers = NSButton(
+    checkboxWithTitle: localized("assistant.markDerived", "Mark AI-derived answers"),
+    target: nil, action: nil)
   private let status = NSTextField(wrappingLabelWithString: "")
 
   public init(
@@ -37,6 +40,7 @@ public final class AssistantSettingsController: NSViewController {
     self.didSave = didSave
     super.init(nibName: nil, bundle: nil)
     enabled.state = settings.isEnabled ? .on : .off
+    markAIDerivedAnswers.state = settings.markAIDerivedAnswers ? .on : .off
     endpoint.stringValue = settings.endpoint.absoluteString
     model.stringValue = settings.model
     key.stringValue = settings.apiKey
@@ -119,7 +123,9 @@ public final class AssistantSettingsController: NSViewController {
       action: #selector(test(_:)))
     let buttons = NSStackView(views: [test, save])
 
-    let stack = NSStackView(views: [explanation, enabled, fields, status, buttons])
+    let stack = NSStackView(views: [
+      explanation, enabled, fields, markAIDerivedAnswers, status, buttons,
+    ])
     stack.orientation = .vertical
     stack.alignment = .leading
     stack.spacing = VisualStyle.Spacing.group
@@ -193,7 +199,8 @@ public final class AssistantSettingsController: NSViewController {
       model: model.stringValue.trimmingCharacters(in: .whitespaces),
       apiKey: key.stringValue.trimmingCharacters(in: .whitespaces),
       effort: chosenEffort,
-      repairAttempts: max(0, repairAttempts.indexOfSelectedItem)
+      repairAttempts: max(0, repairAttempts.indexOfSelectedItem),
+      markAIDerivedAnswers: markAIDerivedAnswers.state == .on
     )
   }
 

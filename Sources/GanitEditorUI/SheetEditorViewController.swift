@@ -156,6 +156,11 @@ public final class SheetEditorViewController: NSViewController {
     view.needsLayout = true
   }
 
+  public var markAIDerivedAnswers = true {
+    didSet { sheetTextView.answersDidChange() }
+  }
+  private var assumptionPopover: NSPopover?
+
   private var context: EvaluationContext
   let scrollView = NSScrollView()
   package private(set) var expandedTable: ExpandedTableViewController?
@@ -292,6 +297,9 @@ public final class SheetEditorViewController: NSViewController {
       self?.suggestionConfiguration?.settings.isReady == true && self?.suggestionTargets != nil
     }
     sheetTextView.onAskGanit = { [weak self] in self?.askGanit(nil) }
+    sheetTextView.onInspectAssumption = { [weak self] id, rect in
+      self?.inspectAssumption(id, at: rect)
+    }
     sheetTextView.dismissSuggestion = { [weak self] in
       guard let self, suggestionSession.isVisible else { return false }
       suggestionSession.dismiss()
@@ -1280,11 +1288,19 @@ public final class SheetEditorViewController: NSViewController {
     if let cached = cells[id], cached.isEditing == isEditing, cached.result == result,
       cached.assisted == assisted, cached.pending == pending
     {
-      return cached.cell
+      return markAssumption(cached.cell, line: shown.result)
     }
     let cell = makeCell(
       for: result, text: shown.text, isEditing: isEditing, assisted: assisted, pending: pending)
     cells[id] = (result, isEditing, assisted, pending, cell)
+    return markAssumption(cell, line: shown.result)
+  }
+
+  private func markAssumption(_ cell: AnswerCell?, line: SheetLineResult) -> AnswerCell? {
+    guard var cell else { return nil }
+    cell.isAIAssumption = line.aiAssumption != nil
+    cell.isAIDerived =
+      markAIDerivedAnswers && !line.aiAssumptionOrigins.isEmpty && line.aiAssumption == nil
     return cell
   }
 
@@ -1698,7 +1714,8 @@ public final class SheetEditorViewController: NSViewController {
       syntax: shown.result.syntax,
       result: shown.result.result,
       isEditing: line.id == editingLine,
-      lexingConfiguration: context.lexingConfiguration
+      lexingConfiguration: context.lexingConfiguration,
+      aiAssumption: shown.result.aiAssumption != nil
     )
     guard decoration != decorations[line.id] || editedLines.contains(line.id) else {
       return
@@ -1798,6 +1815,11 @@ private final class StorageObserver: NSObject, @preconcurrency NSTextStorageDele
       controller?.permitsInlineEdit(ranges.map(\.rangeValue), replacements: replacementStrings)
         != false
     else { return false }
+    if controller?.replaceAssumptionValueEdit(
+      ranges.map(\.rangeValue), replacements: replacementStrings) == true
+    {
+      return false
+    }
     controller?.noteLineShift(replacing: ranges.map(\.rangeValue), with: replacementStrings)
     return true
   }
@@ -2238,5 +2260,234 @@ extension SheetEditorViewController {
       let column = origin.column.flatMap({ id in projection.columns.firstIndex { $0.id == id } })
     else { return }
     grid.select(.init(row: row, column: column))
+  }
+}
+
+extension SheetEditorViewController {
+  package struct AssumptionRemovalReview {
+    let sourceBefore: String
+    let sourceAfter: String
+    let patch: TableSourcePatch
+    let failures: [String]
+  }
+
+  package func assumptionUsers(_ origin: LineID) -> [SheetLine] {
+    let users = Set(
+      latestEvaluation?.lines.filter {
+        $0.id != origin && $0.aiAssumptionOrigins.contains(origin)
+      }.map(\.id) ?? [])
+    return sheet.lines.filter { users.contains($0.id) }
+  }
+
+  package func changeAssumptionValue(_ id: LineID) {
+    guard let line = sheet.lines.first(where: { $0.id == id }),
+      AIAssumption.parse(line.text, context: context) != nil,
+      let value = AIAssumption.valueRange(in: line.text),
+      let range = utf16Range(
+        forUTF8: (line.range.lowerBound + value.lowerBound)..<(line.range.lowerBound
+          + value.upperBound))
+    else { return }
+    assumptionPopover?.close()
+    view.window?.makeFirstResponder(textView)
+    textView.setSelectedRange(range)
+    textView.scrollRangeToVisible(range)
+  }
+
+  private func inspectAssumption(_ id: LineID, at rect: NSRect) {
+    guard let result = latestEvaluation?.lines.first(where: { $0.id == id }),
+      let origin = result.aiAssumption == nil
+        ? sheet.lines.first(where: { result.aiAssumptionOrigins.contains($0.id) })?.id : id,
+      let source = sheet.lines.first(where: { $0.id == origin }),
+      let metadata = AIAssumption.parse(source.text, context: context),
+      let valueResult = latestEvaluation?.lines.first(where: { $0.id == origin }),
+      case .value(let value) = valueResult.result,
+      let formatted = formatTableValue(value)?.display
+    else { return }
+    let users = assumptionUsers(origin)
+    let usedBy =
+      users.isEmpty
+      ? localized("assumption.noUsers", "No other lines.")
+      : users.map(\.text).joined(separator: "\n")
+    let popover = NSPopover()
+    popover.behavior = .transient
+    var removal: AssumptionRemovalReview?
+    popover.contentViewController = AssumptionCardController(
+      details: [
+        (localized("assumption.value", "Value"), formatted),
+        (localized("assumption.basis", "Basis"), metadata.basis),
+        (localized("assumption.model", "Model"), metadata.model),
+        (localized("assumption.date", "Date"), metadata.date),
+        (localized("assumption.usedBy", "Used by"), usedBy),
+      ], copiedSource: source.text,
+      change: { [weak self] in self?.changeAssumptionValue(origin) },
+      preview: { [weak self] in
+        guard let self else { throw SheetSourceCoordinator.Failure.staleEdit }
+        let review = try await self.reviewAssumptionRemoval(origin)
+        removal = review
+        if review.failures.isEmpty {
+          return localized(
+            "assumption.removeNoFailures", "No calculated lines fail when this value is removed.")
+        }
+        return localized(
+          "assumption.removeFailures", "These lines fail when this value is removed:")
+          + "\n" + review.failures.joined(separator: "\n")
+      },
+      remove: { [weak self, weak popover] in
+        guard let self, let removal else { throw SheetSourceCoordinator.Failure.staleEdit }
+        try self.removeAssumption(removal)
+        popover?.close()
+      })
+    assumptionPopover?.close()
+    assumptionPopover = popover
+    popover.show(relativeTo: rect, of: textView, preferredEdge: .maxY)
+  }
+
+  package func reviewAssumptionRemoval(_ id: LineID) async throws -> AssumptionRemovalReview {
+    guard let scheduler, let index = sheet.lines.firstIndex(where: { $0.id == id }),
+      AIAssumption.parse(sheet.lines[index].text, context: context) != nil
+    else { throw SheetSourceCoordinator.Failure.staleEdit }
+    let original = sheet
+    let line = original.lines[index]
+    let lower =
+      line.terminator == nil && index > 0
+      ? original.lines[index - 1].range.upperBound : line.range.lowerBound
+    let upper = line.range.upperBound + (line.terminator?.rawValue.utf8.count ?? 0)
+    let range = lower..<upper
+    guard let replacementRange = utf16Range(forUTF8: range) else {
+      throw SheetSourceCoordinator.Failure.staleEdit
+    }
+    let old = original.text.utf8
+    let start = old.index(old.startIndex, offsetBy: lower)
+    let end = old.index(old.startIndex, offsetBy: upper)
+    let patch = TableSourcePatch(
+      utf8Range: range, expected: String(original.text[start..<end]), replacement: "")
+    var shadow = original
+    shadow.replace(utf8Range: range, with: "")
+    let rewrites = LineReferenceRenumbering.edits(
+      replacing: [replacementRange], in: original.text, with: [""],
+      configuration: context.lexingConfiguration)
+    for rewrite in rewrites.reversed() {
+      guard let range = Range(rewrite.range, in: shadow.text) else {
+        throw SheetSourceCoordinator.Failure.staleEdit
+      }
+      let lower = shadow.text.utf8.distance(from: shadow.text.utf8.startIndex, to: range.lowerBound)
+      let upper = shadow.text.utf8.distance(from: shadow.text.utf8.startIndex, to: range.upperBound)
+      shadow.replace(utf8Range: lower..<upper, with: rewrite.replacement)
+    }
+    let baseline = latestEvaluation
+    let checked = try await scheduler.previewSource(shadow)
+    guard sheet.text == original.text else { throw SheetSourceCoordinator.Failure.staleEdit }
+    let before = Dictionary(
+      uniqueKeysWithValues: (baseline?.lines ?? []).map { ($0.id, $0.result) })
+    var failures: [String] = []
+    for result in checked.lines where result.id != id && before[result.id] != .some(result.result) {
+      let diagnostic: String?
+      switch result.result {
+      case .evaluationFailure(let error): diagnostic = diagnosticFormatter.format(error).message
+      case .syntaxFailure(let errors):
+        diagnostic = errors.first.map { diagnosticFormatter.format($0).message }
+      default: diagnostic = nil
+      }
+      if let diagnostic, let row = shadow.lines.first(where: { $0.id == result.id }) {
+        failures.append(row.text + " — " + diagnostic)
+      }
+    }
+    return AssumptionRemovalReview(
+      sourceBefore: original.text, sourceAfter: shadow.text, patch: patch, failures: failures)
+  }
+
+  package func removeAssumption(_ review: AssumptionRemovalReview) throws {
+    guard sheet.text == review.sourceBefore else { throw SheetSourceCoordinator.Failure.staleEdit }
+    try sourceCoordinator.apply(
+      [review.patch], actionName: localized("assumption.undoRemove", "Remove value"))
+  }
+}
+
+extension SheetEditorViewController {
+  /// A value edit and removal of its origin comment form one source transaction.
+  fileprivate func replaceAssumptionValueEdit(_ ranges: [NSRange], replacements: [String]?) -> Bool
+  {
+    guard !sourceCoordinator.isApplying, !isRewritingReferences,
+      !documentUndoManager.isUndoing, !documentUndoManager.isRedoing,
+      !textView.hasMarkedText(), let replacements, replacements.count == ranges.count,
+      !ranges.isEmpty
+    else { return false }
+    let original = sheet.text
+    var patches: [TableSourcePatch] = []
+    var consumed: Set<Int> = []
+    var selectionChanges = zip(ranges, replacements).map { (range: $0.0, replacement: $0.1) }
+    for line in sheet.lines where line.text.contains("// AI: ") {
+      guard AIAssumption.parse(line.text, context: context) != nil,
+        let expression = AIAssumption.valueRange(in: line.text),
+        let rowRange = utf16Range(forUTF8: line.range.lowerBound..<line.range.upperBound),
+        let valueRange = utf16Range(
+          forUTF8: (line.range.lowerBound + expression.lowerBound)..<(line.range.lowerBound
+            + expression.upperBound))
+      else { continue }
+      // An edit that starts in the value, or in the whitespace between the
+      // value and its origin, is an edit of the value: the row is rewritten and
+      // the origin goes with it. An edit that starts inside the origin is left
+      // to ordinary typing, so the reader can still correct or delete the
+      // comment by hand. A row carrying both at once is left alone rather than
+      // patched twice over the same bytes.
+      let gapEnd = valueRange.upperBound
+      var edits: [Int] = []
+      var sharesTheRow = false
+      for index in ranges.indices {
+        let range = ranges[index]
+        let overlapsRow =
+          NSIntersectionRange(range, rowRange).length > 0
+          || (range.length == 0 && range.location > rowRange.location
+            && range.location < rowRange.upperBound)
+        guard overlapsRow else { continue }
+        let startsInside =
+          range.location >= rowRange.location
+          && (range.length == 0 ? range.location <= gapEnd : range.location < gapEnd)
+        guard startsInside, range.upperBound <= rowRange.upperBound else {
+          sharesTheRow = true
+          continue
+        }
+        edits.append(index)
+      }
+      guard !edits.isEmpty, !sharesTheRow else { continue }
+      // Keep the declaration and its edited value. The app marker ends the row.
+      let prefixLength = valueRange.upperBound - rowRange.location
+      var replacement = (line.text as NSString).substring(to: prefixLength)
+      for index in edits.sorted(by: { ranges[$0].location > ranges[$1].location }) {
+        let location = min(ranges[index].location - rowRange.location, prefixLength)
+        let length = min(ranges[index].length, prefixLength - location)
+        replacement = (replacement as NSString).replacingCharacters(
+          in: NSRange(location: location, length: length), with: replacements[index])
+      }
+      patches.append(
+        TableSourcePatch(
+          utf8Range: line.range.lowerBound..<line.range.upperBound, expected: line.text,
+          replacement: replacement))
+      consumed.formUnion(edits)
+      selectionChanges.append(
+        (
+          NSRange(
+            location: valueRange.upperBound, length: rowRange.upperBound - valueRange.upperBound),
+          ""
+        ))
+    }
+    guard !patches.isEmpty else { return false }
+    for index in ranges.indices where !consumed.contains(index) {
+      guard let range = Range(ranges[index], in: original) else { return false }
+      let lower = original.utf8.distance(from: original.utf8.startIndex, to: range.lowerBound)
+      let upper = original.utf8.distance(from: original.utf8.startIndex, to: range.upperBound)
+      patches.append(
+        TableSourcePatch(
+          utf8Range: lower..<upper, expected: String(original[range]),
+          replacement: replacements[index]))
+    }
+    let caret = SheetSourceCoordinator.mapped(
+      NSRange(location: ranges[0].upperBound, length: 0),
+      through: selectionChanges.sorted { $0.range.location < $1.range.location })
+    do {
+      try sourceCoordinator.apply(
+        patches, actionName: localized("assumption.undoEdit", "Edit value"), selectionAfter: caret)
+    } catch { NSSound.beep() }
+    return true
   }
 }

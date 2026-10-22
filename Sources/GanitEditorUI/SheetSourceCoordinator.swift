@@ -31,7 +31,9 @@ final class SheetSourceCoordinator {
   /// Replaces UTF-8 ranges of the current source, each expected to hold its
   /// patch's text, as one undoable edit named `actionName`. Every patch
   /// applies, or none does.
-  func apply(_ patches: [TableSourcePatch], actionName: String) throws {
+  func apply(_ patches: [TableSourcePatch], actionName: String, selectionAfter: NSRange? = nil)
+    throws
+  {
     guard !patches.isEmpty else { return }
     isApplying = true
     defer { isApplying = false }
@@ -66,7 +68,7 @@ final class SheetSourceCoordinator {
     for change in changes.reversed() {
       storage.replaceCharacters(in: change.range, with: change.replacement)
     }
-    textView.setSelectedRange(Self.mapped(before, through: changes))
+    textView.setSelectedRange(selectionAfter ?? Self.mapped(before, through: changes))
     // Rewrites line references the edit moved, inside this Undo group.
     textView.didChangeText()
     // Registered last, so Redo runs it last: after the source is replayed.
