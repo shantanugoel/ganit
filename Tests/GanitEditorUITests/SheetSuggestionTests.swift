@@ -5,6 +5,7 @@ import GanitData
 import GanitEngine
 import GanitFormatting
 import GanitSuggestionProtocol
+import ScreenCaptureKit
 import Testing
 
 @testable import GanitEditorUI
@@ -626,25 +627,65 @@ struct SheetSuggestionTests {
     #expect(AskBar.contextJSON(body).contains("\"reasoning_effort\""))
   }
 
-  /// The pixels, not the property list: driving the built app showed the source
-  /// text vanishing while the bar is open, and every view property looked fine.
-  /// So the sheet's own ink has to survive the bar.
-  @Test func theSourceStaysInkWhileTheBarIsOpen() async throws {
+  @Test func theBarBackgroundStaysInsideItsBounds() async throws {
+    let editor = try await editor("price = 12\ntotal = nope(3)")
+    let bar = try #require(editor.view.subviews.compactMap { $0 as? AskBar }.first)
+    bar.frame = NSRect(x: 0, y: 0, width: 320, height: 100)
+    let bitmap = try #require(
+      NSBitmapImageRep(
+        bitmapDataPlanes: nil, pixelsWide: 400, pixelsHigh: 180,
+        bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true,
+        isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
+    let graphics = try #require(NSGraphicsContext(bitmapImageRep: bitmap))
+    NSGraphicsContext.saveGraphicsState()
+    defer { NSGraphicsContext.restoreGraphicsState() }
+    NSGraphicsContext.current = graphics
+    NSColor.magenta.setFill()
+    NSRect(x: 0, y: 0, width: 400, height: 180).fill()
+    let transform = NSAffineTransform()
+    transform.translateX(by: 40, yBy: 40)
+    transform.concat()
+    // AppKit can pass a dirty rectangle that extends into the sheet above.
+    bar.draw(NSRect(x: -40, y: -40, width: 400, height: 180))
+    graphics.flushGraphics()
+    for point in [(20, 90), (380, 90), (200, 20), (200, 160)] {
+      let color = try #require(bitmap.colorAt(x: point.0, y: point.1)?.usingColorSpace(.deviceRGB))
+      #expect(color.redComponent > 0.95)
+      #expect(color.greenComponent < 0.05)
+      #expect(color.blueComponent > 0.95)
+    }
+    let inside = try #require(bitmap.colorAt(x: 200, y: 90)?.usingColorSpace(.deviceRGB))
+    #expect(inside.greenComponent > 0.05, "the bar must still draw its own background")
+  }
+
+  // This gate requires a desktop session and screen capture permission.
+  // Run with GANIT_WINDOW_CAPTURE_TESTS=1. Do not substitute cacheDisplay:
+  // it draws each view again and cannot detect a sibling that covers the sheet.
+  @Test(.enabled(if: ProcessInfo.processInfo.environment["GANIT_WINDOW_CAPTURE_TESTS"] == "1"))
+  func theSourceStaysInkWhileTheBarIsOpen() async throws {
     let editor = try await editor("price = 12\ntotal = nope(3)")
     _ = configure(editor, replies: [])
-    let sheet = editor.textView
-    editor.view.window?.orderFrontRegardless()
-    editor.view.layoutSubtreeIfNeeded()
-    // Where the source lives: the document's own rect as the container sees it.
-    let source = sheet.convert(sheet.bounds, to: editor.view)
-    let closed = ink(editor.view, source)
-    #expect(editor.openAskBar() == true)
-    await editor.suggestionSession.waitUntilIdle()
-    editor.view.layoutSubtreeIfNeeded()
-    let opened = ink(editor.view, source)
-    #expect(editor.suggestionSession.isVisible)
-    #expect(closed > 20, "the source draws nothing even with the bar closed")
-    #expect(opened > 20, "the source vanished while the bar is open")
+    let window = try #require(editor.view.window)
+    window.setContentSize(NSSize(width: 720, height: 620))
+    window.center()
+    window.tabbingMode = .disallowed
+    defer { window.orderOut(nil) }
+    for appearance in [NSAppearance.Name.aqua, .darkAqua] {
+      window.appearance = NSAppearance(named: appearance)
+      window.makeKeyAndOrderFront(nil)
+      for _ in 0..<3 {
+        let closed = try await compositedSourceInk(editor)
+        #expect(editor.openAskBar() == true)
+        await editor.suggestionSession.waitUntilIdle()
+        let opened = try await compositedSourceInk(editor)
+        #expect(editor.suggestionSession.isVisible)
+        #expect(closed > 20, "the closed sheet must have visible source text")
+        #expect(opened >= closed * 3 / 4, "the open bar covered the source text")
+        editor.stopSuggestions()
+        let dismissed = try await compositedSourceInk(editor)
+        #expect(dismissed >= closed * 3 / 4)
+      }
+    }
   }
 
   /// A review surface must not hide what is under review. Driving the built app
@@ -703,29 +744,46 @@ private actor EditorSuggestionTransport: SuggestionTransport {
   }
 }
 
-/// How many dark pixels a region of a view actually draws. View properties can
-/// all read healthy while the view paints nothing, which is how the blank sheet
-/// hid from the suite.
+/// Count source pixels in the window server image. Never redraw the view here.
 @MainActor
-private func ink(_ view: NSView, _ rect: NSRect) -> Int {
-  guard let rep = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return -1 }
-  view.cacheDisplay(in: view.bounds, to: rep)
-  let wide = rep.pixelsWide
-  let tall = rep.pixelsHigh
-  guard wide > 0, tall > 0, view.bounds.width > 0, view.bounds.height > 0 else { return -1 }
-  let sx = CGFloat(wide) / view.bounds.width
-  let sy = CGFloat(tall) / view.bounds.height
-  let x0 = max(0, Int((rect.minX * sx).rounded()))
-  let x1 = min(wide - 1, Int((rect.maxX * sx).rounded()))
-  let y0 = max(0, Int((rect.minY * sy).rounded()))
-  let y1 = min(tall - 1, Int((rect.maxY * sy).rounded()))
-  guard x1 > x0, y1 > y0 else { return 0 }
-  var dark = 0
-  for y in y0...y1 {
-    for x in x0...x1 {
-      guard let color = rep.colorAt(x: x, y: y) else { continue }
-      if color.usingColorSpace(.genericGray)?.whiteComponent ?? 1 < 0.7 { dark += 1 }
+private func compositedSourceInk(_ editor: SheetEditorViewController) async throws -> Int {
+  let window = try #require(editor.view.window)
+  #expect(CGPreflightScreenCaptureAccess(), "screen capture permission is required for this gate")
+  editor.view.layoutSubtreeIfNeeded()
+  editor.textView.scroll(.zero)
+  window.displayIfNeeded()
+  // Let the window server finish the frame before capture.
+  try await Task.sleep(for: .milliseconds(250))
+  let content = try await SCShareableContent.excludingDesktopWindows(
+    false, onScreenWindowsOnly: true)
+  let target = try #require(
+    content.windows.first { $0.windowID == CGWindowID(window.windowNumber) })
+  let filter = SCContentFilter(desktopIndependentWindow: target)
+  let configuration = SCStreamConfiguration()
+  configuration.width = Int(filter.contentRect.width * CGFloat(filter.pointPixelScale))
+  configuration.height = Int(filter.contentRect.height * CGFloat(filter.pointPixelScale))
+  configuration.showsCursor = false
+  if #available(macOS 14.2, *) { configuration.ignoreShadowsSingleWindow = true }
+  let image = try await SCScreenshotManager.captureImage(
+    contentFilter: filter, configuration: configuration)
+  let bitmap = NSBitmapImageRep(cgImage: image)
+  let sheet = editor.textView
+  let source = sheet.convert(
+    NSRect(origin: sheet.textContainerOrigin, size: NSSize(width: 180, height: 50)), to: nil)
+  let sx = CGFloat(image.width) / window.frame.width
+  let sy = CGFloat(image.height) / window.frame.height
+  let x0 = max(0, Int(source.minX * sx))
+  let x1 = min(image.width, Int(source.maxX * sx))
+  let y0 = max(0, Int((window.frame.height - source.maxY) * sy))
+  let y1 = min(image.height, Int((window.frame.height - source.minY) * sy))
+  #expect(x1 > x0 && y1 > y0, "the source capture region must be inside the window")
+  let dark = window.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+  var count = 0
+  for y in y0..<y1 {
+    for x in x0..<x1 {
+      let color = try #require(bitmap.colorAt(x: x, y: y)?.usingColorSpace(.genericGray))
+      if dark ? color.whiteComponent > 0.7 : color.whiteComponent < 0.3 { count += 1 }
     }
   }
-  return dark
+  return count
 }

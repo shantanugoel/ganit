@@ -252,23 +252,22 @@ selection (`loan`, `trip` fixtures, fake transport); Esc closes; nothing is sent
 without ⏎; the `Ask` chip appears on the caret's failing line and only there,
 and makes no request.
 
-**Two defects found by driving the built app, both open:**
+**Two defects found in the built app, both fixed:**
 
-1. **While the bar is open the sheet's source stops drawing** — text and gutter
-   vanish, though the accessibility value still reports the text. **Bisected: the
-   suggestion card at b60b6c7 blanks the pane identically, so this predates the
-   Ask bar and is not an M1 regression** — the panel has hidden the lines it
-   reviews since it shipped, and M1 is where anyone looked. Ruled out by
-   evidence, not by feel: it is not the bar's frame (docked and floating blank
-   alike), not layer-backing (the text view is layer-backed before the bar ever
-   opens), not hiddenness or alpha (a suite assertion covers every subview), and
-   not the text (still reported, still selectable). It does not reproduce in the
-   harness: `cacheDisplay` paints the source correctly with the bar open, so the
-   failure is in the display-invalidation path, which a suite that forces its own
-   draws cannot reach. Fixing it needs the app, not the test runner.
-   Two guards now stand in the suite so a regression here is not invisible
-   again: every subview of the sheet must stay visible, and the source region
-   must still hold ink while the bar is open.
+1. The Ask bar covered the source, line numbers, and results. Its background
+   fill used the full dirty rectangle. AppKit can extend that rectangle outside
+   the view bounds. The bar could thus paint over the sheet after the sheet
+   had drawn. The fix limits the fill to the intersection of the dirty rectangle
+   and the bar bounds. A blue sheet background also disappeared with the old
+   code. The fixed app keeps the source and results visible with the bar open.
+   The drawing test supplies a dirty rectangle larger than the bar and checks
+   that pixels outside the bar do not change. The window capture test uses
+   ScreenCaptureKit with no redraw fallback. It checks three open and close
+   cycles in light and dark appearance. To run this desktop check, set
+   `GANIT_WINDOW_CAPTURE_TESTS=1` and run
+   `swift test --filter SheetSuggestionTests.theSourceStaysInkWhileTheBarIsOpen`.
+   Screen capture permission is required. The old `cacheDisplay` check was
+   removed because it redraws the views and cannot detect this failure.
 2. The chip was drawn where it should be but was inert: its hit-test compared
    the text view's rect against the overlay's own coordinate space, so clicks
    fell through to the text and moved the caret. Fixed by converting between the

@@ -5,9 +5,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
-- Known defect, found while building the Ask bar and still open: opening the
-  panel blanks the sheet behind it, hiding the very lines you are being asked
-  to Apply. It has done this since the panel shipped, and is not new to Ask.
+- Keep the source text and results visible when the Ask bar is open. The
+  bar now draws its background only inside its bounds.
 
 - Ask Ganit. **⌘⇧A** anywhere in the editor, a quiet **Ask** chip beside a line
   Ganit cannot read, the trailing action on the selection bar, and the answer
