@@ -5,9 +5,9 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
-- Fix a long-standing defect that is now impossible to miss: opening the
-  suggestion panel (now the Ask bar) blanked the sheet behind it, hiding the
-  very lines under review. Present since the panel shipped.
+- Known defect, found while building the Ask bar and still open: opening the
+  panel blanks the sheet behind it, hiding the very lines you are being asked
+  to Apply. It has done this since the panel shipped, and is not new to Ask.
 
 - Ask Ganit. **⌘⇧A** anywhere in the editor, a quiet **Ask** chip beside a line
   Ganit cannot read, the trailing action on the selection bar, and the answer

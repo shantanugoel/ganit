@@ -255,7 +255,10 @@ and makes no request.
 **Two defects found by driving the built app, both open:**
 
 1. **While the bar is open the sheet's source stops drawing** — text and gutter
-   vanish, though the accessibility value still reports the text. Ruled out by
+   vanish, though the accessibility value still reports the text. **Bisected: the
+   suggestion card at b60b6c7 blanks the pane identically, so this predates the
+   Ask bar and is not an M1 regression** — the panel has hidden the lines it
+   reviews since it shipped, and M1 is where anyone looked. Ruled out by
    evidence, not by feel: it is not the bar's frame (docked and floating blank
    alike), not layer-backing (the text view is layer-backed before the bar ever
    opens), not hiddenness or alpha (a suite assertion covers every subview), and
