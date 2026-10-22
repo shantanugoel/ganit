@@ -1,8 +1,8 @@
 # AI as part of the calculator: experience plan
 
 Date: 2026-10-20
-Status: Design approved. M-1 through M3 are complete.
-M4 and M5 are not started. Their exit gates are not complete.
+Status: Design approved. M-1 through M4 are complete.
+M5 is not started. Its exit gate is not complete.
 M0's records are [ADR 0019](../adr/0019-ask-one-operation-four-outcomes.md) and
 [the frozen Ask job contract](../design/ai-native/ask-job-contract.md), and the
 harness this plan tells M1 to reuse is now merged into this branch. The legacy
@@ -377,10 +377,39 @@ it, and the card that lists the value, its basis, the model, the date, and the
 line that uses it. The test sheet was trashed and the assistant settings were
 put back as they were. No configured provider was contacted.
 
-**M4 — Ganit-first explain and fix.** Engine-sourced explain card reusing the
-interpretation card, `Fix it` hand-off on diagnostics, explicit "nothing was
+**M4 — Ganit-first explain and fix.** *Done 2026-10-22.* The explain card uses
+engine data and the existing interpretation card, `Fix it` hand-off on diagnostics, explicit "nothing was
 sent" statement. *Gate:* `explain`'s three frames pass; the card is correct
 for `line N` renumbering failures.
+
+**M4 gate: passed, 2026-10-22.** The three Explain frames pass. Local
+questions use the current engine evaluation and send no request. The card
+shows the native expression, result, dependencies, grammar rules, assumptions,
+and diagnostics. A failed `line N` reference names its current target.
+A deleted or split reference keeps the engine's own diagnostic. A valid
+reference does not acquire an invented cause. Tests cover renumbering,
+function capture, custom units, assumptions, syntax errors, pending evaluation,
+and stale card actions.
+
+**Fix it** prepares the diagnostic context and waits for Send. Its reply uses
+the existing candidate checker, preview, Apply, and Undo path. **Ask the model
+instead** also waits for Send and keeps the original question. A model
+explanation states that context was sent and that the text is unverified.
+It is transient, cannot supply an answer, and is not cached. Tests reject
+unsolicited explanations, numeric text, equations, unknown fields, and late
+replies from stale jobs.
+
+Computer use tested the release app in a separate test bundle with synthetic
+source and a loopback provider. The checks cover the local result card,
+keyboard access to its actions, explicit model fallback, the diagnostic
+card, Fix it, Context before Send, a checked result of 41,000, Apply, and
+one Undo that restores the exact failed source. The provider count did not
+change for local explanations or either action. No configured provider was
+contacted. The card layout completes after the Ask bar closes, and its first
+action receives keyboard focus.
+
+The full package suite passes: 1,399 tests. The final card tests, formatting,
+whitespace checks, app build, and bundle verification pass.
 
 **M5 — Removals, privacy, docs, release gates.** §7 deletions, Settings
 changes, privacy statement and Help rewritten for the disclosed context model,

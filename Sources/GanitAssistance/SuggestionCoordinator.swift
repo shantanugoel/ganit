@@ -103,7 +103,9 @@ public actor SuggestionCoordinator {
       return terminal(.failed(.contextLimit))
     }
     guard !Task.isCancelled else { return terminal(.cancelled) }
-    if !input.retry, let index = cache.firstIndex(where: { $0.key == key }) {
+    if !input.retry, !input.allowsExplanation,
+      let index = cache.firstIndex(where: { $0.key == key })
+    {
       let entry = cache.remove(at: index)
       cache.append(entry)
       return SuggestionJob(
@@ -192,7 +194,7 @@ public actor SuggestionCoordinator {
         let context = try requestContext(record, feedback: feedback)
         let wire = try SuggestionWireRequest(
           settings: record.input.settings, context: context, structured: structured,
-          effort: effort)
+          effort: effort, allowsExplanation: record.input.allowsExplanation)
         guard record.input.origin != .automatic || reserveAutomaticWire(record) else {
           return await finish(id, result: .paused)
         }
@@ -269,6 +271,11 @@ public actor SuggestionCoordinator {
           continue
         }
         switch outcome {
+        case .explanation(let text):
+          guard record.input.allowsExplanation, record.input.origin == .manual else {
+            return await finish(id, result: .failed(.schema))
+          }
+          return await finish(id, result: .explanation(text))
         case .unsupported(let reason):
           store(
             payload,
@@ -481,6 +488,7 @@ public actor SuggestionCoordinator {
     let state: SuggestionJobState
     switch result {
     case .proposal(let checked): state = checked.allSatisfy(\.isApplicable) ? .ready : .needsChoice
+    case .explanation: state = .ready
     case .clarify: state = .needsChoice
     case .unsupported, .failed: state = .failed
     case .cancelled: state = .cancelled
@@ -523,6 +531,7 @@ public actor SuggestionCoordinator {
     var settings = root["settings"] as! [String: Any]
     settings.removeValue(forKey: "now")
     root["settings"] = settings
+    if input.allowsExplanation { root["allowsExplanation"] = true }
     let canonical = try JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])
     return CacheKey(
       document: input.document, source: input.snapshot.source.text,
@@ -535,6 +544,7 @@ public actor SuggestionCoordinator {
   {
     do {
       switch try SuggestionDecoder.decode(payload) {
+      case .explanation: return .failed(.schema)
       case .proposal(let candidates):
         var checked: [AssistanceCheckedCandidate] = []
         for candidate in candidates {

@@ -52,6 +52,48 @@ struct SuggestionTransportTests {
     }
   }
 
+  /// An explanation request must stay the same bytes with the schema widened, so
+  /// the privacy checks written for a proposal keep covering it.
+  @Test func theExplanationRequestIsAProposalRequestWithTheSchemaWidened() throws {
+    let context = Data("{\"target\":\"is this the right way to model a tip\"}".utf8)
+    let plain = try SuggestionWireRequest(settings: settings(key: "fixture-key"), context: context)
+    let asked = try SuggestionWireRequest(
+      settings: settings(key: "fixture-key"), context: context, allowsExplanation: true)
+    func messages(_ wire: SuggestionWireRequest) throws -> [[String: String]] {
+      let root = try #require(JSONSerialization.jsonObject(with: wire.body) as? [String: Any])
+      #expect(
+        Set(root.keys).isSubset(
+          of: ["messages", "model", "stream", "response_format", "reasoning_effort"]),
+        "\(root.keys.sorted())")
+      return try #require(root["messages"] as? [[String: String]])
+    }
+    let before = try messages(plain)
+    let after = try messages(asked)
+    // What leaves the Mac is identical: the same frozen context, the same model.
+    #expect(before[1] == after[1])
+    #expect(before[0]["role"] == "system" && after[0]["role"] == "system")
+    let beforeHead = before[0]["content"]!.components(separatedBy: "\nResponse schema:\n").first!
+    let afterHead = after[0]["content"]!.components(separatedBy: "\nResponse schema:\n").first!
+    #expect(afterHead.hasPrefix(beforeHead))
+    let added = afterHead.dropFirst(beforeHead.count)
+    #expect(added.contains("The user explicitly requested an explanation"))
+    #expect(added.contains("Do not calculate, state a numeric result, or write source"))
+    #expect(added.contains("no numeric characters"))
+    func kinds(_ content: String) throws -> [String] {
+      let schema = String(content.components(separatedBy: "Response schema:\n").last!)
+      let root = try #require(
+        JSONSerialization.jsonObject(with: Data(schema.utf8)) as? [String: Any])
+      return try #require(root["oneOf"] as? [[String: Any]]).compactMap {
+        (($0["properties"] as? [String: Any])?["kind"] as? [String: Any])?["const"] as? String
+      }
+    }
+    #expect(!(try kinds(before[0]["content"]!).contains("explanation")))
+    #expect(try kinds(after[0]["content"]!).contains("explanation"))
+    for wire in [plain, asked] {
+      #expect(!String(decoding: wire.body, as: UTF8.self).contains("fixture-key"))
+    }
+  }
+
   @Test(arguments: ["reasoning", "extraText", "multipleChoices", "parts"])
   func refusesToExtractProposalsFromUnpermittedContent(_ kind: String) throws {
     let valid = "{\"schemaVersion\":1,\"kind\":\"unsupported\",\"reason\":\"Missing input\"}"

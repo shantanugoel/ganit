@@ -138,6 +138,240 @@ public final class SheetEditorViewController: NSViewController {
     suggestionSession.prepare()
     return askBar.focusField()
   }
+
+  /// How the local (engine-only) explain route answered an Ask question.
+  package enum LocalExplanation {
+    /// The card is up. Nothing was sent.
+    case shown
+    /// The evaluation for this source has not committed yet, so no card is
+    /// honest and no request may go.
+    case pending
+    /// Ganit has nothing to say about this target: the model may.
+    case unavailable
+  }
+
+  /// A question Ganit can answer from its own completed evaluation, with no request.
+  @discardableResult
+  package func showLocalExplanation(instruction: String) -> LocalExplanation {
+    guard Self.isLocalExplanationQuestion(instruction),
+      let targets = suggestionTargets, targets.count == 1, let target = targets.first
+    else { return .unavailable }
+    guard !textView.hasMarkedText(),  // an uncommitted composition isn't the line yet
+      latestEvaluation != nil,
+      tableEvaluationSource == sheet.text
+    else { return .pending }
+    let details = explanationDetails(for: target)
+    guard !details.isEmpty else { return .unavailable }
+    let explainedSource = sheet.text
+    let explainedEvaluation = latestEvaluation
+    let modelReady = suggestionConfiguration?.settings.isReady == true
+    suggestionSession.dismiss()
+    view.layoutSubtreeIfNeeded()
+    var actions: [InterpretationViewController.Action] = []
+    let calculated: Bool
+    switch latestEvaluation?.lines.first(where: { $0.id == target })?.result {
+    case .value: calculated = true
+    default: calculated = false
+    }
+    if !calculated && modelReady {
+      actions.append(
+        .init(
+          title: localized("ask.fix", "Fix it"),
+          perform: { [weak self] in
+            guard self?.sheet.text == explainedSource, self?.latestEvaluation == explainedEvaluation
+            else { return }
+            self?.beginExplanationFollowUp(target: target, instruction: instruction, fix: true)
+          }))
+    }
+    if modelReady {
+      actions.append(
+        .init(
+          title: localized("ask.modelInstead", "Ask the model instead"),
+          perform: { [weak self] in
+            guard self?.sheet.text == explainedSource, self?.latestEvaluation == explainedEvaluation
+            else { return }
+            self?.beginExplanationFollowUp(target: target, instruction: instruction, fix: false)
+          }))
+    }
+    actions.append(
+      .init(
+        title: localized("menu.copy", "Copy"),
+        perform: {
+          NSPasteboard.general.clearContents()
+          NSPasteboard.general.setString(
+            details.map { "\($0.label): \($0.value)" }.joined(separator: "\n"), forType: .string)
+        }))
+    actions.append(
+      .init(
+        title: localized("ask.dismiss", "Dismiss"),
+        perform: { [weak self] in
+          self?.sheetTextView.interpretationPopover?.close()
+        }))
+    sheetTextView.showExplanation(for: target, details: details, actions: actions)
+    return .shown
+  }
+
+  /// Only questions about this calculation take the local route. Intent questions
+  /// remain an explicit provider request.
+  package static func isLocalExplanationQuestion(_ instruction: String) -> Bool {
+    let question = instruction.trimmingCharacters(in: .whitespacesAndNewlines)
+      .lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "?.!"))
+    if [
+      "explain", "explain this", "explain this line", "explain this calculation",
+      "explain this result", "explain this error", "why does this fail", "why did this fail",
+      "why is this wrong", "why is this an error", "what does this read",
+      "how is this calculated", "how does this work",
+    ].contains(question) {
+      return true
+    }
+    guard
+      let range = question.range(of: "why is this "), range.lowerBound == question.startIndex
+    else { return false }
+    let result = question[range.upperBound...]
+    return result.contains(where: { $0.isNumber })
+      && result.allSatisfy { $0.isNumber || $0.isWhitespace || ",.+−-/%()₹$€£≈".contains($0) }
+  }
+
+  package func beginExplanationFollowUp(target: LineID, instruction: String, fix: Bool) {
+    sheetTextView.interpretationPopover?.close()
+    guard tableEvaluationSource == sheet.text,
+      let index = sheet.lines.firstIndex(where: { $0.id == target }),
+      suggestionConfiguration?.settings.isReady == true
+    else { return }
+    textView.setSelectedRange(NSRange(location: utf16Starts()[index], length: 0))
+    let task =
+      fix
+      ? localized(
+        "ask.fixInstruction",
+        "Fix this calculation. Use Ganit's diagnostic and its dependencies. Ask me if my intent is not clear."
+      ) : instruction
+    suggestionSession.prepare(instruction: task, forceModel: true, allowsExplanation: !fix)
+    askBar.setInstruction(task)
+    askBar.focusField()
+  }
+
+  package func showModelExplanation(_ text: String, target: LineID, model: String) {
+    let details: [AnswerCell.Detail] = [
+      .init(label: localized("ask.explanation", "Explanation"), value: text),
+      .init(label: localized("ask.model", "Model"), value: model),
+      .init(
+        label: localized("ask.explanation.source", "Source"),
+        value: localized(
+          "ask.explanation.model",
+          "Model explanation. Context was sent to the model. Ganit did not verify this explanation, and its words are not an answer."
+        )),
+    ]
+    sheetTextView.showExplanation(
+      for: target, details: details,
+      actions: [
+        .init(
+          title: localized("menu.copy", "Copy"),
+          perform: {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(text, forType: .string)
+          }),
+        .init(
+          title: localized("ask.dismiss", "Dismiss"),
+          perform: { [weak self] in
+            self?.sheetTextView.interpretationPopover?.close()
+          }),
+      ])
+  }
+
+  package func dismissExplanation() {
+    sheetTextView.interpretationPopover?.close()
+  }
+
+  func explanationDetails(for id: LineID) -> [AnswerCell.Detail] {
+    guard tableEvaluationSource == sheet.text,
+      let explanation = latestEvaluation?.explanation(for: id)
+    else { return [] }
+    var details = interpretation(for: id).filter {
+      $0.label != localized("interpretation.aiAnswer", "AI answer")
+        && $0.label != localized("interpretation.aiAnswerUse", "Use")
+    }
+    let failed = details.contains {
+      $0.label == localized("interpretation.problem", "Problem")
+    }
+    // A `line N` reference reads a position, not a piece of text. When the line
+    // it now reads has no answer, Ganit says what it reads now — it owns the
+    // graph, so this is a fact and not a guess about what the reader edited.
+    if failed {
+      for reference in explanation.staleReferences {
+        let reads: String
+        if let source = reference.targetSource,
+          !source.trimmingCharacters(in: .whitespaces).isEmpty
+        {
+          reads = String(
+            format: localized(
+              "ask.explanation.cause.line", "\u{201c}%1$@\u{201d} reads line %2$d, which is %3$@."),
+            reference.written, reference.lineNumber, "\u{201c}\(source)\u{201d}")
+        } else if reference.targetSource == nil {
+          reads = String(
+            format: localized(
+              "ask.explanation.cause.missing",
+              "\u{201c}%1$@\u{201d} reads line %2$d, and the sheet has no line %2$d."),
+            reference.written, reference.lineNumber)
+        } else {
+          reads = String(
+            format: localized(
+              "ask.explanation.cause.blank",
+              "\u{201c}%1$@\u{201d} reads line %2$d, and that line is empty."),
+            reference.written, reference.lineNumber)
+        }
+        details.append(
+          AnswerCell.Detail(
+            label: localized("ask.explanation.cause", "Cause"),
+            value: reads
+              + " "
+              + localized(
+                "ask.explanation.cause.note",
+                "A line reference reads whatever is on that line now, so a line added or removed above it changes what it reads."
+              ),
+            lineNumber: reference.lineNumber))
+      }
+    }
+    for dependency in explanation.dependencies {
+      var value = String(
+        format: localized("ask.explanation.reads.line", "Line %1$d · %2$@"),
+        dependency.lineNumber, dependency.source)
+      if case .value(let result) = dependency.result,
+        let formatted = try? formatters(for: dependency.source).full.format(result)
+      {
+        value += " → " + formatted.display
+      }
+      details.append(
+        .init(
+          label: localized("ask.reads", "Reads"),
+          value: value,
+          lineNumber: dependency.lineNumber))
+    }
+    for rule in explanation.grammarRules {
+      details.append(.init(label: localized("ask.rule", "Rule"), value: rule))
+    }
+    for assumption in explanation.assumptions {
+      details.append(
+        .init(
+          label: localized("interpretation.assumption", "Assumption"),
+          value: assumption.source + "\n" + assumption.assumption.basis + " · "
+            + assumption.assumption.model + " · " + assumption.assumption.date,
+          lineNumber: assumption.lineNumber))
+    }
+    var source = localized(
+      "ask.explanation.local",
+      "Answered by Ganit's own evaluation. Nothing was sent to a model.")
+    if failed, suggestionConfiguration?.settings.isReady == true {
+      source +=
+        " "
+        + localized(
+          "ask.explanation.fixHint",
+          "Use Fix it to have the model rewrite these lines to what you meant.")
+    }
+    details.append(
+      .init(label: localized("ask.explanation.source", "Source"), value: source))
+    return details
+  }
+
   public func stopSuggestions() {
     if suggestionSession.isVisible { suggestionSession.dismiss() }
   }

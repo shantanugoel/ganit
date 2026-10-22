@@ -3,7 +3,7 @@ import GanitSuggestionProtocol
 
 public struct SheetLineResult: Hashable, Sendable {
   public let id: LineID
-  private let source: LineSource
+  fileprivate let source: LineSource
   fileprivate let evaluation: LineEvaluation?
   /// The result, with diagnostic ranges relative to this line's text.
   public let result: CalculationResult?
@@ -1459,4 +1459,233 @@ private func slice(of range: SourceRange, in text: String) -> String {
   let utf8 = text.utf8
   let lower = utf8.index(utf8.startIndex, offsetBy: range.lowerBound)
   return String(text[lower..<utf8.index(lower, offsetBy: range.utf8Length)])
+}
+
+/// Facts from one native evaluation. This record does not send a request.
+public struct SheetExplanation: Sendable {
+  public let expression: String
+  public let expressionTree: Expression?
+  public let result: CalculationResult?
+  public let dependencies: [SheetExplanationDependency]
+  public let grammarRules: [String]
+  public let assumptions: [SheetExplanationAssumption]
+  public let diagnostics: [AssistanceDiagnostic]
+  public let failureOriginLineNumbers: [Int]
+  /// The `line N` references on this line that read a line with no answer, in
+  /// the order they were written. Empty when the line calculates, and empty
+  /// for a broken `@deleted` or `@split` marker, which says its own cause.
+  public let staleReferences: [SheetExplanationReference]
+}
+
+public struct SheetExplanationDependency: Sendable {
+  public let lineID: LineID
+  public let lineNumber: Int
+  public let source: String
+  public let name: String?
+  public let result: CalculationResult?
+}
+
+/// A `line N` reference that reads a line with no answer to read. Ganit knows
+/// this because it owns the graph: it never guesses why the target changed.
+public struct SheetExplanationReference: Sendable, Equatable {
+  /// The reference exactly as the reader wrote it, for example `line 6`.
+  public let written: String
+  /// The line it reads now.
+  public let lineNumber: Int
+  /// That line's current text, or `nil` when there is no such line.
+  public let targetSource: String?
+}
+
+public struct SheetExplanationAssumption: Sendable {
+  public let lineID: LineID
+  public let lineNumber: Int
+  public let source: String
+  public let assumption: AIAssumption
+}
+
+extension SheetEvaluation {
+  /// Read the retained parse and result. Do not parse or calculate again.
+  public func explanation(for id: LineID) -> SheetExplanation? {
+    guard let target = lines.firstIndex(where: { $0.id == id }),
+      case .calculation(_, _, let range?, _) = lines[target].syntax
+    else { return nil }
+    let line = lines[target]
+    let tree = line.evaluation?.parsing?.expression ?? line.evaluation?.function?.body
+    let facts =
+      tree?.explanationStructure(in: line.source.text)
+      ?? (rules: [], calls: [], units: [], references: [])
+    var outcomes = LineOutcomes()
+    var variables: [String: Int] = [:]
+    var units: [String: Int] = [:]
+    var dependencies: [Set<Int>] = []
+    for (index, item) in lines.prefix(target + 1).enumerated() {
+      let expression = item.evaluation?.parsing?.expression ?? item.evaluation?.function?.body
+      let structure = expression.map { $0.explanationStructure(in: item.source.text) }
+      let identifiers = (expression?.identifiers ?? []).subtracting(
+        item.evaluation?.function?.parameters ?? [])
+      var reads = Set(identifiers.compactMap { variables[$0.lowercased()] })
+      reads.formUnion((structure?.units ?? []).compactMap { units[$0.lowercased()] })
+      for reference in item.evaluation?.references ?? [] {
+        reads.formUnion((outcomes.lineNumbers(for: reference) ?? []).map { $0 - 1 })
+      }
+      for name in structure?.calls ?? [] {
+        guard let function = item.evaluation?.functions[name] else { continue }
+        if let origin = function.assistanceOrigin,
+          let declaration = lines[..<index].firstIndex(where: { $0.id == origin.line })
+        {
+          reads.insert(declaration)
+        }
+      }
+      dependencies.append(reads)
+      if let name = item.declaredVariableName { variables[name.lowercased()] = index }
+      if let unit = item.evaluation?.unit { units[unit.name.lowercased()] = index }
+      switch item.result {
+      case .value(let value):
+        outcomes.append(.value(value), references: item.evaluation?.references ?? [])
+      case .syntaxFailure, .evaluationFailure:
+        outcomes.append(
+          .failure(lines: item.failureOriginLineNumbers),
+          references: item.evaluation?.references ?? [])
+      case nil: outcomes.append(.none)
+      }
+      switch item.syntax {
+      case .blank, .heading: outcomes.endBlock()
+      case .divider:
+        outcomes.endBlock()
+        variables.removeAll()
+      default: break
+      }
+    }
+    var allReads = dependencies[target]
+    var pending = Array(allReads)
+    while let next = pending.popLast() {
+      for read in dependencies[next] where allReads.insert(read).inserted { pending.append(read) }
+    }
+    let reads = allReads.sorted().map { index in
+      SheetExplanationDependency(
+        lineID: lines[index].id, lineNumber: index + 1, source: lines[index].source.text,
+        name: lines[index].declaredVariableName, result: lines[index].result)
+    }
+    var staleReferences: [SheetExplanationReference] = []
+    let failed: Bool
+    switch line.result {
+    case .syntaxFailure, .evaluationFailure: failed = true
+    case .value, nil: failed = false
+    }
+    if failed {
+      for reference in facts.references {
+        let index = reference.line - 1
+        let source: String?
+        let readable: Bool
+        if lines.indices.contains(index) {
+          source = lines[index].source.text
+          switch lines[index].result {
+          case .value: readable = true
+          case .syntaxFailure, .evaluationFailure, nil: readable = false
+          }
+        } else {
+          source = nil
+          readable = false
+        }
+        if !readable {
+          staleReferences.append(
+            SheetExplanationReference(
+              written: reference.written, lineNumber: reference.line, targetSource: source))
+        }
+      }
+    }
+    let assumptions = lines.enumerated().compactMap { index, item -> SheetExplanationAssumption? in
+      guard line.aiAssumptionOrigins.contains(item.id), let assumption = item.aiAssumption else {
+        return nil
+      }
+      return SheetExplanationAssumption(
+        lineID: item.id, lineNumber: index + 1, source: item.source.text, assumption: assumption)
+    }
+    return SheetExplanation(
+      expression: range.text(in: line.source.text).map(String.init) ?? line.source.text,
+      expressionTree: tree, result: line.result, dependencies: reads,
+      grammarRules: facts.rules, assumptions: assumptions,
+      diagnostics: AssistanceDiagnostic.records(line.result),
+      failureOriginLineNumbers: line.failureOriginLineNumbers,
+      staleReferences: staleReferences)
+  }
+}
+
+extension Expression {
+  /// Rule names come from the parsed nodes, not from a text match.
+  fileprivate func explanationStructure(in text: String) -> (
+    rules: [String], calls: Set<String>, units: Set<String>,
+    references: [(written: String, line: Int)]
+  ) {
+    var rules: [String] = []
+    var calls: Set<String> = []
+    var units: Set<String> = []
+    var references: [(written: String, line: Int)] = []
+    var work = [self]
+    func add(_ rule: String) { if !rules.contains(rule) { rules.append(rule) } }
+    func inspect(_ unit: UnitSyntax) {
+      switch unit {
+      case .named(let entry, _, _): units.insert(entry.definition.canonicalIdentifier)
+      case .multiplied(let left, let right, _), .divided(let left, let right, _):
+        inspect(left)
+        inspect(right)
+      case .raised(let child, _, _), .counted(_, let child, _): inspect(child)
+      }
+    }
+    while let node = work.popLast() {
+      switch node {
+      case .percentageOperation(let operation, let left, let right, _, _):
+        switch operation {
+        case .of: add("X% of Y calculates X / 100 × Y.")
+        case .off: add("X% off Y calculates Y × (1 − X / 100).")
+        case .on: add("X% on Y calculates Y × (1 + X / 100).")
+        case .ratio: add("X as a percentage of Y calculates 100 × X / Y.")
+        case .change: add("Percentage change calculates 100 × (new − old) / old.")
+        case .reverseOff: add("Reverse discount divides by 1 − X / 100.")
+        case .reverseOn: add("Reverse increase divides by 1 + X / 100.")
+        }
+        work.append(contentsOf: [right, left])
+      case .reference(let reference, let range):
+        switch reference {
+        case .line(let number):
+          references.append((written: slice(of: range, in: text), line: number))
+          add("line \(number) reads the answer of line \(number).")
+        case .broken(.deleted): add("The referenced line was deleted. Select a new reference.")
+        case .broken(.split):
+          add("The referenced line was split or joined. Select a new reference.")
+        case .previous: add("previous reads the nearest answer above in this block.")
+        case .aggregate(.subtotal):
+          add(
+            "subtotal reads answers after the previous subtotal in this block. It skips aggregate lines."
+          )
+        case .aggregate(let aggregate):
+          add("\(aggregate.rawValue) reads answers in this block. It skips aggregate lines.")
+        }
+      case .infix(let left, _, let right, _, _):
+        add("Arithmetic uses the parsed operator order and parentheses.")
+        work.append(contentsOf: [right, left])
+      case .call(let name, _, let arguments, _):
+        calls.insert(name.lowercased())
+        add("\(name) uses the supplied arguments.")
+        work.append(contentsOf: arguments.reversed())
+      case .conversion(let child, let unit, _, _):
+        inspect(unit)
+        add("Conversion preserves the value in the requested unit.")
+        work.append(child)
+      case .quantity(let child, let unit, _):
+        inspect(unit)
+        work.append(child)
+      case .currencyConversion(let child, _, _),
+        .zoneConversion(let child, _, _):
+        add("Conversion preserves the value in the requested unit, currency, or time zone.")
+        work.append(child)
+      case .prefix(_, let child, _, _), .percentage(let child, _, _),
+        .period(let child, _, _), .relative(let child, _, _),
+        .money(let child, _, _), .grouped(let child, _):
+        work.append(child)
+      case .assistantPrompt, .literal, .temporal, .identifier: break
+      }
+    }
+    return (rules, calls, units, references)
+  }
 }

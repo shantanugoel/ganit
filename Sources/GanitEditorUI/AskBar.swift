@@ -67,8 +67,12 @@ final class AskBar: NSView {
       session.send()
       return
     }
-    session.prepare(instruction: instructionField.stringValue, autoSend: true)
+    session.prepare(
+      instruction: instructionField.stringValue, autoSend: true, forceModel: session.forceModel,
+      allowsExplanation: session.allowsExplanation)
   }
+
+  func setInstruction(_ instruction: String) { instructionField.stringValue = instruction }
 
   /// ⌘↩ applies the proposal Ganit checked, and only while the bar is up with an
   /// applicable one; otherwise the key goes on to Copy Result as usual.
@@ -306,7 +310,9 @@ final class AskBar: NSView {
     if [.failed, .stale, .cancelled].contains(session.state) {
       addButton(localized("ask.retry", "Retry"), to: row) { [weak self] in
         self?.session.prepare(
-          retry: true, instruction: self?.session.instruction ?? "", autoSend: true)
+          retry: true, instruction: self?.session.instruction ?? "", autoSend: true,
+          forceModel: self?.session.forceModel ?? false,
+          allowsExplanation: self?.session.allowsExplanation ?? false)
       }
     }
     addButton(

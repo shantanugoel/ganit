@@ -26,7 +26,8 @@ public struct SuggestionWireRequest: Sendable {
   /// `structured` and `effort` are the two fields a strict server may never have
   /// heard of, so a refusal drops both together rather than one at a time.
   public init(
-    settings: AssistantSettings, context: Data, structured: Bool = true, effort: Bool = true
+    settings: AssistantSettings, context: Data, structured: Bool = true, effort: Bool = true,
+    allowsExplanation: Bool = false
   ) throws {
     guard Assistant.isAllowed(settings.endpoint) else {
       throw SuggestionTransportError.disallowedURL
@@ -35,12 +36,17 @@ public struct SuggestionWireRequest: Sendable {
       let contextText = String(data: context, encoding: .utf8),
       (try? JSONSerialization.jsonObject(with: context)) is [String: Any]
     else { throw SuggestionTransportError.invalidContext }
-    let schema = String(decoding: try SuggestionSchema.data(), as: UTF8.self)
+    let schema = String(
+      decoding: try SuggestionSchema.data(allowsExplanation: allowsExplanation), as: UTF8.self)
     var payload: [String: Any] = [
       "model": settings.model,
       "stream": false,
       "messages": [
-        ["role": "system", "content": Self.instruction + "\nResponse schema:\n" + schema],
+        [
+          "role": "system",
+          "content": Self.instruction + (allowsExplanation ? Self.explanationInstruction : "")
+            + "\nResponse schema:\n" + schema,
+        ],
         ["role": "user", "content": contextText],
       ],
     ]
@@ -65,6 +71,15 @@ public struct SuggestionWireRequest: Sendable {
     if !apiKey.isEmpty { request.setValue("Bearer " + apiKey, forHTTPHeaderField: "Authorization") }
     return request
   }
+
+  private static let explanationInstruction = """
+
+    The user explicitly requested an explanation from the model.
+    You may return kind explanation with text about intent or the choice of a model.
+    Use plain prose only. Do not calculate, state a numeric result, or write source.
+    Use no numeric characters, arithmetic operators, or equations in explanation text.
+    Ganit displays this text only as a transient model explanation, never as an answer.
+    """
 
   private static let instruction = """
     Propose source edits for Ganit. Return one JSON object that follows the response schema.

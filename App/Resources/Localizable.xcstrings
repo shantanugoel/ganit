@@ -351,6 +351,101 @@
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Apply AI change" } }
       }
     },
+    "ask.dismiss" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Dismiss" } }
+      }
+    },
+    "ask.explanation" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Explanation" } }
+      }
+    },
+    "ask.explanation.cause" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Cause" } }
+      }
+    },
+    "ask.explanation.cause.blank" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "\u201c%1$@\u201d reads line %2$d, and that line is empty." } }
+      }
+    },
+    "ask.explanation.cause.line" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "\u201c%1$@\u201d reads line %2$d, which is %3$@." } }
+      }
+    },
+    "ask.explanation.cause.missing" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "\u201c%1$@\u201d reads line %2$d, and the sheet has no line %2$d." } }
+      }
+    },
+    "ask.explanation.cause.note" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "A line reference reads whatever is on that line now, so a line added or removed above it changes what it reads." } }
+      }
+    },
+    "ask.explanation.fixHint" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Use Fix it to have the model rewrite these lines to what you meant." } }
+      }
+    },
+    "ask.explanation.local" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Answered by Ganit's own evaluation. Nothing was sent to a model." } }
+      }
+    },
+    "ask.explanation.model" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Model explanation. Context was sent to the model. Ganit did not verify this explanation, and its words are not an answer." } }
+      }
+    },
+    "ask.explanation.reads.line" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Line %1$d \u00b7 %2$@" } }
+      }
+    },
+    "ask.explanation.source" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Source" } }
+      }
+    },
+    "ask.explanation.wait" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ganit cannot explain this line yet. Wait for calculation to finish, then ask again." } }
+      }
+    },
+    "ask.fix" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Fix it" } }
+      }
+    },
+    "ask.fixInstruction" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Fix this calculation. Use Ganit's diagnostic and its dependencies. Ask me if my intent is not clear." } }
+      }
+    },
+    "ask.model" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Model" } }
+      }
+    },
+    "ask.modelInstead" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ask the model instead" } }
+      }
+    },
+    "ask.reads" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Reads" } }
+      }
+    },
+    "ask.rule" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Rule" } }
+      }
+    },
     "menu.askGanit" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Ask Ganit\u2026" } }

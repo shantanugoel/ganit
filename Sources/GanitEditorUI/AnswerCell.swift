@@ -35,6 +35,13 @@ struct AnswerCell: Equatable {
 /// Lists an answer's interpretation details as selectable label/value rows.
 @MainActor
 final class InterpretationViewController: NSViewController {
+  struct Action {
+    let title: String
+    let perform: () -> Void
+  }
+
+  private let actions: [Action]
+  private weak var firstActionButton: NSButton?
   private let details: [AnswerCell.Detail]
   private let fullPrecision: String?
   private let availableSize: NSSize
@@ -45,8 +52,9 @@ final class InterpretationViewController: NSViewController {
   init(
     details: [AnswerCell.Detail], fullPrecision: String?, availableSize: NSSize,
     pasteboard: NSPasteboard, onSelectLine: ((Int) -> Void)? = nil,
-    onSelectRange: ((NSRange) -> Void)? = nil
+    onSelectRange: ((NSRange) -> Void)? = nil, actions: [Action] = []
   ) {
+    self.actions = actions
     self.details = details
     self.fullPrecision = fullPrecision
     self.availableSize = availableSize
@@ -109,7 +117,11 @@ final class InterpretationViewController: NSViewController {
 
     let container = NSView()
     container.addSubview(scroll)
-    let buttonHeight: CGFloat = fullPrecision == nil ? 0 : 32
+    let buttonCount = actions.count + (fullPrecision == nil ? 0 : 1)
+    let buttonHeight: CGFloat =
+      buttonCount == 0
+      ? 0
+      : CGFloat(buttonCount) * 32 + CGFloat(buttonCount - 1) * VisualStyle.Spacing.related
     let height = min(maximumHeight, grid.fittingSize.height + 24 + buttonHeight)
     NSLayoutConstraint.activate([
       container.widthAnchor.constraint(equalToConstant: width),
@@ -119,19 +131,47 @@ final class InterpretationViewController: NSViewController {
       scroll.topAnchor.constraint(equalTo: container.topAnchor, constant: 12),
       scroll.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -12 - buttonHeight),
     ])
+    // The buttons are direct subviews: the card is a fixed shape, not a list.
+    var buttons: [NSButton] = actions.enumerated().map { index, action in
+      let button = NSButton(title: action.title, target: self, action: #selector(runAction(_:)))
+      button.tag = index
+      return button
+    }
+    firstActionButton = buttons.first
     if fullPrecision != nil {
-      let button = NSButton(
-        title: localized("menu.copyFullPrecision", "Copy Full Precision"),
-        target: self, action: #selector(copyFullPrecision(_:)))
+      buttons.append(
+        NSButton(
+          title: localized("menu.copyFullPrecision", "Copy Full Precision"),
+          target: self, action: #selector(copyFullPrecision(_:))))
+    }
+    var above = container.bottomAnchor
+    var inset: CGFloat = -8
+    for button in buttons.reversed() {
       button.translatesAutoresizingMaskIntoConstraints = false
       container.addSubview(button)
       NSLayoutConstraint.activate([
+        button.leadingAnchor.constraint(
+          greaterThanOrEqualTo: container.leadingAnchor, constant: 16),
         button.trailingAnchor.constraint(equalTo: container.trailingAnchor, constant: -16),
-        button.bottomAnchor.constraint(equalTo: container.bottomAnchor, constant: -8),
+        button.bottomAnchor.constraint(equalTo: above, constant: inset),
       ])
+      above = button.topAnchor
+      inset = -VisualStyle.Spacing.related
     }
     container.setFrameSize(NSSize(width: width, height: height))
     view = container
+  }
+
+  override func viewDidAppear() {
+    super.viewDidAppear()
+    if let firstActionButton {
+      view.window?.makeFirstResponder(firstActionButton)
+    }
+  }
+
+  @objc private func runAction(_ sender: NSButton) {
+    guard actions.indices.contains(sender.tag) else { return }
+    actions[sender.tag].perform()
   }
 
   private func valueView(_ value: String, width: CGFloat) -> NSView {

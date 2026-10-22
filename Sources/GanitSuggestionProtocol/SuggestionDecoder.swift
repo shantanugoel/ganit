@@ -22,6 +22,18 @@ public enum SuggestionDecoder {
       throw SuggestionDecodingError.invalidSchema
     }
     switch kind {
+    case "explanation":
+      try keys(root, required: ["schemaVersion", "kind", "text"])
+      let value = try text(root, "text", bytes: 8_192)
+      guard
+        !value.unicodeScalars.contains(where: { scalar in
+          switch scalar.properties.generalCategory {
+          case .decimalNumber, .letterNumber, .otherNumber: return true
+          default: return "=+*/%×÷".unicodeScalars.contains(scalar)
+          }
+        })
+      else { throw SuggestionDecodingError.invalidSchema }
+      return .explanation(value)
     case "proposal":
       try keys(root, required: ["schemaVersion", "kind", "candidates"])
       guard data.count <= SuggestionLimits.proposalBytes else {

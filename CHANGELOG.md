@@ -5,6 +5,15 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Ask “explain this” or “why is this 920?” on a calculation line. Ganit
+  shows its expression, result, dependencies, grammar rules, assumptions,
+  and diagnostics in the interpretation card. The card states that nothing
+  was sent to a model. A failed line has a **Fix it** action. This action
+  opens Ask with the diagnostic context and waits for Send. Ganit checks
+  the proposed source before Apply. **Ask the model instead** also waits
+  for Send. A model explanation is marked as unverified. It is not saved
+  and cannot be used as a calculation result.
+
 - Answer a question inside the Ask bar. When Ganit needs something it cannot
   work out, the bar becomes the question, keeps your own words above it as a
   crumb you can take back and rephrase, and offers up to three suggestions as

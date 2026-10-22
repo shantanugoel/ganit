@@ -27,6 +27,10 @@ package final class SheetSuggestionSession {
   private var target: [LineID]?
   private var taskNotes: [String] = []
   private var retry = false
+  private(set) var forceModel = false
+  private(set) var allowsExplanation = false
+  /// True when the reader's own words were a question Ganit could not answer.
+  private(set) var allowsExplanationRequested = false
   private var userRevisedInputs = false
   package var didChange: () -> Void = {}
   package private(set) var isVisible = false
@@ -124,7 +128,39 @@ package final class SheetSuggestionSession {
   /// Opens the Ask bar on a target. `instruction` is what the reader typed; it
   /// travels as a task note, so the model reads it and Ganit never parses it.
   /// `autoSend` is the ⏎ path: prepare the scope and send it in one gesture.
-  package func prepare(retry: Bool = false, instruction: String = "", autoSend: Bool = false) {
+  package func prepare(
+    retry: Bool = false, instruction: String = "", autoSend: Bool = false,
+    forceModel: Bool = false, allowsExplanation: Bool = false
+  ) {
+    var allowsExplanation = allowsExplanation
+    var forceModel = forceModel
+    var askedForExplanation = false
+    if autoSend && !forceModel,
+      SheetEditorViewController.isLocalExplanationQuestion(instruction)
+    {
+      switch editor?.showLocalExplanation(instruction: instruction) ?? .unavailable {
+      case .shown:
+        return
+      case .pending:
+        // The card would be drawn from a stale evaluation and a request would
+        // be a guess, so neither happens: the reader asks again when asked to.
+        dismiss()
+        self.instruction = instruction
+        isVisible = true
+        update(
+          .failed,
+          localized(
+            "ask.explanation.wait",
+            "Ganit cannot explain this line yet. Wait for calculation to finish, then ask again."))
+        return
+      case .unavailable:
+        // Ganit has nothing to say about this target. The reader asked a
+        // question, so the model may answer it in prose.
+        askedForExplanation = true
+        allowsExplanation = true
+        forceModel = true
+      }
+    }
     let continuesAsk = retry && isVisible
     let previousNotes = taskNotes
     let previousIncluded = included
@@ -152,6 +188,9 @@ package final class SheetSuggestionSession {
     rejectedSource = nil
     rejection = nil
     automaticRepairs = 0
+    self.allowsExplanation = allowsExplanation
+    self.forceModel = forceModel
+    self.allowsExplanationRequested = askedForExplanation
     self.retry = retry
     userRevisedInputs = continuesAsk && previousRevision
     isVisible = true
@@ -184,7 +223,8 @@ package final class SheetSuggestionSession {
         }
         let body = try await SuggestionRequestContext.requestBody(
           settings: configuration.settings, snapshot: snapshot, including: self.included,
-          choices: self.choices, userRevisedInputs: self.userRevisedInputs)
+          choices: self.choices, userRevisedInputs: self.userRevisedInputs,
+          allowsExplanation: self.allowsExplanation)
         guard self.revision == version, snapshot.source.text == editor.sheet.text else { return }
         self.snapshot = snapshot
         self.preparedBody = body
@@ -221,6 +261,10 @@ package final class SheetSuggestionSession {
 
   /// Only this explicit action grants permission for the frozen context.
   package func send() {
+    if !forceModel, SheetEditorViewController.isLocalExplanationQuestion(instruction) {
+      prepare(instruction: instruction, autoSend: true)
+      return
+    }
     guard canSend, let configuration, let snapshot, let editor,
       snapshot.source.text == editor.sheet.text
     else { return }
@@ -236,6 +280,7 @@ package final class SheetSuggestionSession {
           permission: SuggestionPermission(contextAccepted: true),
           includedRecords: self?.included ?? [], choices: self?.choices ?? [:],
           approvedAssumptions: self?.assumptions ?? [], retry: self?.retry ?? false,
+          allowsExplanation: self?.allowsExplanation ?? false,
           userRevisedInputs: self?.userRevisedInputs ?? false),
         observer: { [weak self] event in await self?.receive(event, version: version) })
       guard let self, self.revision == version else {
@@ -249,6 +294,11 @@ package final class SheetSuggestionSession {
       }
       self.job = nil
       switch outcome {
+      case .explanation(let text):
+        self.dismiss()
+        guard let target = self.target?.first else { return }
+        let model = configuration.settings.model
+        editor.showModelExplanation(text, target: target, model: model)
       case .proposal(let candidates):
         self.proposals = candidates
         self.selectProposal(0)
@@ -424,7 +474,8 @@ package final class SheetSuggestionSession {
         guard self.revision == version, snapshot.source.text == editor.sheet.text else { return }
         let body = try await SuggestionRequestContext.requestBody(
           settings: configuration.settings, snapshot: snapshot, including: self.included,
-          choices: self.choices, userRevisedInputs: self.userRevisedInputs)
+          choices: self.choices, userRevisedInputs: self.userRevisedInputs,
+          allowsExplanation: self.allowsExplanation)
         guard self.revision == version, snapshot.source.text == editor.sheet.text else { return }
         self.snapshot = snapshot
         self.preparedBody = body
@@ -522,6 +573,7 @@ package final class SheetSuggestionSession {
   }
 
   package func invalidate(documentChanged: Bool = true) {
+    if documentChanged { editor?.dismissExplanation() }
     if documentChanged, let configuration, let editor {
       let document = editor.suggestionDocumentID
       let prior = invalidationTask

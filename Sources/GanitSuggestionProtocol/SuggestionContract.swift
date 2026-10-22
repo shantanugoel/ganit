@@ -106,6 +106,7 @@ public struct SuggestionClarification: Codable, Equatable, Sendable {
 }
 
 public enum SuggestionOutcome: Equatable, Sendable {
+  case explanation(String)
   case proposal([SuggestionCandidate])
   case clarify(SuggestionClarification)
   case needContext(records: [String], reason: String)

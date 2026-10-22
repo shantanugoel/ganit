@@ -1891,22 +1891,35 @@ final class SheetTextView: NSTextView {
   }
 
   @objc func showInterpretation(_ sender: Any?) {
-    guard let target = targetAnswer,
-      let rect = answerLayout(in: visibleRect).first(where: { $0.line == target.line })?.rect
-    else {
+    guard let target = targetAnswer else {
       NSSound.beep()
       return
     }
+    showExplanation(
+      for: target.line, details: interpretation(target.line),
+      fullPrecision: target.cell.fullPrecision)
+  }
+
+  /// The one card shape the answer column, the Ask bar and the model all use.
+  func showExplanation(
+    for line: LineID, details: [AnswerCell.Detail], fullPrecision: String? = nil,
+    actions: [InterpretationViewController.Action] = []
+  ) {
+    interpretationPopover?.close()
     let popover = NSPopover()
     popover.behavior = .transient
     popover.contentViewController = InterpretationViewController(
-      details: interpretation(target.line), fullPrecision: target.cell.fullPrecision,
+      details: details, fullPrecision: fullPrecision,
       availableSize: window?.screen?.visibleFrame.size ?? NSScreen.main?.visibleFrame.size
-        ?? NSSize(width: 800, height: 600), pasteboard: pasteboard,
+        ?? NSSize(width: 800, height: 600),
+      pasteboard: pasteboard,
       onSelectLine: { [weak self] number in self?.selectErrorOrigin(line: number) },
-      onSelectRange: { [weak self] range in self?.selectErrorOrigin(range: range) }
-    )
-    popover.show(relativeTo: rect, of: self, preferredEdge: .maxY)
+      onSelectRange: { [weak self] range in self?.selectErrorOrigin(range: range) },
+      actions: actions)
+    let rect =
+      answerLayout(in: visibleRect).first(where: { $0.line == line })?.rect
+      ?? NSRect(x: visibleRect.midX, y: visibleRect.midY, width: 1, height: 20)
+    if window != nil { popover.show(relativeTo: rect, of: self, preferredEdge: .maxY) }
     interpretationPopover = popover
   }
 

@@ -10,11 +10,13 @@
 
 ## Planned assistant change
 
-The selected assistant direction is [expression suggestions and repairs](docs/plans/ai-expression-suggestions.md).
-The plan defines request timing, permitted context, engine checks, repair limits,
-and release gates. Implementation has not started.
-[Proposed ADR 0018](docs/adr/0018-assistant-expression-suggestions.md) records the
-decisions. The current runtime follows ADR 0012 until the replacement is released.
+The current assistant plan is [AI as part of the calculator](docs/plans/ai-native.md).
+M-1 through M4 are complete. M5 is not started. Ask uses disclosed context,
+engine checks, bounded repairs, marked assumptions, and local explanation cards.
+[ADR 0019](docs/adr/0019-ask-one-operation-four-outcomes.md) records the decision.
+The plan reuses the harness from
+[expression suggestions and repairs](docs/plans/ai-expression-suggestions.md).
+The legacy assistant remains until M5 removes it.
 
 ---
 

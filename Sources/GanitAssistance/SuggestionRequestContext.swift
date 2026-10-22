@@ -8,7 +8,7 @@ public enum SuggestionRequestContext {
   package static func requestBody(
     settings: AssistantSettings, snapshot: AssistanceSnapshot,
     including handles: Set<String> = [], choices: [String: String] = [:],
-    userRevisedInputs: Bool = false
+    userRevisedInputs: Bool = false, allowsExplanation: Bool = false
   ) async throws -> Data {
     let task = Task.detached(priority: .utility) {
       try Task.checkCancellation()
@@ -16,7 +16,9 @@ public enum SuggestionRequestContext {
         snapshot: snapshot, including: handles, choices: choices,
         userRevisedInputs: userRevisedInputs)
       try Task.checkCancellation()
-      return try SuggestionWireRequest(settings: settings, context: context).body
+      return try SuggestionWireRequest(
+        settings: settings, context: context, allowsExplanation: allowsExplanation
+      ).body
     }
     return try await withTaskCancellationHandler {
       try await task.value

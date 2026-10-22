@@ -84,6 +84,21 @@ existing interpretation card. `sent: false` says so, and the card states it.
 The model is the fallback for intent-level questions, and then the card is
 model-sourced and says that instead.
 
+M4 uses `SuggestionJobResult.explanation(String)` for the model fallback.
+`SuggestionJobInput.allowsExplanation` defaults to false. The request schema
+permits `kind: explanation` with one bounded `text` field only when this flag
+is true. The decoder rejects numeric characters and equation operators in
+that text. The coordinator also requires a manual request and context
+permission. Explanation replies are not cached. They do not enter the
+candidate checker or change source. The card identifies the model and states
+that context was sent and that Ganit did not verify the explanation.
+
+The local route reads the current `SheetEvaluation`. It does not create a
+provider job. If evaluation is not current, it asks the reader to wait.
+**Fix it** prepares an ordinary proposal request with diagnostic context.
+**Ask the model instead** prepares an explanation request. Both actions
+wait for Send and keep Context available.
+
 **Answer.** One value, marked unverified, shown once. It is not a `LineID`, not
 a symbol, not referenceable, and is not saved. There is nothing to calculate
 when this appears; if there were, it would be a proposal.
