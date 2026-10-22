@@ -5,6 +5,15 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Select which proposed AI lines to apply. A declined replacement keeps its
+  original source. A declined insertion is removed. Ganit checks the revised
+  source and each result before Apply. Apply remains one Undo operation.
+- Include transitive local source dependencies in Ask context. Show captured
+  function inputs and the exact request body in Context. Use opaque keys for
+  local source identities. Source changes clear the sheet's proposal cache.
+- Recognize native scaled money amounts, such as `₹25 lakh`, as source
+  evidence for an AI proposal. Ganit calculates the amount.
+
 - Keep Ask bar actions on one row when space is available. Move excess buttons
   to the next row when the pane is narrow. Update the rows when the pane changes size.
 

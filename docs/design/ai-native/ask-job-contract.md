@@ -40,8 +40,8 @@ An Ask job is one call to `SuggestionCoordinator.start(_:observer:)` with one
 | --- | --- |
 | `snapshot` | `SheetCalculator.assistanceSnapshot(_:context:target:)` or the `targets:` overload, taken at the caret line, the selection, or the whole sheet **within the harness target limits: 12 lines, 8 KiB, contiguous, no table-block overlap** |
 | `settings` | `AssistantSettings`, `effort` included |
-| `document` | the window's sheet identity. Today `SheetSuggestionSession` passes a throwaway per-editor `UUID()` and `invalidate(document:)` has no production caller; M1 makes both real |
-| `permission.contextAccepted` | false until the reader has opened `Context ▸` and sent |
+| `document` | The saved sheet identity. Source and settings changes invalidate its jobs and cache. |
+| `permission.contextAccepted` | False until the reader sends. The Ask bar makes `Context ▸` available before Send. Return sends the typed instruction, as specified by the approved prototype. Opening the disclosure alone sends nothing. |
 | `includedRecords` | extra symbol handles the reader opted into |
 | `choices` | answers to earlier clarifications in this job, `AssistanceChoice.id → Option.id` |
 | `retry` | **Try again** on a failure card |
@@ -142,6 +142,22 @@ of a line number. The second half is true today; the first is M1's to make true.
   bytes, target membership, and the re-check on a fresh snapshot; a mismatch is
   `SheetSourceCoordinator.Failure.staleEdit` and the proposal view says the
   sheet changed under it.
+
+M1 uses one control for each replacement, insertion, or deletion. If the
+reader declines a replacement or deletion, Ganit keeps the original line.
+If the reader declines an insertion, Ganit removes that proposed line.
+Ganit updates local bindings and checks the complete revised source again.
+A failed check removes the preview and prevents Apply. It sends no request.
+The preview shows each result from the engine. Apply uses the same revised
+candidate on a fresh snapshot.
+
+The context uses opaque `source:N` keys for declaration origins. It includes
+`dependencySources` records for the local source lines that the selected
+records read. Ganit uses each line's native scope to find these records.
+Thus, a later declaration does not replace an earlier captured input.
+The disclosure includes function definitions, captured inputs, dependency
+source, and the exact request body. The existing size limits apply to all
+these records. Ganit does not open another sheet to build context.
 
 ## Apply
 

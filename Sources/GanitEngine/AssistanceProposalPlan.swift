@@ -27,6 +27,7 @@ struct AssistanceProposalPlan {
         .invalidBounds, "Use bounded calculation working for this target.")
     }
     for line in source.lines {
+      if snapshot.targetLines.contains(where: { $0.text == line.text }) { continue }
       guard case .calculation(_, let name, .some, _) = LineSyntax(line.text) else {
         throw AssistanceValidationFailure(
           .unsupportedOperation, "Each proposed line must contain a calculation.")
@@ -91,13 +92,14 @@ struct AssistanceProposalPlan {
     var expressions: [String: Expression] = [:]
     var expressionSizes: [String: Int] = [:]
     var final: Expression?
+    var finalLine: LineID?
     var resolutions: [String: String] = [:]
     for (index, line) in outputs.enumerated() {
       try Task.checkCancellation()
       let scope = try calculator.assistanceSnapshot(shadow, context: context, target: line.id)
       guard case .calculation(_, let name, let range?, _) = LineSyntax(line.text),
         let value = range.text(in: line.text)
-      else { preconditionFailure("Checked calculation syntax") }
+      else { continue }
       let offset = source.lines[index].range.lowerBound
       let parsed = scope.scope.engine.parse(
         String(value), context: context,
@@ -106,6 +108,7 @@ struct AssistanceProposalPlan {
           graphemeOffset: source.lines[index].range.graphemeLowerBound + range.graphemeLowerBound),
         variables: scope.scope.names.mapValues { $0?.kind ?? .number })
       guard let expression = parsed.expression else {
+        if snapshot.targetLines.contains(where: { $0.text == line.text }) { continue }
         throw AssistanceValidationFailure(
           .syntax, "The proposed working does not parse.",
           ranges: parsed.diagnostics.map(\.range), engineResult: .syntaxFailure(parsed.diagnostics))
@@ -149,6 +152,7 @@ struct AssistanceProposalPlan {
         expression, locals: expressions, sizes: expressionSizes, operations: &operations)
       try Self.checkExpandedDepth(expanded)
       final = expanded
+      finalLine = line.id
       let rawName = name?.text(in: line.text).map(String.init)
       if let rawName {
         expressions[rawName.lowercased()] = expanded
@@ -166,12 +170,15 @@ struct AssistanceProposalPlan {
     }
     // Structural identities can span derived declarations. Their source ranges
     // still point to the same literal in the submitted working.
+    guard let final, let finalLine, var facts = allFacts else {
+      throw AssistanceValidationFailure(
+        .unsupportedOperation, "Keep at least one proposed calculation.")
+    }
     let structural = AssistanceExpressionFacts(
-      final!, source: text, engine: snapshot.scope.engine, context: context)
+      final, source: text, engine: snapshot.scope.engine, context: context)
     let rules = Dictionary(
       structural.literals.compactMap { item in item.structuralRule.map { (item.range, $0) } },
       uniquingKeysWith: { first, _ in first })
-    var facts = allFacts!
     facts.resourceLimited = facts.resourceLimited || structural.resourceLimited
     facts.literals = facts.literals.map { item in
       .init(
@@ -179,12 +186,12 @@ struct AssistanceProposalPlan {
         structuralRule: rules[item.range] ?? item.structuralRule)
     }
     self.shadow = shadow
-    self.expression = final!
+    self.expression = final
     self.facts = facts
     self.locals = locals
     variableBindings = resolutions
     referenceNumbers = references
-    resultLine = outputs.last!.id
+    resultLine = finalLine
     outputLines = Set(outputs.map(\.id))
   }
 

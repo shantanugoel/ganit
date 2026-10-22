@@ -113,6 +113,30 @@ struct SheetSuggestionTests {
     #expect(!editor.documentUndoManager.canUndo)
   }
 
+  @Test func documentEditsInvalidateCachedProposalsEvenAfterUndo() async throws {
+    let editor = try await editor(request)
+    let reply = try await proposal(editor)
+    let transport = configure(editor, replies: [reply, reply])
+    let session = editor.suggestionSession
+    for _ in 0..<2 {
+      session.prepare(autoSend: true)
+      await session.waitUntilIdle()
+      #expect(session.canApply)
+      session.dismiss()
+    }
+    #expect(await transport.count() == 1)
+    editor.documentUndoManager.beginUndoGrouping()
+    editor.textView.insertText(
+      "!", replacementRange: NSRange(location: request.utf16.count, length: 0))
+    editor.documentUndoManager.endUndoGrouping()
+    editor.documentUndoManager.undo()
+    #expect(editor.sheet.text == request)
+    session.prepare(autoSend: true)
+    await session.waitUntilIdle()
+    #expect(session.canApply)
+    #expect(await transport.count() == 2)
+  }
+
   @Test(arguments: [false, true])
   func applicationUsesOneUndoAndOrdinarySavedSource(_ markdown: Bool) async throws {
     let original = request + "\nx = 8\n@2 + @1"
@@ -128,6 +152,7 @@ struct SheetSuggestionTests {
     session.apply()
     await session.waitUntilIdle()
     #expect(session.state == .applied)
+    #expect(editor.view.window?.firstResponder === editor.textView)
     #expect(editor.sheet.text == "2 + 3\n// Request record: " + request + "\nx = 8\n@3 + @1")
     #expect(editor.documentUndoManager.undoActionName == "Apply AI change")
     let accepted = editor.sheet.text
@@ -144,6 +169,190 @@ struct SheetSuggestionTests {
     #expect(
       reopened.latestEvaluation?.lines[0].result == .value(.number(.integer(IntegerValue(5)))))
     #expect(await transport.count() == 1)
+  }
+
+  @Test func decliningAProposedLineKeepsItsSourceAndAppliesTheRestAsOneUndo() async throws {
+    let original = "Add two and three.\nAdd four and five."
+    let editor = try await editor(original)
+    select(editor, NSRange(location: 0, length: original.utf16.count))
+    let snapshot = try await editor.suggestionSnapshot(targets: editor.sheet.lines.map(\.id))
+    let evidence = snapshot.evidence()
+    let candidate = SuggestionCandidate(
+      id: "C1", edits: [SuggestionEdit(target: "T1", replacement: "2 + 3\n4 + 5")],
+      bindings: [],
+      literals: try zip(["2", "3", "4", "5"], ["two", "three", "four", "five"]).map { value, word in
+        SuggestionLiteral(
+          text: value,
+          evidence: try #require(evidence.first { $0.text == word && $0.kind == "literal" }?.handle)
+        )
+      },
+      relations: [
+        SuggestionRelation(
+          rule: "interpretation",
+          evidence: try #require(
+            evidence.first { $0.kind == "relation" && $0.source == "T1" }?.handle))
+      ],
+      assumptions: [], summary: "Add each pair.")
+    let object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(candidate))
+    let reply = try JSONSerialization.data(withJSONObject: [
+      "schemaVersion": 1, "kind": "proposal", "candidates": [object],
+    ])
+    let transport = configure(editor, replies: [reply])
+    let session = editor.suggestionSession
+    session.prepare(autoSend: true)
+    await session.waitUntilIdle()
+    #expect(session.canApply)
+    session.includeLine(0, included: false)
+    await session.waitUntilIdle()
+    #expect(session.canApply)
+    #expect(session.preview?.candidate.edits[0].replacement == "Add two and three.\n4 + 5")
+    #expect(editor.sheet.text == original)
+    session.includeLine(1, included: false)
+    await session.waitUntilIdle()
+    #expect(!session.canApply)
+    #expect(session.proposalLines.count == 2)
+    session.includeLine(1, included: true)
+    await session.waitUntilIdle()
+    #expect(session.canApply)
+    session.apply()
+    await session.waitUntilIdle()
+    #expect(session.state == .applied)
+    #expect(editor.sheet.text.hasPrefix("Add two and three.\n4 + 5\n"))
+    #expect(editor.documentUndoManager.undoActionName == "Apply AI change")
+    editor.documentUndoManager.undo()
+    #expect(editor.sheet.text == original)
+    #expect(await transport.count() == 1)
+  }
+
+  @Test func decliningARequiredDeclarationBlocksApplyAndCanBeRestored() async throws {
+    let editor = try await editor(request)
+    let base = try await proposal(editor)
+    var reply = try #require(JSONSerialization.jsonObject(with: base) as? [String: Any])
+    var candidate = try #require((reply["candidates"] as? [[String: Any]])?.first)
+    candidate["edits"] = [["target": "T1", "replacement": "subtotal = 2 + 3\nsubtotal + 2"]]
+    candidate["bindings"] = [["symbol": "subtotal", "source": "L1"]]
+    reply["candidates"] = [candidate]
+    let transport = configure(editor, replies: [try JSONSerialization.data(withJSONObject: reply)])
+    let session = editor.suggestionSession
+    session.prepare(autoSend: true)
+    await session.waitUntilIdle()
+    #expect(session.canApply)
+    session.includeLine(0, included: false)
+    await session.waitUntilIdle()
+    #expect(!session.canApply)
+    #expect(session.preview == nil)
+    #expect(session.proposalLines.count == 2)
+    session.apply()
+    #expect(editor.sheet.text == request)
+    session.includeLine(0, included: true)
+    await session.waitUntilIdle()
+    #expect(session.canApply)
+    #expect(await transport.count() == 1)
+  }
+
+  @Test(arguments: ["\n", "\r\n"])
+  func aDeletionCanBeDeclinedAndRetainsItsNumericEvidence(_ newline: String) async throws {
+    let original = request + newline + "8"
+    let editor = try await editor(original)
+    select(editor, NSRange(location: 0, length: original.utf16.count))
+    let snapshot = try await editor.suggestionSnapshot(targets: editor.sheet.lines.map(\.id))
+    let evidence = snapshot.evidence()
+    let candidate = SuggestionCandidate(
+      id: "C1", edits: [SuggestionEdit(target: "T1", replacement: "2 + 3")], bindings: [],
+      literals: try zip(["2", "3"], ["two", "three"]).map { value, word in
+        SuggestionLiteral(
+          text: value,
+          evidence: try #require(evidence.first { $0.text == word && $0.kind == "literal" }?.handle)
+        )
+      },
+      relations: [
+        SuggestionRelation(
+          rule: "interpretation",
+          evidence: try #require(
+            evidence.first { $0.kind == "relation" && $0.source == "T1" }?.handle))
+      ],
+      assumptions: [], summary: "Add the pair.")
+    let object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(candidate))
+    _ = configure(
+      editor,
+      replies: [
+        try JSONSerialization.data(withJSONObject: [
+          "schemaVersion": 1, "kind": "proposal", "candidates": [object],
+        ])
+      ])
+    let session = editor.suggestionSession
+    session.prepare(autoSend: true)
+    await session.waitUntilIdle()
+    #expect(session.canApply)
+    #expect(session.proposalLines == ["2 + 3", "Remove: 8"])
+    session.includeLine(1, included: false)
+    await session.waitUntilIdle()
+    #expect(session.canApply)
+    #expect(session.preview?.candidate.edits[0].replacement == "2 + 3" + newline + "8")
+    session.includeLine(0, included: false)
+    await session.waitUntilIdle()
+    #expect(!session.canApply)
+    session.includeLine(1, included: true)
+    await session.waitUntilIdle()
+    #expect(!session.canApply)
+    #expect(session.preview?.candidate.edits[0].replacement != original)
+    session.includeLine(0, included: true)
+    await session.waitUntilIdle()
+    #expect(session.canApply)
+    #expect(session.preview?.candidate.edits[0].replacement == "2 + 3")
+  }
+
+  @Test func aRetainedSourceRowCanMoveWhenAnEarlierRowIsRemoved() async throws {
+    let original = request + "\n8\nKeep this."
+    let editor = try await editor(original)
+    let snapshot = try await editor.suggestionSnapshot(targets: editor.sheet.lines.map(\.id))
+    let evidence = snapshot.evidence()
+    let candidate = SuggestionCandidate(
+      id: "C1", edits: [SuggestionEdit(target: "T1", replacement: "2 + 3")], bindings: [],
+      literals: try zip(["2", "3"], ["two", "three"]).map { value, word in
+        SuggestionLiteral(
+          text: value,
+          evidence: try #require(evidence.first { $0.text == word && $0.kind == "literal" }?.handle)
+        )
+      },
+      relations: [
+        SuggestionRelation(
+          rule: "interpretation",
+          evidence: try #require(
+            evidence.first { $0.kind == "relation" && $0.source == "T1" }?.handle))
+      ],
+      assumptions: [], summary: "Add the pair.")
+    let revised = try AssistanceCandidateChecker.selectingLines(
+      candidate, against: snapshot, omitted: [2], choices: [:])
+    #expect(revised.edits[0].replacement == "2 + 3\nKeep this.")
+    let checked = try AssistanceCandidateChecker.check(revised, against: snapshot)
+    #expect(checked.isApplicable)
+    let edit = try AssistanceCandidateChecker.prepareSourceEdit(revised, against: snapshot)
+    #expect(edit.sourceAfter.hasPrefix("2 + 3\nKeep this.\n"))
+  }
+
+  @Test func anEarlierProposedFailureIsRejectedEvenWhenTheLastLineCalculates() async throws {
+    let editor = try await editor("Add two and three, with zero.")
+    let snapshot = try await editor.suggestionSnapshot(target: editor.sheet.lines[0].id)
+    let evidence = snapshot.evidence()
+    let candidate = SuggestionCandidate(
+      id: "C1", edits: [SuggestionEdit(target: "T1", replacement: "2 / 0\n2 + 3")], bindings: [],
+      literals: try zip(["2", "3", "0"], ["two", "three", "zero"]).map { value, word in
+        SuggestionLiteral(
+          text: value,
+          evidence: try #require(evidence.first { $0.text == word && $0.kind == "literal" }?.handle)
+        )
+      },
+      relations: [
+        SuggestionRelation(
+          rule: "interpretation",
+          evidence: try #require(
+            evidence.first { $0.kind == "relation" && $0.source == "T1" }?.handle))
+      ],
+      assumptions: [], summary: "Calculate both lines.")
+    #expect(throws: AssistanceValidationFailure.self) {
+      try AssistanceCandidateChecker.check(candidate, against: snapshot)
+    }
   }
 
   @Test func quickGanitUsesTheSameExplicitSourcePath() async throws {
@@ -550,7 +759,7 @@ struct SheetSuggestionTests {
     let transport = configure(editor, replies: [])
     let sheet = try #require(editor.textView as? SheetTextView)
     editor.view.layoutSubtreeIfNeeded()
-    editor.textView.setSelectedRange(NSRange(location: 11, length: 0))
+    select(editor, NSRange(location: 11, length: 0))
     editor.view.layoutSubtreeIfNeeded()
     let chip = try #require(sheet.askChipRect)
     // The chip belongs in the source, beside what the line says — never inside
@@ -558,14 +767,38 @@ struct SheetSuggestionTests {
     if let separator = sheet.answerSeparatorX {
       #expect(chip.maxX <= separator)
     }
-    editor.textView.setSelectedRange(NSRange(location: 27, length: 0))
+    select(editor, NSRange(location: 27, length: 0))
     editor.view.layoutSubtreeIfNeeded()
     #expect(sheet.askChipRect == nil)
-    editor.textView.setSelectedRange(NSRange(location: 11, length: 0))
+    select(editor, NSRange(location: 11, length: 0))
     editor.view.layoutSubtreeIfNeeded()
     sheet.askChipClicked()
     await editor.suggestionSession.waitUntilIdle()
     #expect(editor.suggestionSession.isVisible)
+    #expect(await transport.count() == 0)
+  }
+
+  @Test func theChipFollowsTheCaretInsideAndAtTheEndOfAUnicodeLine() async throws {
+    let prefix = "// 🧮 café\n"
+    let failing = "total = nope(3) // café 🧮"
+    let editor = try await editor(prefix + failing)
+    let transport = configure(editor, replies: [])
+    let sheet = try #require(editor.textView as? SheetTextView)
+    for offset in [prefix.utf16.count, prefix.utf16.count + 10, (prefix + failing).utf16.count] {
+      select(editor, NSRange(location: offset, length: 0))
+      #expect(sheet.askChipRect != nil)
+    }
+    select(editor, NSRange(location: 4, length: 0))
+    #expect(sheet.askChipRect == nil)
+    #expect(await transport.count() == 0)
+  }
+
+  @Test func theChipDoesNotOfferAnIncompleteExpressionOnTheCaretLine() async throws {
+    let editor = try await editor("price = 12\ntotal = 3 +")
+    let transport = configure(editor, replies: [])
+    select(editor, NSRange(location: "price = 12\ntotal = 3 +".utf16.count, length: 0))
+    let sheet = try #require(editor.textView as? SheetTextView)
+    #expect(sheet.askChipRect == nil)
     #expect(await transport.count() == 0)
   }
 

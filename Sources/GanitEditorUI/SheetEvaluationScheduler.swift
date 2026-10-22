@@ -81,23 +81,23 @@ final class SheetEvaluationScheduler {
   func checkSuggestion(
     _ candidate: SuggestionCandidate, snapshot: AssistanceSnapshot,
     handles: Set<String>, choices: [String: String], assumptions: Set<String>,
-    userRevisedInputs: Bool = false
+    userRevisedInputs: Bool = false, omittedLines: Set<Int> = []
   ) async throws -> AssistanceCheckedCandidate {
     try await SuggestionLocalChecking.check(
       candidate, snapshot: snapshot,
       handles: handles, choices: choices, assumptions: assumptions,
-      userRevisedInputs: userRevisedInputs)
+      userRevisedInputs: userRevisedInputs, omittedLines: omittedLines)
   }
 
   func prepareSuggestion(
     _ candidate: SuggestionCandidate, snapshot: AssistanceSnapshot,
     handles: Set<String>, choices: [String: String], assumptions: Set<String>,
-    userRevisedInputs: Bool = false
+    userRevisedInputs: Bool = false, omittedLines: Set<Int> = []
   ) async throws -> AssistanceSourceEdit {
     try await SuggestionLocalChecking.prepare(
       candidate, snapshot: snapshot,
       handles: handles, choices: choices, assumptions: assumptions,
-      userRevisedInputs: userRevisedInputs)
+      userRevisedInputs: userRevisedInputs, omittedLines: omittedLines)
   }
 
   /// Evaluates with new definitions from the next generation on, discarding

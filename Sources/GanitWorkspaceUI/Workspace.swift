@@ -302,7 +302,8 @@ public final class Workspace {
     let editor = SheetEditorViewController(
       text: stored.source,
       context: try stored.metadata.preferences.evaluationContext(currencyRates: currencyRates),
-      display: stored.metadata.preferences.display
+      display: stored.metadata.preferences.display,
+      documentID: id
     )
     editor.setDefinitions(definitions)
     editor.suggestionConfiguration = suggestionConfiguration

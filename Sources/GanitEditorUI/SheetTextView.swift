@@ -505,11 +505,10 @@ final class SheetTextView: NSTextView {
   /// already shows a red message: a chip on a line Ganit is merely silent about
   /// would nag, and a half-typed line is not a failure.
   func askChipLayout(in rect: NSRect) -> (line: LineID, rect: NSRect)? {
-    // A caret at the very end of the text is still on the last line, but the
-    // character at that index does not exist, so ask about the one before it.
+    // Use UTF-16 line starts to find the line that contains the caret.
+    // lineID accepts only exact starts and cannot resolve a caret inside a line.
     let caret = selectedRange().location
-    let probe = caret > 0 && caret == (string as NSString).length ? caret - 1 : caret
-    guard canAskGanit(), let line = lineID(probe),
+    guard canAskGanit(), let line = lineStarts().last(where: { $0.start <= caret })?.id,
       lineDiagnostic(line) != nil,
       let row = visibleLines(in: rect).first(where: { $0.id == line })
     else { return nil }

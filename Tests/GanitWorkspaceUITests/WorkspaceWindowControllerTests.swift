@@ -42,6 +42,7 @@ struct WorkspaceWindowControllerTests {
       #expect(item.action != nil)
     }
     #expect(controller.editor?.view.superview != nil)
+    #expect(controller.editor?.suggestionDocumentID == ids[0])
     #expect(window.title == "Untitled")
     #expect(Set(controller.sidebar.sheets.map(\.id)) == Set([SheetLibrary.scratchID] + ids))
   }

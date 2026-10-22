@@ -115,4 +115,88 @@ struct AssistanceSnapshotTests {
     #expect(snapshot.inventory.allSatisfy { !$0.matchesTarget })
   }
 
+  @Test func wireHandlesDoNotExposeLocalLineOrDocumentIdentities() throws {
+    let text = "base = 7\n14\nf(x) = x * base\nUse f with line 2."
+    let original = SheetSource(text)
+    var edited = SheetSource("temporary\n")
+    edited.replace(utf8Range: 0..<edited.text.utf8.count, with: "")
+    edited.replace(utf8Range: 0..<edited.text.utf8.count, with: text)
+    #expect(original.lines.map(\.id) != edited.lines.map(\.id))
+    var firstCalculator = SheetCalculator()
+    var secondCalculator = SheetCalculator()
+    let first = try firstCalculator.assistanceSnapshot(
+      original, context: sheetContext(), target: original.lines.last!.id
+    ).addingTaskNote("Use the amount on line 2.")
+    let second = try secondCalculator.assistanceSnapshot(
+      edited, context: sheetContext(), target: edited.lines.last!.id
+    ).addingTaskNote("Use the amount on line 2.")
+    let firstBody = try first.permittedContext()
+    #expect(firstBody == (try second.permittedContext()))
+    let root = try #require(JSONSerialization.jsonObject(with: firstBody) as? [String: Any])
+    let symbols = try #require(root["symbols"] as? [[String: Any]])
+    let result = try #require(symbols.first { $0["kind"] as? String == "line_result" })
+    #expect(result["handle"] as? String == "R1")
+    let wire = String(decoding: firstBody, as: UTF8.self)
+    #expect(!wire.contains("line:"))
+    #expect(!wire.contains(original.assistanceIdentity.uuidString))
+    #expect(!wire.contains(edited.assistanceIdentity.uuidString))
+    let function = try #require(symbols.first { $0["kind"] as? String == "function" })
+    let context = try #require(function["function"] as? [String: Any])
+    let definitions = try #require(context["definitions"] as? [[String: Any]])
+    #expect(function["origin"] as? String == definitions[0]["origin"] as? String)
+  }
+
+  @Test func contextIncludesTransitiveScalarSourcesAtTheirOriginalDeclarations() throws {
+    let source = SheetSource(
+      "private = 987654\nfactor = 10\nsubtotal = factor * 2\nfactor = 99\ngrand_total = subtotal + 3\nUse grand_total with two."
+    )
+    var calculator = SheetCalculator()
+    let snapshot = try calculator.assistanceSnapshot(
+      source, context: sheetContext(), target: source.lines.last!.id)
+    let root = try #require(
+      JSONSerialization.jsonObject(with: snapshot.permittedContext()) as? [String: Any])
+    #expect(
+      snapshot.inventory.first { $0.name == "grand_total" }?.value
+        == .number(.integer(IntegerValue(23))))
+    let dependencies = try #require(root["dependencySources"] as? [[String: String]])
+    #expect(
+      Set(dependencies.compactMap { $0["source"] }) == ["subtotal = factor * 2", "factor = 10"])
+    #expect(dependencies.allSatisfy { $0["origin"]?.hasPrefix("source:") == true })
+    let body = String(decoding: try snapshot.permittedContext(), as: UTF8.self)
+    #expect(!body.contains("factor = 99"))
+    #expect(!body.contains("987654"))
+  }
+
+  @Test func taskNotesAndFunctionCapturesIncludeTheirTransitiveScalarSources() throws {
+    let source = SheetSource(
+      "factor = 10\nsubtotal = factor * 2\nf(x) = x * subtotal\nfactor = 99\nUse the value.")
+    var calculator = SheetCalculator()
+    let snapshot = try calculator.assistanceSnapshot(
+      source, context: sheetContext(), target: source.lines.last!.id)
+    let empty = try #require(
+      JSONSerialization.jsonObject(with: snapshot.permittedContext()) as? [String: Any])
+    #expect((empty["dependencySources"] as? [[String: String]])?.isEmpty == true)
+    let revised = try snapshot.addingTaskNote("Use f with two.")
+    let function = try #require(revised.inventory.first { $0.name == "f" }?.function)
+    #expect(function.assistanceCaptures["subtotal"]?.source == "subtotal = factor * 2")
+    let root = try #require(
+      JSONSerialization.jsonObject(with: revised.permittedContext()) as? [String: Any])
+    let dependencies = try #require(root["dependencySources"] as? [[String: String]])
+    #expect(
+      Set(dependencies.compactMap { $0["source"] }) == [
+        "f(x) = x * subtotal", "subtotal = factor * 2", "factor = 10",
+      ])
+    #expect(
+      !String(decoding: try revised.permittedContext(), as: UTF8.self).contains("factor = 99"))
+  }
+
+  @Test func transitiveContextRejectsExcessRecordsWithoutTruncation() throws {
+    let chain = ["value0 = 1"] + (1...70).map { "value\($0) = value\($0 - 1) + 1" }
+    let source = SheetSource((chain + ["Use value70 with two."]).joined(separator: "\n"))
+    var calculator = SheetCalculator()
+    let snapshot = try calculator.assistanceSnapshot(
+      source, context: sheetContext(), target: source.lines.last!.id)
+    #expect(throws: AssistanceSnapshotError.contextTooLarge) { try snapshot.permittedContext() }
+  }
+
 }

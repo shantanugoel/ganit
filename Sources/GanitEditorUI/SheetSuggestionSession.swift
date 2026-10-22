@@ -17,7 +17,7 @@ public struct SheetSuggestionConfiguration: Sendable {
 @MainActor
 package final class SheetSuggestionSession {
   private weak var editor: SheetEditorViewController?
-  private let document = UUID()
+  private var invalidationTask: Task<Void, Never>?
   private var revision = 0
   private var task: Task<Void, Never>?
   private var job: SuggestionJob?
@@ -42,10 +42,31 @@ package final class SheetSuggestionSession {
   package private(set) var assumptions: Set<String> = []
   private var included: Set<String> = []
   private var selected: SuggestionCandidate?
+  package private(set) var omittedLines: Set<Int> = []
+  package var proposalLines: [String] {
+    guard let selected, let snapshot else { return [] }
+    let rows = SheetSource(selected.edits[0].replacement).lines
+    return (0..<max(rows.count, snapshot.targetLines.count)).map { index in
+      rows.indices.contains(index)
+        ? rows[index].text
+        : localized("ask.removeLine", "Remove: ") + snapshot.targetLines[index].text
+    }
+  }
+  package var checkedLines: [(source: String, result: EngineValue?)] {
+    guard let preview, let snapshot,
+      let start = preview.evaluation.lines.firstIndex(where: { $0.id == snapshot.target.id })
+    else { return [] }
+    let rows = SheetSource(preview.candidate.edits[0].replacement).lines
+    return rows.enumerated().map { index, row in
+      let result = preview.evaluation.lines[start + index].result
+      if case .value(let value) = result { return (row.text, value) }
+      return (row.text, nil)
+    }
+  }
   package var canSend: Bool { state == .idle && snapshot != nil && preparedBody != nil }
   package var canApply: Bool { state == .ready && preview?.isApplicable == true }
   package var availableChoices: [AssistanceChoice] {
-    proposals.first { $0.candidate.id == selected?.id }?.choices ?? []
+    preview?.choices ?? []
   }
   package var isRunning: Bool {
     [.preparing, .requesting, .repairing, .checking, .needsContext].contains(state)
@@ -100,10 +121,11 @@ package final class SheetSuggestionSession {
         guard let self, self.revision == version, snapshot.source.text == editor.sheet.text else {
           return
         }
+        let body = try await SuggestionRequestContext.requestBody(
+          settings: configuration.settings, snapshot: snapshot)
+        guard self.revision == version, snapshot.source.text == editor.sheet.text else { return }
         self.snapshot = snapshot
-        self.preparedBody = try SuggestionWireRequest(
-          settings: configuration.settings, context: snapshot.permittedContext()
-        ).body
+        self.preparedBody = body
         if autoSend {
           // send() only accepts an idle job, so the scope has to be reported ready
           // first even when nobody will see the intermediate state.
@@ -144,9 +166,10 @@ package final class SheetSuggestionSession {
     preparedBody = nil
     update(.requesting, localized("ask.requesting", "Ganit is asking…"))
     task = Task { [weak self] in
+      await self?.invalidationTask?.value
       let job = await configuration.coordinator.start(
         SuggestionJobInput(
-          document: self?.document ?? UUID(), snapshot: snapshot,
+          document: editor.suggestionDocumentID, snapshot: snapshot,
           settings: configuration.settings,
           permission: SuggestionPermission(contextAccepted: true),
           includedRecords: self?.included ?? [], choices: self?.choices ?? [:],
@@ -205,6 +228,7 @@ package final class SheetSuggestionSession {
 
   package func selectProposal(_ index: Int) {
     guard proposals.indices.contains(index) else { return }
+    omittedLines = []
     selected = proposals[index].candidate
     preview = proposals[index]
     choices = [:]
@@ -223,6 +247,13 @@ package final class SheetSuggestionSession {
     recheck()
   }
 
+  package func includeLine(_ index: Int, included: Bool) {
+    guard proposalLines.indices.contains(index) else { return }
+    if included { omittedLines.remove(index) } else { omittedLines.insert(index) }
+    choices = [:]
+    recheck()
+  }
+
   private func recheck() {
     guard let editor, let scheduler = editor.scheduler, let snapshot, let selected else { return }
     task?.cancel()
@@ -235,7 +266,7 @@ package final class SheetSuggestionSession {
         let result = try await scheduler.checkSuggestion(
           selected, snapshot: snapshot,
           handles: self.included, choices: self.choices, assumptions: self.assumptions,
-          userRevisedInputs: self.userRevisedInputs)
+          userRevisedInputs: self.userRevisedInputs, omittedLines: self.omittedLines)
         guard self.revision == version else { return }
         self.preview = result
         self.update(result.isApplicable ? .ready : .needsChoice, Self.checkedMessage)
@@ -246,7 +277,7 @@ package final class SheetSuggestionSession {
           .needsChoice,
           localized(
             "ask.choiceUnsatisfied",
-            "This expression does not satisfy that choice. Change the words and ask again."))
+            "These selected lines do not pass the local checks. Select more lines or ask again."))
       }
     }
   }
@@ -267,13 +298,12 @@ package final class SheetSuggestionSession {
         var snapshot = try await editor.suggestionSnapshot(targets: target)
         for note in self.taskNotes { snapshot = try snapshot.addingTaskNote(note) }
         guard self.revision == version, snapshot.source.text == editor.sheet.text else { return }
+        let body = try await SuggestionRequestContext.requestBody(
+          settings: configuration.settings, snapshot: snapshot, including: self.included,
+          choices: self.choices, userRevisedInputs: self.userRevisedInputs)
+        guard self.revision == version, snapshot.source.text == editor.sheet.text else { return }
         self.snapshot = snapshot
-        self.preparedBody = try SuggestionWireRequest(
-          settings: configuration.settings,
-          context: SuggestionRequestContext.data(
-            snapshot: snapshot, including: self.included,
-            choices: self.choices, userRevisedInputs: self.userRevisedInputs)
-        ).body
+        self.preparedBody = body
         self.update(
           .idle,
           Self.contextSummary(snapshot, model: configuration.settings.model)
@@ -306,7 +336,7 @@ package final class SheetSuggestionSession {
         let edit = try await scheduler.prepareSuggestion(
           selected, snapshot: fresh,
           handles: self.included, choices: self.choices, assumptions: self.assumptions,
-          userRevisedInputs: self.userRevisedInputs)
+          userRevisedInputs: self.userRevisedInputs, omittedLines: self.omittedLines)
         guard self.revision == version, fresh.source.text == editor.sheet.text,
           !editor.textView.hasMarkedText()
         else { return }
@@ -323,6 +353,7 @@ package final class SheetSuggestionSession {
         try editor.applySuggestionEdit(edit)
         self.isVisible = false
         self.update(.applied, localized("ask.applied", "Applied."))
+        editor.view.window?.makeFirstResponder(editor.textView)
       } catch {
         guard self.revision == version else { return }
         self.update(
@@ -351,7 +382,15 @@ package final class SheetSuggestionSession {
     editor.view.window?.makeFirstResponder(editor.textView)
   }
 
-  package func invalidate() {
+  package func invalidate(documentChanged: Bool = true) {
+    if documentChanged, let configuration, let editor {
+      let document = editor.suggestionDocumentID
+      let prior = invalidationTask
+      invalidationTask = Task {
+        await prior?.value
+        await configuration.coordinator.invalidate(document: document)
+      }
+    }
     revision += 1
     task?.cancel()
     if let job, let configuration {
@@ -371,9 +410,10 @@ package final class SheetSuggestionSession {
   }
 
   package func dismiss() {
-    invalidate()
+    invalidate(documentChanged: false)
     isVisible = false
     update(.dismissed, "")
+    editor?.view.window?.makeFirstResponder(editor?.textView)
   }
 
   package func waitUntilIdle() async {

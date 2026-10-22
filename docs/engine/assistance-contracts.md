@@ -24,7 +24,9 @@ The target is one physical source line or a selection of complete lines.
 A selection must contain adjacent lines. Its limit is 12 lines and 8 KiB.
 The snapshot keeps the complete selected text and all its diagnostics.
 Symbol handles identify records in the captured inventory. The default context contains direct name
-matches. An additional handle must come from that inventory. The caller
+matches and their transitive local source dependencies. Ganit resolves each
+dependency in the native scope at its declaration. Historical inputs keep
+their original source. An additional handle must come from that inventory. The caller
 must get context permission before it includes additional records.
 
 `AssistanceSnapshot.permittedContext` encodes the target, attached comments,
@@ -39,8 +41,8 @@ The catalog reads native function, operator, keyword, unit, and diagnostic
 registries. Its examples have independent expected results in tests.
 
 Selected custom functions now have native source and capture records.
-Their complete scalar dependency graph, rate provenance, and table records
-still need work.
+Their local scalar dependencies are included as source records. Imported
+scalar ancestry, rate provenance, and table records still need work.
 
 ## Response contract
 
@@ -107,7 +109,7 @@ Native provenance flags follow legacy model values through declarations,
 references, imported definitions, units, and function captures. These values
 cannot become preview evidence. The context omits their canonical values.
 
-Partial line edits, complete dependency tracing, table targets, and the full
+Partial line edits, imported dependency tracing, table targets, and the full
 ambiguity fixture set remain incomplete. This code does not establish the
 M1 exit gate.
 

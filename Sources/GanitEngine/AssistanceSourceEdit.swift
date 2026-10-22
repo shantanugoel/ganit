@@ -79,7 +79,16 @@ extension AssistanceCandidateChecker {
       throw AssistanceValidationFailure(
         .invalidBounds, "The result line no longer has its source identity.")
     }
-    let resultID = shadow.lines[firstOutput + outputCount - 1].id
+    guard
+      let checkedStart = checked.evaluation.lines.firstIndex(where: { $0.id == snapshot.target.id }
+      ),
+      let checkedResult = checked.evaluation.lines.firstIndex(where: {
+        $0.id == checked.resultLineID
+      })
+    else {
+      throw AssistanceValidationFailure(.invalidBounds, "The checked result is unavailable.")
+    }
+    let resultID = shadow.lines[firstOutput + checkedResult - checkedStart].id
     guard let line = evaluation.lines.first(where: { $0.id == resultID }),
       case .value(let value) = line.result,
       assistanceValuesEqual(value, checked.result, context: context)

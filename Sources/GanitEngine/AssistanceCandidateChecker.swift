@@ -352,6 +352,14 @@ public enum AssistanceCandidateChecker {
     var calculator = snapshot.calculator
     let safeBaseline = try calculator.evaluate(snapshot.source, context: context)
     let evaluation = try calculator.evaluate(shadow, context: context)
+    let baselineResults = Dictionary(
+      uniqueKeysWithValues: safeBaseline.lines.map { ($0.id, $0.result) })
+    for line in evaluation.lines where plan.outputLines.contains(line.id) {
+      if isFailure(line.result), baselineResults[line.id] != line.result {
+        throw AssistanceValidationFailure(
+          .evaluation, "The engine cannot calculate a proposed line.", engineResult: line.result)
+      }
+    }
     guard let line = evaluation.lines.first(where: { $0.id == plan.resultLine }),
       case .value(let result) = line.result
     else {

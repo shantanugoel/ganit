@@ -1,6 +1,31 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "ask.context.dependencies" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Lines these calculations read" } }
+      }
+    },
+    "ask.removeLine" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Remove: " } }
+      }
+    },
+    "ask.includeProposedLine" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Include proposed line %1$d: %2$@" } }
+      }
+    },
+    "ask.context.bytes" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Exact request bytes" } }
+      }
+    },
+    "ask.context.functions" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Function definitions and their inputs" } }
+      }
+    },
     "ask.context.effort" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Effort" } }
@@ -93,7 +118,7 @@
     },
     "ask.choiceUnsatisfied" : {
       "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "This expression does not satisfy that choice. Change the words and ask again." } }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "These selected lines do not pass the local checks. Select more lines or ask again." } }
       }
     },
     "ask.context" : {

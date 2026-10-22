@@ -34,7 +34,10 @@ struct AssistanceFunctionContext: Encodable, Sendable {
     definitions.reduce(0) { $0 + 1 + $1.captures.count + $1.units.count }
   }
 
-  init(_ root: CustomFunction, engine: CalculationEngine, context: EvaluationContext) throws {
+  init(
+    _ root: CustomFunction, engine: CalculationEngine, context: EvaluationContext,
+    originKey: (String) -> String = { $0 }
+  ) throws {
     var work = [root]
     var visited: Set<String> = []
     var records: [Definition] = []
@@ -59,7 +62,7 @@ struct AssistanceFunctionContext: Encodable, Sendable {
         let source = function.assistanceCaptures[name]
         let value = function.variables[name] ?? nil
         return Capture(
-          name: name, origin: source?.identifier ?? "external-definitions:" + name,
+          name: name, origin: originKey(source?.identifier ?? "external-definitions:" + name),
           source: source?.source, value: value.map(AssistanceValue.init), unavailable: value == nil)
       }
       var calls: [Call] = []
@@ -69,7 +72,7 @@ struct AssistanceFunctionContext: Encodable, Sendable {
           throw AssistanceValidationFailure(
             .unknownBinding, "A captured function has no native source record.")
         }
-        calls.append(Call(name: name, origin: origin.identifier))
+        calls.append(Call(name: name, origin: originKey(origin.identifier)))
         work.append(called)
       }
       let units = Self.units(in: function.body, engine: engine, context: context)
@@ -77,7 +80,7 @@ struct AssistanceFunctionContext: Encodable, Sendable {
       guard count <= SuggestionLimits.symbols else { throw AssistanceSnapshotError.contextTooLarge }
       records.append(
         Definition(
-          name: function.name, origin: origin.identifier, source: origin.source,
+          name: function.name, origin: originKey(origin.identifier), source: origin.source,
           parameters: function.parameters, captures: captures, functions: calls, units: units,
           readsClock: facts.readsClock))
     }

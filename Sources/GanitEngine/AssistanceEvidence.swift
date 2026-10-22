@@ -90,12 +90,15 @@ extension AssistanceSnapshot {
                 variables: scope.names.mapValues { $0?.kind ?? .number }
               ).expression
             else { continue }
-            let operand: Expression
+            let isLiteralAmount: Bool
             switch parsed {
-            case .quantity(let amount, _, _), .money(let amount, _, _): operand = amount
+            case .quantity(let amount, _, _):
+              isLiteralAmount = AssistanceExpressionFacts.isPrimitive(amount)
+            case .money(let amount, _, _):
+              isLiteralAmount = assistanceIsLiteralMoneyAmount(amount, source: textValue)
             default: continue
             }
-            guard AssistanceExpressionFacts.isPrimitive(operand),
+            guard isLiteralAmount,
               case .value(let wrapped) = scope.engine.evaluate(
                 parsed, context: context, variables: [:], lines: LineOutcomes()
               ).result
@@ -136,5 +139,20 @@ extension AssistanceSnapshot {
       append(source: handle, text: text, kind: "relation")
     }
     return records
+  }
+}
+
+private func assistanceIsLiteralMoneyAmount(_ expression: Expression, source: String) -> Bool {
+  if AssistanceExpressionFacts.isPrimitive(expression) { return true }
+  switch expression {
+  case .grouped(let amount, _):
+    return assistanceIsLiteralMoneyAmount(amount, source: source)
+  case .infix(let amount, .multiply, .literal(_, let scaleRange), let operatorRange, _):
+    // The native parser uses the scale token as the multiplication operator.
+    guard AssistanceExpressionFacts.isPrimitive(amount), operatorRange == scaleRange,
+      let word = scaleRange.text(in: source)
+    else { return false }
+    return ScaleWord.digits[String(word).lowercased()] != nil
+  default: return false
   }
 }

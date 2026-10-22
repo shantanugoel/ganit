@@ -71,6 +71,8 @@ public final class SheetEditorViewController: NSViewController {
   }
 
   /// Provider setup is separate from permission to send source.
+  public let suggestionDocumentID: UUID
+
   public var suggestionConfiguration: SheetSuggestionConfiguration? {
     didSet { suggestionSession.invalidate() }
   }
@@ -265,8 +267,10 @@ public final class SheetEditorViewController: NSViewController {
     text: String = "",
     context: EvaluationContext,
     display: DisplayOptions = .standard,
-    surface: SheetSurface = .workspace
+    surface: SheetSurface = .workspace,
+    documentID: UUID = UUID()
   ) {
+    suggestionDocumentID = documentID
     permitsTableEditing = surface == .workspace
     self.context = context.with(
       dollarCurrency: display.dollarCurrency, isMarkdownMode: display.writesAnswersInline,

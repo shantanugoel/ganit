@@ -136,8 +136,25 @@ final class AskBar: NSView {
     actions = []
     instructionField.isHidden = !session.isVisible
     label(session.message)
+    for (index, line) in session.proposalLines.enumerated() {
+      let control = NSButton(
+        checkboxWithTitle: line, target: self, action: #selector(run(_:)))
+      control.state = session.omittedLines.contains(index) ? .off : .on
+      control.setAccessibilityLabel(
+        String(
+          format: localized("ask.includeProposedLine", "Include proposed line %1$d: %2$@"),
+          index + 1, line))
+      control.isEnabled = !session.isRunning
+      register(control) { [weak self, weak control] in
+        self?.session.includeLine(index, included: control?.state == .on)
+      }
+      stack.addArrangedSubview(control)
+    }
     if let preview = session.preview {
-      label(preview.candidate.edits.map(\.replacement).joined(separator: "\n"), mono: true)
+      for row in session.checkedLines {
+        let answer = row.result.flatMap { editor?.formatTableValue($0)?.display }
+        label(row.source + (answer.map { " = " + $0 } ?? ""), mono: true)
+      }
       let result = editor?.formatTableValue(preview.result)?.display ?? ""
       label(localized("ask.calculated", "Ganit calculated: ") + result, bold: true)
       label(preview.interpretation)
@@ -286,7 +303,7 @@ final class AskBar: NSView {
     let bodies = session.preparedBody.map { [$0] } ?? session.requestBodies
     let content = bodies.enumerated().map { index, body in
       (bodies.count > 1 ? "Request \(index + 1)\n" : "")
-        + (Self.contextSummary(for: body) ?? Self.contextJSON(body))
+        + Self.contextDisclosure(for: body)
     }.joined(separator: "\n\n")
     inspect(
       content.isEmpty ? localized("ask.noContext", "Nothing has been prepared to send.") : content,
@@ -297,6 +314,12 @@ final class AskBar: NSView {
   /// trust the summary.
   static func contextJSON(_ body: Data) -> String {
     String(decoding: body, as: UTF8.self)
+  }
+
+  static func contextDisclosure(for body: Data) -> String {
+    guard let summary = contextSummary(for: body) else { return contextJSON(body) }
+    return summary + "\n\n"
+      + localized("ask.context.bytes", "Exact request bytes") + "\n" + contextJSON(body)
   }
 
   /// The disclosure the plan's rule 4 requires: what leaves the Mac, in words a
@@ -322,7 +345,9 @@ final class AskBar: NSView {
     let target = context["target"] as? [String: Any]
     section(
       localized("ask.context.target", "Lines you asked about"),
-      ((target?["source"] as? String) ?? "").split(separator: "\n").map(String.init))
+      ((target?["source"] as? String) ?? "").split(
+        separator: "\n", omittingEmptySubsequences: false
+      ).map(String.init))
     let notes = array("notes").compactMap { $0["source"] as? String }
     section(
       localized("ask.context.words", "The words you typed"),
@@ -336,6 +361,20 @@ final class AskBar: NSView {
         guard let name = symbol["name"] as? String else { return nil }
         let source = symbol["source"] as? String
         return source == nil ? name : "\(name) — \(source!)"
+      })
+    section(
+      localized("ask.context.dependencies", "Lines these calculations read"),
+      array("dependencySources").compactMap { $0["source"] as? String })
+    let definitions = array("symbols").flatMap { symbol -> [[String: Any]] in
+      let function = symbol["function"] as? [String: Any]
+      return function?["definitions"] as? [[String: Any]] ?? []
+    }
+    section(
+      localized("ask.context.functions", "Function definitions and their inputs"),
+      definitions.flatMap { definition -> [String] in
+        let captures = definition["captures"] as? [[String: Any]] ?? []
+        return [definition["source"] as? String].compactMap { $0 }
+          + captures.compactMap { $0["source"] as? String }
       })
     if let settings = context["settings"] as? [String: Any] {
       let keys = ["locale", "precision", "rounding", "now", "dollarCurrency", "markdown"]

@@ -1,8 +1,8 @@
 # AI as part of the calculator: experience plan
 
 Date: 2026-10-20
-Status: Design approved. M-1 (the Effort setting) and M0 (reconcile and freeze)
-are complete; M1 and later are not started and no gate below them is complete.
+Status: Design approved. M-1, M0, and M1 are complete.
+M2 through M5 are not started. Their exit gates are not complete.
 M0's records are [ADR 0019](../adr/0019-ask-one-operation-four-outcomes.md) and
 [the frozen Ask job contract](../design/ai-native/ask-job-contract.md), and the
 harness this plan tells M1 to reuse is now merged into this branch. The legacy
@@ -240,7 +240,7 @@ is accepted; the prior branch's harness is reused as merged code, with its six
 divergences written down in
 [the job contract](../design/ai-native/ask-job-contract.md).
 
-**M1 — Ask bar and proposal, engine-verified.** *In progress 2026-10-21.* Bar,
+**M1 — Ask bar and proposal, engine-verified.** *Done 2026-10-22.* Bar,
 chip, selection bar entry, right-click. Proposal panel with live shadow answers,
 per-line opt-out, Apply as one named Undo step, stale checks, Esc cancel. *Gate:*
 the `loan` and `trip` scenarios pass against a fake provider, including ⌘Z
@@ -274,10 +274,41 @@ and makes no request.
    two spaces in `hitTest`, `mouseDown`, and the cursor rects; verified by
    clicking the chip in the built app and watching the bar open.
 
-**Also outstanding:** per-line opt-out — the harness produces a single `T1`
-replacement, so declining one proposed line means rebuilding the replacement and
-re-checking it, which is not built yet. Until it is, the bar offers
-all-or-nothing Apply.
+**M1 completion work, 2026-10-22:** Each proposed replacement, insertion, and
+deletion has an inclusion control. Ganit builds the selected source again,
+updates local bindings, and checks every proposed calculation and downstream
+result. A rejected selection has no preview and cannot reach Apply. The
+controls remain available so the reader can restore a valid selection.
+Each checked line shows its engine result. Apply and Undo use the existing
+source coordinator and preserve the original selection.
+
+The context includes transitive local source dependencies. Native scopes
+preserve the inputs of earlier declarations and function captures. Opaque
+keys replace local source identities in the request. Context shows the exact
+request body, function inputs, and dependency source. The saved sheet ID
+identifies the job and cache. Source changes invalidate both.
+
+Desktop testing found two more defects. Apply did not return keyboard focus
+to the sheet, so Undo required a click in the sheet. The chip also looked up
+the caret as an exact line start, so it disappeared inside a line. The fixes
+restore sheet focus after Apply or dismissal and find the line that contains
+the caret. Regression tests include normal selection notifications, Unicode
+source, and caret positions at the start, middle, and end of a line.
+
+**M1 gate: passed, 2026-10-22.** The loan and trip tests use a fake provider.
+They check independent expected results, exact source bytes and selection
+after Undo, Redo, reopening, and input changes with no further request.
+The full package suite passes: 1,313 tests. The separate opt-in window capture
+test passes in light and dark appearance. Formatting, whitespace, the app
+build, and bundle verification pass.
+
+Computer use tested an isolated app with synthetic source and a loopback
+provider. The checks cover all four Ask entry points, Context before Send,
+the exact request body, Return to send, line opt-out, rejection of an empty
+selection of changes, partial Apply, immediate keyboard Undo, Redo, and Esc.
+The provider received only the two explicit test requests. No configured
+provider was contacted. This does not establish VoiceOver, real IME, or
+performance release coverage. Those release checks remain open.
 
 **M2 — Validation and repair.** Diagnostic-fed repair turn within the shared
 budget, the two visible status lines, the failure card with the four reason
