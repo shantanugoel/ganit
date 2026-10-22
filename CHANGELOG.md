@@ -5,6 +5,9 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Keep Ask bar actions on one row when space is available. Move excess buttons
+  to the next row when the pane is narrow. Update the rows when the pane changes size.
+
 - Keep the source text and results visible when the Ask bar is open. The
   bar now draws its background only inside its bounds.
 

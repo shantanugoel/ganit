@@ -203,9 +203,7 @@ final class AskBar: NSView {
       }
       button("Include More Context") { [weak self] in self?.session.includeContext() }
     }
-    let row = NSStackView()
-    row.orientation = bounds.width < 500 ? .vertical : .horizontal
-    row.spacing = 8
+    let row = AskActionRow()
     if canSubmitInstruction {
       addButton(localized("ask.send", "Ask"), to: row) { [weak self] in
         self?.submitInstruction()
@@ -218,7 +216,7 @@ final class AskBar: NSView {
       apply.editor = editor
       apply.isEnabled = session.canApply
       register(apply) { [weak self] in self?.session.apply() }
-      row.addArrangedSubview(apply)
+      row.addButton(apply)
       addButton("Show Working", to: row) { [weak self] in self?.showWorking() }
     }
     addButton("Edit Request", to: row) { [weak self] in self?.session.editRequest() }
@@ -232,6 +230,7 @@ final class AskBar: NSView {
       self?.session.dismiss()
     }
     stack.addArrangedSubview(row)
+    row.widthAnchor.constraint(equalTo: stack.widthAnchor, constant: -32).isActive = true
     label(localized("ask.keys", "⏎ asks. ⌘↩ applies when Apply has focus. Esc closes."))
     // A hidden view cannot take the caret, and refresh() is what puts the field
     // on screen, so unhiding belongs here and not only in the editor's layout.
@@ -257,11 +256,11 @@ final class AskBar: NSView {
     stack.addArrangedSubview(view)
   }
 
-  private func addButton(_ title: String, to row: NSStackView, action: @escaping () -> Void) {
+  private func addButton(_ title: String, to row: AskActionRow, action: @escaping () -> Void) {
     let view = NSButton(title: title, target: self, action: #selector(run(_:)))
     view.bezelStyle = .rounded
     register(view, action: action)
-    row.addArrangedSubview(view)
+    row.addButton(view)
   }
 
   private func register(_ button: NSButton, action: @escaping () -> Void) {
@@ -387,6 +386,60 @@ final class AskBar: NSView {
     self.popover?.close()
     self.popover = popover
     popover.show(relativeTo: bounds, of: self, preferredEdge: .maxY)
+  }
+}
+
+/// Keep actions on one row when they fit. Move excess buttons to the next row.
+@MainActor
+final class AskActionRow: NSView {
+  private let spacing: CGFloat = 8
+
+  override var isFlipped: Bool { true }
+
+  func addButton(_ button: NSButton) {
+    addSubview(button)
+    invalidateIntrinsicContentSize()
+    needsLayout = true
+  }
+
+  override var intrinsicContentSize: NSSize {
+    NSSize(width: NSView.noIntrinsicMetric, height: buttonFrames().map(\.maxY).max() ?? 0)
+  }
+
+  override func setFrameSize(_ newSize: NSSize) {
+    let widthChanged = frame.width != newSize.width
+    super.setFrameSize(newSize)
+    if widthChanged {
+      invalidateIntrinsicContentSize()
+      needsLayout = true
+    }
+  }
+
+  override func layout() {
+    super.layout()
+    for (button, frame) in zip(subviews, buttonFrames()) {
+      button.frame = frame
+    }
+  }
+
+  private func buttonFrames() -> [NSRect] {
+    let width = bounds.width > 0 ? bounds.width : CGFloat.greatestFiniteMagnitude
+    var x: CGFloat = 0
+    var y: CGFloat = 0
+    var rowHeight: CGFloat = 0
+    return subviews.map { button in
+      let size = button.fittingSize
+      let buttonWidth = min(size.width, width)
+      if x > 0 && x + buttonWidth > width {
+        x = 0
+        y += rowHeight + spacing
+        rowHeight = 0
+      }
+      let frame = NSRect(x: x, y: y, width: buttonWidth, height: size.height)
+      x += buttonWidth + spacing
+      rowHeight = max(rowHeight, size.height)
+      return frame
+    }
   }
 }
 
