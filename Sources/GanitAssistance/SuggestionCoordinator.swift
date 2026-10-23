@@ -260,8 +260,9 @@ public actor SuggestionCoordinator {
         }
         try ensureActive(id)
         let outcome: SuggestionOutcome
-        do { outcome = try SuggestionDecoder.decode(payload) }
-        catch SuggestionDecodingError.numericProse {
+        do { outcome = try SuggestionDecoder.decode(payload) } catch SuggestionDecodingError
+          .numericProse
+        {
           // Asking the model to fix words that carried numbers only spends a
           // request: the schema it is handed says nothing about the ban, so the
           // repaired reply repeats the offence. Stop and say what happened.

@@ -148,6 +148,38 @@ struct SheetSuggestionTests {
 
   }
 
+  @Test func markedLinesAreReachableWithoutAPointerAndAimableWithoutPrecision() async throws {
+    let editor = try await editor(
+      "total = 300\ndensity = 1 kg/L // AI: density of water · synthetic · 2026-10-22\n10 kg / density"
+    )
+    _ = configure(editor, replies: [])
+    let view = try #require(editor.textView as? SheetTextView)
+    // The caret sits on an ordinary line: no mark is hovered or selected, yet
+    // each one still has an action a keyboard or VoiceOver user can reach.
+    select(editor, NSRange(location: 0, length: 0))
+    let names = view.accessibilityCustomActions()?.map(\.name) ?? []
+    #expect(names.contains { $0.hasPrefix("Show AI assumption") })
+    #expect(names.contains { $0.hasPrefix("Show AI assumption source") })
+
+    // Pressing the mark itself still opens that line's card.
+    var inspected: [LineID] = []
+    view.onInspectAssumption = { line, _ in inspected.append(line) }
+    let density = editor.sheet.lines[1].id
+    let reader = editor.sheet.lines[2].id
+    for line in [density, reader] {
+      let badge = try #require(view.assumptionBadgeRect(for: line))
+      #expect(view.assumptionBadgeHit(at: NSPoint(x: badge.midX, y: badge.midY))?.line == line)
+      let justPastTheMark = NSPoint(x: badge.maxX + 2, y: badge.midY)
+      #expect(
+        view.assumptionBadgeHit(at: justPastTheMark)?.line == line,
+        "A point two points past the mark no longer opens the card")
+      if let hit = view.assumptionBadgeHit(at: justPastTheMark) {
+        view.onInspectAssumption(hit.line, hit.rect)
+      }
+    }
+    #expect(inspected == [density, reader])
+  }
+
   @Test func scopeReviewMakesZeroRequestsAndSendingShowsACheckedPreviewWithoutChangingSource()
     async throws
   {

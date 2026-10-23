@@ -134,7 +134,10 @@ struct ModelAnswerTests {
     #expect(await transport.count() == 1)
     let events = await log.events
     #expect(
-      !events.contains { if case .repairStarted = $0 { return true }; return false })
+      !events.contains {
+        if case .repairStarted = $0 { return true }
+        return false
+      })
     #expect(
       events.contains {
         if case .failure(.modelSuppliedNumbers) = $0 { return true }
@@ -164,7 +167,11 @@ struct ModelAnswerTests {
     }
     #expect(await transport.count() == 1)
     let events = await log.events
-    #expect(!events.contains { if case .repairStarted = $0 { return true }; return false })
+    #expect(
+      !events.contains {
+        if case .repairStarted = $0 { return true }
+        return false
+      })
     #expect(
       events.contains {
         if case .failure(.modelSuppliedNumbers) = $0 { return true }
@@ -186,7 +193,10 @@ struct ModelAnswerTests {
     #expect(await transport.count() == 1)
     let events = await log.events
     #expect(
-      !events.contains { if case .repairStarted = $0 { return true }; return false })
+      !events.contains {
+        if case .repairStarted = $0 { return true }
+        return false
+      })
     #expect(
       events.contains {
         if case .failure(.answerNotApplicable) = $0 { return true }

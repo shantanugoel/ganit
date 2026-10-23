@@ -180,8 +180,7 @@ public final class ProviderSuggestionTransport: NSObject, SuggestionTransport,
       let text = completion.choices.first?.message.content
     else { throw SuggestionTransportError.malformedCompletion }
     let content = Data(text.utf8)
-    do { _ = try SuggestionDecoder.decode(content) }
-    catch SuggestionDecodingError.numericProse {
+    do { _ = try SuggestionDecoder.decode(content) } catch SuggestionDecodingError.numericProse {
       // Words that carried a number are a policy rejection, not a malformed
       // reply. A repair prompt hands the model the same schema, which says
       // nothing about the ban, so the reply comes back with numbers again and

@@ -421,17 +421,39 @@ final class SheetTextView: NSTextView {
       + Self.badgePadding * 2 + Self.badgeGap
   }
 
+  /// Where the mark for `line` is drawn, for the card that anchors to it.
+  func assumptionBadgeRect(for line: LineID) -> NSRect? {
+    guard let entry = answerLayout(in: visibleRect).first(where: { $0.line == line }) else {
+      return nil
+    }
+    return NSRect(
+      x: entry.rect.minX, y: entry.rect.minY, width: badgeWidth(for: entry.cell),
+      height: entry.rect.height)
+  }
+
   func assumptionBadgeHit(at point: NSPoint) -> (line: LineID, rect: NSRect)? {
     guard let hit = answerHit(at: point), hit.cell.isAIAssumption || hit.cell.isAIDerived else {
       return nil
     }
     let badge = NSRect(
       x: hit.rect.minX, y: hit.rect.minY, width: badgeWidth(for: hit.cell), height: hit.rect.height)
-    return badge.contains(point) ? (hit.line, badge) : nil
+    // A mark is a few points across, and a dependency mark is a dot. Reaching it
+    // should not require a steady hand, so the area a pointer may aim at is wider
+    // than the mark that is drawn - while the card still points at the mark.
+    let generous = badge.union(
+      NSRect(
+        x: badge.midX - Self.minimumBadgeHitWidth / 2, y: badge.minY,
+        width: Self.minimumBadgeHitWidth, height: badge.height)
+    )
+    .insetBy(dx: -Self.badgeGap, dy: 0)
+    .intersection(hit.rect.insetBy(dx: -Self.badgeGap, dy: 0))
+    return generous.contains(point) ? (hit.line, badge) : nil
   }
 
   static let badgePadding: CGFloat = 3
   static let badgeGap: CGFloat = 4
+  /// How wide an assumption or dependency mark may be aimed at, in points.
+  static let minimumBadgeHitWidth: CGFloat = 24
 
   /// What is drawn for `cell` in `width`: the answer when it fits, or else its
   /// shorter form. The full answer is its tooltip either way.
@@ -926,20 +948,29 @@ final class SheetTextView: NSTextView {
         return true
       }
     }
-    if let target = targetAnswer, target.cell.isAIAssumption || target.cell.isAIDerived {
-      let name =
-        target.cell.isAIAssumption
+    // A pointer can be parked on a mark to open its card, but a person at the
+    // keyboard has nothing to aim: every marked line on screen gets an action.
+    let marked = answerLayout(in: visibleRect).filter {
+      $0.cell.isAIAssumption || $0.cell.isAIDerived
+    }
+    let origins = marked.filter { $0.cell.isAIAssumption }
+    let derived = marked.filter { !$0.cell.isAIAssumption }
+    for entry in marked.prefix(8) {
+      let isAssumption = entry.cell.isAIAssumption
+      let base =
+        isAssumption
         ? localized("accessibility.inspectAssumption", "Show AI assumption")
         : localized("accessibility.inspectAssumptionSource", "Show AI assumption source")
+      let name =
+        (isAssumption ? origins : derived).count > 1
+        ? "\(base) (line \(lineNumber(entry.line) ?? 0))" : base
       actions.append(
         NSAccessibilityCustomAction(name: name) { [weak self] in
-          guard let self, let current = self.targetAnswer,
-            current.cell.isAIAssumption || current.cell.isAIDerived
-          else { return false }
+          guard let self else { return false }
           let rect =
-            self.answerLayout(in: self.visibleRect).first { $0.line == current.line }?.rect
-            ?? self.caretLineRect() ?? self.visibleRect
-          self.onInspectAssumption(current.line, rect)
+            self.assumptionBadgeRect(for: entry.line) ?? self.caretLineRect()
+            ?? self.visibleRect
+          self.onInspectAssumption(entry.line, rect)
           return true
         })
     }
