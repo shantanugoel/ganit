@@ -22,7 +22,14 @@ struct SettingsControllerTests {
       startsInMenuBar: false
     )
     let settings = SettingsController(state: start) { seen.append($0) }
-    settings.loadView()
+    let assistant = AssistantSettingsController(settings: AssistantSettings()) { _ in }
+    let dialog = SettingsDialogController(general: settings, assistant: assistant)
+    _ = dialog.view
+    #expect(dialog.tabViewItems.map(\.label) == ["General", "Assistant"])
+    #expect(dialog.tabViewItems[1].viewController === assistant)
+    dialog.selectedTabViewItemIndex = 1
+    dialog.selectedTabViewItemIndex = 0
+    _ = settings.view
     let autocomplete = try #require(
       settings.view.buttons.first { $0.title.contains("Autocomplete") })
     #expect(autocomplete.state == .on)

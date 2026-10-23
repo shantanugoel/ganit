@@ -21,6 +21,7 @@ struct MainMenuTests {
     #expect(application.windowsMenu?.title == "Window")
     #expect(application.helpMenu?.title == "Help")
     #expect(application.servicesMenu == nil)
+    #expect(!items.contains { $0.title == "Assistant…" })
     #expect(items.filter { $0.action == #selector(WorkspaceCommands.printSheet(_:)) }.count == 1)
     #expect(!items.contains { $0.action == #selector(NSView.printView(_:)) })
     #expect(!items.contains { $0.title == "Services" })

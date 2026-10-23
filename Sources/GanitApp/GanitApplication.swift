@@ -49,7 +49,6 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   private static let startsInMenuBarDefaultsKey = "StartsInMenuBar"
   private var statusItem: NSStatusItem?
   private var shortcutWindow: NSWindow?
-  private var assistantWindow: NSWindow?
   private var help: HelpWindowController?
   private var releaseNotes: ReleaseNotesWindowController?
   private var settingsWindow: NSWindow?
@@ -362,14 +361,16 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   /// One window for the app-wide switches that also live in the menus.
   @objc func showSettings(_ sender: Any?) {
     if let settingsWindow {
-      (settingsWindow.contentViewController as? SettingsController)?.show(currentSettings())
+      (settingsWindow.contentViewController as? SettingsDialogController)?.show(currentSettings())
       settingsWindow.makeKeyAndOrderFront(nil)
       return
     }
     let controller = SettingsController(state: currentSettings()) { [weak self] state in
       self?.apply(state)
     }
-    let window = NSWindow(contentViewController: controller)
+    let dialog = SettingsDialogController(
+      general: controller, assistant: makeAssistantSettingsController())
+    let window = NSWindow(contentViewController: dialog)
     window.title = String(localized: "menu.settings", defaultValue: "Settings", bundle: .main)
     window.styleMask = [.titled, .closable]
     window.isReleasedWhenClosed = false
@@ -434,7 +435,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       } catch {
         NSApplication.shared.presentError(error)
       }
-      (settingsWindow?.contentViewController as? SettingsController)?.show(currentSettings())
+      (settingsWindow?.contentViewController as? SettingsDialogController)?.show(currentSettings())
     }
   }
 
@@ -502,11 +503,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   }
 
   /// Set the provider for explicit Ask requests.
-  @objc func showAssistantSettings(_ sender: Any?) {
-    if let assistantWindow {
-      assistantWindow.makeKeyAndOrderFront(nil)
-      return
-    }
+  private func makeAssistantSettingsController() -> AssistantSettingsController {
     let settings = AssistantSettingsController(
       settings: assistantSettings, coordinator: suggestionCoordinator
     ) { [weak self] saved in
@@ -519,14 +516,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       quickPanel?.editor.markAIDerivedAnswers = saved.markAIDerivedAnswers
       Task { await suggestionCoordinator.stopAll() }
     }
-    let window = NSWindow(contentViewController: settings)
-    window.title = String(
-      localized: "menu.assistant", defaultValue: "Assistant…", bundle: .main)
-    window.styleMask = [.titled, .closable]
-    window.isReleasedWhenClosed = false
-    window.center()
-    window.makeKeyAndOrderFront(nil)
-    assistantWindow = window
+    return settings
   }
 
   /// Completes function and keyword names while typing, or not.

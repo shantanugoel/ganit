@@ -116,7 +116,7 @@ public final class SettingsController: NSViewController {
     let explanation = NSTextField(
       wrappingLabelWithString: localized(
         "settings.explanation",
-        "These are the same choices as in the menus. Assistant… and Quick Ganit’s shortcut keep their own windows."
+        "Changes take effect immediately. Use the Assistant tab to set up a provider."
       )
     )
     explanation.textColor = VisualStyle.Color.secondary
@@ -184,5 +184,32 @@ public final class SettingsController: NSViewController {
     state.appearance = AppearanceChoice.allCases[max(appearance.indexOfSelectedItem, 0)]
     startsHidden.isEnabled = state.staysInMenuBar
     didChange(state)
+  }
+}
+
+/// The Settings dialog contains the general and assistant controls.
+@MainActor
+public final class SettingsDialogController: NSTabViewController {
+  private let general: SettingsController
+
+  public init(general: SettingsController, assistant: AssistantSettingsController) {
+    self.general = general
+    super.init(nibName: nil, bundle: nil)
+    tabStyle = .segmentedControlOnTop
+    let generalTab = NSTabViewItem(viewController: general)
+    generalTab.label = localized("settings.general", "General")
+    let assistantTab = NSTabViewItem(viewController: assistant)
+    assistantTab.label = localized("settings.assistant", "Assistant")
+    addTabViewItem(generalTab)
+    addTabViewItem(assistantTab)
+  }
+
+  @available(*, unavailable)
+  required init?(coder: NSCoder) {
+    fatalError("init(coder:) is unavailable")
+  }
+
+  public func show(_ state: SettingsState) {
+    general.show(state)
   }
 }

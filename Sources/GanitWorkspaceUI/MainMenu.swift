@@ -13,7 +13,6 @@ import GanitEditorUI
   func updateExchangeRates(_ sender: Any?)
   func toggleAutomaticExchangeRateUpdates(_ sender: Any?)
   func toggleSpotlightTitles(_ sender: Any?)
-  func showAssistantSettings(_ sender: Any?)
   func showHelp(_ sender: Any?)
   func showAbout(_ sender: Any?)
   func showSettings(_ sender: Any?)
@@ -155,9 +154,6 @@ public enum MainMenu {
           item(
             localized("menu.spotlightTitles", "Show Sheet Titles in Spotlight"),
             #selector(ApplicationCommands.toggleSpotlightTitles(_:))),
-          item(
-            localized("menu.assistant", "Assistant…"),
-            #selector(ApplicationCommands.showAssistantSettings(_:))),
           .separator(),
           item(localized("menu.hide", "Hide Ganit"), #selector(NSApplication.hide(_:)), "h"),
           item(
