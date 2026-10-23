@@ -107,9 +107,10 @@ work out now and name later.
 
 ### Ask Ganit
 
-Configure an OpenAI-compatible endpoint, model, and key under
-**Ganit ▸ Assistant…**. Press **⌘⇧A** in a sheet. Open **Context ▸** to inspect
-the source and exact request body. Press Return or select Ask to send.
+Select OpenAI, OpenRouter, Ollama, LM Studio, or Custom under
+**Ganit ▸ Assistant…**. Check the address and enter a key if required. Fetch
+models, or enter a model identifier. Press **⌘⇧A** in a sheet. Open
+**Context ▸** to inspect the source and exact request body. Press Return or select Ask to send.
 Answer, Retry, and clarification choices also send requests. Opening Ask
 or Context and typing in the sheet send nothing.
 

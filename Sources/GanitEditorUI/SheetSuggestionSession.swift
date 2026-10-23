@@ -400,6 +400,8 @@ package final class SheetSuggestionSession {
         message = diagnostics.first.map { formatter.format($0).message } ?? validation.message
       default: message = validation.message
       }
+    case .provider(let failure):
+      message = ProviderErrorMessages.message(for: failure.category)
     case .unreachable:
       message = String(
         format: localized("ask.failure.unreachable", "Ganit could not reach %1$@."),
@@ -679,6 +681,8 @@ package final class SheetSuggestionSession {
       localized(
         "ask.failed.validation",
         "The model did not answer in a way Ganit could use. Try different words.")
+    case .providerFailure:
+      ProviderErrorMessages.message(for: .unknown)
     case .transport:
       localized("ask.failed.transport", "Ganit could not reach the provider.")
     case .schema:

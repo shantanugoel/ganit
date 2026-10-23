@@ -7,14 +7,31 @@ calculated answer in the answer column. See
 
 ## Configure a model
 
-Open **Ganit ▸ Assistant…**. Enable Ask, then enter the endpoint, model, and
-key. Ganit accepts an OpenAI-compatible endpoint.
+Open **Ganit ▸ Assistant…**. Select a provider and check its address.
+Enter a key if required. Enable Ask and enter a model identifier.
 
-| Model location | Example endpoint | Key |
+| Provider | Default API base | Key |
 | --- | --- | --- |
-| Provider | `https://api.openai.com/v1` | As the provider requires |
-| This Mac | `http://localhost:11434/v1` | As the local server requires |
-| Another host | `https://host/v1` | As that host requires |
+| OpenAI | `https://api.openai.com/v1` | Required |
+| OpenRouter | `https://openrouter.ai/api/v1` | Required |
+| Ollama | `http://localhost:11434/v1` | Optional |
+| LM Studio | `http://localhost:1234/v1` | Required if server authentication is on |
+| Custom | Your API base or full Chat Completions URL | As the server requires |
+
+Select **Fetch Models** to get models from the selected address. Use the
+search field to find a model. Select a row to use its identifier. **Refresh**
+gets the list again. **Cancel** stops a pending fetch. A fetch sends no sheet
+content and uses no Ask request. Opening Settings sends no request.
+
+You can enter a model identifier at any time. A failed fetch does not remove
+it. A model list does not confirm support for Chat Completions or the Ganit
+reply format. OpenRouter uses the list for your account preferences and
+privacy settings at `/models/user`.
+
+A provider or endpoint-origin change clears the key in the form. The origin
+is the scheme, host, and effective port. A path-only change keeps the key.
+The saved key changes only when you select **Save**. Settings without a
+stored provider load as Custom and keep their values.
 
 Ganit appends `chat/completions` to the base. A complete
 `/v1/chat/completions` address is also valid. An address with no path uses
@@ -24,8 +41,8 @@ HTTPS. Ganit refuses redirects.
 **Review Example** opens a local test sheet. It sends nothing until you
 review Context and send an Ask from that sheet.
 
-Preferences store the endpoint, model, enabled state, Effort, repair limit,
-and dependency mark setting. The key is stored in the keychain.
+Preferences store the provider, endpoint, model, enabled state, Effort,
+repair limit, and dependency mark setting. The key is stored in the keychain.
 
 **Effort** requests a reasoning level from the server. The default is Medium.
 Off omits `reasoning_effort`. Low, Medium, High, Extra high, and Max send
@@ -35,6 +52,13 @@ An empty Custom value omits the field. The server controls its effect.
 **Repair attempts** permits zero to three corrections of a rejected reply.
 The default is two. Each Ask permits at most three requests in total.
 Format fallback and context follow-ups use this same request limit.
+
+If an HTTP 400 or 422 error identifies `response_format` or
+`reasoning_effort` as invalid or unsupported, Ganit removes only that field
+for the next request. An unknown error with no identified field permits one
+fallback without both fields. Known credential, model, context, rate-limit,
+and server errors do not start this fallback. Provider errors do not start
+reply repair. Ganit does not accept partial content from a failed request.
 
 ## Open and send Ask
 

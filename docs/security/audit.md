@@ -9,7 +9,7 @@ the check that keeps it true.
 | --- | --- | --- |
 | App Sandbox | On | `scripts/verify-app.sh` compares signed entitlements |
 | Entitlements | `app-sandbox`, `files.user-selected.read-write`, `network.client`, and the two mach-lookup names Sparkle's installer answers on | Same exact comparison |
-| Network client | The ECB rate request; Ask, after explicit Send; the update check, when it is asked for | `onlyTheRatesAndTheAssistantReachTheNetworkFromGanitsOwnCode` source scan, `theUpdaterAsksNothingUntilItIsAsked` |
+| Network client | The ECB rate request; Ask, after explicit Send; model discovery, after Fetch Models or Refresh; the update check, when requested | `onlyTheRatesAndTheAssistantReachTheNetworkFromGanitsOwnCode` source scan, `theUpdaterAsksNothingUntilItIsAsked` |
 | Hardened Runtime | On for the app, `Contents/Helpers/ganit`, and Sparkle's tools | `scripts/sign-app.sh` signs with `--options runtime`; `verify-app.sh` checks the flag |
 | Library validation | On in a release; off only in an ad-hoc local build, which has no team to validate against | `verify-app.sh` allows the exception only when the signature has no team |
 | Embedded frameworks | Sparkle only, without its downloader service | `verify-app.sh` |
@@ -30,6 +30,7 @@ Every way data enters Ganit from outside its own library is bounded.
 | Import (`.ganit`, text) | 1 MB source, 64 KB manifest, UTF-8 only, known schema only | `SheetExchangeTests` |
 | Exchange-rate download | Fixed HTTPS host, 64 KB, strict schema, plausible ranges | `ECBRateValidatorTests`, `NetworkPrivacyTests` |
 | Ask request | Explicit Send after context review; HTTPS or loopback only; no redirects; 12 target lines, 8 KiB target, 64 KiB request, 256 KiB reply, three requests per job | `SuggestionTransportTests`, `NetworkPrivacyTests`, `AssistanceSnapshotTests`, `SuggestionCoordinatorTests` |
+| Model discovery | Explicit Fetch Models or Refresh; HTTPS or loopback only; no redirects; 2 MiB per page, 8 MiB in total, 32 pages, 10,000 unique identifiers; no sheet content | `AssistantModelDiscoveryTests`, `AssistantProviderSettingsTests` |
 | Editor text | Engine limits: 1 MB source, 100,000 tokens, parse depth 128 | Engine limit tests, fuzzing |
 
 URL, service, intent, and command-line requests only compute an answer: none

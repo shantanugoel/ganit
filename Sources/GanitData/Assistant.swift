@@ -3,18 +3,28 @@ import Foundation
 /// The endpoint rules for Ask requests.
 public enum Assistant {
   public static func chatCompletionsURL(_ endpoint: URL) -> URL {
-    var path = endpoint.path
-    if path.count > 1, path.hasSuffix("/") {
-      path.removeLast()
+    var parts = URLComponents(url: endpoint, resolvingAgainstBaseURL: false)!
+    var path = parts.percentEncodedPath
+    while path.hasSuffix("/") { path.removeLast() }
+    if path.lowercased().hasSuffix("/chat/completions") {
+      parts.percentEncodedPath = path
+      return parts.url!
     }
-    let lowered = path.lowercased()
-    if lowered.hasSuffix("/chat/completions") || lowered == "/chat/completions" {
-      return endpoint
+    return apiBaseURL(endpoint).appending(path: "chat/completions")
+  }
+
+  static func apiBaseURL(_ endpoint: URL) -> URL {
+    var parts = URLComponents(url: endpoint, resolvingAgainstBaseURL: false)!
+    var path = parts.percentEncodedPath
+    while path.hasSuffix("/") { path.removeLast() }
+    let suffix = "/chat/completions"
+    if path.lowercased().hasSuffix(suffix) {
+      path.removeLast(suffix.count)
+    } else if path.isEmpty {
+      path = "/v1"
     }
-    if path.isEmpty || path == "/" {
-      return endpoint.appending(path: "v1/chat/completions")
-    }
-    return endpoint.appending(path: "chat/completions")
+    parts.percentEncodedPath = path
+    return parts.url!
   }
 
   /// A hosted model must be reached over HTTPS. A model running on this Mac

@@ -1,7 +1,7 @@
 # AI provider connections: implementation plan
 
 Date: 2026-10-23
-Status: Agreed scope. Implementation has not started.
+Status: Implemented. See the verification record in section 10.
 
 Related plan: [Ask experience](ai-native.md).
 
@@ -247,7 +247,46 @@ Use fixture responses and a local test server for automated checks. Record
 live provider checks separately when credentials and network access are
 available. Do not report fixture checks as proof of live provider support.
 
-## 10. References
+## 10. Verification record
+
+Date: 2026-10-23. Platform: Apple silicon Mac. Toolchain: Xcode 27.0,
+Swift 6.4. Tests use fixtures and local servers.
+
+The implementation adds no package dependency. Existing settings load as
+Custom. Key storage remains in Keychain. Discovery uses a separate interface
+and shares the generation transport's address and redirect rules. Discovery
+limits are 2 MiB per page, 8 MiB in total, 32 pages, and 10,000 unique model
+identifiers. It does not follow a server-supplied page URL.
+
+Review covered URL construction, key clearing, late results, request limits,
+provider errors, reply validation, localization, and keyboard access. The
+review found and corrected a full generation URL path issue, short text-field
+frames, an invalid-address fallback, a stale address message, and loss of a
+provider error category at the request limit.
+
+| Check | Result |
+| --- | --- |
+| `swift package dump-package` | Passed. |
+| `swift test --parallel -Xswiftc -warnings-as-errors` | Passed: 1,399 tests across 11 test targets. |
+| `GANIT_PSEUDOLOCALIZATION=1 swift test -Xswiftc -warnings-as-errors --filter PseudolocalizationTests` | Passed: double-length text fits. |
+| `swift build -Xswiftc -warnings-as-errors` | Passed for all package products. |
+| `./scripts/swift-format.sh lint` | Passed. |
+| `./scripts/build-app.sh debug` | Passed. The app launched. |
+| `./scripts/verify-app.sh .build/app/debug/Ganit.app` | Passed. |
+| `git diff --check` | Passed. |
+| Command-line smoke checks | Passed: `20% off 85` gives `68`; `rent = 3` and `rent * 12` give `3` and `36`. |
+
+Manual UI checks used a local model-list server. Fetch Models loaded two
+fixture models. Search reduced the list to one model. Tab and Down selected
+that model. The server received one GET request for `/v1/models`. The settings
+window was closed without a save. The final app build was inspected again
+after the text-field height fix. The address, model, and key fields show
+their full text height.
+
+Live provider requests were not run. These checks do not establish live
+provider support.
+
+## 11. References
 
 - [OpenAI SDKs and HTTP clients](https://developers.openai.com/api/docs/libraries).
 - [MacPaw Swift client](https://github.com/MacPaw/OpenAI).

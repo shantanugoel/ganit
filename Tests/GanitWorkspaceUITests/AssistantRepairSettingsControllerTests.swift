@@ -18,7 +18,7 @@ struct AssistantRepairSettingsControllerTests {
       (view as? NSTextField).map { [$0.stringValue] } ?? view.subviews.flatMap(texts)
     }
     let copy = texts(controller.view).joined(separator: " ")
-    #expect(copy.contains("Nothing is sent until you send an Ask."))
+    #expect(copy.contains("Nothing is sent until you select Fetch Models or send an Ask."))
     #expect(copy.contains("Context shows the exact request."))
     #expect(copy.contains("source dependencies"))
     #expect(copy.contains("calculation settings"))

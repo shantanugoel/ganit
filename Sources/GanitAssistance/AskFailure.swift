@@ -1,3 +1,4 @@
+import GanitData
 import GanitEngine
 
 /// A failed Ask has no proposal to apply.
@@ -12,6 +13,7 @@ public enum AskFailure: Sendable {
   /// The model explained a line the reader had not asked it to explain.
   case explanationNotRequested
   case rejectedByEngine(AssistanceValidationFailure)
+  case provider(ProviderFailure)
   case unreachable
   case noUsefulAnswer
 }

@@ -67,7 +67,8 @@ public enum SuggestionJobEvent: Sendable {
 }
 
 public enum SuggestionJobFailure: String, Error, Equatable, Sendable {
-  case providerNotReady, permissionRequired, providerBusy, deadline, transport, schema
+  case providerFailure, providerNotReady, permissionRequired, providerBusy, deadline, transport,
+    schema
   case contextLimit, contextDenied, requestLimit, repeatedCandidate, repeatedFailure, validation
 }
 

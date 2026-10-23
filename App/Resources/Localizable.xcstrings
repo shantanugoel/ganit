@@ -1,6 +1,131 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "assistant.invalidAddress" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Enter an HTTPS address or a local HTTP address." } }
+      }
+    },
+    "assistant.key.optional" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Optional Bearer token" } }
+      }
+    },
+    "assistant.key.required" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Required" } }
+      }
+    },
+    "assistant.markDerived" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Mark AI-derived answers" } }
+      }
+    },
+    "assistant.models.available" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Available models" } }
+      }
+    },
+    "assistant.models.cancel" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Cancel" } }
+      }
+    },
+    "assistant.models.cancelled" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Model fetch cancelled. You can enter a model identifier." } }
+      }
+    },
+    "assistant.models.empty" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The provider returned no models. You can enter a model identifier." } }
+      }
+    },
+    "assistant.models.failed" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Model discovery failed. You can enter a model identifier." } }
+      }
+    },
+    "assistant.models.fetch" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Fetch Models" } }
+      }
+    },
+    "assistant.models.loading" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Fetching models…" } }
+      }
+    },
+    "assistant.models.manual" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Enter a model identifier, or fetch models from the address above." } }
+      }
+    },
+    "assistant.models.refresh" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Refresh" } }
+      }
+    },
+    "assistant.models.search" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Search models" } }
+      }
+    },
+    "assistant.models.select" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Select a model, or enter its identifier above." } }
+      }
+    },
+    "assistant.provider" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Provider" } }
+      }
+    },
+    "assistant.provider.custom" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Custom" } }
+      }
+    },
+    "provider.error.authentication" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The provider rejected the credentials. Check the API key and access permissions." } }
+      }
+    },
+    "provider.error.contextLimit" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The request exceeds the model context limit. Select fewer lines or use a different model." } }
+      }
+    },
+    "provider.error.model" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The model is unknown or unavailable. Check the model identifier and your access. A model list does not confirm Chat Completions support." } }
+      }
+    },
+    "provider.error.parameter" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The provider rejected a request parameter. The model may not support Chat Completions or the Ganit reply format." } }
+      }
+    },
+    "provider.error.rateLimit" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The provider reported a rate or usage limit. Check your account limits before you try again." } }
+      }
+    },
+    "provider.error.request" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The provider rejected the request. Check the connection and model settings." } }
+      }
+    },
+    "provider.error.server" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The provider reported a server failure. Try again later." } }
+      }
+    },
+    "provider.error.unknown" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The provider could not complete the request. The model may not support Chat Completions or the Ganit reply format." } }
+      }
+    },
     "ask.failure.noUsefulAnswer" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "The model did not answer in a way Ganit could use." } }
@@ -646,7 +771,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Use an OpenAI-compatible address, such as https://api.openai.com/v1 or http://localhost:11434/v1. Ganit sends requests to chat/completions at this address. Nothing is sent until you send an Ask. Before you send, Context shows the exact request. It can include your question, selected source, source dependencies, matched definitions, calculation settings, and the model name. The provider receives this context. Effort sets a model preference. Medium is the default. Off sends no preference. Custom sends the word you enter. Repair attempts sets the limit for automatic corrections within one Ask. Ganit checks proposed calculations with its own engine. Review the source preview, then select Apply to change the sheet. AI assumptions have a permanent mark until you edit their values. Review Example opens a local test sheet and sends nothing."
+            "value" : "Select a provider and check its address. Fetch Models sends only a model-list request. Nothing is sent until you select Fetch Models or send an Ask. Context shows the exact request. It can include your question, selected source, source dependencies, matched definitions, calculation settings, and model name. The provider receives this context. A model list does not confirm support for Chat Completions or the Ganit reply format. Ganit checks proposed calculations. Review the preview, then select Apply to change the sheet. Review Example opens a local sheet and sends nothing."
           }
         }
       }

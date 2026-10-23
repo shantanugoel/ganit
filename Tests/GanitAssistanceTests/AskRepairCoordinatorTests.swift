@@ -58,7 +58,8 @@ struct AskRepairCoordinatorTests {
   @Test func malformedOutputCanUseOneRepairAndFormatFallbackIsNotARepair() async throws {
     let snapshot = try assistanceSnapshot(source)
     let transport = FakeSuggestionTransport([
-      .failure(.unexpectedStatus(422)), .reply(Data("not JSON".utf8)),
+      .failure(.provider(ProviderFailure(status: 422, category: .unknown))),
+      .reply(Data("not JSON".utf8)),
       .reply(try billProposal(snapshot)),
     ])
     let log = SuggestionEventLog()

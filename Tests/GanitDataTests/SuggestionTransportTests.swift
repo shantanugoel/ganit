@@ -141,7 +141,9 @@ struct SuggestionTransportTests {
     defer { server.stop() }
     let wire = try SuggestionWireRequest(
       settings: settings("http://127.0.0.1:\(server.port)/v1"), context: Data("{}".utf8))
-    await #expect(throws: SuggestionTransportError.unexpectedStatus(422)) {
+    await #expect(
+      throws: SuggestionTransportError.provider(ProviderFailure(status: 422, category: .unknown))
+    ) {
       try await ProviderSuggestionTransport().send(wire)
     }
     #expect(await server.requestCount() == 1)
@@ -153,7 +155,9 @@ struct SuggestionTransportTests {
     let wire = try SuggestionWireRequest(
       settings: settings("http://127.0.0.1:\(redirect.port)/v1", key: "synthetic-key"),
       context: Data("{}".utf8))
-    await #expect(throws: SuggestionTransportError.unexpectedStatus(302)) {
+    await #expect(
+      throws: SuggestionTransportError.provider(ProviderFailure(status: 302, category: .unknown))
+    ) {
       try await ProviderSuggestionTransport().send(wire)
     }
     #expect(await redirect.requestCount() == 1)

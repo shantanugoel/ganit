@@ -85,7 +85,7 @@ struct SuggestionCoordinatorTests {
   @Test func formatFallbackConsumesTheSameBudget() async throws {
     let snapshot = try assistanceSnapshot(source)
     let transport = FakeSuggestionTransport([
-      .failure(.unexpectedStatus(422)),
+      .failure(.provider(ProviderFailure(status: 422, category: .unknown))),
       .reply(try billProposal(snapshot, source: "(bill + 15%) / 4", literal: "15%")),
       .reply(try billProposal(snapshot)),
     ])
@@ -106,11 +106,12 @@ struct SuggestionCoordinatorTests {
     let snapshot = try assistanceSnapshot(source)
     let document = UUID()
     let transport = FakeSuggestionTransport([
-      .failure(.unexpectedStatus(503)), .reply(try billProposal(snapshot)),
+      .failure(.provider(ProviderFailure(status: 503, category: .server))),
+      .reply(try billProposal(snapshot)),
     ])
     let coordinator = SuggestionCoordinator(transport: transport)
     let first = await coordinator.start(input(snapshot, document: document))
-    if case .failed(.transport) = await first.result.value {
+    if case .failed(.providerFailure) = await first.result.value {
     } else {
       Issue.record("Expected a transport failure")
     }
@@ -593,7 +594,9 @@ struct SuggestionCoordinatorTests {
 
   @Test func aCancelledCallerCannotStartAWireRequest() async throws {
     let snapshot = try assistanceSnapshot(source)
-    let transport = FakeSuggestionTransport([.failure(.unexpectedStatus(500))])
+    let transport = FakeSuggestionTransport([
+      .failure(.provider(ProviderFailure(status: 500, category: .server)))
+    ])
     let coordinator = SuggestionCoordinator(transport: transport)
     let gate = SuggestionStartGate()
     let input = input(snapshot)

@@ -103,6 +103,8 @@ struct AssistantEndpointTests {
       ("http://localhost:1234", "http://localhost:1234/v1/chat/completions"),
       ("http://localhost:1234/v1/", "http://localhost:1234/v1/chat/completions"),
       ("https://example.com/openai/v1", "https://example.com/openai/v1/chat/completions"),
+      ("https://example.com/chat/completions", "https://example.com/chat/completions"),
+      ("https://example.com/chat/completions/", "https://example.com/chat/completions"),
       ("https://example.com/v1/chat/completions", "https://example.com/v1/chat/completions"),
     ] {
       #expect(Assistant.chatCompletionsURL(URL(string: endpoint)!).absoluteString == expected)

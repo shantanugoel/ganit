@@ -71,6 +71,31 @@ struct AskRepairTests {
     (view as? NSButton).map { [$0] } ?? view.subviews.flatMap(buttons)
   }
 
+  @Test(arguments: [
+    ProviderErrorCategory.authentication, .model, .parameter, .rateLimit, .server, .contextLimit,
+  ])
+  func providerFailuresReachTheUserWithoutSchemaRepair(_ category: ProviderErrorCategory)
+    async throws
+  {
+    let editor = try await editor()
+    let transport = configure(
+      editor, steps: [.failure(.provider(ProviderFailure(status: 200, category: category)))])
+    let session = editor.suggestionSession
+    session.prepare(autoSend: true)
+    await session.waitUntilIdle()
+    guard case .provider(let failure) = session.failure else {
+      Issue.record("Expected a provider failure card")
+      return
+    }
+    #expect(failure.category == category)
+    #expect(session.message == ProviderErrorMessages.message(for: category))
+    #expect(session.preview == nil)
+    #expect(!session.canApply)
+    #expect(session.automaticRepairs == 0)
+    #expect(await transport.bodies().count == 1)
+    #expect(editor.sheet.text == source)
+  }
+
   @Test func anUnknownFunctionIsRepairedBeforeAnyProposalAppears() async throws {
     let editor = try await editor()
     let invalid = try await proposal(editor, source: "mortgage(2, 3)")
@@ -222,6 +247,7 @@ struct AskRepairTests {
 private actor AskRepairTransport: SuggestionTransport {
   enum Step: Sendable {
     case reply(Data)
+    case failure(SuggestionTransportError)
     case pending
   }
   private var steps: [Step]
@@ -236,6 +262,7 @@ private actor AskRepairTransport: SuggestionTransport {
     for waiter in ready { waiter.1.resume() }
     switch steps.removeFirst() {
     case .reply(let data): return data
+    case .failure(let error): throw error
     case .pending: return try await withCheckedThrowingContinuation { pending = $0 }
     }
   }

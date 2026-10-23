@@ -29,6 +29,11 @@ under **Ganit ▸ Assistant…**. Opening Ask or typing in a sheet sends nothing
 A request starts only after an explicit send action: Return, Ask, Answer,
 Retry, or a clarification choice. Opening Context sends nothing.
 
+Settings also has **Fetch Models** and **Refresh**. These actions send only
+a model-list request to the address shown in Settings. The request includes
+a supplied key and no sheet content. Opening Settings, selecting a provider,
+or entering a key sends no request. A fetch does not require Ask to be on.
+
 **Context ▸** shows the source and exact request body before Send. The request
 includes the target lines, relevant values, transitive source dependencies,
 attached notes, captured function inputs, diagnostics, engine settings, and

@@ -185,7 +185,7 @@ public actor SuggestionCoordinator {
         return await finish(id, result: .paused)
       }
       var structured = true
-      var effort = true
+      var effort = record.input.settings.effort.wireValue != nil
       var feedback: [String: Any]?
       var seenSources: Set<String> = []
       var seenFailures: Set<String> = []
@@ -219,14 +219,15 @@ public actor SuggestionCoordinator {
           ) { [transport] in
             try await transport.send(wire)
           }
-        } catch SuggestionTransportError.unexpectedStatus(let status)
-          where structured && [400, 422].contains(status)
-        {
-          // A server that refuses the ask itself drops both optional fields, the
-          // way the line-level request does: an unknown field is likelier to be
-          // accepted absent than present and wrong.
-          structured = false
-          effort = false
+        } catch SuggestionTransportError.provider(let failure) {
+          guard record.requests < SuggestionLimits.requestsPerJob,
+            let next = failure.fallback(structured: structured, effort: effort)
+          else {
+            record.failure = .provider(failure)
+            return await finish(id, result: .failed(.providerFailure))
+          }
+          structured = next.structured
+          effort = next.effort
           continue
         } catch SuggestionDecodingError.numericProse {
           // The transport answers this on the reply's behalf: words that carried
@@ -396,6 +397,9 @@ public actor SuggestionCoordinator {
       return await finish(id, result: .failed(failure))
     } catch is AssistanceSnapshotError {
       return await finish(id, result: .failed(.contextLimit))
+    } catch let failure as ProviderFailure {
+      record.failure = .provider(failure)
+      return await finish(id, result: .failed(.providerFailure))
     } catch is SuggestionTransportError {
       return await finish(id, result: .failed(.transport))
     } catch { return await finish(id, result: .failed(.transport)) }

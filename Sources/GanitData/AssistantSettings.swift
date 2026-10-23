@@ -3,15 +3,14 @@ import Security
 
 /// The provider settings for explicit Ask requests.
 ///
-/// The endpoint is an OpenAI-compatible base, such as `https://host/v1`.
-/// Ganit POSTs to `chat/completions` under it. A hosted model and one
-/// running on this Mac are the same setting. Nothing is sent until someone
-/// turns it on and sends an Ask.
+/// The endpoint is a Chat Completions API base or a full generation URL.
+/// A request starts only after an explicit Ask or Fetch Models action.
 public struct AssistantSettings: Equatable, Sendable {
   public static let defaultEndpoint = URL(string: "https://api.openai.com/v1")!
   public static let defaultModel = "gpt-4o-mini"
   public static let markAIDerivedAnswersKey = "AssistantMarkAIDerivedAnswers"
 
+  public var provider: AssistantProvider
   public var isEnabled: Bool
   public var endpoint: URL
   public var model: String
@@ -27,16 +26,18 @@ public struct AssistantSettings: Equatable, Sendable {
   }
 
   public init(
+    provider: AssistantProvider = .custom,
     isEnabled: Bool = false,
-    endpoint: URL = AssistantSettings.defaultEndpoint,
+    endpoint: URL? = nil,
     model: String = AssistantSettings.defaultModel,
     apiKey: String = "",
     effort: AssistantEffort = .default,
     repairAttempts: Int = 2,
     markAIDerivedAnswers: Bool = true
   ) {
+    self.provider = provider
     self.isEnabled = isEnabled
-    self.endpoint = endpoint
+    self.endpoint = endpoint ?? provider.defaultEndpoint ?? Self.defaultEndpoint
     self.model = model
     self.apiKey = apiKey
     self.markAIDerivedAnswers = markAIDerivedAnswers
@@ -47,10 +48,12 @@ public struct AssistantSettings: Equatable, Sendable {
   /// Whether Ask can use this provider.
   public var isReady: Bool {
     isEnabled && Assistant.isAllowed(endpoint) && !model.isEmpty
+      && (!provider.requiresKey || !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
   }
 
   // MARK: Storage
 
+  private static let providerKey = "AssistantProvider"
   private static let enabledKey = "AssistantAnswersUnknownLines"
   private static let endpointKey = "AssistantEndpoint"
   private static let modelKey = "AssistantModel"
@@ -71,6 +74,8 @@ public struct AssistantSettings: Equatable, Sendable {
 
   static func read(from defaults: UserDefaults) -> AssistantSettings {
     AssistantSettings(
+      provider: defaults.string(forKey: providerKey).flatMap(AssistantProvider.init(rawValue:))
+        ?? .custom,
       isEnabled: defaults.bool(forKey: enabledKey),
       endpoint: defaults.string(forKey: endpointKey).flatMap(URL.init(string:)) ?? defaultEndpoint,
       model: defaults.string(forKey: modelKey) ?? defaultModel,
@@ -81,6 +86,7 @@ public struct AssistantSettings: Equatable, Sendable {
   }
 
   func write(to defaults: UserDefaults) {
+    defaults.set(provider.rawValue, forKey: Self.providerKey)
     defaults.set(isEnabled, forKey: Self.enabledKey)
     defaults.set(endpoint.absoluteString, forKey: Self.endpointKey)
     defaults.set(model, forKey: Self.modelKey)

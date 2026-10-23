@@ -163,7 +163,7 @@ func onlyTheRatesAndTheAssistantReachTheNetworkFromGanitsOwnCode() throws {
   }
   #expect(
     Set(networking.map(\.lastPathComponent))
-      == ["RateDownloader.swift", "SuggestionTransport.swift"])
+      == ["RateDownloader.swift", "ProviderHTTPClient.swift"])
   #expect(networking.allSatisfy { $0.deletingLastPathComponent().lastPathComponent == "GanitData" })
 }
 

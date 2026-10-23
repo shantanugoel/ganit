@@ -81,7 +81,8 @@ struct AssistantSettingsEffortTests {
 
   private func popup(in controller: AssistantSettingsController) throws -> NSPopUpButton {
     try #require(
-      controller.view.popUpButtons.first { $0.numberOfItems > 3 }, "the Effort popup")
+      controller.view.popUpButtons.first { $0.accessibilityLabel() == "Effort" }, "the Effort popup"
+    )
   }
 
   private func customField(

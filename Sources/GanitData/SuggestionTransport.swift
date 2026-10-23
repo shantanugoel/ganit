@@ -7,11 +7,11 @@ public protocol SuggestionTransport: Sendable {
 }
 
 public enum SuggestionTransportError: Error, Equatable, Sendable {
+  case provider(ProviderFailure)
   case disallowedURL
   case invalidContext
   case requestTooLarge
   case payloadTooLarge
-  case unexpectedStatus(Int)
   case malformedCompletion
   case rejectedReply(Data)
 }
@@ -21,10 +21,9 @@ public struct SuggestionWireRequest: Sendable {
   public let body: Data
   public let endpoint: URL
   public let timeout: TimeInterval
-  private let apiKey: String
+  private let authorization: String?
 
-  /// `structured` and `effort` are the two fields a strict server may never have
-  /// heard of, so a refusal drops both together rather than one at a time.
+  /// Optional parameters can be removed separately after a provider rejection.
   public init(
     settings: AssistantSettings, context: Data, structured: Bool = true, effort: Bool = true,
     allowsExplanation: Bool = false, allowsAnswer: Bool = false
@@ -61,7 +60,7 @@ public struct SuggestionWireRequest: Sendable {
     endpoint = Assistant.chatCompletionsURL(settings.endpoint)
     let local = ["127.0.0.1", "localhost", "::1", "[::1]"].contains(settings.endpoint.host() ?? "")
     timeout = local ? 120 : 30
-    apiKey = settings.apiKey
+    authorization = try settings.provider.authorization(apiKey: settings.apiKey)
   }
 
   public var urlRequest: URLRequest {
@@ -70,7 +69,7 @@ public struct SuggestionWireRequest: Sendable {
     request.httpBody = body
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
     request.setValue("application/json", forHTTPHeaderField: "Accept")
-    if !apiKey.isEmpty { request.setValue("Bearer " + apiKey, forHTTPHeaderField: "Authorization") }
+    request.setValue(authorization, forHTTPHeaderField: "Authorization")
     return request
   }
 
@@ -115,58 +114,26 @@ public struct SuggestionWireRequest: Sendable {
 }
 
 /// An ephemeral session sends one bounded response and refuses all redirects.
-public final class ProviderSuggestionTransport: NSObject, SuggestionTransport,
-  URLSessionTaskDelegate
-{
-  public override init() { super.init() }
+public final class ProviderSuggestionTransport: SuggestionTransport, Sendable {
+  public init() {}
 
   public func send(_ request: SuggestionWireRequest) async throws -> Data {
-    try Task.checkCancellation()
-    guard Assistant.isAllowed(request.endpoint) else {
-      throw SuggestionTransportError.disallowedURL
-    }
-    let configuration = URLSessionConfiguration.ephemeral
-    configuration.httpCookieAcceptPolicy = .never
-    configuration.httpShouldSetCookies = false
-    configuration.httpCookieStorage = nil
-    configuration.urlCache = nil
-    configuration.urlCredentialStorage = nil
-    configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
-    configuration.timeoutIntervalForRequest = request.timeout
-    configuration.timeoutIntervalForResource = request.timeout
-    configuration.httpAdditionalHeaders = ["User-Agent": "Ganit", "Accept-Language": "*"]
-    let session = URLSession(configuration: configuration)
-    defer { session.invalidateAndCancel() }
-    let (bytes, response) = try await session.bytes(for: request.urlRequest, delegate: self)
-    guard let response = response as? HTTPURLResponse else {
-      throw SuggestionTransportError.malformedCompletion
-    }
-    guard response.statusCode == 200 else {
-      throw SuggestionTransportError.unexpectedStatus(response.statusCode)
-    }
-    if response.expectedContentLength > SuggestionLimits.payloadBytes {
-      throw SuggestionTransportError.payloadTooLarge
-    }
-    var data = Data()
-    for try await byte in bytes {
-      try Task.checkCancellation()
-      guard data.count < SuggestionLimits.payloadBytes else {
-        throw SuggestionTransportError.payloadTooLarge
-      }
-      data.append(byte)
+    let (data, status) = try await ProviderHTTPClient().send(
+      request.urlRequest, limit: SuggestionLimits.payloadBytes)
+    if status != 200 {
+      throw SuggestionTransportError.provider(
+        ProviderFailure.decode(data, status: status, requireError: true)!)
     }
     return try Self.content(from: data)
   }
-
-  public func urlSession(
-    _ session: URLSession, task: URLSessionTask,
-    willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest
-  ) async -> URLRequest? { nil }
 
   /// Reasoning fields and text parts cannot supply source proposals.
   static func content(from data: Data) throws -> Data {
     guard data.count <= SuggestionLimits.payloadBytes else {
       throw SuggestionTransportError.payloadTooLarge
+    }
+    if let failure = ProviderFailure.decode(data, status: 200) {
+      throw SuggestionTransportError.provider(failure)
     }
     struct Completion: Decodable {
       struct Choice: Decodable {

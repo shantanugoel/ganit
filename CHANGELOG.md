@@ -5,6 +5,13 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Add AI provider presets and a searchable model list in Assistant settings.
+  Keep manual model entry available. Clear the form key when the provider
+  or endpoint origin changes.
+- Preserve provider error details and show specific failure messages.
+  Remove unsupported optional request fields separately. Reject provider
+  errors with partial content before reply checks.
+
 ## 0.7.0
 
 - Turn plain words into calculations with **Ask Ganit**. Press **⌘⇧A** to
