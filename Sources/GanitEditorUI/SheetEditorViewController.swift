@@ -73,6 +73,17 @@ public final class SheetEditorViewController: NSViewController {
   package lazy var suggestionSession = SheetSuggestionSession(editor: self)
   private lazy var askBar = AskBar(session: suggestionSession, editor: self)
 
+  /// The bar's own controls, vended so accessibility behaviour can be tested
+  /// without a running app. The bar itself stays an implementation detail.
+  package var askBarButtons: [NSButton] {
+    func collect(_ view: NSView) -> [NSButton] {
+      view.subviews.flatMap { [$0 as? NSButton].compactMap { $0 } + collect($0) }
+    }
+    return collect(askBar)
+  }
+
+  package var askBarPopover: NSPopover? { askBar.popover }
+
   package func suggestionSnapshot(target: LineID) async throws -> AssistanceSnapshot {
     guard let scheduler else { throw AssistanceSnapshotError.unsupportedTarget }
     return try await scheduler.assistanceSnapshot(sheet, target: target)

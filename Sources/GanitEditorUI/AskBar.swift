@@ -29,7 +29,7 @@ final class AskBar: NSView {
   private let stack = NSStackView()
   private let instructionField = NSTextField()
   private var actions: [() -> Void] = []
-  private var popover: NSPopover?
+  package private(set) var popover: NSPopover?
   private var announcedState = ""
   private var displayedClarification: Int?
 
@@ -316,7 +316,7 @@ final class AskBar: NSView {
       apply.isEnabled = session.canApply
       register(apply) { [weak self] in self?.session.apply() }
       row.addButton(apply)
-      addButton("Show Working", to: row) { [weak self] in self?.showWorking() }
+      addDisclosureButton("Show Working", to: row) { [weak self] in self?.showWorking() }
     }
     if session.state == .failed {
       addButton(localized("ask.editWords", "Edit words"), to: row) { [weak self] in
@@ -325,7 +325,7 @@ final class AskBar: NSView {
         self.instructionField.selectText(nil)
       }
       if session.rejectedInspection != nil {
-        addButton(localized("ask.showRejected", "Show what the model meant"), to: row) {
+        addDisclosureButton(localized("ask.showRejected", "Show what the model meant"), to: row) {
           [weak self] in
           guard let self, let text = self.session.rejectedInspection else { return }
           self.inspect(text, title: localized("ask.rejectedSource", "Rejected model reply"))
@@ -334,7 +334,9 @@ final class AskBar: NSView {
     } else if session.clarification == nil {
       addButton("Edit Request", to: row) { [weak self] in self?.session.editRequest() }
     }
-    addButton(localized("ask.context", "Context ▸"), to: row) { [weak self] in self?.showContext() }
+    addDisclosureButton(localized("ask.context", "Context ▸"), to: row) { [weak self] in
+      self?.showContext()
+    }
     if [.failed, .stale, .cancelled].contains(session.state) {
       addButton(localized("ask.retry", "Retry"), to: row) { [weak self] in
         self?.session.prepare(
@@ -381,6 +383,15 @@ final class AskBar: NSView {
   private func addButton(_ title: String, to row: AskActionRow, action: @escaping () -> Void) {
     let view = NSButton(title: title, target: self, action: #selector(run(_:)))
     view.bezelStyle = .rounded
+    register(view, action: action)
+    row.addButton(view)
+  }
+
+  /// A button whose reply is a card in a window of its own.
+  private func addDisclosureButton(
+    _ title: String, to row: AskActionRow, action: @escaping () -> Void
+  ) {
+    let view = AskDisclosureButton(cardTitle: title, target: self, action: #selector(run(_:)))
     register(view, action: action)
     row.addButton(view)
   }
@@ -553,10 +564,53 @@ final class AskBar: NSView {
     controller.view = scroll
     let popover = NSPopover()
     popover.behavior = .transient
+    popover.animates = false
     popover.contentViewController = controller
-    self.popover?.close()
+    let previous = self.popover
+    let anchor = bounds
     self.popover = popover
-    popover.show(relativeTo: bounds, of: self, preferredEdge: .maxY)
+    previous?.close()
+    popover.show(relativeTo: anchor, of: self, preferredEdge: .maxY)
+  }
+}
+
+/// A button that opens a card in a window of its own. AppKit answers a press on
+/// the button's behalf and reports failure when the action orders that window
+/// while the press is still being answered - so VoiceOver and other clients were
+/// told the control was broken at the moment the card appeared. The button
+/// answers for itself, and presents on the next pass of the run loop.
+@MainActor
+final class AskDisclosureButton: NSButton {
+  convenience init(cardTitle: String, target: AnyObject?, action: Selector) {
+    self.init(frame: .zero)
+    let cell = AskDisclosureButtonCell(textCell: cardTitle)
+    cell.bezelStyle = .rounded
+    cell.target = target
+    cell.action = action
+    self.cell = cell
+  }
+
+  override func accessibilityPerformPress() -> Bool {
+    guard isEnabled, action != nil else { return false }
+    DispatchQueue.main.async { AskDisclosureButton.perform(self) }
+    return true
+  }
+
+  fileprivate static func perform(_ button: AskDisclosureButton) {
+    guard button.isEnabled, let action = button.action else { return }
+    NSApp.sendAction(action, to: button.target, from: button)
+  }
+}
+
+/// The cell, not the control, is what answers a press for a bordered button, so
+/// both halves have to tell the same truth.
+@MainActor
+final class AskDisclosureButtonCell: NSButtonCell {
+  override func accessibilityPerformPress() -> Bool {
+    guard let button = controlView as? AskDisclosureButton else {
+      return super.accessibilityPerformPress()
+    }
+    return button.accessibilityPerformPress()
   }
 }
 

@@ -77,8 +77,9 @@ struct SuggestionTransportTests {
     #expect(afterHead.hasPrefix(beforeHead))
     let added = afterHead.dropFirst(beforeHead.count)
     #expect(added.contains("The user explicitly requested an explanation"))
-    #expect(added.contains("Do not calculate, state a numeric result, or write source"))
-    #expect(added.contains("no numeric characters"))
+    #expect(added.contains("Words only"))
+    #expect(added.contains("never use digits, number words"))
+    #expect(added.contains("Ganit computes and displays every number"))
     func kinds(_ content: String) throws -> [String] {
       let schema = String(content.components(separatedBy: "Response schema:\n").last!)
       let root = try #require(
