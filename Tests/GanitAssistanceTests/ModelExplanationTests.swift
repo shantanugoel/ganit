@@ -82,4 +82,36 @@ struct ModelExplanationTests {
     _ = await job.result.value
     #expect(await transport.requests.first?.body == prepared)
   }
+
+  @Test func numericProseIsReportedAsItsOwnReason() throws {
+    for text in ["The tip is 10% of 2400.", "Divide by 4.", "bill + 10%"] {
+      let data = try outcome("explanation", ["text": text])
+      #expect(throws: SuggestionDecodingError.numericProse) {
+        try SuggestionDecoder.decode(data)
+      }
+    }
+  }
+
+  @Test func numericProseStopsTheJobWithoutADoomedRepair() async throws {
+    let transport = FakeSuggestionTransport([
+      .reply(try outcome("explanation", ["text": "Take 10% of the bill."])),
+      .reply(try outcome("explanation", ["text": text])),
+    ])
+    let log = SuggestionEventLog()
+    let coordinator = SuggestionCoordinator(transport: transport)
+    let job = await coordinator.start(try input(), observer: { await log.append($0) })
+    guard case .failed(.schema) = await job.result.value else {
+      Issue.record("Expected a numeric explanation to stop the job")
+      return
+    }
+    #expect(await transport.count() == 1)
+    let events = await log.events
+    #expect(
+      !events.contains { if case .repairStarted = $0 { return true }; return false })
+    #expect(
+      events.contains {
+        if case .failure(.modelSuppliedNumbers) = $0 { return true }
+        return false
+      })
+  }
 }

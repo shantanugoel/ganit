@@ -197,6 +197,21 @@ struct SuggestionTransportTests {
     #expect(await server.requestCount() == 1)
   }
 
+  /// A reply whose words carry a number is rejected by policy, and a repair
+  /// prompt repeats the same schema - so the transport must not quietly file it
+  /// under "malformed reply" and send the job into a doomed repair loop.
+  @Test func wordsThatCarryANumberReachTheJobInsteadOfTheRepairLoop() throws {
+    for kind in ["answer", "explanation"] {
+      let raw = "{\"schemaVersion\":1,\"kind\":\"\(kind)\",\"text\":\"about 42\"}"
+      let completion = try JSONSerialization.data(withJSONObject: [
+        "choices": [["message": ["content": raw]]]
+      ])
+      #expect(throws: SuggestionDecodingError.numericProse) {
+        try ProviderSuggestionTransport.content(from: completion)
+      }
+    }
+  }
+
   @Test func rejectionDetailsDoNotExtractReasoningOrContentParts() throws {
     let raw = "The private reasoning must not supply a source proposal."
     let reasoning = try JSONSerialization.data(withJSONObject: [

@@ -77,7 +77,7 @@ public struct SuggestionWireRequest: Sendable {
   private static let answerInstruction = """
 
     You may return kind answer with text only for a non-calculation world-knowledge question.
-    Use plain text only, with no numeric characters, number words, arithmetic operators, equations, or source.
+    Words only: Ganit computes and displays every number, so never use digits, number words, amounts with units, arithmetic operators, equations, or source in answer text.
     Never answer a calculation or supply a missing user input this way. Use a proposal or clarification.
     A needed world fact belongs in a named assumption, not an answer.
     Ganit shows the answer once, marked unverified. It cannot be referenced or saved.
@@ -87,8 +87,8 @@ public struct SuggestionWireRequest: Sendable {
 
     The user explicitly requested an explanation from the model.
     You may return kind explanation with text about intent or the choice of a model.
-    Use plain prose only. Do not calculate, state a numeric result, or write source.
-    Use no numeric characters, arithmetic operators, or equations in explanation text.
+    Words only: Ganit computes and displays every number, so never use digits, number words, amounts with units, arithmetic operators, equations, or source in explanation text.
+    Describe intent, method, and the choice of model instead of restating results.
     Ganit displays this text only as a transient model explanation, never as an answer.
     """
 
@@ -180,7 +180,14 @@ public final class ProviderSuggestionTransport: NSObject, SuggestionTransport,
       let text = completion.choices.first?.message.content
     else { throw SuggestionTransportError.malformedCompletion }
     let content = Data(text.utf8)
-    do { _ = try SuggestionDecoder.decode(content) } catch {
+    do { _ = try SuggestionDecoder.decode(content) }
+    catch SuggestionDecodingError.numericProse {
+      // Words that carried a number are a policy rejection, not a malformed
+      // reply. A repair prompt hands the model the same schema, which says
+      // nothing about the ban, so the reply comes back with numbers again and
+      // the job spends its requests. Let it through for the job to judge.
+      throw SuggestionDecodingError.numericProse
+    } catch {
       throw SuggestionTransportError.rejectedReply(content)
     }
     return content

@@ -25,15 +25,17 @@ public enum SuggestionDecoder {
     case "explanation", "answer":
       try keys(root, required: ["schemaVersion", "kind", "text"])
       let value = try text(root, "text", bytes: 8_192)
-      guard
-        !value.unicodeScalars.contains(where: { scalar in
-          scalar.properties.numericType != nil || "=+*/%×÷".unicodeScalars.contains(scalar)
-        })
-      else { throw SuggestionDecodingError.invalidSchema }
+      // Only Ganit calculates. A spoken answer or explanation may describe a
+      // calculation in words, but the moment it carries a number it has become
+      // the result the engine is supposed to produce, so it is rejected as a
+      // matter of policy rather than as a malformed reply.
+      guard !Self.containsNumbers(value) else {
+        throw SuggestionDecodingError.numericProse
+      }
       if kind == "answer" {
         let words = value.lowercased().split(whereSeparator: { !$0.isLetter })
         guard !words.contains(where: { numberWords.contains(String($0)) }) else {
-          throw SuggestionDecodingError.invalidSchema
+          throw SuggestionDecodingError.numericProse
         }
         return .answer(value)
       }
@@ -112,6 +114,13 @@ public enum SuggestionDecoder {
       return .unsupported(reason: try text(root, "reason", bytes: 2_048))
     default:
       throw SuggestionDecodingError.invalidSchema
+    }
+  }
+
+  /// Digits, numeric-looking marks, arithmetic operators and written numbers.
+  private static func containsNumbers(_ value: String) -> Bool {
+    value.unicodeScalars.contains { scalar in
+      scalar.properties.numericType != nil || "=+*/%×÷".unicodeScalars.contains(scalar)
     }
   }
 

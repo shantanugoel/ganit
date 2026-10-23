@@ -228,6 +228,12 @@ public actor SuggestionCoordinator {
           structured = false
           effort = false
           continue
+        } catch SuggestionDecodingError.numericProse {
+          // The transport answers this on the reply's behalf: words that carried
+          // a number. Asking the model to fix them only spends a request, because
+          // the repair prompt repeats a schema that says nothing about the ban.
+          record.failure = .modelSuppliedNumbers
+          return await finish(id, result: .failed(.schema))
         } catch let error where Self.isInvalidReply(error) {
           if let transportError = error as? SuggestionTransportError,
             case .rejectedReply(let reply) = transportError
@@ -254,7 +260,14 @@ public actor SuggestionCoordinator {
         }
         try ensureActive(id)
         let outcome: SuggestionOutcome
-        do { outcome = try SuggestionDecoder.decode(payload) } catch {
+        do { outcome = try SuggestionDecoder.decode(payload) }
+        catch SuggestionDecodingError.numericProse {
+          // Asking the model to fix words that carried numbers only spends a
+          // request: the schema it is handed says nothing about the ban, so the
+          // repaired reply repeats the offence. Stop and say what happened.
+          record.failure = .modelSuppliedNumbers
+          return await finish(id, result: .failed(.schema))
+        } catch {
           let raw = String(decoding: payload.prefix(SuggestionLimits.payloadBytes), as: UTF8.self)
           await record.observer(.rejectedReply(raw))
           record.failure = .notGanitSource
@@ -384,7 +397,9 @@ public actor SuggestionCoordinator {
   }
 
   private static func isInvalidReply(_ error: any Error) -> Bool {
-    if error is SuggestionDecodingError { return true }
+    // A number in the model's words is a policy rejection with its own reason;
+    // everything the contract refuses outright is a repairable malformed reply.
+    if let error = error as? SuggestionDecodingError, error != .numericProse { return true }
     guard let error = error as? SuggestionTransportError else { return false }
     switch error {
     case .malformedCompletion, .rejectedReply: return true

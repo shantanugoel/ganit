@@ -109,4 +109,66 @@ struct ModelAnswerTests {
       #expect(throws: (any Error).self) { try SuggestionDecoder.decode(data) }
     }
   }
+
+  @Test func numericProseIsReportedAsItsOwnReason() throws {
+    for text in ["About 42", "2+2", "1.5 l in ml", "forty two", "≈ 0.75"] {
+      let data = try outcome("answer", ["text": text])
+      #expect(throws: SuggestionDecodingError.numericProse) {
+        try SuggestionDecoder.decode(data)
+      }
+    }
+  }
+
+  @Test func numericProseStopsTheJobWithoutADoomedRepair() async throws {
+    let transport = FakeSuggestionTransport([
+      .reply(try outcome("answer", ["text": "About 42 kilograms"])),
+      .reply(try outcome("answer", ["text": "Paris"])),
+    ])
+    let log = SuggestionEventLog()
+    let coordinator = SuggestionCoordinator(transport: transport)
+    let job = await coordinator.start(try input(), observer: { await log.append($0) })
+    guard case .failed(.schema) = await job.result.value else {
+      Issue.record("Expected a numeric answer to stop the job")
+      return
+    }
+    #expect(await transport.count() == 1)
+    let events = await log.events
+    #expect(
+      !events.contains { if case .repairStarted = $0 { return true }; return false })
+    #expect(
+      events.contains {
+        if case .failure(.modelSuppliedNumbers) = $0 { return true }
+        return false
+      })
+  }
+
+  /// The provider transport screens the reply before the job sees it, so a
+  /// number in the model's words arrives as a throw, not a decoded outcome.
+  private actor NumericProseTransport: SuggestionTransport {
+    private var sends = 0
+    func count() -> Int { sends }
+    func send(_ request: SuggestionWireRequest) async throws -> Data {
+      sends += 1
+      throw SuggestionDecodingError.numericProse
+    }
+  }
+
+  @Test func aTransportThatRefusesNumericWordsStopsTheJobOnce() async throws {
+    let transport = NumericProseTransport()
+    let log = SuggestionEventLog()
+    let coordinator = SuggestionCoordinator(transport: transport)
+    let job = await coordinator.start(try input(), observer: { await log.append($0) })
+    guard case .failed(.schema) = await job.result.value else {
+      Issue.record("Expected a numeric answer to stop the job")
+      return
+    }
+    #expect(await transport.count() == 1)
+    let events = await log.events
+    #expect(!events.contains { if case .repairStarted = $0 { return true }; return false })
+    #expect(
+      events.contains {
+        if case .failure(.modelSuppliedNumbers) = $0 { return true }
+        return false
+      })
+  }
 }

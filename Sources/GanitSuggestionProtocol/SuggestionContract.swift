@@ -118,6 +118,7 @@ public enum SuggestionDecodingError: Error, Equatable, Sendable {
   case payloadTooLarge
   case proposalTooLarge
   case invalidSchema
+  case numericProse
   case unsupportedVersion
   case invalidBounds
 }
