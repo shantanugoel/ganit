@@ -9,6 +9,14 @@ public struct AssistantSettings: Equatable, Sendable {
   public static let defaultEndpoint = URL(string: "https://api.openai.com/v1")!
   public static let defaultModel = "gpt-4o-mini"
   public static let markAIDerivedAnswersKey = "AssistantMarkAIDerivedAnswers"
+  /// How long one Ask request may take. A model that thinks before it answers
+  /// is slow on any address, so the wait is one number rather than one per
+  /// kind of host.
+  public static let defaultResponseTimeout: TimeInterval = 120
+  /// The shortest wait worth offering: below it a request fails on its way
+  /// through the network stack rather than on the model.
+  public static let minimumResponseTimeout: TimeInterval = 5
+  public static let maximumResponseTimeout: TimeInterval = 600
 
   public var provider: AssistantProvider
   public var isEnabled: Bool
@@ -24,6 +32,16 @@ public struct AssistantSettings: Equatable, Sendable {
   public var repairAttempts: Int {
     didSet { repairAttempts = min(3, max(0, repairAttempts)) }
   }
+  /// Seconds one Ask request waits for its reply. Each request keeps the
+  /// value it was created with, so a change applies to the next Ask.
+  public var responseTimeout: TimeInterval {
+    didSet { responseTimeout = Self.clamped(responseTimeout) }
+  }
+
+  static func clamped(_ timeout: TimeInterval) -> TimeInterval {
+    guard timeout.isFinite else { return defaultResponseTimeout }
+    return min(maximumResponseTimeout, max(minimumResponseTimeout, timeout))
+  }
 
   public init(
     provider: AssistantProvider = .custom,
@@ -33,6 +51,7 @@ public struct AssistantSettings: Equatable, Sendable {
     apiKey: String = "",
     effort: AssistantEffort = .default,
     repairAttempts: Int = 2,
+    responseTimeout: TimeInterval = AssistantSettings.defaultResponseTimeout,
     markAIDerivedAnswers: Bool = true
   ) {
     self.provider = provider
@@ -43,6 +62,7 @@ public struct AssistantSettings: Equatable, Sendable {
     self.markAIDerivedAnswers = markAIDerivedAnswers
     self.effort = effort
     self.repairAttempts = min(3, max(0, repairAttempts))
+    self.responseTimeout = Self.clamped(responseTimeout)
   }
 
   /// Whether Ask can use this provider.
@@ -59,6 +79,7 @@ public struct AssistantSettings: Equatable, Sendable {
   private static let modelKey = "AssistantModel"
   private static let effortKey = "AssistantEffort"
   private static let repairAttemptsKey = "AssistantRepairAttempts"
+  private static let responseTimeoutKey = "AssistantResponseTimeout"
 
   /// Preferences say where to ask; the keychain holds the key.
   public static func load(from defaults: UserDefaults = .standard) -> AssistantSettings {
@@ -81,6 +102,10 @@ public struct AssistantSettings: Equatable, Sendable {
       model: defaults.string(forKey: modelKey) ?? defaultModel,
       effort: AssistantEffort(storage: defaults.string(forKey: effortKey)),
       repairAttempts: defaults.object(forKey: repairAttemptsKey) as? Int ?? 2,
+      responseTimeout: (defaults.object(forKey: responseTimeoutKey) as? NSNumber).map {
+        doubleValue in
+        AssistantSettings.clamped(doubleValue.doubleValue)
+      } ?? defaultResponseTimeout,
       markAIDerivedAnswers: defaults.object(forKey: markAIDerivedAnswersKey) as? Bool ?? true
     )
   }
@@ -92,6 +117,7 @@ public struct AssistantSettings: Equatable, Sendable {
     defaults.set(model, forKey: Self.modelKey)
     defaults.set(effort.storageValue, forKey: Self.effortKey)
     defaults.set(repairAttempts, forKey: Self.repairAttemptsKey)
+    defaults.set(responseTimeout, forKey: Self.responseTimeoutKey)
     defaults.set(markAIDerivedAnswers, forKey: Self.markAIDerivedAnswersKey)
   }
 }

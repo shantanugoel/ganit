@@ -133,8 +133,9 @@ JSON encoding, including escapes and instructions.
 redirects and bounds the received payload while it reads bytes. Each call
 creates and closes one session. It accepts one completion content string.
 It rejects reasoning-only replies and content-part arrays. It makes no
-format fallback or transport retry. A local endpoint has a 120-second
-request timeout. A remote endpoint has a 30-second request timeout.
+format fallback or transport retry. Each request carries the response
+timeout from `AssistantSettings` — 120 seconds by default, 5 to 600 — and the
+same number applies to a local endpoint and a hosted one.
 
 ## Verification
 
@@ -188,10 +189,11 @@ permits at most three wire requests, including context requests, corrections,
 and the single response-format fallback. A transport failure stops the job.
 A repeated source or failure stops correction. No timer starts another job.
 
-A remote job has a 90-second deadline. A local job has a 180-second deadline.
-Each wire request also retains its transport timeout. An injected clock
-controls both deadlines in tests. Cancellation and source invalidation
-prevent a late response from becoming a preview.
+A job's deadline is three response timeouts, one for each wire request it may
+make, so it follows the number in Assistant settings rather than the kind of
+host in the address. Each wire request also retains its transport timeout. An
+injected clock controls both deadlines in tests. Cancellation and source
+invalidation prevent a late response from becoming a preview.
 
 A provider can have one active job and one pending automatic target across
 windows. A manual request has priority over an automatic request. Automatic

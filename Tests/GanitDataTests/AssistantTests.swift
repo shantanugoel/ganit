@@ -29,6 +29,49 @@ struct AssistantTests {
     #expect(read.effort == .custom("minimal"))
     #expect(read.isReady)
   }
+
+  /// The wait is one preference, and a file that asks for an impossible one is
+  /// read back as the nearest usable wait rather than a broken Ask.
+  @Test
+  func keepsOneResponseTimeoutForEveryAddress() throws {
+    let name = "AssistantTimeout-\(UUID().uuidString)"
+    let defaults = try #require(UserDefaults(suiteName: name))
+    defer { defaults.removePersistentDomain(forName: name) }
+    let storedKey = "AssistantResponseTimeout"
+
+    #expect(
+      AssistantSettings.read(from: defaults).responseTimeout
+        == AssistantSettings.defaultResponseTimeout)
+
+    var settings = AssistantSettings.read(from: defaults)
+    settings.responseTimeout = 45
+    settings.write(to: defaults)
+    #expect(AssistantSettings.read(from: defaults).responseTimeout == 45)
+
+    for (stored, expected) in [
+      (0, AssistantSettings.minimumResponseTimeout),
+      (86_400, AssistantSettings.maximumResponseTimeout),
+    ] {
+      defaults.set(stored, forKey: storedKey)
+      #expect(AssistantSettings.read(from: defaults).responseTimeout == expected)
+    }
+    defaults.set("twelve", forKey: storedKey)
+    #expect(
+      AssistantSettings.read(from: defaults).responseTimeout
+        == AssistantSettings.defaultResponseTimeout)
+  }
+
+  @Test(
+    arguments: [(0.0, 5.0), (-1.0, 5.0), (86_400.0, 600.0), (.nan, 120.0), (.infinity, 120.0)]
+  )
+  func aWaitOutsideTheUsableRangeBecomesTheNearestEdge(
+    given: TimeInterval, expected: TimeInterval
+  ) {
+    var settings = AssistantSettings()
+    settings.responseTimeout = given
+    #expect(settings.responseTimeout == expected)
+    #expect(AssistantSettings(responseTimeout: given).responseTimeout == expected)
+  }
 }
 
 /// Effort is one preferences key holding both which level was chosen and,

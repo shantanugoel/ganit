@@ -206,6 +206,51 @@
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Maximum automatic repair attempts for each Ask. The request limit can reduce this number." } }
       }
     },
+    "assistant.responseTimeout" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Response timeout" } }
+      }
+    },
+    "assistant.responseTimeout.unit" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "seconds" } }
+      }
+    },
+    "assistant.responseTimeout.help" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Seconds one Ask waits for its reply. A model that thinks before it answers needs the longer waits. Between 5 and 600." } }
+      }
+    },
+    "assistant.section.connection" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Connection" } }
+      }
+    },
+    "assistant.section.model" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Model" } }
+      }
+    },
+    "assistant.section.generation" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Generation" } }
+      }
+    },
+    "settings.section.editing" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Editing" } }
+      }
+    },
+    "settings.section.menuBar" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Menu bar" } }
+      }
+    },
+    "settings.section.files" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Files and updates" } }
+      }
+    },
     "ask.context.dependencies" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Lines these calculations read" } }
@@ -768,12 +813,12 @@
     },
     "assistant.explanation" : {
       "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Select a provider and check its address. Fetch Models sends only a model-list request. Nothing is sent until you select Fetch Models or send an Ask. Context shows the exact request. It can include your question, selected source, source dependencies, matched definitions, calculation settings, and model name. The provider receives this context. A model list does not confirm support for Chat Completions or the Ganit reply format. Ganit checks proposed calculations. Review the preview, then select Apply to change the sheet. Review Example opens a local sheet and sends nothing."
-          }
-        }
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Select a provider, then check its address. Nothing is sent until you select Fetch Models or send an Ask. Context shows the exact request. It can include your question, selected source, source dependencies, matched definitions, calculation settings, and model name. The provider receives this context." } }
+      }
+    },
+    "assistant.explanation.provider" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Fetch Models sends only a model-list request. A model list does not confirm support for Chat Completions or the Ganit reply format. Ganit checks proposed calculations. Review the preview, then select Apply to change the sheet. Review Example opens a local sheet and sends nothing." } }
       }
     },
     "assistant.key" : {

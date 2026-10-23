@@ -113,13 +113,27 @@ public final class SettingsController: NSViewController {
     appearance.action = #selector(changed(_:))
     sync()
 
-    let explanation = NSTextField(
-      wrappingLabelWithString: localized(
+    let explanation = SettingsLayout.caption(
+      localized(
         "settings.explanation",
         "Changes take effect immediately. Use the Assistant tab to set up a provider."
-      )
-    )
-    explanation.textColor = VisualStyle.Color.secondary
+      ))
+
+    // A checkbox names itself, so only this row needs a label beside it.
+    let appearanceRow = NSStackView(
+      views: [SettingsLayout.name(localized("settings.appearance", "Appearance")), appearance])
+    appearanceRow.orientation = .horizontal
+    appearanceRow.spacing = VisualStyle.Spacing.related
+
+    let editing = SettingsLayout.section(
+      localized("settings.section.editing", "Editing"),
+      SettingsLayout.stack([autocomplete, appearanceRow]))
+    let menuBarSection = SettingsLayout.section(
+      localized("settings.section.menuBar", "Menu bar"),
+      SettingsLayout.stack([menuBar, startsHidden, quickEmpty]))
+    let filesSection = SettingsLayout.section(
+      localized("settings.section.files", "Files and updates"),
+      SettingsLayout.stack([spotlight, rates, updates, login]))
 
     let tour = NSButton(
       title: localized("settings.showTour", "Show Tour"),
@@ -127,28 +141,12 @@ public final class SettingsController: NSViewController {
       action: #selector(ApplicationCommands.showTour(_:))
     )
     tour.keyEquivalent = ""
-
-    let appearanceRow = NSStackView(views: [
-      NSTextField(labelWithString: localized("settings.appearance", "Appearance:")), appearance,
-    ])
-
-    let stack = NSStackView(views: [explanation, appearanceRow] + boxes + [tour])
-    stack.orientation = .vertical
-    stack.alignment = .leading
-    stack.spacing = VisualStyle.Spacing.related
-    let margin = VisualStyle.Spacing.window
-    stack.edgeInsets = NSEdgeInsets(top: margin, left: margin, bottom: margin, right: margin)
-    stack.translatesAutoresizingMaskIntoConstraints = false
-    let container = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 320))
-    container.addSubview(stack)
-    NSLayoutConstraint.activate([
-      stack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-      stack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-      stack.topAnchor.constraint(equalTo: container.topAnchor),
-      stack.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-      explanation.widthAnchor.constraint(equalToConstant: 380),
-    ])
-    view = container
+    NSLayoutConstraint.activate([SettingsLayout.bindWidth(explanation)])
+    view = SettingsLayout.panel(
+      [
+        explanation, editing, menuBarSection, filesSection, SettingsLayout.actions(trailing: tour),
+      ],
+      height: 420)
   }
 
   public func show(_ state: SettingsState) {

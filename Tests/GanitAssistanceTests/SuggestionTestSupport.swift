@@ -19,13 +19,14 @@ func assistanceSnapshot(_ text: String) throws -> AssistanceSnapshot {
     source, context: assistanceContext(), target: source.lines.last!.id)
 }
 
-func fixtureSettings(local: Bool = false, enabled: Bool = true, model: String = "fixture")
-  -> AssistantSettings
-{
+func fixtureSettings(
+  local: Bool = false, enabled: Bool = true, model: String = "fixture",
+  responseTimeout: TimeInterval? = nil
+) -> AssistantSettings {
   AssistantSettings(
     isEnabled: enabled,
     endpoint: URL(string: local ? "http://127.0.0.1:1/v1" : "https://fixture.invalid/v1")!,
-    model: model)
+    model: model, responseTimeout: responseTimeout ?? AssistantSettings.defaultResponseTimeout)
 }
 
 func outcome(_ kind: String, _ fields: [String: Any] = [:]) throws -> Data {

@@ -217,8 +217,8 @@ These are initial limits to test, not measured usability results:
 | Automatic wire requests | Six per minute, including repairs and format fallback |
 | Minimum automatic job interval | Fifteen seconds |
 | Model requests in one job | Three total |
-| Per-request timeout | 30 seconds for remote; 120 seconds for local |
-| Job deadline | 90 seconds for remote; 180 seconds for local |
+| Per-request timeout | The response timeout in Assistant settings; 120 seconds by default, 5 to 600 |
+| Job deadline | Three response timeouts, one per permitted request |
 
 All retries count against the job and session limits. A timer does not poll
 for work. Arm it only after an eligible event. Once a limit is reached,

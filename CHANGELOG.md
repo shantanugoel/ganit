@@ -5,6 +5,15 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+## 0.7.2
+
+- Set the AI response wait yourself in Settings ▸ Assistant. **Response
+  timeout** is one number for every provider: a hosted model and a model on
+  this Mac now wait the same 120 seconds by default, and you can set 5 to
+  600. Earlier Ganit waited 30 seconds for a hosted address.
+- Lay Settings out as titled sections with one label column, so the General
+  and Assistant tabs read as a few decisions instead of one long list.
+
 ## 0.7.1
 
 - Move Assistant provider settings to the Settings dialog. Use the Assistant

@@ -118,7 +118,7 @@ public actor SuggestionCoordinator {
     }
     let record = Record(
       input: input, observer: observer, provider: provider, key: key,
-      deadline: clock.now() + (isLocal(input.settings.endpoint) ? 180 : 90))
+      deadline: clock.now() + Self.jobSeconds(responseTimeout: input.settings.responseTimeout))
     records[id] = record
     if active[provider] != nil {
       if let older = pending[provider] { stop(older, outcome: .cancelled) }
@@ -634,6 +634,14 @@ public actor SuggestionCoordinator {
     return true
   }
 
+  /// One response timeout for each request a job may make. A model that
+  /// thinks before it answers is slow on a laptop and on a hosted endpoint
+  /// alike, so the job follows the number a person set instead of the kind of
+  /// host in the address.
+  static func jobSeconds(responseTimeout: TimeInterval) -> TimeInterval {
+    responseTimeout * TimeInterval(SuggestionLimits.requestsPerJob)
+  }
+
   private func reserveAutomaticWire(_ record: Record) -> Bool {
     let now = clock.now()
     var value = accounting[record.provider] ?? Accounting()
@@ -642,9 +650,5 @@ public actor SuggestionCoordinator {
     value.wires.append(now)
     accounting[record.provider] = value
     return true
-  }
-
-  private func isLocal(_ url: URL) -> Bool {
-    ["127.0.0.1", "localhost", "::1", "[::1]"].contains(url.host() ?? "")
   }
 }

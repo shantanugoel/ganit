@@ -6,11 +6,13 @@ import Testing
 
 @Suite
 struct SuggestionTransportTests {
-  private func settings(_ endpoint: String = "https://example.test/v1", key: String = "")
-    -> AssistantSettings
-  {
+  private func settings(
+    _ endpoint: String = "https://example.test/v1", key: String = "",
+    timeout: TimeInterval = AssistantSettings.defaultResponseTimeout
+  ) -> AssistantSettings {
     AssistantSettings(
-      isEnabled: true, endpoint: URL(string: endpoint)!, model: "fixture-model", apiKey: key)
+      isEnabled: true, endpoint: URL(string: endpoint)!, model: "fixture-model", apiKey: key,
+      responseTimeout: timeout)
   }
 
   @Test func freezesTheExactContextAndDoesNotAttachOtherData() throws {
@@ -25,15 +27,41 @@ struct SuggestionTransportTests {
     #expect(wire.urlRequest.value(forHTTPHeaderField: "Authorization") == "Bearer fixture-key")
     #expect(!String(decoding: wire.body, as: UTF8.self).contains("fixture-key"))
     #expect(wire.endpoint.absoluteString == "https://example.test/v1/chat/completions")
-    #expect(wire.timeout == 30)
+    #expect(wire.timeout == AssistantSettings.defaultResponseTimeout)
+    #expect(wire.urlRequest.timeoutInterval == AssistantSettings.defaultResponseTimeout)
   }
 
-  @Test func localTimeoutAndFormatFallbackAreExplicit() throws {
+  /// One number for every host. A model on this Mac is not given a longer wait
+  /// than a hosted one, and the wait a person set is the one that travels.
+  @Test(arguments: ["https://example.test/v1", "http://127.0.0.1:1234/v1", "http://localhost:1/v1"])
+  func everyAddressUsesTheConfiguredTimeout(endpoint: String) throws {
+    for seconds in [5.0, 45.0, 120.0, 600.0] {
+      let wire = try SuggestionWireRequest(
+        settings: settings(endpoint, timeout: seconds), context: Data("{}".utf8))
+      #expect(wire.timeout == seconds)
+      #expect(wire.urlRequest.timeoutInterval == seconds)
+    }
+  }
+
+  /// A field can hold anything, so the request only ever carries a wait that
+  /// has a chance of being answered.
+  @Test(arguments: [(0.0, 5.0), (-10.0, 5.0), (5_000.0, 600.0), (.nan, 120.0)])
+  func anImplausibleTimeoutBecomesTheNearestUsableOne(
+    given: TimeInterval, expected: TimeInterval
+  ) throws {
+    var settings = settings()
+    settings.responseTimeout = given
+    #expect(settings.responseTimeout == expected)
+    let wire = try SuggestionWireRequest(settings: settings, context: Data("{}".utf8))
+    #expect(wire.timeout == expected)
+  }
+
+  @Test func localFormatFallbackAndNoKeyAreExplicit() throws {
     let wire = try SuggestionWireRequest(
       settings: settings("http://127.0.0.1:1234/v1"), context: Data("{}".utf8), structured: false)
     let root = try #require(JSONSerialization.jsonObject(with: wire.body) as? [String: Any])
     #expect(root["response_format"] == nil)
-    #expect(wire.timeout == 120)
+    #expect(wire.timeout == AssistantSettings.defaultResponseTimeout)
     #expect(wire.urlRequest.value(forHTTPHeaderField: "Authorization") == nil)
   }
 
@@ -171,10 +199,10 @@ struct SuggestionTransportTests {
     }
   }
 
-  @Test func requestEncodingCountsEscapedBodyBytesAndHTTPSLoopbackIsLocal() throws {
+  @Test func requestEncodingCountsEscapedBodyBytes() throws {
     let local = try SuggestionWireRequest(
       settings: settings("https://localhost/v1"), context: Data("{}".utf8))
-    #expect(local.timeout == 120)
+    #expect(local.timeout == AssistantSettings.defaultResponseTimeout)
     let text = String(repeating: "\n", count: 20_000)
     let context = try JSONSerialization.data(withJSONObject: ["target": text])
     #expect(context.count < SuggestionLimits.requestBytes)

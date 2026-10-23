@@ -42,6 +42,11 @@ public final class AssistantSettingsController: NSViewController {
   /// The word to send when the popup says Custom.
   private let customEffort = NSTextField(string: "")
   private let repairAttempts = NSPopUpButton(frame: .zero, pullsDown: false)
+  /// Seconds one Ask request waits for its reply, with the stepper beside it.
+  private let timeout = NSTextField(string: "")
+  private let timeoutStepper = NSStepper()
+  private let timeoutUnit = NSTextField(
+    labelWithString: localized("assistant.responseTimeout.unit", "seconds"))
   private let markAIDerivedAnswers = NSButton(
     checkboxWithTitle: localized("assistant.markDerived", "Mark AI-derived answers"),
     target: nil, action: nil)
@@ -80,6 +85,11 @@ public final class AssistantSettingsController: NSViewController {
         : AssistantEffort.choices.firstIndex(of: settings.effort) ?? AssistantEffort.choices.count)
     repairAttempts.addItems(withTitles: (0...3).map(String.init))
     repairAttempts.selectItem(at: settings.repairAttempts)
+    timeout.stringValue = String(Int(settings.responseTimeout))
+    timeoutStepper.minValue = AssistantSettings.minimumResponseTimeout
+    timeoutStepper.maxValue = AssistantSettings.maximumResponseTimeout
+    timeoutStepper.increment = 5
+    timeoutStepper.doubleValue = settings.responseTimeout
   }
 
   @available(*, unavailable)
@@ -88,12 +98,16 @@ public final class AssistantSettingsController: NSViewController {
   }
 
   public override func loadView() {
-    let explanation = NSTextField(
-      wrappingLabelWithString: localized(
+    let explanation = SettingsLayout.caption(
+      localized(
         "assistant.explanation",
-        "Select a provider and check its address. Fetch Models sends only a model-list request. Nothing is sent until you select Fetch Models or send an Ask. Context shows the exact request. It can include your question, selected source, source dependencies, matched definitions, calculation settings, and model name. The provider receives this context. A model list does not confirm support for Chat Completions or the Ganit reply format. Ganit checks proposed calculations. Review the preview, then select Apply to change the sheet. Review Example opens a local sheet and sends nothing."
-      )
-    )
+        "Select a provider, then check its address. Nothing is sent until you select Fetch Models or send an Ask. Context shows the exact request. It can include your question, selected source, source dependencies, matched definitions, calculation settings, and model name. The provider receives this context."
+      ))
+    let disclosure = SettingsLayout.caption(
+      localized(
+        "assistant.explanation.provider",
+        "Fetch Models sends only a model-list request. A model list does not confirm support for Chat Completions or the Ganit reply format. Ganit checks proposed calculations. Review the preview, then select Apply to change the sheet. Review Example opens a local sheet and sends nothing."
+      ))
     status.textColor = VisualStyle.Color.secondary
     provider.setAccessibilityLabel(localized("assistant.provider", "Provider"))
     provider.target = self
@@ -111,6 +125,27 @@ public final class AssistantSettingsController: NSViewController {
       "assistant.repairAttempts.help",
       "Maximum automatic repair attempts for each Ask. The request limit can reduce this number.")
     repairAttempts.setAccessibilityHelp(repairAttempts.toolTip)
+    timeout.setAccessibilityLabel(
+      localized("assistant.responseTimeout", "Response timeout"))
+    timeout.alignment = .right
+    timeout.placeholderString = String(Int(AssistantSettings.defaultResponseTimeout))
+    let seconds = NumberFormatter()
+    seconds.numberStyle = .none
+    seconds.allowsFloats = false
+    seconds.usesGroupingSeparator = false
+    seconds.minimum = NSNumber(value: AssistantSettings.minimumResponseTimeout)
+    seconds.maximum = NSNumber(value: AssistantSettings.maximumResponseTimeout)
+    timeout.formatter = seconds
+    timeout.toolTip = localized(
+      "assistant.responseTimeout.help",
+      "Seconds one Ask waits for its reply. A model that thinks before it answers needs the longer waits. Between 5 and 600."
+    )
+    timeout.setAccessibilityHelp(timeout.toolTip)
+    timeoutStepper.target = self
+    timeoutStepper.action = #selector(timeoutStepperChanged(_:))
+    timeoutStepper.setAccessibilityLabel(
+      localized("assistant.responseTimeout", "Response timeout"))
+    timeoutUnit.textColor = VisualStyle.Color.secondary
     effort.target = self
     effort.action = #selector(effortChanged(_:))
     customEffort.setAccessibilityLabel(
@@ -124,34 +159,15 @@ public final class AssistantSettingsController: NSViewController {
     let effortField = NSStackView(views: [effort, customEffort])
     effortField.orientation = .horizontal
     effortField.spacing = VisualStyle.Spacing.related
-
-    let fields = NSGridView(views: [
-      [label(localized("assistant.provider", "Provider")), provider],
-      [label(localized("assistant.address", "Address")), endpoint],
-      [label(localized("assistant.model", "Model")), model],
-      [label(localized("assistant.key", "API Key")), key],
-      [label(localized("assistant.effort", "Effort")), effortField],
-      [label(localized("assistant.repairAttempts", "Repair attempts")), repairAttempts],
-    ])
-    fields.yPlacement = .center
-    for field in [endpoint, model, key, customEffort] {
-      field.heightAnchor.constraint(greaterThanOrEqualToConstant: field.fittingSize.height)
-        .isActive = true
-    }
-    fields.rowSpacing = VisualStyle.Spacing.related
-    fields.columnSpacing = VisualStyle.Spacing.related
-    fields.column(at: 0).xPlacement = .trailing
-    // The word belongs to Custom alone, so it is dimmed and uneditable
-    // otherwise rather than sitting there looking settable.
-    effortField.setContentHuggingPriority(.defaultHigh, for: .horizontal)
-    customEffort.widthAnchor.constraint(greaterThanOrEqualToConstant: 140).isActive = true
-    // Spare height belongs to the wrapping explanation, not between rows.
-    fields.setContentHuggingPriority(.defaultHigh, for: .vertical)
+    // A short number, its unit, and the stepper that steps it: one setting.
+    let timeoutField = NSStackView(views: [timeout, timeoutUnit, timeoutStepper])
+    timeoutField.orientation = .horizontal
+    timeoutField.spacing = VisualStyle.Spacing.tight
 
     modelSearch.setAccessibilityLabel(localized("assistant.models.search", "Search models"))
     modelSearch.placeholderString = localized("assistant.models.search", "Search models")
     let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("model"))
-    column.width = 440
+    column.width = SettingsLayout.controlAreaWidth
     modelList.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle
     column.title = localized("assistant.models.available", "Available models")
     modelList.addTableColumn(column)
@@ -171,22 +187,56 @@ public final class AssistantSettingsController: NSViewController {
     cancelFetch.action = #selector(cancelModelsClicked(_:))
     cancelFetch.isEnabled = false
     discoveryStatus.textColor = VisualStyle.Color.secondary
+    discoveryStatus.font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
     discoveryStatus.stringValue = localized(
       "assistant.models.manual", "Enter a model identifier, or fetch models from the address above."
     )
     let discoveryButtons = NSStackView(views: [fetchModels, cancelFetch])
-    let discoveryControls = NSStackView(views: [
-      modelSearch, scroll, discoveryButtons, discoveryStatus,
-    ])
-    discoveryControls.orientation = .vertical
-    discoveryControls.alignment = .leading
-    discoveryControls.spacing = VisualStyle.Spacing.related
+
+    let connection = SettingsLayout.section(
+      localized("assistant.section.connection", "Connection"),
+      SettingsLayout.rows([
+        (localized("assistant.provider", "Provider"), provider),
+        (localized("assistant.address", "Address"), endpoint),
+        (localized("assistant.key", "API Key"), key),
+      ]))
+    let modelSection = SettingsLayout.section(
+      localized("assistant.section.model", "Model"),
+      SettingsLayout.stack([
+        SettingsLayout.rows([(localized("assistant.model", "Model"), model)]),
+        modelSearch,
+        scroll,
+        discoveryButtons,
+        discoveryStatus,
+      ]))
+    let generation = SettingsLayout.section(
+      localized("assistant.section.generation", "Generation"),
+      SettingsLayout.rows([
+        (localized("assistant.effort", "Effort"), effortField),
+        (localized("assistant.repairAttempts", "Repair attempts"), repairAttempts),
+        (localized("assistant.responseTimeout", "Response timeout"), timeoutField),
+      ]))
+    for field in [endpoint, model, key] {
+      field.widthAnchor.constraint(equalToConstant: SettingsLayout.fieldWidth).isActive = true
+      field.heightAnchor.constraint(greaterThanOrEqualToConstant: field.fittingSize.height)
+        .isActive = true
+    }
+    // The word belongs to Custom alone, so it appears only when Custom is
+    // chosen: an empty box beside the popup would read as a second setting.
+    // The popup names that setting, so when the row runs short it is the word
+    // that gives way.
+    effortField.setContentHuggingPriority(.defaultHigh, for: .horizontal)
+    let customWidth = customEffort.widthAnchor.constraint(greaterThanOrEqualToConstant: 140)
+    customWidth.priority = .defaultLow
+    customWidth.isActive = true
+    customEffort.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+    effort.setContentCompressionResistancePriority(.required, for: .horizontal)
+    timeout.widthAnchor.constraint(equalToConstant: 52).isActive = true
     NSLayoutConstraint.activate([
-      discoveryControls.widthAnchor.constraint(equalToConstant: 440),
-      modelSearch.widthAnchor.constraint(equalTo: discoveryControls.widthAnchor),
-      scroll.widthAnchor.constraint(equalTo: discoveryControls.widthAnchor),
-      scroll.heightAnchor.constraint(equalToConstant: 110),
-      discoveryStatus.widthAnchor.constraint(equalTo: discoveryControls.widthAnchor),
+      modelSearch.widthAnchor.constraint(equalToConstant: SettingsLayout.controlAreaWidth),
+      scroll.widthAnchor.constraint(equalToConstant: SettingsLayout.controlAreaWidth),
+      scroll.heightAnchor.constraint(equalToConstant: 120),
+      discoveryStatus.widthAnchor.constraint(equalToConstant: SettingsLayout.controlAreaWidth),
     ])
 
     let save = NSButton(
@@ -195,30 +245,22 @@ public final class AssistantSettingsController: NSViewController {
     let test = NSButton(
       title: localized("assistant.test", "Review Example"), target: self,
       action: #selector(test(_:)))
-    let buttons = NSStackView(views: [test, save])
+    // The default button sits where a person looks for it, at the end, and the
+    // secondary action keeps the leading edge.
+    let buttons = SettingsLayout.actions(test, trailing: save)
 
-    let stack = NSStackView(views: [
-      explanation, enabled, fields, discoveryControls, markAIDerivedAnswers, status, buttons,
-    ])
-    stack.orientation = .vertical
-    stack.alignment = .leading
-    stack.spacing = VisualStyle.Spacing.group
-    let margin = VisualStyle.Spacing.window
-    stack.edgeInsets = NSEdgeInsets(top: margin, left: margin, bottom: margin, right: margin)
-    stack.translatesAutoresizingMaskIntoConstraints = false
-    let container = NSView(frame: NSRect(x: 0, y: 0, width: 480, height: 360))
-    container.addSubview(stack)
     NSLayoutConstraint.activate([
-      stack.leadingAnchor.constraint(equalTo: container.leadingAnchor),
-      stack.trailingAnchor.constraint(equalTo: container.trailingAnchor),
-      stack.topAnchor.constraint(equalTo: container.topAnchor),
-      stack.bottomAnchor.constraint(equalTo: container.bottomAnchor),
-      explanation.widthAnchor.constraint(equalToConstant: 440),
-      status.widthAnchor.constraint(equalToConstant: 440),
-      fields.widthAnchor.constraint(equalToConstant: 440),
+      SettingsLayout.bindWidth(explanation),
+      SettingsLayout.bindWidth(disclosure),
+      SettingsLayout.bindWidth(status),
     ])
+    view = SettingsLayout.panel(
+      [
+        explanation, disclosure, enabled, connection, modelSection, generation,
+        markAIDerivedAnswers, status, buttons,
+      ],
+      height: 620)
     syncCustomEffortField()
-    view = container
   }
 
   static func title(for provider: AssistantProvider) -> String {
@@ -284,6 +326,10 @@ public final class AssistantSettingsController: NSViewController {
     discoveryStatus.stringValue = localized(
       "assistant.models.manual", "Enter a model identifier, or fetch models from the address above."
     )
+  }
+
+  @objc private func timeoutStepperChanged(_ sender: Any?) {
+    timeout.stringValue = String(Int(timeoutStepper.doubleValue))
   }
 
   @objc private func cancelModelsClicked(_ sender: Any?) {
@@ -372,9 +418,11 @@ public final class AssistantSettingsController: NSViewController {
     }
   }
 
-  /// Only Custom has a word to type, so only then is the field live.
+  /// Only Custom has a word to type, so only then is the field live. An empty
+  /// box beside the popup would read as another setting nobody chose.
   private func syncCustomEffortField() {
     let isCustom = effort.indexOfSelectedItem == AssistantEffort.choices.count
+    customEffort.isHidden = !isCustom
     customEffort.isEnabled = isCustom
     customEffort.placeholderString =
       isCustom
@@ -382,10 +430,11 @@ public final class AssistantSettingsController: NSViewController {
       : nil
   }
 
-  private func label(_ text: String) -> NSTextField {
-    let field = NSTextField(wrappingLabelWithString: text)
-    field.textColor = VisualStyle.Color.secondary
-    return field
+  /// The seconds on screen, or the default when the field holds no number.
+  private var chosenTimeout: TimeInterval {
+    if let number = timeout.objectValue as? NSNumber { return number.doubleValue }
+    return Double(timeout.stringValue.trimmingCharacters(in: .whitespaces))
+      ?? AssistantSettings.defaultResponseTimeout
   }
 
   /// What the fields currently say, whether or not it has been saved.
@@ -400,6 +449,7 @@ public final class AssistantSettingsController: NSViewController {
       apiKey: key.stringValue.trimmingCharacters(in: .whitespaces),
       effort: chosenEffort,
       repairAttempts: max(0, repairAttempts.indexOfSelectedItem),
+      responseTimeout: chosenTimeout,
       markAIDerivedAnswers: markAIDerivedAnswers.state == .on
     )
   }
@@ -480,6 +530,15 @@ extension AssistantSettingsController: NSSearchFieldDelegate, NSTableViewDataSou
     }
     if field === modelSearch {
       reloadModels()
+      return
+    }
+    if field === timeout {
+      // The stepper follows the typed number, so the two read as one control.
+      if let typed = Double(field.stringValue.trimmingCharacters(in: .whitespaces)) {
+        timeoutStepper.doubleValue = min(
+          AssistantSettings.maximumResponseTimeout,
+          max(AssistantSettings.minimumResponseTimeout, typed))
+      }
       return
     }
     guard field === endpoint || field === key else { return }

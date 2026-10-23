@@ -58,8 +58,7 @@ public struct SuggestionWireRequest: Sendable {
       throw SuggestionTransportError.requestTooLarge
     }
     endpoint = Assistant.chatCompletionsURL(settings.endpoint)
-    let local = ["127.0.0.1", "localhost", "::1", "[::1]"].contains(settings.endpoint.host() ?? "")
-    timeout = local ? 120 : 30
+    timeout = settings.responseTimeout
     authorization = try settings.provider.authorization(apiKey: settings.apiKey)
   }
 

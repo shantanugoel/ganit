@@ -42,7 +42,8 @@ HTTPS. Ganit refuses redirects.
 review Context and send an Ask from that sheet.
 
 Preferences store the provider, endpoint, model, enabled state, Effort,
-repair limit, and dependency mark setting. The key is stored in the keychain.
+repair limit, response timeout, and dependency mark setting. The key is
+stored in the keychain.
 
 **Effort** requests a reasoning level from the server. The default is Medium.
 Off omits `reasoning_effort`. Low, Medium, High, Extra high, and Max send
@@ -52,6 +53,13 @@ An empty Custom value omits the field. The server controls its effect.
 **Repair attempts** permits zero to three corrections of a rejected reply.
 The default is two. Each Ask permits at most three requests in total.
 Format fallback and context follow-ups use this same request limit.
+
+**Response timeout** sets the seconds one Ask waits for its reply. The
+default is 120, and the field accepts 5 to 600. A model that thinks before it
+answers is slow on this Mac and on a hosted address alike, so one number
+covers both. The job that owns an Ask gets three of these waits, one for each
+request it may make. A change applies to the next Ask; a request already sent
+keeps the number it started with.
 
 If an HTTP 400 or 422 error identifies `response_format` or
 `reasoning_effort` as invalid or unsupported, Ganit removes only that field

@@ -13,11 +13,13 @@ struct SuggestionCoordinatorTests {
     _ snapshot: AssistanceSnapshot, document: UUID = UUID(), permission: Bool = true,
     origin: SuggestionJobOrigin = .manual, area: UUID? = nil, local: Bool = false,
     enabled: Bool = true,
-    retry: Bool = false, model: String = "fixture"
+    retry: Bool = false, model: String = "fixture",
+    responseTimeout: TimeInterval? = nil
   ) -> SuggestionJobInput {
     SuggestionJobInput(
       document: document, snapshot: snapshot,
-      settings: fixtureSettings(local: local, enabled: enabled, model: model),
+      settings: fixtureSettings(
+        local: local, enabled: enabled, model: model, responseTimeout: responseTimeout),
       permission: SuggestionPermission(contextAccepted: permission, automaticArea: area),
       origin: origin, retry: retry)
   }
@@ -169,10 +171,10 @@ struct SuggestionCoordinatorTests {
     let job = await coordinator.start(input(snapshot))
     await transport.waitForRequests(1)
     await clock.waitForSleepers(1)
-    clock.advance(to: 30)
+    clock.advance(to: AssistantSettings.defaultResponseTimeout)
     if case .failed(.deadline) = await job.result.value {
     } else {
-      Issue.record("Expected a remote request deadline")
+      Issue.record("Expected the request deadline")
     }
     await transport.complete(0, data: try billProposal(snapshot))
     #expect(await transport.count() == 1)
@@ -352,7 +354,7 @@ struct SuggestionCoordinatorTests {
     let log = SuggestionEventLog()
     let job = await coordinator.start(input(snapshot), observer: { await log.append($0) })
     await log.waitFor(.needsContext)
-    clock.advance(to: 90)
+    clock.advance(to: 3 * AssistantSettings.defaultResponseTimeout)
     if case .failed(.deadline) = await job.result.value {
     } else {
       Issue.record("Expected the logical job deadline")
@@ -361,19 +363,25 @@ struct SuggestionCoordinatorTests {
     #expect(await transport.count() == 1)
   }
 
-  @Test func localRequestsUseTheLongerTimeoutWithTheSameFakeClock() async throws {
+  /// One number for every host: a model on this Mac and a model behind HTTPS
+  /// wait the same seconds, and the seconds a person set are the ones used.
+  @Test(arguments: [false, true])
+  func theConfiguredResponseTimeoutBoundsOneRequestOnAnyHost(local: Bool) async throws {
     let snapshot = try assistanceSnapshot(source)
     let transport = FakeSuggestionTransport([.pending])
     let clock = FakeSuggestionClock()
     let coordinator = SuggestionCoordinator(transport: transport, clock: clock.clock)
-    let job = await coordinator.start(input(snapshot, local: true))
+    let job = await coordinator.start(input(snapshot, local: local, responseTimeout: 20))
     await transport.waitForRequests(1)
     await clock.waitForSleepers(1)
-    clock.advance(to: 120)
+    // The job itself has three of these waits in its budget, so this is the
+    // request's own deadline ending it.
+    clock.advance(to: 20)
     if case .failed(.deadline) = await job.result.value {
     } else {
-      Issue.record("Expected the local request deadline")
+      Issue.record("Expected the configured request deadline")
     }
+    #expect(await transport.count() == 1)
     await transport.complete(0, data: try billProposal(snapshot))
   }
 

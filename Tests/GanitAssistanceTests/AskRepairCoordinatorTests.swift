@@ -8,9 +8,12 @@ import Testing
 struct AskRepairCoordinatorTests {
   private let source = "bill = 2400 INR\nAdd a 10% tip to bill, then split it four ways."
 
-  private func input(_ snapshot: AssistanceSnapshot, repairs: Int) -> SuggestionJobInput {
+  private func input(
+    _ snapshot: AssistanceSnapshot, repairs: Int, responseTimeout: TimeInterval? = nil
+  ) -> SuggestionJobInput {
     var settings = fixtureSettings()
     settings.repairAttempts = repairs
+    if let responseTimeout { settings.responseTimeout = responseTimeout }
     return SuggestionJobInput(
       document: UUID(), snapshot: snapshot, settings: settings,
       permission: SuggestionPermission(contextAccepted: true))
@@ -157,7 +160,7 @@ struct AskRepairCoordinatorTests {
     let log = SuggestionEventLog()
     let coordinator = SuggestionCoordinator(transport: transport, clock: clock.clock)
     let job = await coordinator.start(
-      input(snapshot, repairs: 3), observer: { await log.append($0) })
+      input(snapshot, repairs: 3, responseTimeout: 30), observer: { await log.append($0) })
     await transport.waitForRequests(1)
     await clock.waitForSleepers(1)
     clock.advance(to: 31)

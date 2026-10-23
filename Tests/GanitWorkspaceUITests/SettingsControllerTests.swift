@@ -137,11 +137,14 @@ struct AssistantSettingsEffortTests {
     let controller = self.controller(.medium)
     let popup = try popup(in: controller)
     let field = try customField(in: controller)
+    // An empty box beside the popup would read as another setting nobody chose.
+    #expect(field.isHidden)
     #expect(!field.isEnabled)
 
     popup.selectItem(at: AssistantEffort.choices.count)
     _ = popup.target?.perform(popup.action, with: popup)
     #expect(field.isEnabled)
+    #expect(!field.isHidden)
     #expect(controller.settings.effort == .off)
 
     field.stringValue = "minimal"
@@ -161,6 +164,7 @@ struct AssistantSettingsEffortTests {
 
     #expect(popup.indexOfSelectedItem == AssistantEffort.choices.count)
     #expect(field.isEnabled)
+    #expect(!field.isHidden)
     #expect(field.stringValue == "none")
     #expect(controller.settings.effort == .custom("none"))
   }
