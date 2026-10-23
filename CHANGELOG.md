@@ -5,94 +5,18 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
-- Use Ask Ganit for model requests. Typing no longer starts automatic
-  requests. Review Context, then press Return to send.
-- Remove Ask Assistant, Change Answer, Cancel Request, model display answers,
-  and the `ask_assistant(...)` function with its prompt placeholders.
-  Existing source with that function produces an ordinary diagnostic.
-- Stop reading or writing the saved assistant reply cache. Ask keeps a bounded
-  cache in memory. Approved source and marked assumptions remain in the sheet.
-- Show a temporary unverified text Answer for a question with no calculation.
-  It cannot supply a formula result, change source, or use the reply cache.
-- Add accessibility labels, card content, and actions for Ask and AI
-  assumptions. Clear the instruction when a new Ask opens.
-- Update Help and privacy information for the disclosed context. Ask sends
-  relevant source dependencies and engine facts after an explicit request.
-- Refresh Context with the current instruction or typed clarification before
-  it shows the request. Opening Context sends nothing.
-- Let Settings labels wrap when translated text needs more space.
-- Reduce repeated work when a large sheet recalculates.
+## 0.7.0
 
-- Ask “explain this” or “why is this 920?” on a calculation line. Ganit
-  shows its expression, result, dependencies, grammar rules, assumptions,
-  and diagnostics in the interpretation card. The card states that nothing
-  was sent to a model. A failed line has a **Fix it** action. This action
-  opens Ask with the diagnostic context and waits for Send. Ganit checks
-  the proposed source before Apply. **Ask the model instead** also waits
-  for Send. A model explanation is marked as unverified. It is not saved
-  and cannot be used as a calculation result.
-
-- Answer a question inside the Ask bar. When Ganit needs something it cannot
-  work out, the bar becomes the question, keeps your own words above it as a
-  crumb you can take back and rephrase, and offers up to three suggestions as
-  buttons. Two questions per Ask, then Ganit says it could not answer instead
-  of turning into a conversation. Esc cancels the whole Ask. An answer that
-  would send more of your source asks you to open **Context ▸** first.
-- Let Ganit assume one world fact. A reply may name one physical constant, a
-  typical rate, or a material property — never a tax rate, salary, budget, or
-  price, which Ganit asks you for instead. Ganit checks the declared value in
-  its own engine, requires it to sit as a plain named value on its own line,
-  and writes the origin comment itself:
-  `// AI: density of water at 4 °C · <model> · <date>`. That line carries an
-  **AI** badge, and every answer that reads it, directly or through a function,
-  carries a purple dot. Click either for the value, what it is, the model and
-  time, and which lines use it, with **Change value…** and **Remove**, which
-  first previews the lines that would fail. Editing the value in the sheet
-  removes the comment, the badge and the dots in one Undo step, and asks the
-  model nothing. A conversion that needs a density no one supplied now asks,
-  or assumes and marks, instead of offering a choice with no options.
-- **View ▸ Mark AI-derived answers** hides the dots on answers that read an
-  assumed value. The **AI** badge on the value itself never hides, and the
-  dotted underline keeps both readable without colour. Assistant settings carry
-  the same checkbox.
-
-- Set the maximum AI repair attempts from 0 to 3. The default is 2. All
-  requests, including format fallback and context requests, share a limit of
-  3 per Ask. Ganit shows when it checks a reply and requests a repair.
-- Show a distinct Ask failure when the reply is not source, the engine
-  rejects it, the provider cannot be reached, or the reply is not useful.
-  Rejected source is available in a separate read-only view. It cannot be
-  applied as a proposal.
-
-- Select which proposed AI lines to apply. A declined replacement keeps its
-  original source. A declined insertion is removed. Ganit checks the revised
-  source and each result before Apply. Apply remains one Undo operation.
-- Include transitive local source dependencies in Ask context. Show captured
-  function inputs and the exact request body in Context. Use opaque keys for
-  local source identities. Source changes clear the sheet's proposal cache.
-- Recognize native scaled money amounts, such as `₹25 lakh`, as source
-  evidence for an AI proposal. Ganit calculates the amount.
-
-- Keep Ask bar actions on one row when space is available. Move excess buttons
-  to the next row when the pane is narrow. Update the rows when the pane changes size.
-
-- Keep the source text and results visible when the Ask bar is open. The
-  bar now draws its background only inside its bounds.
-
-- Ask Ganit. **⌘⇧A** anywhere in the editor, a quiet **Ask** chip beside a line
-  Ganit cannot read, the trailing action on the selection bar, and the answer
-  right-click menu all open one bar at the caret: type what you want in plain
-  words, press ⏎, and Ganit sends that — with the lines you selected, the records
-  it matched, and your calculation settings, all listed under **Context ▸**
-  before anything goes. A provider that refuses the ask loses both optional
-  fields on a bounded retry. Ganit checks every proposal
-  against its own engine before it appears, and **Apply** (⌘↩) is the only thing
-  that changes source — as one Undo step named *Apply AI Change*, restoring bytes
-  and selection. Nothing is sent while you type, and Esc closes the bar.
-- Ask a configured model how hard to think. **Ganit ▸ Assistant…** gained an
-  **Effort** popup — Off, Low, Medium, High, Extra high, Max, or Custom… with a
-  field for a word Ganit does not know — and it is sent as the request's
-  `reasoning_effort`. Medium is the default, and Off sends no preference at all.
+- Turn plain words into calculations with **Ask Ganit**. Press **⌘⇧A** to
+  describe what you need. Ganit checks the AI proposal with its calculation
+  engine. Review the results, choose the changes, and apply them with one
+  Undo step.
+- Get help where you work. Ask Ganit to explain a calculation or help fix an
+  error. If an input is missing, Ganit asks you for it. AI assumptions are
+  marked, so you can inspect their source and see which results use them.
+- Control what you share. Inspect **Context** before you send a request to
+  your configured AI provider. Nothing is sent while you type. Ganit does
+  the calculations and marks model text as unverified.
 
 ## 0.6.4
 

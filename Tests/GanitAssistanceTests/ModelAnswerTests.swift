@@ -70,13 +70,14 @@ struct ModelAnswerTests {
       permission: SuggestionPermission(contextAccepted: true, automaticArea: UUID()),
       origin: .automatic, allowsAnswer: true)
     let transport = FakeSuggestionTransport([.reply(try outcome("answer", ["text": "Paris"]))])
-    let clock = SuggestionClock(now: { 0 }, sleepUntil: { _ in })
-    let coordinator = SuggestionCoordinator(transport: transport, clock: clock)
+    let clock = FakeSuggestionClock()
+    let coordinator = SuggestionCoordinator(transport: transport, clock: clock.clock)
     let job = await coordinator.start(automatic)
     guard case .failed(.schema) = await job.result.value else {
       Issue.record("Expected an automatic answer to fail")
       return
     }
+    #expect(await transport.count() == 1)
   }
 
   @Test func lateAnswerCannotReplaceAStaleJob() async throws {
