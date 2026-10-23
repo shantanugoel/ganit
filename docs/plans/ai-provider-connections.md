@@ -15,6 +15,12 @@ Use Foundation `URLSession`. Do not add an AI client library in this phase.
 Keep the existing `SuggestionTransport` interface. Add a small provider
 interface for connection defaults, authentication, and model discovery.
 
+This phase uses one generation API and model-list requests. The existing
+transport controls request inspection, response-size limits, redirects,
+cancellation, and request limits. An AI client library can supply request
+types and response decoders. Ganit must still enforce these controls and its
+calculation checks. Keep the current transport to limit changes in this phase.
+
 ## 2. Scope
 
 Add these provider choices:
@@ -53,6 +59,12 @@ or the Ganit reply format. Show this limit clearly when a request fails.
 5. Show a searchable model list. Store the selected model identifier.
 6. Keep manual model entry available at all times.
 
+Clear the key in the settings form when the provider or endpoint origin
+changes. The origin consists of the scheme, host, and effective port. A change
+to the path alone does not change the origin. Require key entry again where
+authentication is required. Do not copy a previous provider's key to the new
+connection. Do not change the saved key until the user saves the settings.
+
 Opening Settings, selecting a provider, or entering a key must not start a
 network request. Fetch Models and Refresh send only the discovery request.
 They must not send sheet content or start an Ask job.
@@ -70,6 +82,38 @@ selected model. Do not silently replace a model when the list changes.
 Define a provider identifier and connection defaults in `GanitData`. Keep
 provider-specific URL and authentication rules in this layer. Keep these rules
 out of the settings view controller.
+
+Use these connection defaults and model-list URLs:
+
+| Provider | Default API base | Model-list URL at the default address | Authentication |
+| --- | --- | --- | --- |
+| OpenAI | `https://api.openai.com/v1` | `https://api.openai.com/v1/models` | Bearer key required. |
+| OpenRouter | `https://openrouter.ai/api/v1` | `https://openrouter.ai/api/v1/models/user` | Bearer key required. |
+| Ollama | `http://localhost:11434/v1` | `http://localhost:11434/v1/models` | The local server does not require a key. |
+| LM Studio | `http://localhost:1234/v1` | `http://localhost:1234/v1/models` | Bearer token if server authentication is enabled. |
+| Custom | User-supplied API base or full Chat Completions URL | `/models` below the API base | Send a Bearer key only if the user supplies one. |
+
+Apply the authentication rule to generation and discovery. Keep optional key
+entry available for local connections. Send a supplied key as a Bearer key.
+Do not insert a placeholder key when the key is empty.
+
+Append `/chat/completions` to the API base for generation. For discovery,
+append `/models` to the selected API base. Use `/models/user` for OpenRouter.
+Preserve the existing path prefix of the API base.
+
+For Custom, accept the same endpoint forms as the existing generation code.
+If the endpoint has a final `/chat/completions` path, remove that suffix to
+find the API base for discovery. A host-only endpoint uses `/v1` as the API
+base path. Ignore a final slash when constructing these paths. Preserve any
+other path prefix. Thus, `https://host/prefix/v1` and
+`https://host/prefix/v1/chat/completions` both produce
+`https://host/prefix/v1/models`. Do not change the stored endpoint during
+discovery. If the endpoint does not support this model-list path, report the
+failure and keep manual model entry available.
+
+Use the OpenRouter user-filtered model list. Do not substitute its full
+catalog. This list applies user provider preferences, privacy settings, and
+guardrails. It does not prove that a generation request will succeed.
 
 Define a model-list item with an identifier and an optional display name.
 Do not require capability or price fields. Accept additional response fields
@@ -95,8 +139,14 @@ Handle `response_format` and `reasoning_effort` separately:
 - If an HTTP 400 or 422 error identifies one of these fields as unsupported
   or invalid, remove only that field for the next attempt.
 - Preserve the other field and the rest of the request.
-- If the error does not identify a field, permit one fallback that removes
-  both optional fields, as the current code does.
+- Check recognized error codes and categories before applying a fallback.
+  Do not remove optional fields for a known unrelated failure, even if the
+  error does not identify a field. Examples include a context-limit failure,
+  an unavailable model, or an authentication failure.
+- For an HTTP 400 or 422 error with an unknown cause and no identified field,
+  permit one fallback that removes both optional fields.
+- Remove a field only if it was present in the rejected request. Do not
+  retry if the fallback cannot change the request body.
 - Do not repeat an attempt with the same parameter settings after rejection.
 - Count each attempt against the existing limit of three requests per job.
 - Keep the existing limits for repair attempts and job duration.
@@ -110,6 +160,19 @@ through the existing Context inspection path.
 Read a bounded error body before reporting an unsuccessful HTTP status.
 Retain the status and structured error code or parameter where supplied.
 Use this information for parameter fallback and useful user messages.
+
+Check bounded HTTP 200 response bodies for provider errors before decoding
+reply content. In particular, OpenRouter can return an error object without
+`choices`, or a choice with an error and partial content. Check errors at the
+response and choice levels, including `finish_reason: "error"`. Retain the
+HTTP status and the provider error code or category as separate values.
+Do not accept partial content from a failed generation. Do not classify a
+provider error as an invalid reply or start a schema repair request for it.
+Apply the fallback rules in section 5 only to eligible parameter errors.
+
+Pass the error category through the Ask coordinator to the user message.
+Do not replace a known authentication, model, or server error with a general
+connection failure.
 
 Distinguish these cases where the response provides sufficient information:
 
@@ -137,28 +200,45 @@ must not change stored connection settings.
 
 ## 8. Implementation sequence
 
-1. Add provider identifiers, defaults, and settings migration.
-2. Add the model discovery interface and provider response decoders.
-3. Add bounded HTTP error decoding and separate parameter fallback.
+1. Add provider identifiers, defaults, settings migration, and key clearing.
+2. Add the discovery interface, URL rules, authentication, and response decoders.
+3. Add bounded provider error decoding, error reporting, and parameter fallback.
 4. Add the provider selector, model search, refresh, and manual entry controls.
 5. Run focused tests and inspect the settings UI.
 
 Reuse the existing Ask coordinator, request inspector, decoder, and engine
 validation. Review a client library again when native generation APIs become
-part of an agreed scope.
+part of an agreed scope, or when the amount of provider-specific code makes
+the current approach more difficult to maintain. Compare the code removed
+with the code needed to preserve the existing transport controls.
 
 ## 9. Acceptance checks
 
 - Each preset produces the expected generation and discovery URLs.
+- Custom discovery preserves path prefixes and accepts full Chat Completions
+  URLs, API bases, and host-only endpoints.
+- OpenRouter discovery uses `/api/v1/models/user` at the default endpoint.
+- Discovery and generation apply the same authentication rules. LM Studio
+  accepts an optional token, and local connections work without a key.
 - Existing settings load as Custom without a change to their values.
+- A provider or endpoint-origin change clears the key in the settings form.
+  Neither discovery nor generation sends the previous key to the new connection.
+- A path-only change keeps the key. Unsaved edits do not change the saved key.
 - Opening Settings sends no request.
 - Model fetching sends no sheet content and does not consume an Ask request.
 - Model lists handle extra fields, duplicates, pagination, and empty results.
 - A late result cannot replace a list for a different connection.
 - Manual model entry works without a successful model fetch.
 - Parameter fallback removes the identified field and preserves the other.
+- Known unrelated errors do not trigger parameter fallback, including errors
+  with a recognized code but no identified field.
 - An unclear parameter error permits only the bounded fallback described above.
+- Fallback does not retry removal of a field that was absent from the request.
 - Fallback attempts remain within the existing request and time limits.
+- HTTP 200 provider errors, including errors with partial content, produce
+  no proposal and no schema repair request.
+- Known provider error categories reach the user message without replacement
+  by a general connection failure.
 - Error messages do not expose credentials.
 - Existing request inspection and calculation validation checks still pass.
 - The settings UI supports keyboard use and provides accessible control names.
@@ -166,3 +246,13 @@ part of an agreed scope.
 Use fixture responses and a local test server for automated checks. Record
 live provider checks separately when credentials and network access are
 available. Do not report fixture checks as proof of live provider support.
+
+## 10. References
+
+- [OpenAI SDKs and HTTP clients](https://developers.openai.com/api/docs/libraries).
+- [MacPaw Swift client](https://github.com/MacPaw/OpenAI).
+- [OpenRouter user-filtered model list](https://openrouter.ai/docs/api/api-reference/models/list-models-filtered-by-user-provider-preferences-privacy-settings-and-guardrails).
+- [OpenRouter error handling](https://openrouter.ai/docs/api_reference/errors-and-debugging).
+- [Ollama OpenAI compatibility](https://docs.ollama.com/api/openai-compatibility).
+- [LM Studio model list](https://lmstudio.ai/docs/developer/openai-compat/models).
+- [LM Studio authentication](https://lmstudio.ai/docs/developer/core/authentication).
