@@ -97,7 +97,7 @@ extension AssistanceCandidateChecker {
       let upper = text.utf8.distance(from: text.utf8.startIndex, to: range.upperBound)
       shadow.replace(utf8Range: lower..<upper, with: rewrite.replacement)
     }
-    let context = snapshot.context.with(assistantAnswers: [:])
+    let context = snapshot.context
     var calculator = snapshot.calculator
     let baseline = try calculator.evaluate(snapshot.source, context: context)
     let evaluation = try calculator.evaluate(shadow, context: context)

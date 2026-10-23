@@ -2,7 +2,7 @@
 
 A notepad calculator for Mac. Type a line, get the answer, keep the working.
 
-The live notepad of [Soulver](https://soulver.app/) and [Numi](https://numi.app/), the Markdown sheets of [Calca](https://calca.io/) — plus an optional **AI assistant**, **exact** arithmetic, and answers that **never quietly guess**.
+The live notepad of [Soulver](https://soulver.app/) and [Numi](https://numi.app/), the Markdown sheets of [Calca](https://calca.io/) — with optional **Ask Ganit**, **exact** arithmetic, and answers that **never quietly guess**.
 
 `brew install --cask shantanugoel/ganit/ganit` · [Download for Mac](https://github.com/shantanugoel/ganit/releases/latest) · Apple silicon · macOS 14+
 
@@ -15,12 +15,7 @@ The live notepad of [Soulver](https://soulver.app/) and [Numi](https://numi.app/
 - **A note that calculates.** Name amounts (`drinks = 2,400`), add a `subtotal`, write `10% of line 6`. Change one number and every line that depends on it follows. `// notes` and `# headings` stay put.
 - **Units, money, and dates.** `1.5 l in ml`, `200 °C in °F`, `100 USD in EUR`. Currencies use the ECB's daily rates (cached once a day; you can turn them off).
 - **Exact when it can be.** Integers, fractions, and money keep their true value. **Copy Full Precision** gives you all of it.
-- **An AI assistant for the rest.** Arithmetic cannot do `10 kg of water in ml`. Name a model — on this Mac or on the internet — and Ganit asks it about those lines, one at a time, and marks the answers as the assistant's. Off until you set it up.
-
-<p align="center">
-  <img src="docs/images/assistant-dark.png" alt="Ganit window with a purple assistant answer beside a line Ganit could not calculate" width="860">
-</p>
-
+- **Ask Ganit when you need help.** Review the disclosed context, then send an instruction to a model. Ganit checks proposed source and calculates each result before Apply. Approved world facts become named values with an AI origin mark. Ask is off until you configure it.
 - **Markdown Mode.** Answers move into the line so a sheet reads as an article. `Flour for all three is 500 g * 3 =>` puts the answer right after `=>`, as in Calca.
 
 <p align="center">
@@ -110,14 +105,18 @@ calls it. Put it in **Window ▸ Definitions** to use it in every sheet.
 **Scratch** (⇧⌘S) is the sheet that is always there, for a number you want to
 work out now and name later.
 
-### An assistant, if you want one
+### Ask Ganit
 
-Under **Ganit ▸ Assistant…** you name any OpenAI-compatible base —
-`https://api.openai.com/v1`, a model on this Mac at
-`http://localhost:11434/v1`, or another HTTPS `/v1` — and a model. Ganit
-POSTs `chat/completions` under that base. It asks about the lines it could
-not work out, one at a time, and marks those answers as the assistant's. It
-is off until you set it up. See [the assistant](docs/editor/assistant.md).
+Configure an OpenAI-compatible endpoint, model, and key under
+**Ganit ▸ Assistant…**. Press **⌘⇧A** in a sheet. Open **Context ▸** to inspect
+the source and exact request body. Press Return or select Ask to send.
+Answer, Retry, and clarification choices also send requests. Opening Ask
+or Context and typing in the sheet send nothing.
+
+Ganit checks proposed source and calculates its results. Review the changes,
+then choose Apply. Undo restores the original source and selection.
+Explanations use local engine facts first. An approved world fact becomes a
+named value with an AI badge. See [Ask Ganit](docs/editor/assistant.md).
 
 ### From the command line
 
@@ -133,9 +132,9 @@ printf 'rent = 2,100\nrent * 12\n' | /Applications/Ganit.app/Contents/Helpers/ga
 ## Your calculations stay yours
 
 No account, no analytics, no crash upload, no tracking. Sheets live in Ganit's
-own sandbox container and are never synced anywhere. The only things Ganit
-sends are the daily exchange rates it fetches from a fixed address, and, if you
-set one up, the single line you asked an assistant about. See
+own sandbox container and are never synced. Ganit fetches exchange rates
+from a fixed address and checks for app updates when enabled. If you configure
+Ask and use an explicit send action, it sends the context you reviewed. See
 [privacy](docs/public/privacy.md).
 
 ## More

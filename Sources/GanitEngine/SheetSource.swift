@@ -40,7 +40,13 @@ public struct SheetSource: Sendable {
   }
 
   public var text: String {
-    lines.map { $0.text + ($0.terminator?.rawValue ?? "") }.joined()
+    var text = ""
+    text.reserveCapacity(lines.last?.range.upperBound ?? 0)
+    for line in lines {
+      text.append(line.text)
+      if let terminator = line.terminator { text.append(terminator.rawValue) }
+    }
+    return text
   }
 
   /// Replaces a half-open UTF-8 range of the sheet source.

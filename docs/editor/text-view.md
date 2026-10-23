@@ -98,8 +98,8 @@ drift onto new text.
 The answer column shows a line's formatted result. When a line's decoration
 flags a failure, the column shows its concise localized message in red instead;
 the message text is the non-color cue. Incomplete input therefore shows its
-message only after the insertion point leaves the line. A line waiting on an
-assistant shows Asking… until a value arrives.
+message only after the insertion point leaves the line. Ask status appears
+in the Ask bar. Model replies do not replace calculated results.
 
 | Interaction | Effect |
 |---|---|
@@ -110,9 +110,8 @@ assistant shows Asking… until a value arrives.
 | Hover a function, keyword, or error | Shows its signature or message |
 | Hover a cut-off answer or error | Shows the full text |
 | Right-click a function or keyword | Help for that name |
-| Right-click Ask Assistant | Asks again about a line Ganit could not work out, or an `ask_assistant` prompt |
-| Right-click Change Answer… | Replaces an assistant value on that line |
-| Right-click Cancel Request | Stops waiting for that line's assistant answer |
+| Right-click Ask Ganit… | Opens Ask and waits for Send |
+| Click an AI badge | Opens the origin and controls for an assumed value |
 | Right-click Copy with Results | Copies each selected line with the answer it shows |
 | Escape or typing | Clears the answer selection |
 
@@ -134,14 +133,12 @@ cleared by a divider; shared definitions remain available. Line numbers are
 visible by default unless the sheet has a saved choice to hide them.
 
 `copyResult:`, `copyFullPrecision:`, `copyLinesWithResults:`,
-`showInterpretation:`, `askAssistant:`, and `changeAssistantAnswer:` are
-responder actions that act on the selected answer or, without one, the
-insertion point's line, so menus and keyboard shortcuts can reach them. Copy
-Result copies a failure's message when that is what the column shows. Copy with
-Results copies each selected line with that answer after a tab. Ask
-Assistant is enabled for a flagged line or an `ask_assistant` prompt when an
-assistant is set up, and asks again even if that text was already sent. Change
-Answer… is enabled when that line already has an assistant value.
+`showInterpretation:` are responder actions that use the selected answer or
+current line. Copy Result copies a failure message when the column shows
+one. Copy with Results copies each selected line and its result after a tab.
+`askGanit:` opens the Ask bar when a model is configured and enabled.
+The bar waits for Return before it sends disclosed context. See
+[Ask Ganit](assistant.md).
 
 Source and answers together stop widening once a window is wider than a sheet
 needs, so an answer stays beside its line instead of at the far edge of a large
@@ -223,8 +220,7 @@ values. It appears while a selection covers more than one calculation. Blank
 lines, headings, comments, and labels without expressions are excluded.
 
 When a selected calculation fails or is pending, the bar says **Incomplete**,
-shows failed and pending counts, and suppresses Total and Average. Assisted
-display answers still count as unresolved because the engine cannot use them.
+shows failed and pending counts, and suppresses Total and Average.
 Once all selected calculations have values, Total and Average follow the same
 rules as a [`total` line](../grammar/references.md); incompatible kinds such as
 money and metres leave the counts alone. A selection reaching any part of a
@@ -273,7 +269,7 @@ Reduce Motion and Reduce Transparency need no special handling.
 For accessibility, the text view appends one static-text element per visible
 answer to its children, labeled "Line N result" or "Line N error" with the
 answer or message as its value and its on-screen frame. Custom actions offer
-Copy Result, Copy Full Precision, Show Interpretation, Ask Assistant, and Insert
+Copy Result, Copy Full Precision, Show Interpretation, Ask Ganit, and Insert
 Reference, so every mouse interaction with answers has a VoiceOver and keyboard
 equivalent.
 Answers are not announced as they change while typing.

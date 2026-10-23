@@ -54,7 +54,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   private var releaseNotes: ReleaseNotesWindowController?
   private var settingsWindow: NSWindow?
   private var tourSheet: NSWindow?
-  /// The assistant's settings, read once so that asking about a line does not
+  /// The provider settings are read once so that each Ask does not
   /// go to the keychain every time.
   private var assistantSettings = AssistantSettings.load()
   private let suggestionCoordinator = SuggestionCoordinator()
@@ -501,7 +501,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     quickPanel?.editor.markAIDerivedAnswers = assistantSettings.markAIDerivedAnswers
   }
 
-  /// Sets up where Ganit asks about the lines it cannot work out.
+  /// Set the provider for explicit Ask requests.
   @objc func showAssistantSettings(_ sender: Any?) {
     if let assistantWindow {
       assistantWindow.makeKeyAndOrderFront(nil)
@@ -516,7 +516,6 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       let configuration = SheetSuggestionConfiguration(
         coordinator: suggestionCoordinator, settings: saved)
       workspace?.suggestionConfiguration = configuration
-      quickPanel?.editor.suggestionConfiguration = configuration
       quickPanel?.editor.markAIDerivedAnswers = saved.markAIDerivedAnswers
       Task { await suggestionCoordinator.stopAll() }
     }
@@ -725,12 +724,10 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
         try self?.workspace?.openNewSheet(source: source)
         NSApplication.shared.activate()
       }
-      // Quick Ganit reads the same definitions and suggestion service.
+      // Quick Ganit reads the same definitions. Ask is available in sheets.
       if let definitions = workspace?.definitions {
         quickPanel?.editor.setDefinitions(definitions)
       }
-      quickPanel?.editor.suggestionConfiguration = SheetSuggestionConfiguration(
-        coordinator: suggestionCoordinator, settings: assistantSettings)
       quickPanel?.editor.markAIDerivedAnswers = assistantSettings.markAIDerivedAnswers
       quickPanel?.editor.openHelp = { [weak self] id in
         self?.showHelp(topicID: id)

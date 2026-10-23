@@ -88,6 +88,66 @@ struct SheetSuggestionTests {
     editor.view.layoutSubtreeIfNeeded()
   }
 
+  @Test func theOffSettingBlocksEveryAskEntryAndClearsAnOpenJob() async throws {
+    let editor = try await editor("10 kg of water in ml")
+    let transport = configure(editor, replies: [nil])
+    let view = try #require(editor.textView as? SheetTextView)
+    editor.suggestionSession.prepare()
+    await editor.suggestionSession.waitUntilIdle()
+    #expect(editor.suggestionSession.isVisible)
+    let configuration = try #require(editor.suggestionConfiguration)
+    var settings = configuration.settings
+    settings.isEnabled = false
+    editor.suggestionConfiguration = SheetSuggestionConfiguration(
+      coordinator: configuration.coordinator, settings: settings)
+    #expect(!editor.suggestionSession.isVisible)
+    #expect(!editor.openAskBar())
+    #expect(!view.canAskGanit())
+    #expect(view.askChipRect == nil)
+    #expect(
+      !view.validateUserInterfaceItem(
+        NSMenuItem(
+          title: "Ask Ganit…", action: #selector(SheetCommands.askGanit(_:)), keyEquivalent: "")))
+    view.onAskGanit()
+    editor.summaryBar.onAsk?()
+    editor.suggestionSession.prepare(instruction: "why?", autoSend: true)
+    editor.suggestionSession.send()
+    await editor.suggestionSession.waitUntilIdle()
+    #expect(!editor.suggestionSession.isVisible)
+    #expect(await transport.count() == 0)
+    #expect(view.interpretationPopover?.isShown != true)
+  }
+
+  @Test func assumptionAndDependencyMarksAreAccessibleButtons() async throws {
+    let editor = try await editor(
+      "density = 1 kg/L // AI: density of water · synthetic · 2026-10-22\n10 kg / density")
+    _ = configure(editor, replies: [])
+    let view = try #require(editor.textView as? SheetTextView)
+    let elements = (view.accessibilityChildren() ?? []).compactMap { $0 as? NSAccessibilityElement }
+    let origin = try #require(
+      elements.first { $0.accessibilityLabel()?.contains("AI assumption. Show") == true })
+    let dependency = try #require(
+      elements.first { $0.accessibilityLabel()?.contains("uses an AI assumption") == true })
+    #expect(origin.accessibilityRole() == .button)
+    #expect(dependency.accessibilityRole() == .button)
+    var inspected: [LineID] = []
+    view.onInspectAssumption = { line, _ in inspected.append(line) }
+    #expect(origin.accessibilityPerformPress())
+    #expect(dependency.accessibilityPerformPress())
+    #expect(inspected == editor.sheet.lines.map(\.id))
+    select(editor, NSRange(location: 0, length: 0))
+    #expect(view.accessibilityCustomActions()?.contains { $0.name == "Show AI assumption" } == true)
+    select(editor, NSRange(location: editor.sheet.text.utf16.count, length: 0))
+    #expect(
+      view.accessibilityCustomActions()?.contains { $0.name == "Show AI assumption source" } == true
+    )
+    editor.markAIDerivedAnswers = false
+    #expect(
+      view.accessibilityCustomActions()?.contains { $0.name == "Show AI assumption source" }
+        == false)
+
+  }
+
   @Test func scopeReviewMakesZeroRequestsAndSendingShowsACheckedPreviewWithoutChangingSource()
     async throws
   {
@@ -355,23 +415,17 @@ struct SheetSuggestionTests {
     }
   }
 
-  @Test func quickGanitUsesTheSameExplicitSourcePath() async throws {
+  @Test func quickGanitDoesNotHaveAnAskProvider() async throws {
     let editor = try await editor(request, surface: .quickGanit)
-    let transport = configure(editor, replies: [try await proposal(editor)])
-    let session = editor.suggestionSession
-    session.prepare()
-    await session.waitUntilIdle()
-    session.send()
-    await session.waitUntilIdle()
-    session.apply()
-    await session.waitUntilIdle()
-    #expect(editor.sheet.text == "2 + 3\n// Request record: " + request)
-    editor.documentUndoManager.beginUndoGrouping()
-    editor.textView.insertText("20", replacementRange: NSRange(location: 0, length: 1))
-    editor.documentUndoManager.endUndoGrouping()
-    await editor.scheduler?.waitUntilIdle()
-    #expect(editor.latestEvaluation?.lines[0].result == .value(.number(.integer(IntegerValue(23)))))
-    #expect(await transport.count() == 1)
+    let view = try #require(editor.textView as? SheetTextView)
+    #expect(editor.suggestionConfiguration == nil)
+    #expect(!editor.openAskBar())
+    #expect(!view.canAskGanit())
+    #expect(view.askChipRect == nil)
+    editor.suggestionSession.prepare(autoSend: true)
+    await editor.suggestionSession.waitUntilIdle()
+    #expect(!editor.suggestionSession.isVisible)
+    #expect(editor.sheet.text == request)
   }
 
   @Test func sourceEditsAndDismissalIgnoreLateReplies() async throws {
@@ -709,6 +763,34 @@ struct SheetSuggestionTests {
 
   /// The words in the bar are the words the model reads, and they go in one
   /// gesture: ⏎ prepares the scope and sends it.
+  @Test func aNewAskClearsThePreviousInstructionAfterApplyAndSourceReplacement() async throws {
+    let editor = try await editor(request)
+    let transport = configure(editor, replies: [try await proposal(editor)])
+    func fields(_ view: NSView) -> [NSTextField] {
+      (view as? NSTextField).map { [$0] } ?? view.subviews.flatMap(fields)
+    }
+    editor.openAskBar()
+    await editor.suggestionSession.waitUntilIdle()
+    let field = try #require(
+      fields(editor.view).first { $0.accessibilityLabel() == "What to ask Ganit" })
+    field.stringValue = "Use the numbers in this line."
+    editor.suggestionSession.prepare(instruction: field.stringValue, autoSend: true)
+    await editor.suggestionSession.waitUntilIdle()
+    editor.suggestionSession.apply()
+    await editor.suggestionSession.waitUntilIdle()
+    editor.documentUndoManager.beginUndoGrouping()
+    editor.textView.insertText(
+      "What is the capital of France?",
+      replacementRange: NSRange(location: 0, length: editor.sheet.text.utf16.count))
+    editor.documentUndoManager.endUndoGrouping()
+    await editor.scheduler?.waitUntilIdle()
+    editor.openAskBar()
+    await editor.suggestionSession.waitUntilIdle()
+    #expect(field.stringValue.isEmpty)
+    #expect(editor.suggestionSession.instruction.isEmpty)
+    #expect(await transport.count() == 1)
+  }
+
   @Test func theWordsInTheBarAreTheWordsTheModelReads() async throws {
     let editor = try await editor(request)
     let transport = configure(editor, replies: [try await proposal(editor)])
@@ -784,7 +866,10 @@ struct SheetSuggestionTests {
     #expect(sheet.askChipRect == nil)
     select(editor, NSRange(location: 11, length: 0))
     editor.view.layoutSubtreeIfNeeded()
-    sheet.askChipClicked()
+    let accessibleChip = try #require(
+      (sheet.accessibilityChildren() ?? []).compactMap { $0 as? NSAccessibilityElement }
+        .first { $0.accessibilityRole() == .button && $0.accessibilityLabel() == "Ask Ganit…" })
+    #expect(accessibleChip.accessibilityPerformPress())
     await editor.suggestionSession.waitUntilIdle()
     #expect(editor.suggestionSession.isVisible)
     #expect(await transport.count() == 0)
@@ -870,6 +955,74 @@ struct SheetSuggestionTests {
     #expect(!text.contains("fixture.invalid"))
     // The exact bytes remain available to anyone who would rather check the claim.
     #expect(AskBar.contextJSON(body).contains("\"reasoning_effort\""))
+  }
+
+  @Test func openingContextPreparesTypedWordsWithoutSendingAndReturnUsesThoseBytes() async throws {
+    let editor = try await editor(request)
+    let reply = Data(
+      #"{"schemaVersion":1,"kind":"unsupported","reason":"No supported edit."}"#.utf8)
+    let transport = configure(editor, replies: [reply])
+    editor.openAskBar()
+    let session = editor.suggestionSession
+    await session.waitUntilIdle()
+    let bar = try #require(editor.view.subviews.compactMap { $0 as? AskBar }.first)
+    func fields(_ view: NSView) -> [NSTextField] {
+      (view as? NSTextField).map { [$0] } ?? view.subviews.flatMap(fields)
+    }
+    func buttons(_ view: NSView) -> [NSButton] {
+      (view as? NSButton).map { [$0] } ?? view.subviews.flatMap(buttons)
+    }
+    let field = try #require(
+      fields(bar).first { $0.accessibilityLabel() == "What to ask Ganit" })
+    field.stringValue = "  Use these supplied numbers.  "
+    let context = try #require(buttons(bar).first { $0.title == "Context ▸" })
+    context.performClick(nil)
+    await session.waitUntilIdle()
+    let body = try #require(session.preparedBody)
+    #expect(AskBar.contextSummary(for: body)?.contains("Use these supplied numbers.") == true)
+    #expect(await transport.count() == 0)
+    #expect(editor.sheet.text == request)
+    #expect(
+      bar.control(
+        field, textView: NSTextView(), doCommandBy: #selector(NSResponder.insertNewline(_:))))
+    await session.waitUntilIdle()
+    #expect(await transport.count() == 1)
+    #expect(session.requestBodies.first == body)
+  }
+
+  @Test func contextCanReviewATypedClarificationBeforeTheNextRequest() async throws {
+    let editor = try await editor(request)
+    let question = Data(
+      #"{"schemaVersion":1,"kind":"clarify","question":"How should Ganit combine them?","choices":["Add them","Multiply them"]}"#
+        .utf8)
+    let failure = Data(
+      #"{"schemaVersion":1,"kind":"unsupported","reason":"No supported edit."}"#.utf8)
+    let transport = configure(editor, replies: [question, failure])
+    let session = editor.suggestionSession
+    session.prepare(autoSend: true)
+    await session.waitUntilIdle()
+    #expect(session.clarification != nil)
+    let bar = try #require(editor.view.subviews.compactMap { $0 as? AskBar }.first)
+    func fields(_ view: NSView) -> [NSTextField] {
+      (view as? NSTextField).map { [$0] } ?? view.subviews.flatMap(fields)
+    }
+    func buttons(_ view: NSView) -> [NSButton] {
+      (view as? NSButton).map { [$0] } ?? view.subviews.flatMap(buttons)
+    }
+    let field = try #require(fields(bar).first { $0.isEditable })
+    field.stringValue = "Multiply them."
+    try #require(buttons(bar).first { $0.title == "Context ▸" }).performClick(nil)
+    await session.waitUntilIdle()
+    let body = try #require(session.preparedBody)
+    #expect(AskBar.contextSummary(for: body)?.contains("Multiply them.") == true)
+    #expect(await transport.count() == 1)
+    #expect(session.clarificationCount == 1)
+    #expect(
+      bar.control(
+        field, textView: NSTextView(), doCommandBy: #selector(NSResponder.insertNewline(_:))))
+    await session.waitUntilIdle()
+    #expect(await transport.count() == 2)
+    #expect(session.requestBodies.last == body)
   }
 
   @Test func theBarBackgroundStaysInsideItsBounds() async throws {

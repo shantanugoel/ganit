@@ -113,29 +113,6 @@ struct ScreenshotTests {
     for open in workspace.windows { open.window?.orderOut(nil) }
   }
 
-  /// A line Ganit cannot work out, answered by an assistant, in the colour
-  /// that says the answer is not Ganit's arithmetic.
-  @Test
-  func theAssistant() async throws {
-    let (workspace, ids) = try makeWorkspace([
-      """
-      # Density
-
-      // water weighs a kilogram a litre
-      10 kg of water in ml
-      1,500 ml + 500 ml
-      """
-    ])
-    workspace.askAssistant = { _ in "10,000 ml" }
-    let controller = workspace.openWindow(showing: ids[0])
-    controller.editor?.assistantPause = .zero
-    controller.editor?.askAssistant = workspace.askAssistant
-    let window = try #require(controller.window)
-    window.setContentSize(NSSize(width: 900, height: 280))
-    try await write(window, of: controller.editor, to: "assistant-dark.png")
-    for open in workspace.windows { open.window?.orderOut(nil) }
-  }
-
   @Test
   func quickGanit() async throws {
     let panel = try QuickPanelController(context: SheetPreferences.standard.evaluationContext())

@@ -52,7 +52,7 @@ struct AssistanceFunctionContext: Encodable, Sendable {
       origins.append(origin)
       let facts = AssistanceExpressionFacts(
         function.body, source: origin.source, engine: engine, context: context)
-      guard !function.hasUnreviewedCapture, !facts.containsAssistant else {
+      guard !function.hasUnreviewedCapture else {
         throw AssistanceValidationFailure(
           .unsupportedOperation, "The function has an unreviewed model dependency.")
       }

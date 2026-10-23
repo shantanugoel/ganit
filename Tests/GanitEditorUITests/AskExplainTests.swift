@@ -90,6 +90,8 @@ struct AskExplainTests {
 
   @Test func theModelFallbackWaitsForReturnAndKeepsTheOriginalQuestion() async throws {
     let editor = try await editor("subtotal = 9200\n10% of line 1")
+    let pasteboard = NSPasteboard.withUniqueName()
+    editor.resultPasteboard = pasteboard
     let reply = try JSONSerialization.data(withJSONObject: [
       "schemaVersion": 1, "kind": "explanation",
       "text": "A percentage takes a share of the subtotal.",
@@ -117,7 +119,7 @@ struct AskExplainTests {
     let copy = try #require(buttons(try card(editor).view).first { $0.title == "Copy" })
     copy.performClick(nil)
     #expect(
-      NSPasteboard.general.string(forType: .string) == "A percentage takes a share of the subtotal."
+      pasteboard.string(forType: .string) == "A percentage takes a share of the subtotal."
     )
     #expect(editor.sheet.text == "subtotal = 9200\n10% of line 1")
   }
@@ -311,6 +313,40 @@ struct AskExplainTests {
     #expect(editor.showLocalExplanation(instruction: "why does this fail?") == .shown)
     #expect(buttons(try card(editor).view).contains { $0.title == "Fix it" })
   }
+  @Test func aPlainFactAnswerIsTransientAndCannotChangeTheSource() async throws {
+    let source = "Which planet is known as the red planet?"
+    let editor = try await editor(source)
+    editor.view.window?.makeKeyAndOrderFront(nil)
+    defer { editor.view.window?.orderOut(nil) }
+    let reply = try JSONSerialization.data(withJSONObject: [
+      "schemaVersion": 1, "kind": "answer", "text": "Mars.",
+    ])
+    let transport = configure(editor, reply: reply)
+    editor.suggestionSession.prepare(autoSend: true)
+    await editor.suggestionSession.waitUntilIdle()
+    #expect(await transport.count() == 1)
+    #expect(!editor.suggestionSession.isVisible)
+    #expect(!editor.suggestionSession.canApply)
+    #expect(editor.suggestionSession.preview == nil)
+    let content = try card(editor).view
+    let sheet = try #require(editor.textView as? SheetTextView)
+    #expect((sheet.accessibilityChildren() ?? []).contains { ($0 as? NSView) === content })
+    let parentMatches = content.accessibilityParent() as? SheetTextView === sheet
+    #expect(parentMatches)
+    #expect(content.isAccessibilityElement())
+    #expect(texts(content).contains("Answer · Unverified"))
+    #expect(texts(content).contains("Mars."))
+    #expect(texts(content).contains { $0.contains("Context was sent") })
+    #expect(Set(buttons(content).map(\.title)) == ["Copy", "Dismiss"])
+    #expect(editor.sheet.text == source)
+    #expect(!editor.documentUndoManager.canUndo)
+    let exported = await editor.exportedLines()
+    #expect(!exported.contains { $0.answer == "Mars." })
+    editor.dismissExplanation()
+    let cardIsClosed = (editor.textView as? SheetTextView)?.interpretationPopover?.isShown != true
+    #expect(cardIsClosed)
+  }
+
 }
 
 private actor ExplainTransport: SuggestionTransport {

@@ -171,27 +171,6 @@ struct EvaluatorTests {
   }
 
   @Test
-  func evaluatesAssistantPromptsFromInjectedAnswers() throws {
-    let parsing = Parser(source: "ask_assistant(10 kg of water in ml) * 2").parse()
-    #expect(parsing.diagnostics.isEmpty)
-    let expression = try #require(parsing.expression)
-    let unanswered = try error(evaluating: "ask_assistant(10 kg of water in ml)")
-    #expect(unanswered.code == .unresolvedAssistantPrompt)
-
-    let context = try fixedContext().with(
-      assistantAnswers: [
-        AssistantPrompt([.text("10 kg of water in ml")]):
-          .value(.number(.integer(IntegerValue(10_000))))
-      ]
-    )
-    let value = try Evaluator(context: context).evaluate(expression)
-    #expect(value == .number(.integer(IntegerValue(20_000))))
-    #expect(
-      try error(evaluating: "ask_assistant( )").code == .invalidDomain
-    )
-  }
-
-  @Test
   func marksConstantsAndDerivedArithmeticAsApproximate() throws {
     guard case .approximate(let pi) = try evaluate("π"),
       case .approximate(let result) = try evaluate("pi + e")

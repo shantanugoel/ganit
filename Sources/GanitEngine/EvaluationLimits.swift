@@ -100,11 +100,6 @@ public enum BuiltInFunction: String, CaseIterable, Hashable, Sendable {
   }
 }
 
-/// The call whose argument is the prompt sent to a configured assistant,
-/// not an expression. `{…}` inside it holds an expression whose value is
-/// written into the prompt.
-public let assistantFunctionName = "ask_assistant"
-
 /// A generation's scalar work, shared by every evaluator, custom-function
 /// body and range reduction. Per-expression limits remain independent.
 /// Only one worker uses this budget; its snapshot stores the final count.

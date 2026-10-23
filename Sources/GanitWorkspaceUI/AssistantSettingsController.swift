@@ -14,7 +14,7 @@ public final class AssistantSettingsController: NSViewController {
   private let didSave: (AssistantSettings) -> Void
   private let enabled = NSButton(
     checkboxWithTitle: localized(
-      "assistant.enabled", "Use this provider for expression suggestions"),
+      "assistant.enabled", "Use this provider for Ask Ganit"),
     target: nil,
     action: nil
   )
@@ -71,7 +71,7 @@ public final class AssistantSettingsController: NSViewController {
     let explanation = NSTextField(
       wrappingLabelWithString: localized(
         "assistant.explanation",
-        "The address is any OpenAI-compatible base, such as https://api.openai.com/v1, http://localhost:11434/v1, or https://host/v1. Ganit POSTs that base's chat/completions. A request about one line carries that line, the model's name, and the Effort you picked, and nothing else: not the rest of the sheet, its title, or anything about this Mac. Effort is how hard the model is asked to think; Medium is the default, Off sends no preference at all and leaves it to the model, and Custom sends a word Ganit does not know, such as minimal. A suggestion can send selected source, attached notes, matching declarations and their values, and calculation settings; review the context before sending. Provider setup does not grant source permission or enable automatic suggestions. Ganit checks expressions with its local engine, and only an explicit apply changes source."
+        "Use an OpenAI-compatible address, such as https://api.openai.com/v1 or http://localhost:11434/v1. Ganit sends requests to chat/completions at this address. Nothing is sent until you send an Ask. Before you send, Context shows the exact request. It can include your question, selected source, source dependencies, matched definitions, calculation settings, and the model name. The provider receives this context. Effort sets a model preference. Medium is the default. Off sends no preference. Custom sends the word you enter. Repair attempts sets the limit for automatic corrections within one Ask. Ganit checks proposed calculations with its own engine. Review the source preview, then select Apply to change the sheet. AI assumptions have a permanent mark until you edit their values. Review Example opens a local test sheet and sends nothing."
       )
     )
     status.textColor = VisualStyle.Color.secondary
@@ -185,7 +185,7 @@ public final class AssistantSettingsController: NSViewController {
   }
 
   private func label(_ text: String) -> NSTextField {
-    let field = NSTextField(labelWithString: text)
+    let field = NSTextField(wrappingLabelWithString: text)
     field.textColor = VisualStyle.Color.secondary
     return field
   }
@@ -249,27 +249,6 @@ public final class AssistantSettingsController: NSViewController {
     } catch { status.stringValue = "The synthetic example cannot be prepared." }
   }
 
-  static func message(for error: any Error) -> String {
-    switch error {
-    case AssistantError.disallowedURL:
-      return localized(
-        "assistant.error.address",
-        "The address must start with https://, or name this Mac for a model running on it.")
-    case AssistantError.unexpectedStatus(let status):
-      return String(
-        format: localized("assistant.error.status", "The address answered with status %lld."),
-        status)
-    case AssistantError.payloadTooLarge, AssistantError.malformedPayload:
-      return localized(
-        "assistant.error.reply", "The address answered with something Ganit could not read.")
-    case let urlError as URLError where urlError.code == .timedOut:
-      return localized(
-        "assistant.error.timeout",
-        "The address is still working. Wait a moment and try again.")
-    default:
-      return error.localizedDescription
-    }
-  }
 }
 
 extension AssistantSettingsController: NSWindowDelegate {

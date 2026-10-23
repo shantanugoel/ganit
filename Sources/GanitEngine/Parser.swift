@@ -56,8 +56,6 @@ public struct Parser: Sendable {
       return ParsingResult(expression: nil, diagnostics: lexingDiagnostics)
     }
     let tokenParser = TokenParser(
-      source: source,
-      origin: origin,
       tokens: tokens,
       maximumParseDepth: limits.maximumParseDepth,
       catalog: catalog,
@@ -123,8 +121,6 @@ extension Token {
 private final class TokenParser {
   private static let prefixBindingPower = 25
 
-  private let source: String
-  private let origin: SourceLocation
   private let tokens: [Token]
   private let maximumParseDepth: Int
   private let catalog: UnitCatalog
@@ -136,8 +132,6 @@ private final class TokenParser {
   private(set) var diagnostics: [SyntaxDiagnostic] = []
 
   init(
-    source: String,
-    origin: SourceLocation,
     tokens: [Token],
     maximumParseDepth: Int,
     catalog: UnitCatalog,
@@ -145,8 +139,6 @@ private final class TokenParser {
     dollarCurrency: String,
     ambiguousSuffixes: [String: AmbiguousSuffixMeaning]
   ) {
-    self.source = source
-    self.origin = origin
     self.tokens = tokens
     self.maximumParseDepth = maximumParseDepth
     self.catalog = catalog
@@ -572,9 +564,6 @@ private final class TokenParser {
       return phrase
     }
     if current.kind == .leftParenthesis {
-      if name == assistantFunctionName {
-        return parseAssistantCall(identifierRange: range, depth: depth)
-      }
       return parseCall(
         name: name,
         identifierRange: range,
@@ -678,52 +667,6 @@ private final class TokenParser {
       operatorRange: startRange.union(change.range).union(to.range),
       range: startRange.union(newValue.range)
     )
-  }
-
-  /// The text between the parentheses is the prompt, including spaces and
-  /// words that are not expressions. The lexer leaves the words out, so the
-  /// tokens inside are only each placeholder's `{`, expression, and `}`.
-  private func parseAssistantCall(identifierRange: SourceRange, depth: Int) -> Expression {
-    var textStart = advance().range.upperBound
-    var parts: [PromptPart] = []
-    func prompt(endingAt end: SourceRange) -> Expression {
-      parts.append(.text(slice(from: textStart, to: end.lowerBound)))
-      return .assistantPrompt(
-        parts: parts.filter { $0 != .text("") },
-        nameRange: identifierRange,
-        range: identifierRange.union(end)
-      )
-    }
-    while current.kind == .leftBrace {
-      parts.append(.text(slice(from: textStart, to: current.range.lowerBound)))
-      advance()
-      guard let expression = parseExpression(minimumBindingPower: 0, depth: depth + 1) else {
-        return prompt(endingAt: current.range)
-      }
-      guard current.kind == .rightBrace else {
-        diagnose(.expectedClosingBrace, at: current.range)
-        return prompt(endingAt: current.range)
-      }
-      parts.append(.placeholder(expression))
-      textStart = advance().range.upperBound
-    }
-    guard current.kind == .rightParenthesis else {
-      diagnose(.expectedClosingParenthesis, at: current.range, severity: .incomplete)
-      return prompt(endingAt: current.range)
-    }
-    return prompt(endingAt: advance().range)
-  }
-
-  private func slice(from lowerBound: Int, to upperBound: Int) -> String {
-    let start = lowerBound - origin.utf8Offset
-    let length = upperBound - lowerBound
-    let utf8 = source.utf8
-    guard start >= 0, length >= 0, start + length <= utf8.count else {
-      return ""
-    }
-    let lower = utf8.index(utf8.startIndex, offsetBy: start)
-    let upper = utf8.index(lower, offsetBy: length)
-    return String(source[lower..<upper])
   }
 
   private func parseCall(
@@ -1653,7 +1596,7 @@ private final class TokenParser {
     switch expression {
     case .identifier(let name, _):
       return variable(name) ?? .number
-    case .literal, .call, .reference, .assistantPrompt:
+    case .literal, .call, .reference:
       return .number
     case .quantity, .conversion:
       return .quantity
@@ -1764,7 +1707,7 @@ private final class TokenParser {
 
     let leftAllowsMultiplication: Bool
     switch expression {
-    case .literal, .grouped, .call, .assistantPrompt:
+    case .literal, .grouped, .call:
       leftAllowsMultiplication = true
     default:
       leftAllowsMultiplication = false

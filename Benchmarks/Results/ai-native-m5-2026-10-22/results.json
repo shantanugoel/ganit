@@ -1,0 +1,52 @@
+{
+  "baseline_commit": "2c22018",
+  "binary_sha256": "2927cf2456cd98cab444a2f5b9e4b8f2817ed1668c7a0ae4576e6172e2b5a4bf",
+  "fixture_sha256": {
+    "mixed-sheet": "23711fe867103d1a2e448833695a4f97c3632da102f9856f3c050810679e1ed4",
+    "chained-dependency-sheet": "53927332fbd4603bfecf17da0c59ac97ed9a5359a21bc37f6ad795a6d2ff80c5"
+  },
+  "runs": [
+    {
+      "fixture": "mixed-sheet",
+      "run": 1,
+      "edits": 200,
+      "p50_edit_to_answer_ms": 28.366,
+      "p95_edit_to_answer_ms": 29.141
+    },
+    {
+      "fixture": "mixed-sheet",
+      "run": 2,
+      "edits": 200,
+      "p50_edit_to_answer_ms": 28.346,
+      "p95_edit_to_answer_ms": 29.04
+    },
+    {
+      "fixture": "mixed-sheet",
+      "run": 3,
+      "edits": 200,
+      "p50_edit_to_answer_ms": 28.378,
+      "p95_edit_to_answer_ms": 29.135
+    },
+    {
+      "fixture": "chained-dependency-sheet",
+      "run": 1,
+      "edits": 200,
+      "p50_edit_to_answer_ms": 122.541,
+      "p95_edit_to_answer_ms": 130.982
+    },
+    {
+      "fixture": "chained-dependency-sheet",
+      "run": 2,
+      "edits": 200,
+      "p50_edit_to_answer_ms": 124.746,
+      "p95_edit_to_answer_ms": 132.405
+    },
+    {
+      "fixture": "chained-dependency-sheet",
+      "run": 3,
+      "edits": 200,
+      "p50_edit_to_answer_ms": 124.689,
+      "p95_edit_to_answer_ms": 126.45
+    }
+  ]
+}

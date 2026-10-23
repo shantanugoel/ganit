@@ -22,6 +22,32 @@ struct NumericValueTests {
     }
   }
 
+  @Test(arguments: [
+    ("9223372036854775807", "9223372036854775807"),
+    ("-9223372036854775808", "-9223372036854775808"),
+    ("9223372036854775808", "9223372036854775808"),
+    ("-9223372036854775809", "-9223372036854775809"),
+    ("+00042", "42"), ("-0000", "0"),
+  ])
+  func integerTextRemainsExactAcrossTheMachineIntegerBoundary(
+    source: String, expected: String
+  ) throws {
+    #expect(try IntegerValue(source).canonicalDigits == expected)
+  }
+
+  @Test(arguments: [NumericRadix.binary, .octal, .hexadecimal])
+  func radixConversionRemainsExactAcrossTheMachineIntegerBoundary(radix: NumericRadix) throws {
+    let maximum = String(Int.max, radix: radix.rawValue)
+    let minimum = String(Int.min, radix: radix.rawValue)
+    #expect(try IntegerValue(maximum, radix: radix) == IntegerValue(Int.max))
+    #expect(try IntegerValue(minimum, radix: radix) == IntegerValue(Int.min))
+    let beyondUnsigned = "1" + String(repeating: "0", count: 64)
+    if radix == .binary {
+      #expect(
+        try IntegerValue(beyondUnsigned, radix: radix).canonicalDigits == "18446744073709551616")
+    }
+  }
+
   @Test
   func boundsIntegerTextConversionBeforeBigIntParsing() throws {
     let maximumLength =

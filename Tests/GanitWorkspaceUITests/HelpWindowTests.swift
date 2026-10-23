@@ -17,6 +17,21 @@ struct HelpWindowTests {
   }
 
   @Test
+  func missingTopicPointsToExplicitAskInsteadOfRemovedSyntax() throws {
+    let help = HelpWindowController()
+    let window = try #require(help.window)
+    window.layoutIfNeeded()
+    help.search(for: "no-such-topic")
+    let content = try #require(window.contentView)
+    let text = try #require(first(NSTextView.self, in: content))
+    #expect(text.string.contains("⌘⇧A"))
+    #expect(text.string.contains("Press Return or select Ask to send"))
+    #expect(!text.string.contains("ask_assistant"))
+    help.reveal("grammar.ask")
+    #expect(help.selectedTopic?.id == "grammar.ask")
+  }
+
+  @Test
   func opensWideEnoughToReadTheTopicBesideTheList() throws {
     let help = HelpWindowController()
     let window = try #require(help.window)

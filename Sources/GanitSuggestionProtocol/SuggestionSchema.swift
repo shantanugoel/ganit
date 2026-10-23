@@ -2,11 +2,18 @@ import Foundation
 
 /// The versioned response schema sent to providers that support JSON schemas.
 public enum SuggestionSchema {
-  public static func data(allowsExplanation: Bool = false) throws -> Data {
+  public static func data(allowsExplanation: Bool = false, allowsAnswer: Bool = false) throws
+    -> Data
+  {
     var schema = document
     if allowsExplanation {
       var branches = schema["oneOf"] as! [[String: Any]]
       branches.append(root("explanation", ["text": string(bytes: 8_192)]))
+      schema["oneOf"] = branches
+    }
+    if allowsAnswer {
+      var branches = schema["oneOf"] as! [[String: Any]]
+      branches.append(root("answer", ["text": string(bytes: 8_192)]))
       schema["oneOf"] = branches
     }
     return try JSONSerialization.data(withJSONObject: schema, options: [.sortedKeys])

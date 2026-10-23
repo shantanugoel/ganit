@@ -777,7 +777,7 @@ enum TableSample {
       let blockLines = 2..<(result.lines.count - 3)
       #expect(
         result.lines[blockLines].allSatisfy {
-          $0.result == nil && $0.assistantPrompts.isEmpty && $0.declaredVariableName == nil
+          $0.result == nil && $0.declaredVariableName == nil
         })
       #expect(result.definitions.variables["x"] == .number(.integer(IntegerValue(10))))
       #expect(result.tableDiagnostics.count == 1)

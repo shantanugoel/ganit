@@ -79,29 +79,6 @@ struct SelectionSummaryTests {
   }
 
   @Test
-  func pendingAssistanceUpdatesAnExistingSelection() async throws {
-    let editor = try await editor("10\n1/0\n30")
-    editor.assistantPause = .milliseconds(1)
-    editor.askAssistant = { _ in
-      try? await Task.sleep(for: .milliseconds(150))
-      return nil
-    }
-    editor.textView.setSelectedRange(
-      NSRange(location: 0, length: editor.textView.string.utf16.count))
-    for _ in 0..<50 where editor.summaryBar.summary?.pendingCount != 1 {
-      try await Task.sleep(for: .milliseconds(5))
-    }
-    let pending = try #require(editor.summaryBar.summary)
-    #expect(pending.pendingCount == 1 && pending.failedCount == 0)
-    #expect(pending.total == nil && pending.average == nil)
-    for _ in 0..<100 where editor.summaryBar.summary?.failedCount != 1 {
-      try await Task.sleep(for: .milliseconds(5))
-    }
-    #expect(editor.summaryBar.summary?.failedCount == 1)
-    #expect(editor.summaryBar.summary?.pendingCount == 0)
-  }
-
-  @Test
   func selectionsContainingOnlyFailuresAreVisible() async throws {
     let editor = try await editor("1/0\n2 +")
     editor.textView.setSelectedRange(

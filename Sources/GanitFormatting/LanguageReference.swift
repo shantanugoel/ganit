@@ -76,6 +76,18 @@ public enum LanguageReference {
 extension LanguageReference {
   fileprivate static let grammar: [LanguageTopic] = [
     topic(
+      id: "grammar.ask",
+      category: .grammar,
+      title: text("help.grammar.ask.title", "Ask Ganit"),
+      summary: text("help.grammar.ask.summary", "Review model proposals before source changes."),
+      body: text(
+        "help.grammar.ask.body",
+        "Configure a model in Ganit ▸ Assistant…. Press ⌘⇧A to open Ask. Open Context to inspect the source and exact request body. Press Return or select Ask to send. Answer, Retry, and clarification choices also send requests. Opening Ask or Context sends nothing. Context includes the selected lines and the source they depend on. Ganit checks proposed source and calculates its results. Review the proposal, then choose Apply. Undo restores the source. Explanations use local engine facts first. Model explanations are marked and are not saved. Text answers are unverified, cannot contain numeric characters or arithmetic, and are not saved or referenced. Ganit asks when only you know; it assumes and marks when the world knows. An assumed fact becomes a named value with an AI badge. Dependent results have a dot. Edit the value to remove its mark. Escape closes Ask."
+      ),
+      examples: [],
+      keywords: ["AI", "assistant", "proposal", "assumption", "context", "explain"]
+    ),
+    topic(
       id: "grammar.lines",
       category: .grammar,
       title: text("help.grammar.lines.title", "Lines"),
@@ -290,7 +302,6 @@ extension LanguageReference {
 
   fileprivate static var functions: [LanguageTopic] {
     BuiltInFunction.allCases.map(functionTopic) + FinanceFunction.allCases.map(financeTopic)
-      + [assistantTopic]
   }
 
   fileprivate static let keywords: [LanguageTopic] = [
@@ -684,22 +695,6 @@ extension LanguageReference {
         examples: ["mod(7, 3)"]
       )
     }
-  }
-
-  fileprivate static var assistantTopic: LanguageTopic {
-    functionHelp(
-      assistantFunctionName, signature: "\(assistantFunctionName)(prompt)",
-      summary: text(
-        "help.function.ask_assistant.summary",
-        "Asks the configured assistant and uses its answer as a value."
-      ),
-      body: text(
-        "help.function.ask_assistant.body",
-        "The text inside the parentheses is the prompt, not an expression, except inside braces: {weight} or {qty * 2} writes that value into the prompt, so the prompt sends it and asks again when it changes. The assistant must be turned on under Ganit ▸ Assistant…. Its answer is parsed as a Ganit value, so later lines can calculate with it."
-      ),
-      examples: ["ask_assistant(10 kg of water in ml)", "ask_assistant({weight} of water in ml)"],
-      keywords: [assistantFunctionName]
-    )
   }
 
   fileprivate static func financeTopic(_ function: FinanceFunction) -> LanguageTopic {

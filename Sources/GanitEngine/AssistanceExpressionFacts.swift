@@ -13,7 +13,6 @@ struct AssistanceExpressionFacts {
   var calls: Set<String> = []
   var references: Set<LineReference> = []
   var resourceLimited = false
-  var containsAssistant = false
   var readsClock = false
   var unitConstants: [Int] = []
   var unitIdentifiers: Set<String> = []
@@ -49,7 +48,6 @@ struct AssistanceExpressionFacts {
           work.append((points, nil))
         }
       case .identifier(let name, _): identifiers.insert(name.lowercased())
-      case .assistantPrompt: containsAssistant = true
       case .reference(let reference, _): references.insert(reference)
       case .call(let name, _, let arguments, _):
         calls.insert(name.lowercased())
@@ -125,7 +123,6 @@ struct AssistanceExpressionFacts {
     identifiers.formUnion(other.identifiers)
     calls.formUnion(other.calls)
     references.formUnion(other.references)
-    containsAssistant = containsAssistant || other.containsAssistant
     readsClock = readsClock || other.readsClock
     unitConstants += other.unitConstants
     unitIdentifiers.formUnion(other.unitIdentifiers)

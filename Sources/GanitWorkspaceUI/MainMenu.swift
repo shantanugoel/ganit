@@ -332,18 +332,6 @@ public enum MainMenu {
             localized("menu.askGanit", "Ask Ganit…"),
             #selector(SheetCommands.askGanit(_:)), "A", [.command, .shift]),
           item(
-            localized("menu.askAssistant", "Ask Assistant"),
-            #selector(SheetCommands.askAssistant(_:))
-          ),
-          item(
-            localized("menu.changeAnswer", "Change Answer…"),
-            #selector(SheetCommands.changeAssistantAnswer(_:))
-          ),
-          item(
-            localized("menu.cancelRequest", "Cancel Request"),
-            #selector(SheetCommands.cancelAssistantRequest(_:))
-          ),
-          item(
             localized("menu.nextProblem", "Next Problem"),
             #selector(SheetCommands.nextProblem(_:)), "'"),
           item(

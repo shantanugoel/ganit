@@ -10,7 +10,6 @@ public struct ExportedLine: Equatable, Sendable {
   public let fullPrecision: String?
   public enum Status: String, Sendable {
     case none, calculated
-    case aiUnverified = "ai-unverified"
     case failure, pending
   }
   public let status: Status
@@ -23,14 +22,6 @@ public struct ExportedLine: Equatable, Sendable {
     self.status = status
   }
 
-  /// Human-readable formats retain provenance even when copied without color.
-  var annotatedAnswer: String? {
-    answer.map { status == .aiUnverified ? Self.annotateAI($0) : $0 }
-  }
-
-  static func annotateAI(_ answer: String) -> String {
-    answer + " [" + localized("export.aiUnverified", "AI; unverified") + "]"
-  }
 }
 
 /// One cell of a rendered table: the display text, with its failure state,
@@ -133,7 +124,7 @@ public enum SheetDocumentRenderer {
         let rows = lines.map { line -> String in
           let answerClass = line.isFailure ? " class=\"failure\"" : ""
           return "<tr><td dir=\"auto\">\(escape(line.source))</td>"
-            + "<td\(answerClass) dir=\"auto\">\(escape(line.annotatedAnswer ?? ""))</td></tr>"
+            + "<td\(answerClass) dir=\"auto\">\(escape(line.answer ?? ""))</td></tr>"
         }
         return "<table>\n\(rows.joined(separator: "\n"))\n</table>"
       case .table(let table):

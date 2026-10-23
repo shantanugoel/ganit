@@ -82,8 +82,8 @@ struct CompletionsTests {
   }
 
   @Test
-  func pickerDoesNotOfferSuggestionsInHeadingsCommentsDeclarationsOrPromptProse() async throws {
-    for suffix in ["# @", "// @", "label: // @", "@ = 1", "ask_assistant(email @"] {
+  func pickerDoesNotOfferSuggestionsInHeadingsCommentsOrDeclarations() async throws {
+    for suffix in ["# @", "// @", "label: // @", "@ = 1"] {
       let source = "rent = 5\n"
       let (_, textView) = try await makeEditor(source)
       textView.setSelectedRange(NSRange(location: source.utf16.count, length: 0))
@@ -118,35 +118,6 @@ struct CompletionsTests {
     textView.moveDown(nil)
     textView.insertNewline(nil)
     #expect(textView.string == "5 min\nsqrt(x)")
-  }
-
-  @Test
-  func aPromptPlaceholderOffersVariablesAndTabClosesIt() async throws {
-    let source = "Monthly rent = 2100\nweight = 12\n"
-    let (editor, textView) = try await makeEditor(source)
-    await editor.scheduler?.waitUntilIdle()
-    textView.completesWhileTyping = true
-    let end = source.utf16.count
-    textView.setSelectedRange(NSRange(location: end, length: 0))
-    textView.insertText("ask_assistant(cost of {", replacementRange: textView.selectedRange())
-    #expect(textView.offeredCompletions == ["Monthly rent", "weight"])
-    textView.insertText("mo", replacementRange: textView.selectedRange())
-    #expect(textView.offeredCompletions == ["Monthly rent"])
-    textView.insertTab(nil)
-    #expect(textView.string == source + "ask_assistant(cost of {Monthly rent}")
-    #expect(textView.selectedRange() == NSRange(location: textView.string.utf16.count, length: 0))
-    #expect(textView.offeredCompletions.isEmpty)
-  }
-
-  @Test
-  func atInsideAPromptPlaceholderAlsoClosesThePlaceholder() async throws {
-    let source = "rent = 5\n"
-    let (_, textView) = try await makeEditor(source)
-    textView.setSelectedRange(NSRange(location: source.utf16.count, length: 0))
-    textView.insertText("ask_assistant(cost {@re", replacementRange: textView.selectedRange())
-    #expect(textView.offeredCompletions == ["rent"])
-    textView.insertTab(nil)
-    #expect(textView.string == source + "ask_assistant(cost {rent}")
   }
 
   @Test

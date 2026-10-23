@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-23",
+  "baseline_commit": "2c22018",
+  "candidate": "M5 working tree",
+  "binary_sha256": "dcd32f883289651e6415d4eca100c8adbc6f06843c4c3cea426bc7aab0cbed07",
+  "fixture_sha256": {
+    "mixed-sheet": "23711fe867103d1a2e448833695a4f97c3632da102f9856f3c050810679e1ed4",
+    "chained-dependency-sheet": "53927332fbd4603bfecf17da0c59ac97ed9a5359a21bc37f6ad795a6d2ff80c5"
+  },
+  "hardware": "MacBookPro18,2; Apple M1 Max; 32 GiB",
+  "macOS": "27.0 (26A428)",
+  "Xcode": "27.0 (27A266a)",
+  "configuration": "release",
+  "iterations_per_run": 200,
+  "budget_ms": {
+    "mixed-sheet": 16,
+    "chained-dependency-sheet": 50
+  },
+  "runs": [
+    {
+      "fixture": "mixed-sheet",
+      "trial": 1,
+      "edits": 200,
+      "p50_edit_to_answer_ms": 4.759,
+      "p95_edit_to_answer_ms": 11.697
+    },
+    {
+      "fixture": "mixed-sheet",
+      "trial": 2,
+      "edits": 200,
+      "p50_edit_to_answer_ms": 4.483,
+      "p95_edit_to_answer_ms": 9.993
+    },
+    {
+      "fixture": "mixed-sheet",
+      "trial": 3,
+      "edits": 200,
+      "p50_edit_to_answer_ms": 4.435,
+      "p95_edit_to_answer_ms": 10.005
+    },
+    {
+      "fixture": "chained-dependency-sheet",
+      "trial": 1,
+      "edits": 200,
+      "p50_edit_to_answer_ms": 52.659,
+      "p95_edit_to_answer_ms": 60.131
+    },
+    {
+      "fixture": "chained-dependency-sheet",
+      "trial": 2,
+      "edits": 200,
+      "p50_edit_to_answer_ms": 53.339,
+      "p95_edit_to_answer_ms": 60.054
+    },
+    {
+      "fixture": "chained-dependency-sheet",
+      "trial": 3,
+      "edits": 200,
+      "p50_edit_to_answer_ms": 53.645,
+      "p95_edit_to_answer_ms": 58.857
+    }
+  ],
+  "active_ask": {
+    "fixture": "mixed-sheet",
+    "edits": 200,
+    "p50_edit_to_answer_ms": 4.6,
+    "p95_edit_to_answer_ms": 10.359,
+    "requests": 1,
+    "pending_for_all_edits": true,
+    "cancelled": true
+  }
+}

@@ -46,23 +46,33 @@ struct NetworkPrivacyTests {
     }
   }
 
-  /// The assistant carries one line, on purpose. This checks that it carries
-  /// nothing else, since the line is the whole of what someone agreed to send.
-  @Test
-  func theAssistantSendsTheLineAndNothingAboutTheMachineItWasTypedOn() async throws {
-    let server = try LoopbackServer(body: "{\"choices\":[]}", contentType: "application/json")
+  /// The provider receives the exact disclosed context and no machine details.
+  @Test(arguments: [false, true], [false, true])
+  func askSendsOnlyTheDisclosedBodyAndRequiredHeaders(
+    allowsExplanation: Bool, allowsAnswer: Bool
+  ) async throws {
+    let content = "{\"schemaVersion\":1,\"kind\":\"unsupported\",\"reason\":\"Missing input\"}"
+    let completion = try JSONSerialization.data(withJSONObject: [
+      "choices": [["message": ["content": content]]]
+    ])
+    let server = try LoopbackServer(
+      body: String(decoding: completion, as: UTF8.self), contentType: "application/json")
     defer { server.stop() }
     let settings = AssistantSettings(
       isEnabled: true,
-      endpoint: URL(string: "http://127.0.0.1:\(server.port)/v1/chat/completions")!,
-      model: "a-model",
-      apiKey: "a-key"
-    )
+      endpoint: URL(string: "http://127.0.0.1:\(server.port)/v1")!,
+      model: "a-model", apiKey: "a-key", effort: .high)
+    let context = Data(
+      "{\"target\":{\"source\":\"bill + fee\"},\"dependencySources\":[{\"source\":\"bill = 20\"},{\"source\":\"fee = 5\"}],\"notes\":[{\"source\":\"// Task: explain this\"}]}"
+        .utf8)
+    let wire = try SuggestionWireRequest(
+      settings: settings, context: context, allowsExplanation: allowsExplanation,
+      allowsAnswer: allowsAnswer)
 
-    _ = try await Assistant(settings: settings).answer(to: "10 kg of water in ml")
+    _ = try await ProviderSuggestionTransport().send(wire)
     let raw = try #require(await server.request())
+    #expect(await server.requestCount() == 1)
     let lines = raw.components(separatedBy: "\r\n")
-
     #expect(lines.first == "POST /v1/chat/completions HTTP/1.1")
     let headers = Dictionary(
       lines.dropFirst().prefix { !$0.isEmpty }.map { line -> (String, String) in
@@ -71,22 +81,43 @@ struct NetworkPrivacyTests {
         }
         return (parts[0].lowercased(), parts.count > 1 ? parts[1] : "")
       },
-      uniquingKeysWith: { first, _ in first }
-    )
+      uniquingKeysWith: { first, _ in first })
     #expect(
-      Set(headers.keys).isSubset(
-        of: [
-          "host", "accept", "user-agent", "accept-language", "accept-encoding", "connection",
-          "authorization", "content-type", "content-length",
-        ]),
-      "\(headers.keys.sorted())")
+      Set(headers.keys).isSubset(of: [
+        "host", "accept", "user-agent", "accept-language", "accept-encoding", "connection",
+        "authorization", "content-type", "content-length",
+      ]), "\(headers.keys.sorted())")
     #expect(headers["user-agent"] == "Ganit")
     #expect(headers["accept-language"] == "*")
     #expect(headers["authorization"] == "Bearer a-key")
+    #expect(headers["content-type"] == "application/json")
+    #expect(headers["accept"] == "application/json")
 
     let body = try #require(raw.components(separatedBy: "\r\n\r\n").last)
-    #expect(body.contains("10 kg of water in ml"))
-    #expect(body.contains("a-model"))
+    #expect(Data(body.utf8) == wire.body)
+    let json = try #require(
+      JSONSerialization.jsonObject(with: Data(body.utf8)) as? [String: Any])
+    #expect(
+      Set(json.keys) == ["model", "messages", "stream", "response_format", "reasoning_effort"],
+      "\(json.keys.sorted())")
+    #expect(json["model"] as? String == "a-model")
+    #expect(json["reasoning_effort"] as? String == "high")
+    #expect(json["stream"] as? Bool == false)
+    let format = try #require(json["response_format"] as? [String: String])
+    #expect(format == ["type": "json_object"])
+    let messages = try #require(json["messages"] as? [[String: String]])
+    #expect(messages.count == 2)
+    #expect(messages.allSatisfy { Set($0.keys) == ["role", "content"] })
+    #expect(messages.map { $0["role"] } == ["system", "user"])
+    #expect(messages[1]["content"] == String(decoding: context, as: UTF8.self))
+    #expect(messages[0]["content"]?.contains("Response schema:") == true)
+    #expect(
+      messages[0]["content"]?.contains("The user explicitly requested an explanation")
+        == allowsExplanation)
+    #expect(
+      messages[0]["content"]?.contains("You may return kind answer with text only")
+        == allowsAnswer)
+    #expect(!body.contains("a-key"))
     for identifier in [
       NSUserName(), ProcessInfo.processInfo.hostName,
       ProcessInfo.processInfo.operatingSystemVersionString,
@@ -96,34 +127,23 @@ struct NetworkPrivacyTests {
     }
   }
 
-  /// The body is where a new field hides, so its keys are named one by one.
-  /// Effort is a word Ganit chose, not a fact about the Mac.
-  @Test
-  func theAssistantBodyHoldsTheLineTheModelAndTheChosenEffortOnly() async throws {
-    let server = try LoopbackServer(body: "{\"choices\":[]}", contentType: "application/json")
-    defer { server.stop() }
+  /// Off and format fallback omit optional fields without changing the context.
+  @Test(arguments: [false, true], [false, true])
+  func askOmitsOptionalFieldsWhenRequested(structured: Bool, effort: Bool) throws {
+    let context = Data("{\"target\":\"bill + fee\"}".utf8)
     let settings = AssistantSettings(
-      isEnabled: true,
-      endpoint: URL(string: "http://127.0.0.1:\(server.port)/v1/chat/completions")!,
-      model: "a-model",
-      apiKey: "a-key",
-      effort: .high
-    )
-
-    _ = try await Assistant(settings: settings).answer(to: "10 kg of water in ml")
-    let raw = try #require(await server.request())
-    let body = try #require(raw.components(separatedBy: "\r\n\r\n").last)
-    let json = try #require(
-      JSONSerialization.jsonObject(with: Data(body.utf8)) as? [String: Any])
-
-    #expect(
-      Set(json.keys) == ["model", "messages", "stream", "response_format", "reasoning_effort"],
-      "\(json.keys.sorted())")
-    #expect(json["model"] as? String == "a-model")
-    #expect(json["reasoning_effort"] as? String == "high")
+      isEnabled: true, endpoint: URL(string: "https://example.test/v1")!,
+      model: "a-model", apiKey: "", effort: .off)
+    let wire = try SuggestionWireRequest(
+      settings: settings, context: context, structured: structured, effort: effort)
+    let json = try #require(JSONSerialization.jsonObject(with: wire.body) as? [String: Any])
+    var keys: Set<String> = ["model", "messages", "stream"]
+    if structured { keys.insert("response_format") }
+    #expect(Set(json.keys) == keys)
     let messages = try #require(json["messages"] as? [[String: String]])
-    #expect(messages.map(\.["content"]) == [Assistant.instruction, "10 kg of water in ml"])
+    #expect(messages[1]["content"] == String(decoding: context, as: UTF8.self))
   }
+
 }
 
 /// Sparkle is the third thing that can reach the network, and it is a
@@ -143,7 +163,7 @@ func onlyTheRatesAndTheAssistantReachTheNetworkFromGanitsOwnCode() throws {
   }
   #expect(
     Set(networking.map(\.lastPathComponent))
-      == ["RateDownloader.swift", "Assistant.swift", "SuggestionTransport.swift"])
+      == ["RateDownloader.swift", "SuggestionTransport.swift"])
   #expect(networking.allSatisfy { $0.deletingLastPathComponent().lastPathComponent == "GanitData" })
 }
 

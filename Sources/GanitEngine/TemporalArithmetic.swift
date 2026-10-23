@@ -16,9 +16,19 @@ import Foundation
 /// Periods and durations never mix: a month is not 30 days, and a calendar day
 /// is not always 24 hours.
 struct TemporalArithmetic {
-  let context: EvaluationContext
+  let evaluationDate: Date
+  let calendar: Calendar
+  let timeZone: TimeZone
   let operations: NumericOperations
   let unitAlgebra: UnitAlgebra
+
+  init(context: EvaluationContext, operations: NumericOperations, unitAlgebra: UnitAlgebra) {
+    evaluationDate = context.now
+    calendar = context.calendar
+    timeZone = context.timeZone
+    self.operations = operations
+    self.unitAlgebra = unitAlgebra
+  }
 
   /// The result of a temporal operation, or `nil` when neither operand is
   /// temporal and ordinary arithmetic applies.
@@ -100,7 +110,7 @@ struct TemporalArithmetic {
       hour: literal.hour, minute: literal.minute, second: literal.second)
     let wall = startOfDay(date).addingTimeInterval(TimeInterval(time.secondsSinceMidnight))
     guard
-      let identifier = literal.zone ?? (literal.offset == nil ? context.timeZoneIdentifier : nil)
+      let identifier = literal.zone ?? (literal.offset == nil ? timeZone.identifier : nil)
     else {
       guard let zone = TimeZone(secondsFromGMT: literal.offset!) else {
         throw EngineError(code: .invalidTime)
@@ -191,14 +201,15 @@ struct TemporalArithmetic {
 
   /// The current moment in the evaluation time zone.
   var now: InstantValue {
-    InstantValue(date: context.now, timeZoneIdentifier: context.timeZoneIdentifier)
+    InstantValue(date: evaluationDate, timeZoneIdentifier: timeZone.identifier)
   }
 
   /// The current date in the evaluation time zone.
   func today() throws -> DateValue {
     var calendar = Calendar(identifier: .gregorian)
-    calendar.timeZone = context.timeZone
-    return try dateValue(calendar.dateComponents([.era, .year, .month, .day], from: context.now))
+    calendar.timeZone = timeZone
+    return try dateValue(
+      calendar.dateComponents([.era, .year, .month, .day], from: evaluationDate))
   }
 
   func negated(_ period: CalendarPeriodValue) throws -> CalendarPeriodValue {
@@ -258,7 +269,7 @@ struct TemporalArithmetic {
     guard let zone = TimeZone(identifier: instant.timeZoneIdentifier) else {
       throw EngineError(code: .dateOutOfRange)
     }
-    var calendar = context.calendar
+    var calendar = calendar
     calendar.timeZone = zone
     guard
       let date = calendar.date(

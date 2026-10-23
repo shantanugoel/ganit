@@ -52,17 +52,6 @@ public final class SheetEditorViewController: NSViewController {
   /// Called when the variables and units this sheet defines change, so the
   /// definitions sheet can share them with every other sheet.
   public var definitionsDidChange: ((SheetDefinitions) -> Void)?
-  /// Asks something outside Ganit about a line Ganit could not work out, when
-  /// the reader has set an assistant up. A line is asked about once, only
-  /// after typing on it stops, and its answer arrives later.
-  public var askAssistant: ((String) async -> String?)? {
-    didSet {
-      askAboutUnansweredLines()
-    }
-  }
-  /// Forgets a kept reply to the text asked, so that Ask Assistant asks the
-  /// model again rather than repeating it.
-  public var forgetAssistantAnswer: ((String) -> Void)?
   /// Opens Help on a topic the pointer is over, such as a function name.
   public var openHelp: ((String) -> Void)? {
     didSet {
@@ -74,7 +63,12 @@ public final class SheetEditorViewController: NSViewController {
   public let suggestionDocumentID: UUID
 
   public var suggestionConfiguration: SheetSuggestionConfiguration? {
-    didSet { suggestionSession.invalidate() }
+    didSet {
+      suggestionSession.invalidate()
+      if suggestionConfiguration?.settings.isReady != true { suggestionSession.dismiss() }
+      sheetTextView.answersDidChange()
+      summarizeSelection()
+    }
   }
   package lazy var suggestionSession = SheetSuggestionSession(editor: self)
   private lazy var askBar = AskBar(session: suggestionSession, editor: self)
@@ -135,6 +129,7 @@ public final class SheetEditorViewController: NSViewController {
     guard textView.isEditable, suggestionTargets != nil,
       suggestionConfiguration?.settings.isReady == true
     else { return false }
+    askBar.setInstruction("")
     suggestionSession.prepare()
     return askBar.focusField()
   }
@@ -266,14 +261,42 @@ public final class SheetEditorViewController: NSViewController {
       actions: [
         .init(
           title: localized("menu.copy", "Copy"),
-          perform: {
-            NSPasteboard.general.clearContents()
-            NSPasteboard.general.setString(text, forType: .string)
+          perform: { [weak self] in
+            self?.resultPasteboard.clearContents()
+            self?.resultPasteboard.setString(text, forType: .string)
           }),
         .init(
           title: localized("ask.dismiss", "Dismiss"),
           perform: { [weak self] in
             self?.sheetTextView.interpretationPopover?.close()
+          }),
+      ])
+  }
+
+  package func showModelAnswer(_ text: String, target: LineID, model: String) {
+    sheetTextView.showExplanation(
+      for: target,
+      details: [
+        .init(label: localized("ask.answerCard", "Answer · Unverified"), value: text),
+        .init(label: localized("ask.model", "Model"), value: model),
+        .init(
+          label: localized("ask.explanation.source", "Source"),
+          value: localized(
+            "ask.answer.source",
+            "Context was sent to the model. Ganit did not verify this answer. The answer is temporary and formulas cannot use it."
+          )),
+      ],
+      actions: [
+        .init(
+          title: localized("menu.copy", "Copy"),
+          perform: { [weak self] in
+            self?.resultPasteboard.clearContents()
+            self?.resultPasteboard.setString(text, forType: .string)
+          }),
+        .init(
+          title: localized("ask.dismiss", "Dismiss"),
+          perform: { [weak self] in
+            self?.dismissExplanation()
           }),
       ])
   }
@@ -286,10 +309,7 @@ public final class SheetEditorViewController: NSViewController {
     guard tableEvaluationSource == sheet.text,
       let explanation = latestEvaluation?.explanation(for: id)
     else { return [] }
-    var details = interpretation(for: id).filter {
-      $0.label != localized("interpretation.aiAnswer", "AI answer")
-        && $0.label != localized("interpretation.aiAnswerUse", "Use")
-    }
+    var details = interpretation(for: id)
     let failed = details.contains {
       $0.label == localized("interpretation.problem", "Problem")
     }
@@ -447,39 +467,27 @@ public final class SheetEditorViewController: NSViewController {
   /// Writes values to fewer digits for an answer column too narrow for them.
   private var compactFormatter: ResultFormatter
   private var diagnosticFormatter: DiagnosticFormatter
-  /// Answer cells by line, reused while the line's result, editing state,
-  /// assistant answer, and pending request are unchanged.
-  private var cells:
-    [LineID: (
-      result: CalculationResult, isEditing: Bool, assisted: String?, pending: Bool,
-      cell: AnswerCell?
-    )] = [:]
-  /// What the assistant said about a line, by the text that was asked, so an
-  /// answer outlives the evaluations and line identities of the text it
-  /// belongs to.
-  private var assistantAnswers: [String: String] = [:]
-  /// Lines already sent, including ones that came back empty or whose
-  /// request was cancelled, so none is retried on every keystroke. Ask
-  /// Assistant asks again.
-  private var assistantAsked: Set<String> = []
-  /// Requests that have not come back yet, by the line text asked, shown as
-  /// Asking… until they finish or are cancelled.
-  private var assistantLineInFlight: [String: Task<Void, Never>] = [:]
-  /// Parsed values for `ask_assistant` prompts, reused across evaluations.
-  private var assistantValues: [AssistantPrompt: AssistantAnswer] = [:]
-  private var assistantPromptsInFlight: [AssistantPrompt: Task<Void, Never>] = [:]
-  /// Prompts whose request was cancelled, which are not asked again until
-  /// Ask Assistant.
-  private var assistantPromptsCancelled: Set<AssistantPrompt> = []
+  private var cells: [LineID: (result: CalculationResult, isEditing: Bool, cell: AnswerCell?)] = [:]
   /// Each line's UTF-16 start offset, in line order.
   private var cachedUTF16Starts: [Int]?
+  private var cachedLineStarts: [(id: LineID, start: Int, length: Int)]?
   /// Gutter drawing must not scan the whole sheet for every visible number.
   private var cachedLineNumbers: [LineID: Int]?
   /// The physical lines of every table block, valid or not, which editor
   /// conveniences such as completion and scrubbing never rewrite.
   private var cachedTableLines: IndexSet?
   /// The text and result of each line in the newest shown evaluation.
-  private var shownLines: [LineID: (text: String, result: SheetLineResult)] = [:]
+  private struct ShownLines: Sendable {
+    var source: SheetSource?
+    var evaluation: SheetEvaluation?
+    var indices: [LineID: Int] = [:]
+
+    subscript(id: LineID) -> (text: String, result: SheetLineResult)? {
+      guard let index = indices[id], let source, let evaluation else { return nil }
+      return (source.lines[index].text, evaluation.lines[index])
+    }
+  }
+  private var shownLines = ShownLines()
   private var decorations: [LineID: LineDecoration] = [:]
   /// Lines edited since they were decorated; edits can drop attributes.
   private var editedLines: Set<LineID> = []
@@ -531,6 +539,10 @@ public final class SheetEditorViewController: NSViewController {
       self?.suggestionConfiguration?.settings.isReady == true && self?.suggestionTargets != nil
     }
     sheetTextView.onAskGanit = { [weak self] in self?.askGanit(nil) }
+    sheetTextView.assumptionAccessibilityContent = { [weak self] in
+      guard self?.assumptionPopover?.isShown == true else { return nil }
+      return self?.assumptionPopover?.contentViewController?.view
+    }
     sheetTextView.onInspectAssumption = { [weak self] id, rect in
       self?.inspectAssumption(id, at: rect)
     }
@@ -564,7 +576,10 @@ public final class SheetEditorViewController: NSViewController {
       guard let self else {
         return []
       }
-      return zip(sheet.lines, utf16Starts()).map { ($0.id, $1, $0.text.utf16.count) }
+      if let cachedLineStarts { return cachedLineStarts }
+      let starts = zip(sheet.lines, utf16Starts()).map { ($0.id, $1, $0.text.utf16.count) }
+      cachedLineStarts = starts
+      return starts
     }
     sheetTextView.line = { [weak self] offset in
       guard let self else {
@@ -618,38 +633,17 @@ public final class SheetEditorViewController: NSViewController {
       writeAnswers(options)
       displayOptionsDidChange?(options)
     }
-    sheetTextView.variableNames = { [weak self] in
-      self?.variableNames() ?? []
-    }
     sheetTextView.referenceCompletions = { [weak self] offset in
       self?.referenceCompletions(at: offset) ?? []
     }
     sheetTextView.variableCompletions = { [weak self] offset in
       self?.referenceCompletions(at: offset, includesLines: false) ?? []
     }
-    sheetTextView.canAskAssistant = { [weak self] in
-      self?.canAskAssistant() ?? false
-    }
-    sheetTextView.onAskAssistant = { [weak self] in
-      self?.refetchAssistant()
-    }
-    sheetTextView.canChangeAssistantAnswer = { [weak self] in
-      self?.canChangeAssistantAnswer() ?? false
-    }
-    sheetTextView.onChangeAssistantAnswer = { [weak self] in
-      self?.changeAssistantAnswer()
-    }
     sheetTextView.answerFormat = { [weak self] in
       self?.answerFormat()
     }
     sheetTextView.onSetAnswerFormat = { [weak self] numbers in
       self?.setAnswerFormat(numbers)
-    }
-    sheetTextView.canCancelAssistantRequest = { [weak self] in
-      self?.canCancelAssistantRequest() ?? false
-    }
-    sheetTextView.onCancelAssistantRequest = { [weak self] in
-      self?.cancelAssistantRequest()
     }
     sheetTextView.didDrawAnswers = { [weak self] in
       guard let self, let interval = pendingAnswerDraw else {
@@ -768,6 +762,7 @@ public final class SheetEditorViewController: NSViewController {
     suggestionSession.invalidate()
     mirroredText = current
     cachedUTF16Starts = nil
+    cachedLineStarts = nil
     cachedLineNumbers = nil
     cachedTableLines = nil
     for index in lineIndex(atUTF16: newRange.location)...lineIndex(atUTF16: newRange.upperBound) {
@@ -890,8 +885,6 @@ public final class SheetEditorViewController: NSViewController {
   @objc public func stopCalculation(_ sender: Any?) {
     scheduler?.cancel()
     suggestionSession.dismiss()
-    cancelAssistantRequests(
-      lines: Array(assistantLineInFlight.keys), prompts: Array(assistantPromptsInFlight.keys))
   }
 
   fileprivate func selectionDidChange() {
@@ -927,8 +920,7 @@ public final class SheetEditorViewController: NSViewController {
       decorate(index)
     }
     sheetTextView.answersDidChange()
-    // Leaving a line is what makes it worth asking about.
-    askAboutUnansweredLines()
+    // Update the caret line and its local Ask control.
   }
 
   /// Counts all selected calculations and aggregates only complete selections.
@@ -963,11 +955,7 @@ public final class SheetEditorViewController: NSViewController {
       switch result {
       case .value(let value): values.append(value)
       case .syntaxFailure, .evaluationFailure:
-        if let shown, isAssistantPending(text: line.text, line: shown.result) {
-          pendingCount += 1
-        } else {
-          failedCount += 1
-        }
+        failedCount += 1
       }
     }
     let count = values.count + failedCount + pendingCount
@@ -995,6 +983,7 @@ public final class SheetEditorViewController: NSViewController {
   }
 
   private func show(_ evaluation: SheetEvaluation, of snapshot: SheetSource) {
+    let previous = shownLines
     latestEvaluation = evaluation
     tableEvaluationSource = snapshot.text
     refreshTableProjections()
@@ -1003,147 +992,43 @@ public final class SheetEditorViewController: NSViewController {
       shownDefinitions = evaluation.definitions
       definitionsDidChange?(evaluation.definitions)
     }
-    let previous = shownLines
-    shownLines = Dictionary(
-      uniqueKeysWithValues: zip(snapshot.lines, evaluation.lines).map {
-        ($1.id, ($0.text, $1))
-      }
-    )
-    cells = cells.filter { shownLines[$0.key] != nil }
-    decorations = decorations.filter { shownLines[$0.key] != nil }
-    sheetTextView.underlines = sheetTextView.underlines.filter { shownLines[$0.key] != nil }
-
-    // A decoration depends on text, role, failure diagnostics, and editing,
-    // so lines whose values alone changed keep theirs.
-    for index in sheet.lines.indices {
-      let id = sheet.lines[index].id
-      guard let shown = shownLines[id] else {
-        continue
-      }
-      if let old = previous[id], !editedLines.contains(id), old.text == shown.text,
-        old.result.syntax == shown.result.syntax,
-        !(old.result.result?.isFailure ?? false) && !(shown.result.result?.isFailure ?? false)
-          || old.result.result == shown.result.result
+    let identitiesChanged =
+      previous.indices.count != snapshot.lines.count
+      || snapshot.lines.enumerated().contains { previous.indices[$0.element.id] != $0.offset }
+    shownLines = ShownLines(
+      source: snapshot, evaluation: evaluation,
+      indices: identitiesChanged
+        ? Dictionary(
+          uniqueKeysWithValues: snapshot.lines.enumerated().map { ($0.element.id, $0.offset) })
+        : previous.indices)
+    // Keep the committed arrays and index their rows without copying every result.
+    for (index, pair) in zip(snapshot.lines, evaluation.lines).enumerated() {
+      let (source, result) = pair
+      let id = result.id
+      let old = previous[id]
+      if let old, !editedLines.contains(id), old.text == source.text,
+        old.result.syntax == result.syntax,
+        !(old.result.result?.isFailure ?? false) && !(result.result?.isFailure ?? false)
+          || old.result.result == result.result
       {
         continue
       }
       decorate(index)
     }
+    if identitiesChanged {
+      let live = Set(evaluation.lines.map(\.id))
+      cells = cells.filter { live.contains($0.key) }
+      decorations = decorations.filter { live.contains($0.key) }
+      sheetTextView.underlines = sheetTextView.underlines.filter { live.contains($0.key) }
+    }
     sheetTextView.answersDidChange()
     sheetTextView.refreshReferenceCompletions()
     summarizeSelection()
-    askAboutUnansweredLines()
-  }
-
-  /// How long a line must sit still before it is worth asking about, so that
-  /// typing a line does not ask about each of its halves.
-  var assistantPause = Duration.milliseconds(1_200)
-  private var assistantPauseTask: Task<Void, Never>?
-
-  /// Waits for typing to stop, then asks the assistant about each line Ganit
-  /// flagged as one it could not work out. Every answer redraws its column.
-  private func askAboutUnansweredLines() {
-    guard askAssistant != nil else {
-      return
+    sheetTextView.displayCommittedAnswers()
+    // Release the old immutable evaluation away from the UI thread.
+    Task.detached(priority: .utility) { [previous = consume previous] in
+      withExtendedLifetime(previous) {}
     }
-    assistantPauseTask?.cancel()
-    assistantPauseTask = Task { [weak self, assistantPause] in
-      try? await Task.sleep(for: assistantPause)
-      guard !Task.isCancelled else {
-        return
-      }
-      self?.askNow()
-    }
-  }
-
-  private func askNow() {
-    guard askAssistant != nil else {
-      return
-    }
-    askAboutPrompts()
-    for (id, shown) in shownLines {
-      guard let asked = lineLevelAssistantPrompt(for: shown, id: id),
-        !assistantAsked.contains(asked), assistantLineInFlight[asked] == nil
-      else {
-        continue
-      }
-      startLineAssistantRequest(asked)
-    }
-  }
-
-  /// Sends `asked` to the assistant and writes the reply beside the line.
-  /// Asking… appears immediately; typing is not blocked.
-  private func startLineAssistantRequest(_ asked: String) {
-    guard let askAssistant else {
-      return
-    }
-    assistantLineInFlight[asked] = Task { [weak self] in
-      let answer = await askAssistant(asked)
-      guard let self, !Task.isCancelled else {
-        return
-      }
-      assistantLineInFlight[asked] = nil
-      assistantAsked.insert(asked)
-      if let answer {
-        assistantAnswers[asked] = answer
-        // Lines referring to this one now say why they cannot use it.
-        cells.removeAll()
-      }
-      sheetTextView.answersDidChange()
-      summarizeSelection()
-    }
-    sheetTextView.answersDidChange()
-    summarizeSelection()
-  }
-
-  /// Asks about each `ask_assistant` prompt that still has no value, then
-  /// evaluates again so later lines can use the answer.
-  private func askAboutPrompts() {
-    for line in latestEvaluation?.lines ?? [] {
-      line.assistantPrompts.forEach(requestAssistantPrompt)
-    }
-  }
-
-  private func requestAssistantPrompt(_ prompt: AssistantPrompt) {
-    guard let askAssistant, assistantValues[prompt] == nil,
-      assistantPromptsInFlight[prompt] == nil, !assistantPromptsCancelled.contains(prompt)
-    else {
-      return
-    }
-    let text = text(of: prompt)
-    assistantPromptsInFlight[prompt] = Task { [weak self] in
-      let answer = await askAssistant(text)
-      guard !Task.isCancelled else {
-        return
-      }
-      self?.finishAssistantPrompt(prompt, answer: answer)
-    }
-    sheetTextView.answersDidChange()
-    summarizeSelection()
-  }
-
-  /// The text sent for `prompt`, its values written as the sheet shows them.
-  private func text(of prompt: AssistantPrompt) -> String {
-    prompt.text { (try? resultFormatter.format($0))?.display ?? "" }
-  }
-
-  private func finishAssistantPrompt(_ prompt: AssistantPrompt, answer: String?) {
-    assistantPromptsInFlight[prompt] = nil
-    if let answer, case .value(let value) = CalculationEngine().evaluate(answer, context: context) {
-      assistantValues[prompt] = .value(value)
-    } else {
-      assistantValues[prompt] = .unusable
-    }
-    context = context.with(assistantAnswers: assistantValues)
-    scheduler?.context = context
-    scheduler?.schedule(sheet)
-  }
-
-  /// The names a `{…}` placeholder can complete to: this sheet's variables
-  /// and the definitions sheet's.
-  private func variableNames() -> [String] {
-    referenceCompletions(at: textView.selectedRange().location, includesLines: false)
-      .filter { !$0.insertion.hasPrefix("@") }.map(\.insertion)
   }
 
   /// Values the caret can read: inherited definitions, variables in scope,
@@ -1187,270 +1072,6 @@ public final class SheetEditorViewController: NSViewController {
     } + lines
   }
 
-  /// Whether Ask Assistant can send the selected answer's line, or the
-  /// insertion point's, including a line already asked about.
-  func canAskAssistant() -> Bool {
-    askAssistant != nil && assistantTarget() != nil
-  }
-
-  /// Whether the selected answer, or the insertion point's line, is waiting
-  /// for the assistant.
-  func canCancelAssistantRequest() -> Bool {
-    switch assistantTarget() {
-    case .line(_, let asked):
-      return assistantLineInFlight[asked] != nil
-    case .prompts(let prompts):
-      return prompts.contains { assistantPromptsInFlight[$0] != nil }
-    case nil:
-      return false
-    }
-  }
-
-  /// Cancels the selected answer's request, or the insertion point's line's.
-  func cancelAssistantRequest() {
-    switch assistantTarget() {
-    case .line(_, let asked):
-      cancelAssistantRequests(lines: [asked], prompts: [])
-    case .prompts(let prompts):
-      cancelAssistantRequests(lines: [], prompts: prompts)
-    case nil:
-      NSSound.beep()
-    }
-  }
-
-  /// Stops waiting for these requests and does not ask again until Ask
-  /// Assistant. A cancelled request may already have reached the provider.
-  private func cancelAssistantRequests(lines: [String], prompts: [AssistantPrompt]) {
-    for asked in lines {
-      assistantLineInFlight.removeValue(forKey: asked)?.cancel()
-      assistantAsked.insert(asked)
-    }
-    for prompt in prompts {
-      assistantPromptsInFlight.removeValue(forKey: prompt)?.cancel()
-      assistantPromptsCancelled.insert(prompt)
-    }
-    sheetTextView.answersDidChange()
-    summarizeSelection()
-  }
-
-  /// Whether the selected answer, or the insertion point's line, already has
-  /// an assistant value that can be replaced.
-  func canChangeAssistantAnswer() -> Bool {
-    switch assistantTarget() {
-    case .line(_, let asked):
-      return assistantAnswers[asked] != nil
-    case .prompts(let prompts):
-      return prompts.contains { assistantValues[$0] != nil }
-    case nil:
-      return false
-    }
-  }
-
-  /// Asks again about the selected answer's line, or the insertion point's,
-  /// even when that text already has an answer.
-  func refetchAssistant() {
-    guard askAssistant != nil, let target = assistantTarget() else {
-      NSSound.beep()
-      return
-    }
-    switch target {
-    case .prompts(let prompts):
-      cancelAssistantRequests(lines: [], prompts: prompts)
-      for prompt in prompts {
-        assistantValues.removeValue(forKey: prompt)
-        assistantPromptsCancelled.remove(prompt)
-        forgetAssistantAnswer?(text(of: prompt))
-      }
-      context = context.with(assistantAnswers: assistantValues)
-      scheduler?.context = context
-      scheduler?.schedule(sheet)
-      for prompt in prompts {
-        requestAssistantPrompt(prompt)
-      }
-    case .line(_, let asked):
-      cancelAssistantRequests(lines: [asked], prompts: [])
-      assistantAnswers.removeValue(forKey: asked)
-      assistantAsked.remove(asked)
-      forgetAssistantAnswer?(asked)
-      cells.removeAll()
-      sheetTextView.answersDidChange()
-      startLineAssistantRequest(asked)
-    }
-  }
-
-  /// Offers a field to replace the current assistant value.
-  func changeAssistantAnswer() {
-    guard canChangeAssistantAnswer(), let window = view.window else {
-      NSSound.beep()
-      return
-    }
-    let alert = NSAlert()
-    alert.messageText = localized("assistant.change", "Change Answer")
-    alert.informativeText = localized(
-      "assistant.changeLifetime",
-      "Temporary corrections are discarded when Ganit quits. Save Value into Sheet replaces this line with your value and keeps the original as a comment."
-    )
-    let field = NSTextField(string: currentAssistantAnswerText())
-    field.frame = NSRect(x: 0, y: 0, width: 260, height: 24)
-    alert.accessoryView = field
-    alert.addButton(withTitle: localized("assistant.saveValue", "Save Value into Sheet"))
-    alert.addButton(withTitle: localized("assistant.useTemporarily", "Use Temporarily"))
-    alert.addButton(withTitle: localized("restore.cancel", "Cancel"))
-    alert.window.initialFirstResponder = field
-    alert.beginSheetModal(for: window) { [weak self] response in
-      guard let self else { return }
-      switch response {
-      case .alertFirstButtonReturn:
-        if !saveAssistantAnswerAsValue(field.stringValue) {
-          let error = NSAlert()
-          error.messageText = localized("assistant.invalidValue", "Enter a valid value")
-          error.informativeText = localized(
-            "assistant.saveValueHelp",
-            "Use a single-line value Ganit can calculate without assistance, such as 12345 ml. The sheet has not changed."
-          )
-          error.beginSheetModal(for: window)
-        }
-      case .alertSecondButtonReturn: applyAssistantAnswer(field.stringValue)
-      default: break
-      }
-    }
-  }
-
-  /// Saves a reviewed correction as ordinary source, retaining the original
-  /// line in a comment. No session-only answer cache is needed to reopen it.
-  @discardableResult
-  func saveAssistantAnswerAsValue(_ text: String) -> Bool {
-    let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
-    guard !value.contains(where: { $0.isNewline }),
-      case .value = CalculationEngine().evaluate(
-        value, context: context.with(assistantAnswers: [:]))
-    else { return false }
-    let id =
-      sheetTextView.selectedAnswer
-      ?? sheet.lines[lineIndex(atUTF16: textView.selectedRange().location)].id
-    guard let index = sheet.lines.firstIndex(where: { $0.id == id }),
-      assistantTarget() != nil
-    else { return false }
-    let line = sheet.lines[index]
-    let replacement = value + " // Manual answer; original: " + line.text
-    textView.breakUndoCoalescing()
-    textView.insertText(
-      replacement,
-      replacementRange: NSRange(
-        location: utf16Starts()[index], length: line.text.utf16.count))
-    textView.breakUndoCoalescing()
-    return true
-  }
-
-  /// Replaces the current assistant value with `text`. An empty string drops
-  /// it so the line is as Ganit found it.
-  func applyAssistantAnswer(_ text: String) {
-    guard let target = assistantTarget() else {
-      NSSound.beep()
-      return
-    }
-    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-    if trimmed == currentAssistantAnswerText() {
-      return
-    }
-    switch target {
-    case .line(_, let asked):
-      cancelAssistantRequests(lines: [asked], prompts: [])
-      if trimmed.isEmpty {
-        assistantAnswers.removeValue(forKey: asked)
-      } else {
-        assistantAnswers[asked] = trimmed
-      }
-      cells.removeAll()
-      sheetTextView.answersDidChange()
-    case .prompts(let prompts):
-      cancelAssistantRequests(lines: [], prompts: prompts)
-      for prompt in prompts {
-        if trimmed.isEmpty {
-          assistantValues.removeValue(forKey: prompt)
-        } else if case .value(let value) = CalculationEngine().evaluate(trimmed, context: context) {
-          assistantValues[prompt] = .value(value)
-        } else {
-          assistantValues[prompt] = .unusable
-        }
-      }
-      context = context.with(assistantAnswers: assistantValues)
-      scheduler?.context = context
-      scheduler?.schedule(sheet)
-    }
-  }
-
-  private func currentAssistantAnswerText() -> String {
-    switch assistantTarget() {
-    case .line(_, let asked):
-      return assistantAnswers[asked] ?? ""
-    case .prompts(let prompts):
-      guard let prompt = prompts.first, case .value(let value) = assistantValues[prompt] else {
-        return ""
-      }
-      return (try? resultFormatter.format(value))?.display ?? ""
-    case nil:
-      return ""
-    }
-  }
-
-  private enum AssistantTarget {
-    case prompts([AssistantPrompt])
-    case line(LineID, String)
-  }
-
-  /// What Ask Assistant would send for the selected answer or the insertion
-  /// point's line: `ask_assistant` prompts, or a flagged line's text.
-  private func assistantTarget() -> AssistantTarget? {
-    let id =
-      sheetTextView.selectedAnswer
-      ?? sheet.lines[lineIndex(atUTF16: textView.selectedRange().location)].id
-    guard let shown = shownLines[id] else {
-      return nil
-    }
-    let prompts = shown.result.assistantPrompts
-    if !prompts.isEmpty {
-      return .prompts(prompts)
-    }
-    if let asked = lineLevelAssistantPrompt(for: shown, id: id) {
-      return .line(id, asked)
-    }
-    return nil
-  }
-
-  /// The line text the assistant is asked about when Ganit could not work the
-  /// line out, or `nil` when this is not such a line.
-  private func lineLevelAssistantPrompt(
-    for shown: (text: String, result: SheetLineResult), id: LineID
-  ) -> String? {
-    guard let result = shown.result.result,
-      flaggedDiagnostic(result, text: shown.text, isEditing: id == editingLine) != nil,
-      separatorMismatch(in: shown.text) == nil
-    else {
-      return nil
-    }
-    // A trailing `=` is answered by removing it, not by a model.
-    if case .syntaxFailure(let diagnostics) = result, diagnostics.first?.code == .trailingEquals {
-      return nil
-    }
-    if case .evaluationFailure(let error) = result,
-      error.code == .unresolvedAssistantPrompt
-        || error.code == .unusableAssistantAnswer
-        || error.code == .brokenReference
-        || error.code == .unavailableReference
-        // Tables are calculated locally; no table error is sent to a model.
-        || error.code == .tableReference
-        || error.code == .typeMismatch
-        || error.code == .incompatibleDimensions
-        || error.code == .missingCurrencyRate
-        || error.code == .currencyRatesUnavailable
-    {
-      return nil
-    }
-    let asked = shown.text.trimmingCharacters(in: .whitespacesAndNewlines)
-    return asked.isEmpty ? nil : asked
-  }
-
   /// The formatted value of a line, or the message of a failure its
   /// decoration flags.
   /// Every line with the answer it shows once evaluation settles, as if no
@@ -1461,18 +1082,13 @@ public final class SheetEditorViewController: NSViewController {
       let cell = shownLines[line.id].flatMap { shown in
         shown.result.result.flatMap {
           makeCell(
-            for: $0, text: line.text, isEditing: false, assisted: assistantAnswer(to: line.text),
-            pending: isAssistantPending(text: line.text, line: shown.result))
+            for: $0, text: line.text, isEditing: false)
         }
       }
       return ExportedLine(
         source: line.text, answer: cell?.text, fullPrecision: cell?.fullPrecision,
         status: cell.map {
-          $0.isPending
-            ? .pending
-            : $0.isAssisted
-              ? .aiUnverified
-              : $0.isFailure ? .failure : .calculated
+          $0.isFailure ? .failure : .calculated
         } ?? .none)
     }
   }
@@ -1517,16 +1133,12 @@ public final class SheetEditorViewController: NSViewController {
       return nil
     }
     let isEditing = id == editingLine
-    let assisted = assistantAnswer(to: shown.text)
-    let pending = isAssistantPending(text: shown.text, line: shown.result)
-    if let cached = cells[id], cached.isEditing == isEditing, cached.result == result,
-      cached.assisted == assisted, cached.pending == pending
-    {
+    if let cached = cells[id], cached.isEditing == isEditing, cached.result == result {
       return markAssumption(cached.cell, line: shown.result)
     }
     let cell = makeCell(
-      for: result, text: shown.text, isEditing: isEditing, assisted: assisted, pending: pending)
-    cells[id] = (result, isEditing, assisted, pending, cell)
+      for: result, text: shown.text, isEditing: isEditing)
+    cells[id] = (result, isEditing, cell)
     return markAssumption(cell, line: shown.result)
   }
 
@@ -1538,18 +1150,8 @@ public final class SheetEditorViewController: NSViewController {
     return cell
   }
 
-  private func assistantAnswer(to text: String) -> String? {
-    assistantAnswers[text.trimmingCharacters(in: .whitespacesAndNewlines)]
-  }
-
-  private func isAssistantPending(text: String, line: SheetLineResult) -> Bool {
-    assistantLineInFlight[text.trimmingCharacters(in: .whitespacesAndNewlines)] != nil
-      || line.assistantPrompts.contains { assistantPromptsInFlight[$0] != nil }
-  }
-
   private func makeCell(
-    for result: CalculationResult, text: String, isEditing: Bool, assisted: String? = nil,
-    pending: Bool = false
+    for result: CalculationResult, text: String, isEditing: Bool
   ) -> AnswerCell? {
     switch result {
     case .value(let value):
@@ -1562,34 +1164,10 @@ public final class SheetEditorViewController: NSViewController {
         return cell
       }
     case .syntaxFailure, .evaluationFailure:
-      if pending {
-        return AnswerCell(
-          text: localized("assistant.testing", "Asking…"), fullPrecision: nil, isPending: true)
-      }
-      // What the assistant said answers the line; what Ganit says only
-      // explains why it could not.
-      if let assisted, canUseLineAssistantAnswer(result) {
-        return AnswerCell(text: assisted, fullPrecision: nil, isAssisted: true)
-      }
       return flaggedDiagnostic(result, text: text, isEditing: isEditing).map {
         AnswerCell(text: $0.message, fullPrecision: nil)
       }
     }
-  }
-
-  private func canUseLineAssistantAnswer(_ result: CalculationResult) -> Bool {
-    if case .evaluationFailure(let error) = result {
-      return ![
-        .unresolvedAssistantPrompt, .unusableAssistantAnswer, .unavailableReference,
-        .brokenReference, .tableReference,
-        .typeMismatch, .incompatibleDimensions, .missingCurrencyRate,
-        .currencyRatesUnavailable,
-      ].contains(error.code)
-    }
-    if case .syntaxFailure(let diagnostics) = result {
-      return diagnostics.first?.code != .trailingEquals
-    }
-    return false
   }
 
   /// The sheet's formatters, or ones writing numbers in the format chosen for
@@ -1656,7 +1234,7 @@ public final class SheetEditorViewController: NSViewController {
         separatorMismatchDiagnostic(diagnostics[0], text: text)
         ?? diagnosticFormatter.format(diagnostics[0])
     case .evaluationFailure(let error):
-      diagnostic = assistedReferenceDiagnostic(error) ?? diagnosticFormatter.format(error)
+      diagnostic = diagnosticFormatter.format(error)
     default:
       return nil
     }
@@ -1717,26 +1295,6 @@ public final class SheetEditorViewController: NSViewController {
       fixIts: mismatch.rewrite.map {
         [DiagnosticFixIt(range: mismatch.range, replacement: $0, messageKey: "fixIt.separators")]
       } ?? [])
-  }
-
-  /// A reference to a line that shows only an AI display answer, which the
-  /// engine cannot read, says so and how to make that answer a value.
-  private func assistedReferenceDiagnostic(_ error: EngineError) -> FormattedDiagnostic? {
-    guard error.code == .unavailableReference, case .failedLine(let number) = error.context,
-      sheet.lines.indices.contains(number - 1),
-      assistantAnswer(to: sheet.lines[number - 1].text) != nil
-    else {
-      return nil
-    }
-    let formatted = diagnosticFormatter.format(error)
-    return FormattedDiagnostic(
-      code: formatted.code, severity: formatted.severity, ranges: formatted.ranges,
-      message: String(
-        format: localized(
-          "assistant.unreferenceable",
-          "Line %lld has an AI display answer, which formulas cannot use. Change Answer… can save it into the sheet."
-        ), number),
-      fixIts: formatted.fixIts)
   }
 
   /// The interpretation card rows for a line's shown answer.
@@ -1809,18 +1367,6 @@ public final class SheetEditorViewController: NSViewController {
     case .syntaxFailure, .evaluationFailure:
       guard let diagnostic = flaggedDiagnostic(result, text: shown.text, isEditing: false) else {
         return details
-      }
-      if let assisted = assistantAnswer(to: shown.text) {
-        details += [
-          AnswerCell.Detail(
-            label: localized("interpretation.aiAnswer", "AI answer"), value: assisted),
-          AnswerCell.Detail(
-            label: localized("interpretation.aiAnswerUse", "Use"),
-            value: localized(
-              "interpretation.aiAnswerNote",
-              "An unverified AI display answer. Formulas cannot refer to it; Change Answer… ▸ Save Value into Sheet makes a reviewed value they can use."
-            )),
-        ]
       }
       details += [
         AnswerCell.Detail(
@@ -2544,6 +2090,7 @@ extension SheetEditorViewController {
       : users.map(\.text).joined(separator: "\n")
     let popover = NSPopover()
     popover.behavior = .transient
+    popover.animates = false
     var removal: AssumptionRemovalReview?
     popover.contentViewController = AssumptionCardController(
       details: [
@@ -2646,7 +2193,6 @@ extension SheetEditorViewController {
       !textView.hasMarkedText(), let replacements, replacements.count == ranges.count,
       !ranges.isEmpty
     else { return false }
-    let original = sheet.text
     var patches: [TableSourcePatch] = []
     var consumed: Set<Int> = []
     var selectionChanges = zip(ranges, replacements).map { (range: $0.0, replacement: $0.1) }
@@ -2706,6 +2252,7 @@ extension SheetEditorViewController {
         ))
     }
     guard !patches.isEmpty else { return false }
+    let original = sheet.text
     for index in ranges.indices where !consumed.contains(index) {
       guard let range = Range(ranges[index], in: original) else { return false }
       let lower = original.utf8.distance(from: original.utf8.startIndex, to: range.lowerBound)

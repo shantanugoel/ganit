@@ -136,14 +136,6 @@ public indirect enum Expression: Hashable, Sendable {
   )
   case grouped(Expression, range: SourceRange)
   case reference(LineReference, range: SourceRange)
-  /// The text inside the parentheses is the prompt, not an expression,
-  /// except for the expression in each `{…}` placeholder.
-  case assistantPrompt(
-    parts: [PromptPart],
-    nameRange: SourceRange,
-    range: SourceRange
-  )
-
   public var range: SourceRange {
     switch self {
     case .literal(_, let range),
@@ -162,8 +154,7 @@ public indirect enum Expression: Hashable, Sendable {
       .period(_, _, let range),
       .conversion(_, _, _, let range),
       .grouped(_, let range),
-      .reference(_, let range),
-      .assistantPrompt(_, _, let range):
+      .reference(_, let range):
       return range
     }
   }
@@ -175,12 +166,6 @@ public indirect enum Expression: Hashable, Sendable {
       return [reference]
     case .literal, .temporal, .identifier:
       return []
-    case .assistantPrompt(let parts, _, _):
-      return parts.reduce(into: []) {
-        if case .placeholder(let expression) = $1 {
-          $0.formUnion(expression.references)
-        }
-      }
     case .prefix(_, let operand, _, _),
       .percentage(let operand, _, _),
       .quantity(let operand, _, _),
@@ -207,12 +192,6 @@ public indirect enum Expression: Hashable, Sendable {
       return [name.lowercased()]
     case .literal, .temporal, .reference:
       return []
-    case .assistantPrompt(let parts, _, _):
-      return parts.reduce(into: []) {
-        if case .placeholder(let expression) = $1 {
-          $0.formUnion(expression.identifiers)
-        }
-      }
     case .prefix(_, let operand, _, _),
       .percentage(let operand, _, _),
       .quantity(let operand, _, _),
@@ -241,11 +220,4 @@ public struct ParsingResult: Equatable, Sendable {
     self.expression = expression
     self.diagnostics = diagnostics
   }
-}
-
-/// A piece of an `ask_assistant` prompt: words sent as written, or the
-/// expression in a `{…}` placeholder, whose value is sent.
-public enum PromptPart: Hashable, Sendable {
-  case text(String)
-  case placeholder(Expression)
 }

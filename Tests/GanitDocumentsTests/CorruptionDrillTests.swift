@@ -336,7 +336,7 @@ final class CorruptionDrillTests {
   }
 
   /// Recovery does not change how a sheet calculates: every table block line
-  /// stays quarantined, with no answer, declaration, assistant prompt, or
+  /// stays isolated, with no answer, declaration, or
   /// aggregate membership, in regular and Markdown sheets alike.
   @Test(arguments: [false, true])
   func recoveredSheetsKeepTablesOutOfOrdinaryCalculation(markdown: Bool) throws {
@@ -344,9 +344,6 @@ final class CorruptionDrillTests {
     var preferences = SheetPreferences.standard
     preferences.display.writesAnswersInline = markdown
     let context = try preferences.evaluationContext(now: Self.now)
-    var control = SheetCalculator()
-    let prompt = try control.evaluate(SheetSource("ask_assistant(hello)"), context: context)
-    #expect(!prompt.lines[0].assistantPrompts.isEmpty)
 
     for id in Self.tableSheets {
       let sheet = try library.load(id: id)
@@ -364,7 +361,7 @@ final class CorruptionDrillTests {
         for line in block.physicalLines {
           let result = evaluation.lines[line]
           #expect(result.result == nil, "\(id) line \(line)")
-          #expect(result.declaredVariableName == nil && result.assistantPrompts.isEmpty)
+          #expect(result.declaredVariableName == nil)
         }
       }
       // `x = 999` and `x = 5` inside blocks declare nothing, and the block

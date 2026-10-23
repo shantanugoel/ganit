@@ -20,7 +20,7 @@ struct TableCalculationFailure: Hashable, Sendable {
     /// sum whose columns declare different typed defaults.
     case unsupportedAggregation
     /// Syntax tables diagnose rather than approximate: comparisons, deferred
-    /// spreadsheet functions and assistant prompts. `referenceDiagnostic`
+    /// spreadsheet functions. `referenceDiagnostic`
     /// says which.
     case unsupported
   }
@@ -1190,7 +1190,7 @@ private struct TableCalculationWorker {
   /// built-in or visible custom function answers, and a line reference to
   /// this table's own or a later line or to a failed line. They outrank
   /// blocked inputs and reduction failures, as syntax errors do. The
-  /// earliest in source wins. (Assistant prompts never reach the parse.)
+  /// earliest in source wins.
   @inline(never)
   private func scopeFailure(_ expression: Expression) -> TableStaticFailure? {
     var found: (range: SourceRange, failure: TableStaticFailure)?
@@ -1632,7 +1632,7 @@ private struct TableCalculationWorker {
     case .reference(let diagnostic):
       let code: TableCalculationFailure.Code
       switch diagnostic.code {
-      case .unsupportedFunction, .unsupportedComparison, .assistantPrompt: code = .unsupported
+      case .unsupportedFunction, .unsupportedComparison: code = .unsupported
       default: code = .reference
       }
       return failure(code, at: address, range: diagnostic.range, reference: diagnostic)
@@ -1695,7 +1695,7 @@ extension Expression {
     var pending = [self]
     while let next = pending.popLast() {
       switch next {
-      case .identifier, .reference, .assistantPrompt: return false
+      case .identifier, .reference: return false
       default: pending.append(contentsOf: next.tableChildren)
       }
     }

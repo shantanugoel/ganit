@@ -5,6 +5,24 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Use Ask Ganit for model requests. Typing no longer starts automatic
+  requests. Review Context, then press Return to send.
+- Remove Ask Assistant, Change Answer, Cancel Request, model display answers,
+  and the `ask_assistant(...)` function with its prompt placeholders.
+  Existing source with that function produces an ordinary diagnostic.
+- Stop reading or writing the saved assistant reply cache. Ask keeps a bounded
+  cache in memory. Approved source and marked assumptions remain in the sheet.
+- Show a temporary unverified text Answer for a question with no calculation.
+  It cannot supply a formula result, change source, or use the reply cache.
+- Add accessibility labels, card content, and actions for Ask and AI
+  assumptions. Clear the instruction when a new Ask opens.
+- Update Help and privacy information for the disclosed context. Ask sends
+  relevant source dependencies and engine facts after an explicit request.
+- Refresh Context with the current instruction or typed clarification before
+  it shows the request. Opening Context sends nothing.
+- Let Settings labels wrap when translated text needs more space.
+- Reduce repeated work when a large sheet recalculates.
+
 - Ask “explain this” or “why is this 920?” on a calculation line. Ganit
   shows its expression, result, dependencies, grammar rules, assumptions,
   and diagnostics in the interpretation card. The card states that nothing
@@ -67,7 +85,7 @@ existing answer. See the [release train](docs/release/release-train.md).
   words, press ⏎, and Ganit sends that — with the lines you selected, the records
   it matched, and your calculation settings, all listed under **Context ▸**
   before anything goes. A provider that refuses the ask loses both optional
-  fields, as the line-level request already does. Ganit checks every proposal
+  fields on a bounded retry. Ganit checks every proposal
   against its own engine before it appears, and **Apply** (⌘↩) is the only thing
   that changes source — as one Undo step named *Apply AI Change*, restoring bytes
   and selection. Nothing is sent while you type, and Esc closes the bar.

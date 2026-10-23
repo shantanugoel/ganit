@@ -2,7 +2,10 @@
 
 Date: 2026-10-13
 
-Status: Implementation is in progress. No phase exit gate is complete.
+Status: Historical plan. The [Ask plan](ai-native.md) supersedes this plan.
+The [Ask verification record](../quality/ai-native-m5.md) lists current
+checks and coverage limits. The implementation status and measurements below
+record the work as of 2026-10-13.
 
 Selected direction: Option 2, an editor that suggests calculation expressions
 and repairs. This plan does not introduce a live English document model.
@@ -693,9 +696,15 @@ The external references support interaction choices. They do not prove
 Ganit's proposed harness or timing limits. The current runtime documents
 remain authoritative until the implementation and release updates occur.
 
-## 13. Implementation progress
+## 13. Implementation progress as of 2026-10-13
 
-Implementation is in progress. No phase exit gate is complete.
+This section is a historical record. Its pending work and failed measurements
+do not describe the current branch. The [Ask plan](ai-native.md) records
+milestone status. The [Ask verification record](../quality/ai-native-m5.md)
+records current evidence and open release checks. Ask now excludes Quick
+Ganit. The legacy assistant paths have been removed. Automatic requests,
+partial-line targets, and table targets are outside the current Ask design.
+Keep the failed measurements below as dated evidence.
 
 The code includes the version 1 response contract, strict JSON checks,
 exact value encoding, native scope snapshots, evidence, diagnostic spans,

@@ -158,7 +158,6 @@ enum MarkdownLines {
     referenceKeywords[name] != nil
       || BuiltInFunction(rawValue: name) != nil
       || FinanceFunction(rawValue: name) != nil
-      || name == assistantFunctionName
       || CurrencyCatalog.minorUnits[name.uppercased()] != nil
       || CurrencyCatalog.names[name.lowercased()] != nil
       || ScaleWord.digits[name.lowercased()] != nil

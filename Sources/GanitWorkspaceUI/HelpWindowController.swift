@@ -283,7 +283,7 @@ public final class HelpWindowController: NSWindowController, NSTableViewDataSour
           """
           No matching topics.
 
-          Try one word, such as percent, unit, or date. For a question the           reference does not answer, write ask_assistant(your question) on a           sheet line.
+          Try one word, such as percent, unit, or date. For another question, configure a model in Ganit ▸ Assistant…, then press ⌘⇧A in a sheet. Open Context to review the request. Press Return or select Ask to send. Answer, Retry, and clarification choices also send requests. Opening Ask or Context sends nothing.
           """
         ),
         attributes: [

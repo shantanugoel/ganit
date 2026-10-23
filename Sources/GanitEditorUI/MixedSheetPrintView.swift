@@ -166,7 +166,7 @@ final class MixedSheetPrintView: NSView {
           .font: VisualStyle.Typography.source(scale: 1), .paragraphStyle: paragraph,
           .foregroundColor: VisualStyle.Color.primary,
         ]))
-    if let answer = line.annotatedAnswer {
+    if let answer = line.answer {
       text.append(
         NSAttributedString(
           string: "\t" + answer,

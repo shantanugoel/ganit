@@ -593,6 +593,7 @@ extension SheetEditorViewController {
     if #available(macOS 15.0, *) {
       textView.writingToolsBehavior = ids.isEmpty ? .default : .none
     }
+    guard !ids.isEmpty || !inlineTableViews.isEmpty || !inlineTableRanges.isEmpty else { return }
     for id in inlineTableViews.keys where !ids.contains(id) {
       inlineTableViews.removeValue(forKey: id)?.removeFromSuperview()
     }

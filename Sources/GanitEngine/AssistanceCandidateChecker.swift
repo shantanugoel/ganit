@@ -91,11 +91,11 @@ public enum AssistanceCandidateChecker {
         .evaluation, "The working exceeds the native operation limit.",
         engineResult: .evaluationFailure(EngineError(code: .resourceLimitExceeded)))
     }
-    guard !facts.containsAssistant,
+    guard
       facts.unitIdentifiers.isDisjoint(with: snapshot.scope.unreviewedUnits)
     else {
       throw AssistanceValidationFailure(
-        .unsupportedOperation, "A proposal cannot call ask_assistant.")
+        .unsupportedOperation, "A proposal cannot use an unreviewed unit.")
     }
     let inputs = snapshot.inventory.filter {
       $0.matchesTarget || permittedHandles.contains($0.handle)
@@ -375,8 +375,8 @@ public enum AssistanceCandidateChecker {
       let upper = text.utf8.distance(from: text.utf8.startIndex, to: range.upperBound)
       shadow.replace(utf8Range: lower..<upper, with: rewrite.replacement)
     }
-    // Legacy model values are never evidence for a preview.
-    let context = snapshot.context.with(assistantAnswers: [:])
+    // Check both sources with the same frozen native context.
+    let context = snapshot.context
     var calculator = snapshot.calculator
     let safeBaseline = try calculator.evaluate(snapshot.source, context: context)
     let evaluation = try calculator.evaluate(shadow, context: context)

@@ -1024,11 +1024,6 @@ public struct DiagnosticFormatter: Sendable {
         "syntax.expectedClosingParenthesis",
         defaultValue: "Add a closing parenthesis."
       )
-    case .expectedClosingBrace:
-      return localized(
-        "syntax.expectedClosingBrace",
-        defaultValue: "Add a closing brace."
-      )
     case .expectedArgumentSeparator:
       return localized(
         "syntax.expectedArgumentSeparator",
@@ -1184,16 +1179,6 @@ public struct DiagnosticFormatter: Sendable {
       return localized(
         "error.evaluation.unknownFunction",
         defaultValue: "This function is not defined."
-      )
-    case .unresolvedAssistantPrompt:
-      return localized(
-        "error.evaluation.unresolvedAssistantPrompt",
-        defaultValue: "This needs an assistant. Turn one on under Ganit ▸ Assistant…."
-      )
-    case .unusableAssistantAnswer:
-      return localized(
-        "error.evaluation.unusableAssistantAnswer",
-        defaultValue: "The assistant's answer could not be used as a value."
       )
     case .argumentCountMismatch:
       return localized(

@@ -204,31 +204,6 @@ struct AssistanceFunctionContextTests {
     #expect(captures[0]["value"] == nil)
   }
 
-  @Test func legacyCaptureDoesNotExposeItsValueOrAllowAPreview() throws {
-    let context = try sheetContext().with(assistantAnswers: [
-      AssistantPrompt([.text("unknown")]): .value(.number(.integer(IntegerValue(777777))))
-    ])
-    let source = SheetSource("factor = ask_assistant(unknown)\nf(x) = x * factor\nUse f with two.")
-    var calculator = SheetCalculator()
-    let snapshot = try calculator.assistanceSnapshot(
-      source, context: context, target: source.lines.last!.id)
-    let symbols = try #require(root(snapshot)["symbols"] as? [[String: Any]])
-    let record = try #require(symbols.first { $0["name"] as? String == "f" })
-    #expect(record["unreviewed"] as? Bool == true)
-    #expect(record["function"] == nil)
-    #expect(!String(decoding: try snapshot.permittedContext(), as: UTF8.self).contains("777777"))
-    let using = try candidate("f(2)", snapshot: snapshot)
-    let dropping = SuggestionCandidate(
-      id: using.id, edits: [SuggestionEdit(target: "T1", replacement: "2")],
-      bindings: [], literals: using.literals, relations: using.relations, assumptions: [],
-      summary: "Use the supplied argument.")
-    for candidate in [using, dropping] {
-      #expect(throws: AssistanceValidationFailure.self) {
-        try AssistanceCandidateChecker.check(candidate, against: snapshot)
-      }
-    }
-  }
-
   @Test func aBuiltInCallCannotClaimAFakeDeclarationBinding() throws {
     let snapshot = try snapshot("Use cos with two.")
     let evidence = snapshot.evidence()

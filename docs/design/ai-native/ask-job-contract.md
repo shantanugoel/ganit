@@ -11,12 +11,12 @@ encodings — are specified in
 [assistance contracts](../../engine/assistance-contracts.md) and are not
 restated here.
 
-## What exists, and what M1 adds
+## Contract and implementation
 
-The harness is merged code; the Ask layer is not written yet. This says which
-names below are real and which M1–M3 must create.
+The Ask implementation uses the existing harness. The table records the
+M0 baseline and the work in M1 through M5.
 
-| Already in the tree | Created by M1–M3 |
+| M0 baseline | Work in M1 through M5 |
 | --- | --- |
 | `SuggestionJobInput`, `SuggestionJob`, `SuggestionJobState`, `SuggestionJobEvent`, `SuggestionCoordinator`, `SuggestionClock`, `SuggestionLimits` | — |
 | `SuggestionJobResult` with `proposal`, `clarify`, `unsupported`, `failed`, `cancelled`, `dismissed`, `stale`, `paused` | `AskJobOutcome` with `explanation`, `answer`, `proposal`, `clarification`, `failure`, and `AskFailure`'s four reason classes |
@@ -27,9 +27,8 @@ names below are real and which M1–M3 must create.
 | `SuggestionJobOrigin.automatic` and its rate limits | nothing — they stay unreachable in v1 |
 | `AssistanceSemanticPolicy`'s option-less `missing_density` required choice | its replacement by an assumption with a basis, so the water example reaches Apply (M3's gate) |
 
-The same goes for the two Settings fields this design needs: `Effort` landed at
-M-1, and **Repair attempts** and **Mark AI-derived answers** arrive with M2 and
-M3.
+`Effort` was added at M-1. **Repair attempts** was added at M2.
+**Mark AI-derived answers** was added at M3.
 
 ## One job
 
@@ -41,7 +40,7 @@ An Ask job is one call to `SuggestionCoordinator.start(_:observer:)` with one
 | `snapshot` | `SheetCalculator.assistanceSnapshot(_:context:target:)` or the `targets:` overload, taken at the caret line, the selection, or the whole sheet **within the harness target limits: 12 lines, 8 KiB, contiguous, no table-block overlap** |
 | `settings` | `AssistantSettings`, `effort` included |
 | `document` | The saved sheet identity. Source and settings changes invalidate its jobs and cache. |
-| `permission.contextAccepted` | False until the reader sends. The Ask bar makes `Context ▸` available before Send. Return sends the typed instruction, as specified by the approved prototype. Opening the disclosure alone sends nothing. |
+| `permission.contextAccepted` | False until the reader sends. The Ask bar makes `Context ▸` available before Send. An explicit send action is Return, Ask, Answer, Retry, or a clarification choice. Opening Ask or the disclosure sends nothing. |
 | `includedRecords` | extra symbol handles the reader opted into |
 | `choices` | answers to earlier clarifications in this job, `AssistanceChoice.id → Option.id` |
 | `retry` | **Try again** on a failure card |
@@ -55,8 +54,8 @@ the reader sees is one continuous exchange in one bar.
 
 ## Four outcomes, six yields
 
-The reader can meet four shapes; the plan's §5 counts six yields, and the wire
-union has five cases. An assumption value is a `proposal` whose candidates carry
+The user can see four result shapes. Section 5 of the plan lists six
+job results. The wire format also permits a request for more context. An assumption value is a `proposal` whose candidates carry
 `requiresAssumptionApproval`, which the harness already has and which makes
 `isApplicable` false until the reader approves, and the bar renders that case as
 the assumption card. A failure is the absence of an outcome. `proposal` and
@@ -73,10 +72,8 @@ public enum AskJobOutcome: Sendable {
 }
 ```
 
-`cancelled`, `dismissed`, `stale` and `paused` stay job states rather than
-reader-facing outcomes in the Ask bar. `SheetSuggestionSession` currently reads
-all four aloud ("The source scope changed. Request a new suggestion.", "The
-request stopped.", "Automatic suggestions paused."); replacing that copy is M1's.
+`cancelled`, `dismissed`, `stale`, and `paused` remain job states.
+The Ask bar shows their status. It does not make a result card for them.
 
 **Explanation.** Engine-sourced: expression, result, dependencies, the applied
 grammar rule, assumptions, diagnostics, all from `SheetEvaluation` and the
@@ -99,9 +96,22 @@ provider job. If evaluation is not current, it asks the reader to wait.
 **Ask the model instead** prepares an explanation request. Both actions
 wait for Send and keep Context available.
 
-**Answer.** One value, marked unverified, shown once. It is not a `LineID`, not
-a symbol, not referenceable, and is not saved. There is nothing to calculate
-when this appears; if there were, it would be a proposal.
+**Answer.** M5 adds `SuggestionJobResult.answer(String)`. The card shows one
+text answer and marks it as unverified. It states that context was sent.
+It has no Apply action. It cannot supply a line result or a symbol. It is
+not saved or cached. Esc closes it.
+
+This result must comply with rule 1 of the plan. It cannot contain a model
+number. The decoder rejects Unicode numeric characters, common English number
+words, and equation operators. The coordinator permits it only for a manual Ask that has context
+permission and `allowsAnswer`. An explicit Explain request cannot return an
+Answer. Numeric evidence, a matched or included source symbol, or a current
+target value blocks this result. A calculation must use a checked proposal.
+A world fact needed by a calculation must use a named assumption.
+
+The exact request body includes the Answer schema only when these local
+checks pass. The prepared disclosure and the sent body use the same check.
+Late replies from a stale job are discarded.
 
 **Proposal.** `[AssistanceCheckedCandidate]`, each already shadow-evaluated on
 the frozen snapshot. An unparseable or non-calculating candidate never reaches

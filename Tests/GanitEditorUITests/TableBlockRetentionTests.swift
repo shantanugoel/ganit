@@ -340,27 +340,6 @@ struct TableBlockRetentionTests {
     #expect(commits.map(\.generation) == commits.map(\.generation).sorted())
   }
 
-  /// Block lines are never sent to the assistant, while prose it could not
-  /// work out still is.
-  @Test
-  func blockLinesNeverAskTheAssistant() async throws {
-    let source = try Self.fixture("unsupported-version.txt") + "10 kg of water in ml"
-    let (editor, _) = try await makeEditor(source, markdown: false)
-    let asked = AskedLines()
-    editor.assistantPause = .milliseconds(10)
-    editor.askAssistant = { line in
-      await asked.record(line)
-      return nil
-    }
-    let deadline = ContinuousClock.now + .seconds(10)
-    while await asked.lines.isEmpty, ContinuousClock.now < deadline {
-      try await Task.sleep(for: .milliseconds(20))
-    }
-    try await Task.sleep(for: .milliseconds(100))
-    #expect(await asked.lines == ["10 kg of water in ml"])
-    #expect(editor.latestEvaluation?.lines.allSatisfy(\.assistantPrompts.isEmpty) == true)
-  }
-
   // MARK: Helpers
 
   /// The text matches byte for byte, block lines of the newest evaluation
@@ -389,7 +368,6 @@ struct TableBlockRetentionTests {
     for line in blocks.joined().map({ evaluation.lines[$0] }) {
       #expect(
         line.result == nil && line.declaredVariableName == nil, sourceLocation: sourceLocation)
-      #expect(line.assistantPrompts.isEmpty, sourceLocation: sourceLocation)
       #expect(textView.answer(line.id) == nil, sourceLocation: sourceLocation)
       #expect(!answered.contains(line.id), sourceLocation: sourceLocation)
     }

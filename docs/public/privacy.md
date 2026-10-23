@@ -24,16 +24,33 @@ turn automatic updates off with **Calculate ▸ Update Exchange Rates
 Automatically**; conversions then use the last rates Ganit accepted or rates
 you declare.
 
-The second is the assistant, and it is off. Nothing is sent until you fill in
-an address and a model under **Ganit ▸ Assistant…** and turn it on. From then
-on, a line Ganit could not work out — and only such a line, one at a time,
-after you stop typing on it — is sent to the address you chose, with the
-model's name and the Effort you picked, and nothing else: not the rest of the
-sheet, its title, or anything about your Mac. Effort is one word saying how
-hard the model should think; **Off** sends no word at all. What comes back is
-written in purple, because a model's answer is a guess and a calculation is
-not. Your key is kept in the keychain. Pointing the address at a model running
-on your Mac keeps even these lines at home.
+The second is Ask Ganit. It is off until you configure and enable a model
+under **Ganit ▸ Assistant…**. Opening Ask or typing in a sheet sends nothing.
+A request starts only after an explicit send action: Return, Ask, Answer,
+Retry, or a clarification choice. Opening Context sends nothing.
+
+**Context ▸** shows the source and exact request body before Send. The request
+includes the target lines, relevant values, transitive source dependencies,
+attached notes, captured function inputs, diagnostics, engine settings, and
+the function catalog. Engine settings include the sheet locale, time zone,
+and frozen calculation time. These are calculation inputs, not a system
+profile. The target is limited to 12 contiguous lines and 8 KiB and cannot
+include a table block. Unrelated source, sheet titles, library contents, and
+local document identifiers are excluded. Opaque handles identify records.
+
+The request also includes your instruction, the model name, the selected
+Effort, and instructions for the model. Off omits the Effort field. A job can
+make up to three requests for format fallback, additional context, or repair.
+Additional context requires review before Send. Replies are held in memory;
+Ganit does not save a provider reply cache. Applied source changes and
+approved assumptions are saved as ordinary sheet source. Assumptions carry
+an AI origin comment.
+
+The endpoint you choose receives this content and the key needed to access
+it. Your key is stored in the keychain. Ganit uses an ephemeral network
+session without cookies or a persistent cache. It refuses redirects. HTTPS
+is required except for loopback addresses. A loopback provider can keep the
+request on your Mac; that provider controls any further network use.
 
 The third is the update check, and it is also off. A fresh copy of Ganit never
 asks GitHub whether a newer version exists; choosing **Ganit ▸ Check for

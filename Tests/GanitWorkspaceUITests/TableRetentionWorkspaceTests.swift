@@ -123,7 +123,6 @@ struct TableRetentionWorkspaceTests {
     for line in blocks.joined().map({ evaluation.lines[$0] }) {
       #expect(
         line.result == nil && line.declaredVariableName == nil, sourceLocation: sourceLocation)
-      #expect(line.assistantPrompts.isEmpty, sourceLocation: sourceLocation)
     }
   }
 

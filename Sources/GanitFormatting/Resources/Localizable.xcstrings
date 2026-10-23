@@ -462,11 +462,6 @@
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Separate function arguments." } }
       }
     },
-    "syntax.expectedClosingBrace" : {
-      "localizations" : {
-        "en" : { "stringUnit" : { "state" : "translated", "value" : "Add a closing brace." } }
-      }
-    },
     "syntax.expectedClosingParenthesis" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Add a closing parenthesis." } }

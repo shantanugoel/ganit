@@ -37,11 +37,11 @@ struct LineReferenceRenumberingTests {
   }
 
   @Test
-  func preservesCommentsPromptsOutOfRangeReferencesAndUnicodeOffsets() {
+  func preservesCommentsOutOfRangeReferencesAndUnicodeOffsets() {
     let source = "# 🧮\n10\n20\n@2 + line 3 + @99 // @3\nask_assistant(email @3 and {@3})"
     #expect(
       edit(source, 8, 0, "5\n")
-        == "# 🧮\n10\n5\n20\n@2 + line 4 + @99 // @3\nask_assistant(email @3 and {@4})")
+        == "# 🧮\n10\n5\n20\n@2 + line 4 + @99 // @3\nask_assistant(email @4 and {@4})")
     #expect(edit("10\r\n20\r\n@2", 4, 0, "5\r\n") == "10\r\n5\r\n20\r\n@3")
     #expect(edit("10\r20\r@2", 3, 0, "5\r") == "10\r5\r20\r@3")
   }

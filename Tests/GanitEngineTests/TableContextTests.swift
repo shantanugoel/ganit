@@ -293,27 +293,6 @@ import Testing
 
   // MARK: - Unsupported syntax
 
-  @Test func assistantPromptsAreNeverAsked() throws {
-    let prompt = AssistantPrompt([.text("10 kg of water in ml")])
-    let answered = try context().with(
-      assistantAnswers: [prompt: .value(.number(.integer(IntegerValue(10_000))))])
-    let model = table([
-      [
-        "=ask_assistant(10 kg of water in ml)", "=2 * ask_assistant(10 kg of water in ml)",
-        "=ASK_ASSISTANT(10 kg of water in ml)",
-      ]
-    ])
-    for context in [try context(), answered] {
-      let snapshot = try calculate(model, context: context)
-      for column in 0..<3 {
-        let failed = failure(snapshot, address(model, 0, column))
-        #expect(failed?.code == .unsupported)
-        #expect(failed?.referenceDiagnostic?.code == .assistantPrompt)
-        #expect(snapshot.traces[address(model, 0, column)] == nil)
-      }
-    }
-  }
-
   @Test func deferredFunctionsAndComparisonsAreUnsupported() throws {
     let functions = [
       "=if(A2, 1, 2)", "=IF(A2 > 1, 1, 2)", "=IfError(A2, 0)", "=vlookup(A2, A:A, 1)",

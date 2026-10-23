@@ -91,23 +91,6 @@ public final class Workspace {
     }
   }
 
-  /// Asks the reader's assistant about a line Ganit could not work out. Every
-  /// open and newly opened sheet asks through it.
-  public var askAssistant: ((String) async -> String?)? {
-    didSet {
-      for sheet in sheets.values {
-        sheet.editor.askAssistant = askAssistant
-      }
-    }
-  }
-  /// Forgets a kept reply before Ask Assistant asks again.
-  public var forgetAssistantAnswer: ((String) -> Void)? {
-    didSet {
-      for sheet in sheets.values {
-        sheet.editor.forgetAssistantAnswer = forgetAssistantAnswer
-      }
-    }
-  }
   /// Opens Help on a topic a sheet asked to show.
   public var openHelp: ((String) -> Void)? {
     didSet {
@@ -314,8 +297,6 @@ public final class Workspace {
     editor.setDefinitions(definitions)
     editor.suggestionConfiguration = suggestionConfiguration
     editor.markAIDerivedAnswers = markAIDerivedAnswers
-    editor.askAssistant = askAssistant
-    editor.forgetAssistantAnswer = forgetAssistantAnswer
     editor.openHelp = openHelp
     editor.displayOptionsDidChange = { [weak self] options in
       // The answers already show the change; a failed save leaves it unsaved.

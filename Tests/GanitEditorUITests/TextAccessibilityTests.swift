@@ -95,8 +95,7 @@ struct TextAccessibilityTests {
     #expect(
       actions.map(\.name) == [
         "Copy Result", "Copy with Results", "Copy Full Precision", "Show Interpretation",
-        "Ask Ganit…", "Ask Assistant", "Change Answer…", "Cancel Request",
-        "Insert Reference",
+        "Ask Ganit…", "Insert Reference",
       ]
     )
     #expect(actions[0].handler?() == true)
@@ -104,11 +103,9 @@ struct TextAccessibilityTests {
     #expect(actions[1].handler?() == true)
     #expect(textView.pasteboard.string(forType: .string) == "6 * 7\t42")
     #expect(actions[4].handler?() == false)
-    #expect(actions[5].handler?() == false)
-    #expect(actions[6].handler?() == false)
-    #expect(actions[7].handler?() == false)
     // Nothing is above the first line to reference.
-    #expect(actions[8].handler?() == false)
+    let insert = try #require(actions.first { $0.name == "Insert Reference" })
+    #expect(insert.handler?() == false)
   }
 
   private func makeEditor(_ text: String) async throws -> (SheetEditorViewController, SheetTextView)

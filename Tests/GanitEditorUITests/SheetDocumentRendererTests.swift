@@ -37,12 +37,13 @@ struct SheetDocumentRendererTests {
   }
 
   @Test
-  func retainsAIProvenanceInEveryRenderedFormat() throws {
-    let lines = [ExportedLine(source: "1,5 + 2,5", answer: "4", status: .aiUnverified)]
+  func retainsAssumptionSourceInEveryRenderedFormat() throws {
+    let source = "density = 1 // AI: water at freezing · fixture · 2026-10-22"
+    let lines = [ExportedLine(source: source, answer: "1", status: .calculated)]
     #expect(
       SheetDocumentRenderer.csv(lines, locale: Locale(identifier: "en_US")).contains(
-        "\"1,5 + 2,5\",4,,ai-unverified"))
-    #expect(SheetDocumentRenderer.html([.lines(lines)], title: "AI").contains("4 [AI; unverified]"))
+        source + ",1,,calculated"))
+    #expect(SheetDocumentRenderer.html([.lines(lines)], title: "AI").contains(source))
     let view =
       SheetDocumentRenderer.printableView(
         [.lines(lines)], printInfo: SheetDocumentRenderer.printInfo()) as! MixedSheetPrintView
@@ -51,7 +52,7 @@ struct SheetDocumentRendererTests {
       if case .line(let text) = item.content { return text.string }
       return nil
     }.joined(separator: "\n")
-    #expect(printed.contains("4 [AI; unverified]"))
+    #expect(printed.contains(source))
   }
 
   @Test

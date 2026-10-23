@@ -30,6 +30,7 @@ public struct SuggestionJobInput: Sendable {
   public let approvedAssumptions: Set<String>
   public let retry: Bool
   public let userRevisedInputs: Bool
+  public let allowsAnswer: Bool
   public let allowsExplanation: Bool
 
   public init(
@@ -38,7 +39,7 @@ public struct SuggestionJobInput: Sendable {
     origin: SuggestionJobOrigin = .manual,
     includedRecords: Set<String> = [], choices: [String: String] = [:],
     approvedAssumptions: Set<String> = [], retry: Bool = false, allowsExplanation: Bool = false,
-    userRevisedInputs: Bool = false
+    userRevisedInputs: Bool = false, allowsAnswer: Bool = false
   ) {
     self.document = document
     self.snapshot = snapshot
@@ -50,6 +51,7 @@ public struct SuggestionJobInput: Sendable {
     self.approvedAssumptions = approvedAssumptions
     self.retry = retry
     self.userRevisedInputs = userRevisedInputs
+    self.allowsAnswer = allowsAnswer
     self.allowsExplanation = allowsExplanation
   }
 }
@@ -71,6 +73,7 @@ public enum SuggestionJobFailure: String, Error, Equatable, Sendable {
 
 public enum SuggestionJobResult: Sendable {
   case explanation(String)
+  case answer(String)
   case proposal([AssistanceCheckedCandidate])
   case clarify(SuggestionClarification)
   case unsupported(String)

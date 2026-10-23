@@ -129,7 +129,6 @@ public struct TableResultSnapshot: Sendable {
     case .unsupportedComparison:
       return
         "The comparison \(part) is not supported in tables. Calculate the difference to compare two values."
-    case .assistantPrompt: return "Assistant prompts are not supported in table formulas."
     default: break
     }
     switch failure.code {

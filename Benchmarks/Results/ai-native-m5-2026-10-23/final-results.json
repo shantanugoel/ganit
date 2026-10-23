@@ -1,0 +1,211 @@
+{
+  "date": "2026-10-23",
+  "baseline_commit": "2c22018",
+  "hardware": "MacBookPro18,2; Apple M1 Max; 32 GiB",
+  "macOS": "27.0 (26A428)",
+  "Xcode": "27.0 (27A266a)",
+  "configuration": "release",
+  "candidate": "Final M5 source, including the Context disclosure repair",
+  "build_system": "native",
+  "binary_sha256": "14c704edbb633ef99de51c1865f0122a510cf4bd01fa85674aa81c868212ad4d",
+  "fixture_sha256": {
+    "mixed-sheet": "23711fe867103d1a2e448833695a4f97c3632da102f9856f3c050810679e1ed4",
+    "chained-dependency-sheet": "53927332fbd4603bfecf17da0c59ac97ed9a5359a21bc37f6ad795a6d2ff80c5"
+  },
+  "protocol": "Five independent processes per mode and fixture; 200 edits per process; median of process percentiles. Initial evaluation is excluded. No edit samples are discarded.",
+  "runs": [
+    {
+      "mode": "editor",
+      "fixture": "mixed-sheet",
+      "budget_ms": 16,
+      "median_p50_ms": 9.834,
+      "median_p95_ms": 10.496,
+      "highest_p95_ms": 12.841,
+      "passed": true,
+      "trials": [
+        {
+          "trial": 1,
+          "file": "final-native-editor-mixed-sheet-1.txt",
+          "edits": 200,
+          "p50_ms": 9.566,
+          "p95_ms": 10.441
+        },
+        {
+          "trial": 2,
+          "file": "final-native-editor-mixed-sheet-2.txt",
+          "edits": 200,
+          "p50_ms": 9.834,
+          "p95_ms": 10.496
+        },
+        {
+          "trial": 3,
+          "file": "final-native-editor-mixed-sheet-3.txt",
+          "edits": 200,
+          "p50_ms": 9.89,
+          "p95_ms": 11.896
+        },
+        {
+          "trial": 4,
+          "file": "final-native-editor-mixed-sheet-4.txt",
+          "edits": 200,
+          "p50_ms": 10.098,
+          "p95_ms": 12.841
+        },
+        {
+          "trial": 5,
+          "file": "final-native-editor-mixed-sheet-5.txt",
+          "edits": 200,
+          "p50_ms": 9.767,
+          "p95_ms": 10.437
+        }
+      ]
+    },
+    {
+      "mode": "editor",
+      "fixture": "chained-dependency-sheet",
+      "budget_ms": 50,
+      "median_p50_ms": 47.075,
+      "median_p95_ms": 49.394,
+      "highest_p95_ms": 51.981,
+      "passed": true,
+      "trials": [
+        {
+          "trial": 1,
+          "file": "final-native-editor-chained-dependency-sheet-1.txt",
+          "edits": 200,
+          "p50_ms": 47.599,
+          "p95_ms": 51.981
+        },
+        {
+          "trial": 2,
+          "file": "final-native-editor-chained-dependency-sheet-2.txt",
+          "edits": 200,
+          "p50_ms": 47.21,
+          "p95_ms": 49.599
+        },
+        {
+          "trial": 3,
+          "file": "final-native-editor-chained-dependency-sheet-3.txt",
+          "edits": 200,
+          "p50_ms": 47.075,
+          "p95_ms": 49.251
+        },
+        {
+          "trial": 4,
+          "file": "final-native-editor-chained-dependency-sheet-4.txt",
+          "edits": 200,
+          "p50_ms": 46.687,
+          "p95_ms": 49.394
+        },
+        {
+          "trial": 5,
+          "file": "final-native-editor-chained-dependency-sheet-5.txt",
+          "edits": 200,
+          "p50_ms": 46.7,
+          "p95_ms": 48.618
+        }
+      ]
+    },
+    {
+      "mode": "active-ask",
+      "fixture": "mixed-sheet",
+      "budget_ms": 16,
+      "median_p50_ms": 9.06,
+      "median_p95_ms": 10.219,
+      "highest_p95_ms": 10.723,
+      "passed": true,
+      "trials": [
+        {
+          "trial": 1,
+          "file": "final-native-active-ask-mixed-sheet-1.txt",
+          "edits": 200,
+          "p50_ms": 9.622,
+          "p95_ms": 10.517
+        },
+        {
+          "trial": 2,
+          "file": "final-native-active-ask-mixed-sheet-2.txt",
+          "edits": 200,
+          "p50_ms": 9.06,
+          "p95_ms": 10.206
+        },
+        {
+          "trial": 3,
+          "file": "final-native-active-ask-mixed-sheet-3.txt",
+          "edits": 200,
+          "p50_ms": 8.888,
+          "p95_ms": 10.219
+        },
+        {
+          "trial": 4,
+          "file": "final-native-active-ask-mixed-sheet-4.txt",
+          "edits": 200,
+          "p50_ms": 9.869,
+          "p95_ms": 10.723
+        },
+        {
+          "trial": 5,
+          "file": "final-native-active-ask-mixed-sheet-5.txt",
+          "edits": 200,
+          "p50_ms": 8.91,
+          "p95_ms": 9.865
+        }
+      ]
+    },
+    {
+      "mode": "active-ask",
+      "fixture": "chained-dependency-sheet",
+      "budget_ms": 50,
+      "median_p50_ms": 46.812,
+      "median_p95_ms": 48.841,
+      "highest_p95_ms": 50.965,
+      "passed": true,
+      "trials": [
+        {
+          "trial": 1,
+          "file": "final-native-active-ask-chained-dependency-sheet-1.txt",
+          "edits": 200,
+          "p50_ms": 46.927,
+          "p95_ms": 49.336
+        },
+        {
+          "trial": 2,
+          "file": "final-native-active-ask-chained-dependency-sheet-2.txt",
+          "edits": 200,
+          "p50_ms": 46.592,
+          "p95_ms": 48.581
+        },
+        {
+          "trial": 3,
+          "file": "final-native-active-ask-chained-dependency-sheet-3.txt",
+          "edits": 200,
+          "p50_ms": 46.812,
+          "p95_ms": 48.778
+        },
+        {
+          "trial": 4,
+          "file": "final-native-active-ask-chained-dependency-sheet-4.txt",
+          "edits": 200,
+          "p50_ms": 46.761,
+          "p95_ms": 48.841
+        },
+        {
+          "trial": 5,
+          "file": "final-native-active-ask-chained-dependency-sheet-5.txt",
+          "edits": 200,
+          "p50_ms": 47.108,
+          "p95_ms": 50.965
+        }
+      ]
+    }
+  ],
+  "active_ask": "Each trial asserts one pending request throughout all edits, then cancellation. The injected provider sends no network request.",
+  "swiftbuild_comparison": {
+    "median_p95_ms": 54.281,
+    "budget_ms": 50,
+    "passed": false,
+    "binary_sha256": "be8e653056616baf539908a8259c695a71769382799f18e25867b7769643b786",
+    "candidate": "M5 performance source before the final Context disclosure repair; both backends used the same source.",
+    "native_median_p95_ms": 49.144
+  }
+}

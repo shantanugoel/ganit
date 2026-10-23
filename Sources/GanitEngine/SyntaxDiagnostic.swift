@@ -17,8 +17,6 @@ public struct SyntaxDiagnostic: Hashable, Sendable {
     case invalidUnitExponent
     case expectedUnitClosingParenthesis
     case expectedClosingParenthesis
-    /// A `{` placeholder in an `ask_assistant` prompt without its `}`.
-    case expectedClosingBrace
     case expectedArgumentSeparator
     case unexpectedToken
     case invalidVariableName

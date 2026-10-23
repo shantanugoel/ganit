@@ -1,6 +1,8 @@
 import AppKit
 import Darwin
 import Foundation
+import GanitAssistance
+import GanitData
 import GanitEditorUI
 import GanitEngine
 import GanitQuickUI
@@ -17,6 +19,109 @@ private struct SheetBenchmark: Sendable {
   let file: String
   let editedLine: Int
   let replacements: [String]
+}
+
+/// A provider that holds one request until the benchmark cancels it.
+private actor PendingBenchmarkTransport: SuggestionTransport {
+  let onRequest: @Sendable () async -> Void
+  private var pending: CheckedContinuation<Data, any Error>?
+  private var stopped = false
+
+  init(onRequest: @escaping @Sendable () async -> Void) { self.onRequest = onRequest }
+
+  func send(_ request: SuggestionWireRequest) async throws -> Data {
+    await onRequest()
+    return try await withTaskCancellationHandler {
+      try await withCheckedThrowingContinuation { continuation in
+        if stopped || Task.isCancelled {
+          continuation.resume(throwing: CancellationError())
+        } else {
+          precondition(pending == nil)
+          pending = continuation
+        }
+      }
+    } onCancel: {
+      Task { await self.stop() }
+    }
+  }
+
+  func stop() {
+    stopped = true
+    pending?.resume(throwing: CancellationError())
+    pending = nil
+  }
+}
+
+/// The Ask source and document are separate from the measured editor.
+@MainActor
+private final class ActiveAskBenchmark {
+  private let input: SuggestionJobInput
+  private var coordinator: SuggestionCoordinator!
+  private var transport: PendingBenchmarkTransport!
+  private var job: SuggestionJob?
+  private var state = SuggestionJobState.idle
+  private var leftPending = false
+  private(set) var requests = 0
+  private(set) var completed = false
+  private(set) var stopped = false
+  var isPending: Bool { requests == 1 && state == .requesting && job != nil && !completed }
+
+  init(context: EvaluationContext) throws {
+    let source = SheetSource("bill = 2400 INR\nAdd a ten percent tip to bill.")
+    var calculator = SheetCalculator()
+    let snapshot = try calculator.assistanceSnapshot(
+      source, context: context, target: source.lines.last!.id)
+    input = SuggestionJobInput(
+      document: UUID(), snapshot: snapshot,
+      settings: AssistantSettings(
+        isEnabled: true, endpoint: URL(string: "https://benchmark.invalid/v1")!,
+        model: "pending-benchmark", apiKey: "", repairAttempts: 0),
+      permission: SuggestionPermission(contextAccepted: true))
+    transport = PendingBenchmarkTransport { [weak self] in
+      await self?.recordRequest()
+    }
+    // Freeze the coordinator clock. The fake provider stays pending for any edit count.
+    let clock = SuggestionClock(
+      now: { 0 }, sleepUntil: { _ in try await Task.sleep(for: .seconds(86_400)) })
+    coordinator = SuggestionCoordinator(transport: transport, clock: clock)
+  }
+
+  private func recordRequest() { requests += 1 }
+
+  private func observe(_ event: SuggestionJobEvent) {
+    guard case .state(let next) = event else { return }
+    if state == .requesting && next != .requesting { leftPending = true }
+    state = next
+  }
+
+  func start() {
+    Task { [self] in
+      let started = await coordinator.start(input) { [weak self] event in
+        await self?.observe(event)
+      }
+      job = started
+      _ = await started.result.value
+      completed = true
+    }
+  }
+
+  func assertPending() {
+    guard isPending, !leftPending else {
+      fatalError("The active Ask must keep exactly one pending request throughout the edits.")
+    }
+  }
+
+  func stop() {
+    guard let job else { fatalError("The active Ask was not started.") }
+    Task {
+      await coordinator.cancel(job.id)
+      await transport.stop()
+      guard case .cancelled = await job.result.value else {
+        fatalError("The active Ask must end with cancellation.")
+      }
+      stopped = true
+    }
+  }
 }
 
 @main
@@ -138,13 +243,14 @@ private enum GanitBenchmarks {
     }
 
     if arguments.count == 3,
-      arguments[0] == "--editor",
+      ["--editor", "--editor-active-ask"].contains(arguments[0]),
       let benchmark = sheetBenchmarks.first(where: { $0.fixture == arguments[1] }),
       let iterations = Int(arguments[2]),
       (1...maximumSheetIterations).contains(iterations)
     {
       MainActor.assumeIsolated {
-        runEditorBenchmark(benchmark, iterations: iterations)
+        runEditorBenchmark(
+          benchmark, iterations: iterations, activeAsk: arguments[0] == "--editor-active-ask")
       }
       return
     }
@@ -179,6 +285,8 @@ private enum GanitBenchmarks {
         GanitBenchmarks --table <edit-count: 1...\(maximumSheetIterations)>
         GanitBenchmarks --quick <show-count: 1...\(maximumSheetIterations)>
         GanitBenchmarks --editor <\(sheetBenchmarks.map(\.fixture).joined(separator: "|"))> \
+      <edit-count: 1...\(maximumSheetIterations)>
+        GanitBenchmarks --editor-active-ask <\(sheetBenchmarks.map(\.fixture).joined(separator: "|"))> \
       <edit-count: 1...\(maximumSheetIterations)>
 
       Benchmarks record observations without applying a pass threshold.
@@ -516,7 +624,9 @@ private enum GanitBenchmarks {
   /// editor reports them. Each edit replaces the benchmark line through the
   /// text view with its line scrolled into view.
   @MainActor
-  private static func runEditorBenchmark(_ benchmark: SheetBenchmark, iterations: Int) {
+  private static func runEditorBenchmark(
+    _ benchmark: SheetBenchmark, iterations: Int, activeAsk: Bool = false
+  ) {
     _ = NSApplication.shared
     let context: EvaluationContext
     do {
@@ -548,6 +658,24 @@ private enum GanitBenchmarks {
     }
     waitForAnswers()
 
+    let pendingAsk: ActiveAskBenchmark?
+    do {
+      pendingAsk = activeAsk ? try ActiveAskBenchmark(context: context) : nil
+    } catch {
+      fail("The active Ask fixture is invalid.")
+    }
+    if let pendingAsk {
+      pendingAsk.start()
+      let deadline = Date().addingTimeInterval(30)
+      while !pendingAsk.isPending {
+        guard Date() < deadline, !pendingAsk.completed else {
+          fail("The active Ask did not reach the pending provider.")
+        }
+        RunLoop.main.run(mode: .default, before: Date().addingTimeInterval(0.0005))
+      }
+      pendingAsk.assertPending()
+    }
+
     let textView = editor.textView
     var samples: [Double] = []
     samples.reserveCapacity(iterations)
@@ -570,8 +698,22 @@ private enum GanitBenchmarks {
       )
       waitForAnswers()
       samples.append(nanoseconds(latency!))
+      pendingAsk?.assertPending()
     }
     samples.sort()
+    if let pendingAsk {
+      pendingAsk.assertPending()
+      pendingAsk.stop()
+      let deadline = Date().addingTimeInterval(30)
+      while !pendingAsk.stopped {
+        guard Date() < deadline else { fail("The active Ask did not stop.") }
+        RunLoop.main.run(mode: .default, before: Date().addingTimeInterval(0.0005))
+      }
+      print("active_ask=pending_provider_in_another_document")
+      print("active_ask_requests=\(pendingAsk.requests)")
+      print("active_ask_pending_for_all_edits=true")
+      print("active_ask_cancelled=true")
+    }
 
     print("fixture=\(benchmark.fixture)")
     print("edits=\(iterations)")

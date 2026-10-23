@@ -540,23 +540,6 @@ import Testing
 
   // MARK: - Unsupported syntax is explicit
 
-  @Test func assistantPromptIsAnExplicitDiagnostic() throws {
-    let prompt = AssistantPrompt([.text("10 kg of water in ml")])
-    let answered = try context().with(
-      assistantAnswers: [prompt: .value(.number(.integer(IntegerValue(10_000))))])
-    let table = table([
-      ["=ask_assistant(10 kg of water in ml)", "=ask_assistant(10 kg of water in ml) * 2"]
-    ])
-    for context in [try context(), answered] {
-      let snapshot = try calculate(table, context: context)
-      for column in 0..<2 {
-        let failure = failure(snapshot, address(table, 0, column))
-        #expect(failure?.referenceDiagnostic?.code == .assistantPrompt)
-        #expect(snapshot.traces[address(table, 0, column)]?.assistantPrompts.isEmpty ?? true)
-      }
-    }
-  }
-
   @Test func unknownFunctionIsAnExplicitDiagnostic() throws {
     let table = table([["2", "=frobnicate(A2)", "=FROBNICATE(A2) + 1"]])
     let snapshot = try calculate(table)

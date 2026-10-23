@@ -19,14 +19,20 @@ if [[ $(uname -m) != "arm64" ]]; then
 fi
 
 cd "$repository_root"
+build_system=swiftbuild
+if [[ "$configuration" == "release" ]]; then
+    # Use the backend that meets the editor latency limits on the pinned toolchain.
+    build_system=native
+fi
 ./scripts/verify-unit-attribution.sh
 plutil -lint App/Info.plist >/dev/null
 plutil -lint App/Ganit.entitlements >/dev/null
 plutil -lint App/PrivacyInfo.xcprivacy >/dev/null
-swift build --configuration "$configuration" --arch arm64 --product GanitApp
-swift build --configuration "$configuration" --arch arm64 --product ganit
+swift build --build-system "$build_system" --configuration "$configuration" --arch arm64 --product GanitApp
+swift build --build-system "$build_system" --configuration "$configuration" --arch arm64 --product ganit
 
 binary_directory=$(swift build \
+    --build-system "$build_system" \
     --configuration "$configuration" \
     --arch arm64 \
     --show-bin-path)

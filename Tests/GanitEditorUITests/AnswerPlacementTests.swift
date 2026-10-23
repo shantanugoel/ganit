@@ -74,6 +74,65 @@ struct AnswerPlacementTests {
         == nil)
   }
 
+  @Test func inlineGapsFollowEditsAndClearAcrossRepeatedModeChanges() async throws {
+    let original = "Each pays 555 / 3 => for a hotel"
+    let (editor, textView) = try await makeEditor(original)
+    func gaps() -> [NSRange] {
+      var ranges: [NSRange] = []
+      textView.textStorage?.enumerateAttribute(
+        .kern, in: NSRange(location: 0, length: textView.string.utf16.count)
+      ) { value, range, _ in
+        if value != nil { ranges.append(range) }
+      }
+      return ranges
+    }
+    for _ in 0..<2 {
+      editor.writeAnswers(DisplayOptions(writesAnswersInline: true))
+      await editor.scheduler?.waitUntilIdle()
+      #expect(textView.answerLayout(in: textView.bounds).map(\.cell.text) == ["185"])
+      #expect(gaps().count == 1)
+      textView.insertText("Trip: ", replacementRange: NSRange(location: 0, length: 0))
+      await editor.scheduler?.waitUntilIdle()
+      let arrow = (textView.string as NSString).range(of: "=>")
+      #expect(gaps() == [NSRange(location: NSMaxRange(arrow) - 1, length: 1)])
+      #expect(textView.answerLayout(in: textView.bounds).map(\.cell.text) == ["185"])
+      editor.writeAnswers(DisplayOptions())
+      await editor.scheduler?.waitUntilIdle()
+      textView.answersDidChange()
+      #expect(gaps().isEmpty)
+      #expect(textView.answerLayout(in: textView.bounds).first?.cell.isFailure == true)
+    }
+  }
+
+  @Test func anEvaluationDrawsItsCommittedAnswersWithoutAnotherDisplayTick() async throws {
+    let (editor, textView) = try await makeEditor("seed = 2\nseed * 3")
+    editor.view.window?.makeKeyAndOrderFront(nil)
+    defer { editor.view.window?.orderOut(nil) }
+    var drawn: [[String]] = []
+    editor.editToAnswerHandler = { _ in
+      drawn.append(textView.answerLayout(in: textView.bounds).map(\.cell.text))
+    }
+    textView.insertText("5", replacementRange: NSRange(location: 7, length: 1))
+    await editor.scheduler?.waitUntilIdle()
+    #expect(drawn == [["5", "15"]])
+    #expect(textView.answerLayout(in: textView.bounds).map(\.cell.text) == ["5", "15"])
+  }
+
+  @Test func renderedDependentAnswersUpdateAndRemovedLinesLeaveNoAnswer() async throws {
+    let (editor, textView) = try await makeEditor("seed = 2\nseed * 3\nline 2 + 1")
+    textView.insertText("5", replacementRange: NSRange(location: 7, length: 1))
+    await editor.scheduler?.waitUntilIdle()
+    #expect(textView.answerLayout(in: textView.bounds).map(\.cell.text) == ["5", "15", "16"])
+    let final = (textView.string as NSString).range(of: "\nline 2 + 1")
+    textView.insertText("", replacementRange: final)
+    await editor.scheduler?.waitUntilIdle()
+    #expect(textView.answerLayout(in: textView.bounds).map(\.cell.text) == ["5", "15"])
+    textView.insertText(
+      "\nline 2 + 2", replacementRange: NSRange(location: textView.string.utf16.count, length: 0))
+    await editor.scheduler?.waitUntilIdle()
+    #expect(textView.answerLayout(in: textView.bounds).map(\.cell.text) == ["5", "15", "17"])
+  }
+
   @Test
   func insertAnswerArrowEndsTheLineWithOne() async throws {
     let (_, textView) = try await makeEditor("2 + 2\n3 =>")
@@ -241,6 +300,37 @@ struct AnswerPlacementTests {
         == (textView.string as NSString).range(of: "line 2").location)
     #expect(!textView.goToLine(5))
     #expect(!textView.goToLine(0))
+  }
+
+  @Test func cachedLineOffsetsFollowUnicodeEditsInsertionDeletionAndUndo() async throws {
+    let (editor, textView) = try await makeEditor("2 + 2\n10 * 10")
+    func check() {
+      let starts = textView.lineStarts()
+      #expect(starts.map(\.id) == editor.sheet.lines.map(\.id))
+      var offset = 0
+      for (index, text) in textView.string.components(separatedBy: "\n").enumerated() {
+        #expect(starts[index].start == offset)
+        #expect(starts[index].length == text.utf16.count)
+        offset += text.utf16.count + 1
+      }
+      #expect(
+        textView.lineNumberLayout(in: textView.bounds).map(\.number) == Array(1...starts.count))
+    }
+    check()
+    editor.documentUndoManager.groupsByEvent = false
+    editor.documentUndoManager.beginUndoGrouping()
+    textView.insertText("// 🧮 café\n", replacementRange: NSRange(location: 0, length: 0))
+    editor.documentUndoManager.endUndoGrouping()
+    await editor.scheduler?.waitUntilIdle()
+    check()
+    editor.documentUndoManager.beginUndoGrouping()
+    textView.insertText("", replacementRange: (textView.string as NSString).range(of: "2 + 2\n"))
+    editor.documentUndoManager.endUndoGrouping()
+    await editor.scheduler?.waitUntilIdle()
+    check()
+    editor.documentUndoManager.undo()
+    await editor.scheduler?.waitUntilIdle()
+    check()
   }
 
   @Test

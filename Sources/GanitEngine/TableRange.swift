@@ -285,13 +285,6 @@ extension Expression {
         range: range)
     case .call(let name, let nameRange, _, let range):
       return .call(name: name, nameRange: nameRange, arguments: children, range: range)
-    case .assistantPrompt(let parts, let nameRange, let range):
-      var next = children.makeIterator()
-      let replaced = parts.map { part -> PromptPart in
-        if case .placeholder = part { return .placeholder(next.next()!) }
-        return part
-      }
-      return .assistantPrompt(parts: replaced, nameRange: nameRange, range: range)
     }
   }
 

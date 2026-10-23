@@ -27,43 +27,6 @@ struct TableBoundaryEditorTests {
 
   // MARK: Assistant
 
-  /// Table block lines, failing table cells, and prose that fails reading a
-  /// table never reach the assistant; an ordinary line Ganit cannot work out
-  /// still does.
-  @Test
-  func tableProblemsNeverAskTheAssistant() async throws {
-    let source =
-      (try TableSourceDocument.canonicalBlock(for: Self.items()))
-      + "Items!A3\nItems[Missing]\nNope[Amount]\nsum(Items!A2:A4)\n@2\n10 kg of water in ml\n"
-    let (editor, _) = try await makeEditor(source)
-    let asked = Asked()
-    editor.assistantPause = .milliseconds(10)
-    editor.askAssistant = { line in
-      await asked.record(line)
-      return "42"
-    }
-    let deadline = ContinuousClock.now + .seconds(10)
-    while await asked.lines.isEmpty, ContinuousClock.now < deadline {
-      try await Task.sleep(for: .milliseconds(20))
-    }
-    try await Task.sleep(for: .milliseconds(200))
-    #expect(await asked.lines == ["10 kg of water in ml"])
-    let lines = try #require(editor.latestEvaluation?.lines)
-    #expect(lines.allSatisfy { $0.assistantPrompts.isEmpty })
-    // The table failures keep their own explanations.
-    for index in 3...7 {
-      guard case .evaluationFailure(let error) = lines[index].result else {
-        Issue.record("line \(index + 1) fails")
-        continue
-      }
-      #expect(error.code == .tableReference)
-    }
-    // Ask Assistant has nothing to send for a table problem either.
-    editor.textView.setSelectedRange(
-      NSRange(location: (source as NSString).range(of: "Nope").location, length: 0))
-    #expect(!editor.canAskAssistant())
-  }
-
   /// Off the workspace, the opener explains; nothing is asked about it.
   @Test
   func definitionsAndQuickGanitExplainTheirTables() async throws {
@@ -76,12 +39,6 @@ struct TableBoundaryEditorTests {
       let (editor, _) = try await makeEditor(source, surface: surface)
       var shared: [SheetDefinitions] = []
       editor.definitionsDidChange = { shared.append($0) }
-      let asked = Asked()
-      editor.assistantPause = .milliseconds(10)
-      editor.askAssistant = { line in
-        await asked.record(line)
-        return "42"
-      }
       editor.recalculate(nil)
       await editor.scheduler?.waitUntilIdle()
       let lines = await editor.exportedLines()
@@ -95,8 +52,6 @@ struct TableBoundaryEditorTests {
       #expect(lines[3].answer == message)
       #expect(lines[4].answer == "2")
       #expect(editor.latestEvaluation?.definitions.variables.keys.sorted() == ["rate"])
-      try await Task.sleep(for: .milliseconds(200))
-      #expect(await asked.lines.isEmpty, "\(key)")
     }
   }
 

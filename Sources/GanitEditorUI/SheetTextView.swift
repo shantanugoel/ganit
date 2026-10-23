@@ -198,6 +198,14 @@ final class SheetTextView: NSTextView {
     answerOverlay().needsDisplay = true
   }
 
+  /// Draws committed answers in this event instead of waiting for a display tick.
+  func displayCommittedAnswers() {
+    guard window != nil else { return }
+    let overlay = answerOverlay()
+    overlay.displayIfNeeded()
+    overlay.layer?.displayIfNeeded()
+  }
+
   // MARK: Answers after `=>`
 
   /// The UTF-16 offset just past a line's `=>`, where Markdown Mode writes
@@ -213,7 +221,10 @@ final class SheetTextView: NSTextView {
   /// In Markdown Mode, moves the words after a line's `=>` along by its
   /// answer's width, so the answer reads in the sentence. Kerning the `>`
   /// changes the layout but never the text.
+  private var hasAnswerGaps = false
+
   func openAnswerGaps() {
+    guard writesAnswersInline || hasAnswerGaps else { return }
     guard let storage = textStorage else {
       return
     }
@@ -246,6 +257,7 @@ final class SheetTextView: NSTextView {
         present[location] = kern
       }
     }
+    hasAnswerGaps = !wanted.isEmpty
     guard present != wanted else {
       return
     }
@@ -342,16 +354,9 @@ final class SheetTextView: NSTextView {
   var canAskGanit: () -> Bool = { false }
   var onAskGanit: () -> Void = {}
   var onInspectAssumption: (LineID, NSRect) -> Void = { _, _ in }
+  var assumptionAccessibilityContent: () -> NSView? = { nil }
   var dismissSuggestion: () -> Bool = { false }
 
-  /// Whether Ask Assistant can send the current line.
-  var canAskAssistant: () -> Bool = { false }
-  /// Asks the assistant again about the current line.
-  var onAskAssistant: () -> Void = {}
-  /// Whether Change Answer can replace the current assistant value.
-  var canChangeAssistantAnswer: () -> Bool = { false }
-  /// Opens a field to replace the current assistant value.
-  var onChangeAssistantAnswer: () -> Void = {}
   /// The number format chosen for the current answer; `nil` is the sheet's.
   var answerFormat: () -> NumberDisplay? = { nil }
   /// Chooses the current answer's number format, or `nil` for the sheet's.
@@ -359,14 +364,8 @@ final class SheetTextView: NSTextView {
   /// The tag of Answer Format ▸ Sheet Default.
   static let sheetDefaultFormatTag = Int.max
 
-  /// Whether the current line is waiting for the assistant.
-  var canCancelAssistantRequest: () -> Bool = { false }
-  /// Stops waiting for the current line's assistant request.
-  var onCancelAssistantRequest: () -> Void = {}
   /// Overrides the Autocomplete preference, for tests.
   var completesWhileTyping: Bool?
-  /// The variable names a `{…}` placeholder can complete to.
-  var variableNames: () -> [String] = { [] }
   /// Variables in scope and earlier line results, with value previews.
   var referenceCompletions: (Int) -> [CompletionItem] = { _ in [] }
   /// Ordinary typing only needs variables, avoiding previews for every line.
@@ -376,7 +375,6 @@ final class SheetTextView: NSTextView {
   private var shownHelpText: String?
   private let completionList = CompletionList()
   private var completionRange: NSRange?
-  private var completesPlaceholder = false
   private var completesReference = false
   private var completionDismissed = false
 
@@ -402,25 +400,24 @@ final class SheetTextView: NSTextView {
     ]
   }
 
-  /// The text of the badge drawn before an assistant's answer, so its origin
-  /// does not depend on telling purple from black.
-  static let assistedBadge = "AI"
+  /// The badge identifies an AI assumption without color.
+  static let assumptionBadge = "AI"
 
   var badgeAttributes: [NSAttributedString.Key: Any] {
     [
       .font: NSFont.systemFont(
         ofSize: VisualStyle.Typography.answer(scale: textScale).pointSize * 0.7, weight: .semibold),
-      .foregroundColor: VisualStyle.Color.assisted,
+      .foregroundColor: VisualStyle.Color.aiAssumption,
     ]
   }
 
-  /// The width the badge and its gap take before an assisted answer.
+  /// The width of the assumption badge and its gap.
   func badgeWidth(for cell: AnswerCell) -> CGFloat {
     if cell.isAIDerived { return 9 + Self.badgeGap }
-    guard cell.isAssisted || cell.isAIAssumption else {
+    guard cell.isAIAssumption else {
       return 0
     }
-    return ceil((Self.assistedBadge as NSString).size(withAttributes: badgeAttributes).width)
+    return ceil((Self.assumptionBadge as NSString).size(withAttributes: badgeAttributes).width)
       + Self.badgePadding * 2 + Self.badgeGap
   }
 
@@ -456,12 +453,6 @@ final class SheetTextView: NSTextView {
     }
     if cell.isFailure {
       return VisualStyle.Color.failure
-    }
-    if cell.isAssisted {
-      return VisualStyle.Color.assisted
-    }
-    if cell.isPending {
-      return VisualStyle.Color.secondary
     }
     return writesAnswersInline ? VisualStyle.Color.secondary : VisualStyle.Color.primary
   }
@@ -519,7 +510,7 @@ final class SheetTextView: NSTextView {
     // Use UTF-16 line starts to find the line that contains the caret.
     // lineID accepts only exact starts and cannot resolve a caret inside a line.
     let caret = selectedRange().location
-    guard canAskGanit(), let line = lineStarts().last(where: { $0.start <= caret })?.id,
+    guard canAskGanit(), let line = self.line(caret)?.id,
       lineDiagnostic(line) != nil,
       let row = visibleLines(in: rect).first(where: { $0.id == line })
     else { return nil }
@@ -745,7 +736,8 @@ final class SheetTextView: NSTextView {
     accessibilityString(for: range).map { NSAttributedString(string: $0) }
   }
   override func accessibilityChildren() -> [Any]? {
-    let answerElements = answerLayout(in: visibleRect).map { line, cell, rect in
+    let layout = answerLayout(in: visibleRect)
+    let answerElements = layout.map { line, cell, rect in
       let number = lineNumber(line) ?? 0
       let label =
         cell.isFailure
@@ -754,19 +746,12 @@ final class SheetTextView: NSTextView {
             localized: "accessibility.lineError", defaultValue: "Line %lld error", bundle: .main),
           number
         )
-        : cell.isAssisted
-          ? String(
-            format: String(
-              localized: "accessibility.lineAIAnswer",
-              defaultValue: "Line %lld AI answer, unverified", bundle: .main),
-            number
-          )
-          : String(
-            format: String(
-              localized: "accessibility.lineResult", defaultValue: "Line %lld result", bundle: .main
-            ),
-            number
-          )
+        : String(
+          format: String(
+            localized: "accessibility.lineResult", defaultValue: "Line %lld result", bundle: .main
+          ),
+          number
+        )
       let frame = window?.convertToScreen(convert(rect, to: nil)) ?? rect
       let element =
         NSAccessibilityElement.element(
@@ -778,13 +763,60 @@ final class SheetTextView: NSTextView {
       element.setAccessibilityValue(cell.text)
       return element
     }
+    var aiControls: [NSAccessibilityElement] = layout.compactMap { line, cell, rect in
+      guard cell.isAIAssumption || cell.isAIDerived else { return nil }
+      let number = lineNumber(line) ?? 0
+      let label =
+        cell.isAIAssumption
+        ? String(
+          format: localized(
+            "accessibility.assumption", "Line %lld AI assumption. Show its value and source."),
+          number)
+        : String(
+          format: localized(
+            "accessibility.derived", "Line %lld uses an AI assumption. Show its source."), number)
+      let badge = NSRect(
+        x: rect.minX, y: rect.minY, width: badgeWidth(for: cell), height: rect.height)
+      return accessibleAIControl(label: label, rect: badge) { [weak self] in
+        self?.onInspectAssumption(line, badge)
+      }
+    }
+    if let rect = askChipRect {
+      aiControls.append(
+        accessibleAIControl(label: localized("menu.askGanit", "Ask Ganit…"), rect: rect) {
+          [weak self] in
+          self?.onAskGanit()
+        })
+    }
     let previews = subviews.compactMap { $0 as? InlineTablePreview }.sorted {
       $0.frame.minY < $1.frame.minY
     }
     let controls = previews.flatMap { preview -> [Any] in
       [preview.title, preview.open, preview.scroll, preview.totals, preview.inspection]
     }
-    return (super.accessibilityChildren() ?? []) + answerElements + controls
+    var cards: [NSView] = []
+    if interpretationPopover?.isShown == true,
+      let content = interpretationPopover?.contentViewController?.view
+    {
+      cards.append(content)
+    }
+    if let content = assumptionAccessibilityContent() { cards.append(content) }
+    for card in cards { card.setAccessibilityParent(self) }
+    return (super.accessibilityChildren() ?? []) + answerElements + aiControls + controls + cards
+  }
+
+  private func accessibleAIControl(
+    label: String, rect: NSRect, action: @escaping @MainActor @Sendable () -> Void
+  )
+    -> NSAccessibilityElement
+  {
+    let element = AIAccessibilityControl()
+    element.setAccessibilityRole(.button)
+    element.setAccessibilityLabel(label)
+    element.setAccessibilityParent(self)
+    element.setAccessibilityFrame(window?.convertToScreen(convert(rect, to: nil)) ?? rect)
+    element.press = action
+    return element
   }
 
   /// Rotors that move VoiceOver between lines with problems or results.
@@ -873,18 +905,6 @@ final class SheetTextView: NSTextView {
         #selector(askGanit(_:))
       ),
       (
-        String(localized: "menu.askAssistant", defaultValue: "Ask Assistant", bundle: .main),
-        #selector(askAssistant(_:))
-      ),
-      (
-        String(localized: "menu.changeAnswer", defaultValue: "Change Answer…", bundle: .main),
-        #selector(changeAssistantAnswer(_:))
-      ),
-      (
-        String(localized: "menu.cancelRequest", defaultValue: "Cancel Request", bundle: .main),
-        #selector(cancelAssistantRequest(_:))
-      ),
-      (
         String(localized: "menu.insertReference", defaultValue: "Insert Reference", bundle: .main),
         #selector(insertReference(_:))
       ),
@@ -893,7 +913,7 @@ final class SheetTextView: NSTextView {
 
   /// Keyboard and VoiceOver equivalents of answer mouse interactions.
   override func accessibilityCustomActions() -> [NSAccessibilityCustomAction]? {
-    return answerCommands.map { name, action in
+    var actions = answerCommands.map { name, action in
       NSAccessibilityCustomAction(name: name) { [weak self] in
         guard let self else {
           return false
@@ -906,6 +926,24 @@ final class SheetTextView: NSTextView {
         return true
       }
     }
+    if let target = targetAnswer, target.cell.isAIAssumption || target.cell.isAIDerived {
+      let name =
+        target.cell.isAIAssumption
+        ? localized("accessibility.inspectAssumption", "Show AI assumption")
+        : localized("accessibility.inspectAssumptionSource", "Show AI assumption source")
+      actions.append(
+        NSAccessibilityCustomAction(name: name) { [weak self] in
+          guard let self, let current = self.targetAnswer,
+            current.cell.isAIAssumption || current.cell.isAIDerived
+          else { return false }
+          let rect =
+            self.answerLayout(in: self.visibleRect).first { $0.line == current.line }?.rect
+            ?? self.caretLineRect() ?? self.visibleRect
+          self.onInspectAssumption(current.line, rect)
+          return true
+        })
+    }
+    return actions
   }
 
   // MARK: Hover and contextual help
@@ -1268,14 +1306,7 @@ final class SheetTextView: NSTextView {
   /// off. Source help is what hovering a function or keyword in the line uses.
   func tooltip(at point: NSPoint) -> String? {
     if let hit = answerHit(at: point) {
-      guard hit.cell.isAssisted else {
-        return hit.cell.text
-      }
-      return String(
-        format: String(
-          localized: "answer.aiTooltip",
-          defaultValue: "%@ — AI answer, unverified. Formulas cannot use it.", bundle: .main),
-        hit.cell.text)
+      return hit.cell.text
     }
     return lookupHelp(at: point)?.tooltip
   }
@@ -1620,12 +1651,11 @@ final class SheetTextView: NSTextView {
       completionList.hide()
       return
     }
-    let placeholder = placeholderPrefix()
     let reference = referencePrefix()
     let ordinary = completionPrefix()
     guard isCompletionPosition(),
       reference != nil || (completesWhileTyping ?? GanitPreferences.completesWhileTyping),
-      reference != nil || placeholder != nil || ordinary?.text.first?.isLetter == true
+      reference != nil || ordinary?.text.first?.isLetter == true
         || ordinary?.text.first == "_"
     else {
       completionList.hide()
@@ -1635,7 +1665,7 @@ final class SheetTextView: NSTextView {
       reference != nil
       ? referenceCompletions(selectedRange().location)
       : variableCompletions(selectedRange().location)
-    guard let prefix = reference ?? placeholder ?? variablePrefix(in: values) ?? ordinary
+    guard let prefix = reference ?? variablePrefix(in: values) ?? ordinary
     else {
       completionList.hide()
       return
@@ -1646,10 +1676,6 @@ final class SheetTextView: NSTextView {
         let name = $0.insertion.hasPrefix("@") ? String($0.insertion.dropFirst()) : $0.insertion
         return name.lowercased().hasPrefix(prefix.text.lowercased())
       }
-    } else if placeholder != nil {
-      matches = variableNames().filter {
-        $0.lowercased().hasPrefix(prefix.text.lowercased()) && $0.count > prefix.text.count
-      }.map { CompletionItem($0) }
     } else {
       let variables = values.filter {
         !$0.insertion.hasPrefix("@")
@@ -1678,12 +1704,10 @@ final class SheetTextView: NSTextView {
     }
     completionList.show(matches, at: rect, in: self)
     completionRange = prefix.range
-    completesPlaceholder = placeholder != nil
     completesReference = reference != nil
   }
 
-  /// Suggestions belong to expressions, not headings, names, comments, or
-  /// assistant prompt prose. A placeholder remains an expression.
+  /// Show completions in expressions.
   private func isCompletionPosition() -> Bool {
     let cursor = selectedRange()
     guard cursor.length == 0, !isTableLine(cursor.location) else { return false }
@@ -1699,7 +1723,7 @@ final class SheetTextView: NSTextView {
     guard localOffset >= expression.lowerBound, localOffset <= expression.upperBound else {
       return false
     }
-    return !before.contains(assistantFunctionName + "(") || placeholderPrefix() != nil
+    return true
   }
 
   /// Includes the `@` in the replacement range, so choosing a variable
@@ -1780,28 +1804,6 @@ final class SheetTextView: NSTextView {
     return (range, text.substring(with: range))
   }
 
-  /// Inside an `ask_assistant` prompt's `{…}` placeholder, the text typed
-  /// since its `{`, which completes to a variable's name.
-  private func placeholderPrefix() -> (range: NSRange, text: String)? {
-    let cursor = selectedRange()
-    guard cursor.length == 0 else {
-      return nil
-    }
-    let text = string as NSString
-    let lineStart = text.lineRange(for: cursor).location
-    let before = text.substring(
-      with: NSRange(location: lineStart, length: cursor.location - lineStart))
-    guard let brace = before.range(of: "{", options: .backwards),
-      !before[brace.upperBound...].contains("}"),
-      before[..<brace.lowerBound].contains(assistantFunctionName)
-    else {
-      return nil
-    }
-    let start = lineStart + NSRange(brace, in: before).upperBound
-    let range = NSRange(location: start, length: cursor.location - start)
-    return (range, text.substring(with: range))
-  }
-
   private var completionArguments: [NSRange] = []
   private var completionArgument = 0
 
@@ -1812,9 +1814,6 @@ final class SheetTextView: NSTextView {
       selectedRange().length == 0
     else {
       return false
-    }
-    if completesPlaceholder {
-      return insertVariable(item.insertion, in: range)
     }
     completionList.hide()
     let arguments = LanguageCompletions.argumentRanges(in: item.insertion, at: range.location)
@@ -1831,22 +1830,6 @@ final class SheetTextView: NSTextView {
     completionList.hide()
     completesReference = false
     completionDismissed = true
-    return true
-  }
-
-  /// Writes a variable's name into a placeholder, closes it, and moves past
-  /// the `}`.
-  private func insertVariable(_ name: String, in range: NSRange) -> Bool {
-    completionList.hide()
-    let text = string as NSString
-    let isClosed = range.upperBound < text.length && text.character(at: range.upperBound) == 0x7D
-    let written = isClosed ? name : name + "}"
-    guard write(written, in: range) else {
-      return false
-    }
-    completionArguments = []
-    setSelectedRange(NSRange(location: range.location + name.utf16.count + 1, length: 0))
-    completionList.hide()
     return true
   }
 
@@ -1873,7 +1856,7 @@ final class SheetTextView: NSTextView {
   /// Copies the displayed answer of the selected answer or the insertion
   /// point's line, including a failure's message.
   @objc func copyResult(_ sender: Any?) {
-    guard let cell = targetAnswer?.cell, !cell.isPending else {
+    guard let cell = targetAnswer?.cell else {
       NSSound.beep()
       return
     }
@@ -1908,6 +1891,7 @@ final class SheetTextView: NSTextView {
     interpretationPopover?.close()
     let popover = NSPopover()
     popover.behavior = .transient
+    popover.animates = false
     popover.contentViewController = InterpretationViewController(
       details: details, fullPrecision: fullPrecision,
       availableSize: window?.screen?.visibleFrame.size ?? NSScreen.main?.visibleFrame.size
@@ -1944,18 +1928,6 @@ final class SheetTextView: NSTextView {
 
   @objc func askGanit(_ sender: Any?) { onAskGanit() }
 
-  @objc func askAssistant(_ sender: Any?) {
-    onAskAssistant()
-  }
-
-  @objc func changeAssistantAnswer(_ sender: Any?) {
-    onChangeAssistantAnswer()
-  }
-
-  @objc func cancelAssistantRequest(_ sender: Any?) {
-    onCancelAssistantRequest()
-  }
-
   /// Copies each selected line, or the insertion point's line, with the
   /// answer that line shows.
   @objc func copyLinesWithResults(_ sender: Any?) {
@@ -1965,17 +1937,11 @@ final class SheetTextView: NSTextView {
   override func validateUserInterfaceItem(_ item: any NSValidatedUserInterfaceItem) -> Bool {
     switch item.action {
     case #selector(copyResult(_:)):
-      return targetAnswer.map { !$0.cell.isPending } ?? false
+      return targetAnswer != nil
     case #selector(showInterpretation(_:)):
       return targetAnswer != nil
     case #selector(askGanit(_:)):
       return canAskGanit()
-    case #selector(askAssistant(_:)):
-      return canAskAssistant()
-    case #selector(changeAssistantAnswer(_:)):
-      return canChangeAssistantAnswer()
-    case #selector(cancelAssistantRequest(_:)):
-      return canCancelAssistantRequest()
     case #selector(setAnswerFormat(_:)):
       let chosen = answerFormat()
       if let menuItem = item as? NSMenuItem {
@@ -2069,7 +2035,7 @@ final class SheetTextView: NSTextView {
     while location > 0 {
       let previous = string.lineRange(for: NSRange(location: location - 1, length: 0))
       if let id = lineID(previous.location), let cell = answer(id),
-        !cell.isFailure, !cell.isPending
+        !cell.isFailure
       {
         return id
       }
@@ -2082,9 +2048,9 @@ final class SheetTextView: NSTextView {
   /// Returns whether a result was copied.
   func copyCurrentOrLastResult() -> Bool {
     let id =
-      targetAnswer.flatMap { $0.cell.isFailure || $0.cell.isPending ? nil : $0.line }
+      targetAnswer.flatMap { $0.cell.isFailure ? nil : $0.line }
       ?? nearestResult(before: (string as NSString).length)
-    guard let cell = id.flatMap(answer), !cell.isFailure, !cell.isPending else {
+    guard let cell = id.flatMap(answer), !cell.isFailure else {
       return false
     }
     copyToPasteboard(cell.text)
@@ -2235,8 +2201,8 @@ final class SheetTextView: NSTextView {
       let source = string.substring(
         with: NSRange(location: lineRange.location, length: contentsEnd - lineRange.location))
       let cell = line(lineRange.location).flatMap { answer($0.id) }
-      if let cell, !cell.isPending {
-        let answer = cell.isAssisted ? ExportedLine.annotateAI(cell.text) : cell.text
+      if let cell {
+        let answer = cell.text
         pieces.append("\(source)\t\(answer)")
       } else {
         pieces.append(source)
@@ -2328,20 +2294,21 @@ final class SheetTextView: NSTextView {
     let drop =
       VisualStyle.Typography.source(scale: textScale).ascender - (numberFont?.ascender ?? 0)
     let width = gutterWidth - VisualStyle.Spacing.standard / 2
+    let starts = lineStarts()
     return visibleLines(in: rect).compactMap { line in
-      guard !isTableLine(lineStarts().first(where: { $0.id == line.id })?.start ?? 0) else {
+      guard let number = lineNumber(line.id), starts.indices.contains(number - 1),
+        !isTableLine(starts[number - 1].start)
+      else {
         return nil
       }
-      return lineNumber(line.id).map {
-        (
-          $0,
-          NSRect(
-            x: textContainerInset.width,
-            y: line.frame.minY + line.firstRow.typographicBounds.minY + drop,
-            width: width,
-            height: line.firstRow.typographicBounds.height)
-        )
-      }
+      return (
+        number,
+        NSRect(
+          x: textContainerInset.width,
+          y: line.frame.minY + line.firstRow.typographicBounds.minY + drop,
+          width: width,
+          height: line.firstRow.typographicBounds.height)
+      )
     }
   }
 
@@ -2567,7 +2534,7 @@ private final class AnswerOverlayView: NSView {
         NSBezierPath(roundedRect: rect.insetBy(dx: -4, dy: 0), xRadius: 4, yRadius: 4).fill()
       }
       var rect = rect
-      if cell.isAssisted || cell.isAIAssumption || cell.isAIDerived {
+      if cell.isAIAssumption || cell.isAIDerived {
         if cell.isAIDerived {
           VisualStyle.Color.aiAssumption.setFill()
           NSBezierPath(ovalIn: NSRect(x: rect.minX + 2, y: rect.midY - 2, width: 4, height: 4))
@@ -2594,7 +2561,7 @@ extension AnswerOverlayView {
   /// not inserted, like everything else here, and its rect is what hit-tests.
   fileprivate func drawAskChip() {
     guard let chip = textView.askChipLayout(in: textView.bounds) else { return }
-    var attributes = textView.askChipAttributes
+    let attributes = textView.askChipAttributes
     let title = SheetTextView.askChipTitle as NSString
     let color = attributes[.foregroundColor] as? NSColor ?? VisualStyle.Color.secondary
     color.setStroke()
@@ -2606,18 +2573,18 @@ extension AnswerOverlayView {
       at: NSPoint(x: chip.rect.minX + SheetTextView.badgePadding, y: chip.rect.minY + 1),
       withAttributes: attributes)
   }
-  /// Draws the AI badge at the leading edge of an assisted answer's `rect`.
+  /// Draws the AI assumption badge at the start of the result.
   fileprivate func drawBadge(at rect: NSRect, selected: Bool) {
     var attributes = textView.badgeAttributes
     if selected {
       attributes[.foregroundColor] = VisualStyle.Color.selectionText
     }
-    let text = SheetTextView.assistedBadge as NSString
+    let text = SheetTextView.assumptionBadge as NSString
     let size = text.size(withAttributes: attributes)
     let badge = NSRect(
       x: rect.minX, y: rect.midY - size.height / 2 - 1,
       width: ceil(size.width) + SheetTextView.badgePadding * 2, height: size.height + 2)
-    let color = attributes[.foregroundColor] as? NSColor ?? VisualStyle.Color.assisted
+    let color = attributes[.foregroundColor] as? NSColor ?? VisualStyle.Color.aiAssumption
     color.setStroke()
     let outline = NSBezierPath(roundedRect: badge.insetBy(dx: 0.5, dy: 0.5), xRadius: 3, yRadius: 3)
     outline.lineWidth = 1
@@ -2666,5 +2633,18 @@ private final class LineRotor: NSObject,
     result.targetRange = NSRange(location: line.start, length: line.length)
     result.customLabel = textView.spokenAnswer(line.id)
     return result
+  }
+}
+
+private final class AIAccessibilityControl: NSAccessibilityElement {
+  nonisolated(unsafe) var press: (@MainActor @Sendable () -> Void)?
+  nonisolated override func accessibilityPerformPress() -> Bool {
+    guard let action = press else { return false }
+    if Thread.isMainThread {
+      MainActor.assumeIsolated { action() }
+    } else {
+      DispatchQueue.main.async { action() }
+    }
+    return true
   }
 }

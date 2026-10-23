@@ -19,6 +19,7 @@ struct WorkspaceWindowControllerTests {
     defer { close(workspace) }
     let controller = workspace.openWindow(showing: ids[0])
     let window = try #require(controller.window)
+    window.layoutIfNeeded()
 
     #expect(window.styleMask.isSuperset(of: [.titled, .closable, .miniaturizable, .resizable]))
     #expect(window.contentMinSize == NSSize(width: 640, height: 400))
@@ -28,7 +29,10 @@ struct WorkspaceWindowControllerTests {
     let sidebarItem = try #require(split.splitViewItems.first)
     #expect(sidebarItem.minimumThickness == 150)
     #expect(sidebarItem.maximumThickness == 280)
-    #expect((150...200).contains(controller.sidebar.view.frame.width))
+    // A saved width can use the full supported range.
+    #expect(
+      (sidebarItem.minimumThickness...sidebarItem.maximumThickness)
+        .contains(controller.sidebar.view.frame.width))
     #expect(window.isRestorable && window.restorationClass == WorkspaceRestoration.self)
     let toolbar = try #require(window.toolbar)
     #expect(toolbar.items.map(\.itemIdentifier).contains(.searchSheets))

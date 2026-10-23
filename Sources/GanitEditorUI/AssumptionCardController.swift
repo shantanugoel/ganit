@@ -28,6 +28,9 @@ final class AssumptionCardController: NSViewController {
   required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
 
   override func loadView() {
+    stack.setAccessibilityElement(true)
+    stack.setAccessibilityRole(.group)
+    stack.setAccessibilityLabel(localized("assumption.panel", "AI assumption"))
     stack.orientation = .vertical
     stack.alignment = .leading
     stack.spacing = 10

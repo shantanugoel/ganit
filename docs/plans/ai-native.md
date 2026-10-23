@@ -1,12 +1,12 @@
 # AI as part of the calculator: experience plan
 
 Date: 2026-10-20
-Status: Design approved. M-1 through M4 are complete.
-M5 is not started. Its exit gate is not complete.
+Status: M-1 through M5 are complete on the test Mac.
+The M5 automated checks and desktop checks pass.
 M0's records are [ADR 0019](../adr/0019-ask-one-operation-four-outcomes.md) and
 [the frozen Ask job contract](../design/ai-native/ask-job-contract.md), and the
-harness this plan tells M1 to reuse is now merged into this branch. The legacy
-assistant is still here; M5 removes it. See
+harness this plan tells M1 to reuse is now merged into this branch. M5 removes
+the legacy assistant. See
 [CHANGELOG](../../CHANGELOG.md) for released behaviour.
 Prototype: [interactive concept](../design/ai-native/prototype.html) ·
 [flow, shapes and decisions](../design/ai-native/index.html)
@@ -50,7 +50,9 @@ one is a design change, not an implementation detail.
    This removes today's purple display answers and the
    `evaluation.unusableAssistantAnswer` reference path.
 3. **Detect locally, send on request.** A passive affordance is computed on
-   device. Nothing leaves the Mac until ⏎ in the Ask bar. Automatic requests
+   device. An explicit send action starts a request: Return, Ask, Answer,
+   Retry, or a clarification choice. Opening Ask or Context sends nothing.
+   Automatic requests
    are out of v1 (§11); the automatic path in ADR 0012 is removed, because
    ADR 0012 already claims the assistant makes "a request nobody makes without
    asking for it".
@@ -209,7 +211,8 @@ nothing typed in it is Off, because a field the server has never heard of is
 likelier to be accepted when absent than when empty or wrong. It is a preference
 for the server and nothing else: no Ganit behaviour depends on it, and every
 Milestone gate below still holds with it set to any value. Every Ask request
-from M1 on carries it the same way the line-level request does.
+from M1 on carries it through the shared transport. M5 removes the old
+line-level request.
 
 ## 8. Ownership
 
@@ -417,6 +420,24 @@ VoiceOver labels for chip/badge/dot and every panel, `VisualStyleTests` and
 network-privacy tests updated to the new wire shape. *Gate:* the whole suite
 green, no AI code path reachable with the setting off, and the shipped
 behaviour matches the prototype.
+
+**M5 verification, 2026-10-23.** The full suite passes 1,367 tests with
+compiler warnings treated as errors. The layout, window capture, formatting,
+Address Sanitizer, release build, and bundle checks pass. Sanitizer testing
+includes 10,000 Unicode fuzz inputs. The release build uses the native SwiftPM
+backend. Both editor fixtures pass their existing latency limits, with and
+without a pending Ask. The limits are unchanged.
+
+Desktop checks cover the off setting, disclosed context, checked proposals,
+line exclusion, Apply, Undo, transient answers, local explanations, failures,
+assumption inspection, removal preview, value edits, and provenance restoration.
+The final Context repair has tests for current typed words, clarification,
+zero requests before Send, and exact transmitted bytes. The desktop recheck
+passes with the AppleScript method approved by the user. Context shows the
+current instruction and clarification without a request. Explicit Send makes
+one request. Partial Apply and exact source restoration with one Undo pass.
+The [verification record](../quality/ai-native-m5.md) gives the evidence and
+the remaining manual release checks.
 
 ## 10. Verification
 

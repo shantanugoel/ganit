@@ -1,0 +1,4 @@
+fixture=mixed-sheet
+edits=20
+p50_edit_to_answer_ms=23.988
+p95_edit_to_answer_ms=26.755

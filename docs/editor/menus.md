@@ -10,9 +10,9 @@ when the focused editor or window can perform it.
 | Ganit | About, Settings… ⌘,, Check for Updates…, Check for Updates Automatically, Stay in the Menu Bar, Show Sheet Titles in Spotlight, Assistant…, Hide ⌘H, Hide Others ⌥⌘H, Show All, Quit ⌘Q |
 | File | New Sheet ⌘N, Close ⌘W, Print… ⌘P |
 | Edit | Undo ⌘Z, Redo ⇧⌘Z, Cut ⌘X, Copy ⌘C, Paste ⌘V, Delete, Select All ⌘A, Find ▸ (Find… ⌘F, Find and Replace… ⌥⌘F, Find Next ⌘G, Find Previous ⇧⌘G, Use Selection for Find ⌘E), Go to Line… ⌘L, Autocomplete, Insert Table…, Open Table ⇧⌘T, Return to Sheet |
-| Calculate | Copy Result ⇧⌘C, Copy with Results, Copy Full Precision ⌥⇧⌘C, Show Interpretation, **Ask Ganit… ⌘⇧A**, Ask Assistant, Change Answer…, Cancel Request, Insert Reference ⌘\, Insert Subtotal ⌘T, Insert Answer Arrow ⌘↩, Recalculate ⌘R, Stop ⌘. |
+| Calculate | Copy Result ⇧⌘C, Copy with Results, Copy Full Precision ⌥⇧⌘C, Show Interpretation, **Ask Ganit… ⌘⇧A**, Insert Reference ⌘\, Insert Subtotal ⌘T, Insert Answer Arrow ⌘↩, Recalculate ⌘R, Stop ⌘. |
 | Format | Heading, Comment ⌘/, Divider, Step Number Up ⌃↑, Step Number Down ⌃↓, Number Format, Group Digits, Group Digits in Lakhs, Angles in Degrees, Decimal Comma (1.234,56), Markdown Mode, Dollar Means |
-| View | Bigger ⌘+, Smaller ⌘-, Actual Size ⌘0, Show Answer Separator, Show Line Numbers, Enter Full Screen ⌃⌘F |
+| View | Bigger ⌘+, Smaller ⌘-, Actual Size ⌘0, Show Answer Separator, Show Line Numbers, Mark AI-derived answers, Enter Full Screen ⌃⌘F |
 | Window | Minimize ⌘M, Zoom, Scratch ⇧⌘S, Definitions ⌘⇧D, Quick Ganit items, Bring All to Front, and the window list |
 | Help | Ganit Help ⌘?, Release Notes, Show Tour, Report a Problem…, menu search |
 
@@ -30,41 +30,33 @@ and Select All. It does not include AppKit Font, Spelling, Speech, or Services
 items.
 
 `SheetCommands` declares the sheet actions. The text view handles result,
-reference, formatting, and Ask Assistant commands; the editor controller, next
+reference, formatting, and Ask commands; the editor controller, next
 in the responder chain, handles Recalculate and Stop. New Sheet opens a
 workspace window with an empty sheet.
 
 - **Ask Ganit…** (⌘⇧A) opens the Ask bar under the sheet: one field for the
   words you would type to a colleague, one status line, and `Context ▸` naming
-  exactly what will be sent. Nothing leaves the Mac until ⏎. Ganit checks any
+  exactly what will be sent. An explicit send action starts a request:
+  Return, Ask, Answer, Retry, or a clarification choice. Opening Ask or
+  Context sends nothing. Ganit checks any
   proposal against the engine before it appears, and **Apply** (⌘↩) is the only
   thing that changes source, as one Undo step named *Apply AI Change*. The same
   command is on the selection summary bar's trailing edge, in the answer
   right-click menu, and offered by a quiet `Ask` chip beside a line Ganit cannot
   read. See docs/design/ai-native/.
 
-- **Ask Assistant** sends the insertion point's line, or the selected answer's,
-  to the configured assistant again: a line Ganit could not work out, or an
-  `ask_assistant` prompt. See docs/editor/assistant.md.
+- **Copy with Results** copies each selected line, or the current line,
+  with its calculated result.
 
-- **Change Answer…** offers saving a reviewed correction into sheet source
-  (with the original line retained as a comment), or using it temporarily until
-  Ganit quits. Neither option sends another request.
-
-- **Cancel Request** stops waiting for the insertion point's line, or the
-  selected answer's, while it shows Asking…. The line shows its diagnostic
-  again and is not asked about again until Ask Assistant.
-
-- **Copy with Results** copies each selected line, or the insertion point's
-  line, with the answer that line shows. Assisted display answers include an
-  “AI; unverified” annotation; pending requests are omitted.
+- **Mark AI-derived answers** shows or hides dependency dots. The origin
+  badge on an AI assumption remains visible.
 
 - **Step Number Up** and **Step Number Down** step the number at the insertion
   point by one unit of its last decimal place, and are what a person who does
   not drag uses instead of scrubbing; see docs/editor/text-view.md.
 - **Ganit Help** opens the reference at a readable size, lists every built-in
   unit under Units, and answers everyday words such as mortgage or GST. A
-  search with no match suggests one word to try and `ask_assistant(…)`.
+  search with no match suggests one word to try and the Ask command.
 - **Number Format** (automatic, whole numbers, two or four decimals,
   scientific, hexadecimal, binary, fractions), **Group Digits**, and **Group
   Digits in Lakhs** (`12,34,567`) say how the open sheet writes its answers.
@@ -91,7 +83,7 @@ workspace window with an empty sheet.
   after its indentation, or remove the marker when all of those lines already
   have it, as one undoable edit.
 - **Stop** cancels the running generation, keeping the last shown answers, and
-  cancels every assistant request of the sheet as Cancel Request does.
+  cancels the current Ask job.
 
 ## Return
 

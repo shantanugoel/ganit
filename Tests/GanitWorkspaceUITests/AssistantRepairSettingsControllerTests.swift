@@ -11,6 +11,22 @@ struct AssistantRepairSettingsControllerTests {
     (view as? NSPopUpButton).map { [$0] } ?? view.subviews.flatMap(popups)
   }
 
+  @Test func settingsDescribeTheDisclosedRequestAndExplicitApply() {
+    let controller = AssistantSettingsController(settings: AssistantSettings()) { _ in }
+    controller.loadView()
+    func texts(_ view: NSView) -> [String] {
+      (view as? NSTextField).map { [$0.stringValue] } ?? view.subviews.flatMap(texts)
+    }
+    let copy = texts(controller.view).joined(separator: " ")
+    #expect(copy.contains("Nothing is sent until you send an Ask."))
+    #expect(copy.contains("Context shows the exact request."))
+    #expect(copy.contains("source dependencies"))
+    #expect(copy.contains("calculation settings"))
+    #expect(copy.contains("select Apply"))
+    #expect(!copy.contains("that line, the model's name"))
+    #expect(!copy.contains("nothing else:"))
+  }
+
   @Test(arguments: [0, 1, 2, 3])
   func savedRepairAttemptsAreSelectedAndSaveReportsTheNewChoice(_ saved: Int) throws {
     var reported: AssistantSettings?

@@ -2,6 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-21
+- Amended: 2026-10-23; see the amendment below
 - Amends: [ADR 0018](0018-assistant-expression-suggestions.md) (decision 1, and
   the naming of decision 6) and withdraws the automatic-request half of
   [ADR 0012](0012-assistant-fallback.md)
@@ -204,3 +205,24 @@ Six written divergences, each in the contract document:
   now.
 - Anything that later wants automatic suggestions is reopening decision 7 and
   owes the usage evidence plan §11 named for it.
+
+
+## Amendment, 2026-10-23: disclosed dependencies and explicit Send
+
+The decision text above records the M0 design. This amendment replaces its
+one-hop context rule. Ask includes transitive local source dependencies.
+Each dependency is resolved in its native declaration scope. Context also
+includes selected function captures and their local source dependencies.
+Unrelated source and local document identifiers are excluded. Opaque handles
+identify records in the request. The exact request body is available before
+Send. Additional context requires a new review before Send.
+
+This adopts [rule 9 and the M1 completion record](../plans/ai-native.md).
+The [Ask job contract](../design/ai-native/ask-job-contract.md) defines the
+current request. The shared transport now carries Effort for Ask. The old
+line-level request has been removed.
+
+An explicit send action starts a request: Return, Ask, Answer, Retry, or a
+clarification choice. Opening Ask or Context sends nothing. A started job
+can make bounded repair and format requests under the shared request limit.
+Typing and a pause in typing do not start a request.

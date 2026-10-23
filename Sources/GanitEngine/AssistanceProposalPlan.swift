@@ -85,7 +85,7 @@ struct AssistanceProposalPlan {
     referenceChoices = required
     referenceOptions = options
     var calculator = snapshot.calculator
-    let context = snapshot.context.with(assistantAnswers: [:])
+    let context = snapshot.context
     var locals: [AssistanceSymbol] = []
     var references: [Int: LineID] = [:]
     var allFacts: AssistanceExpressionFacts?
@@ -240,8 +240,6 @@ struct AssistanceProposalPlan {
         pending.append((right, depth + 1))
       case .call(_, _, let arguments, _):
         pending.append(contentsOf: arguments.map { ($0, depth + 1) })
-      case .assistantPrompt(let parts, _, _):
-        for case .placeholder(let value) in parts { pending.append((value, depth + 1)) }
       case .literal, .temporal, .identifier, .reference: break
       }
     }

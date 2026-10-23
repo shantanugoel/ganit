@@ -13,7 +13,7 @@ public struct SheetLineResult: Hashable, Sendable {
   /// a failed cell or range member this line or a line it depends on read,
   /// or a table that could not be calculated. Empty otherwise.
   public let failureOriginTableCells: [TableCellFailureOrigin]
-  public let aiAssumption: AIAssumption?
+  public var aiAssumption: AIAssumption? { source.aiAssumption }
   public let aiAssumptionOrigins: Set<LineID>
   public let hasUnreviewedModelDependency: Bool
 
@@ -21,7 +21,7 @@ public struct SheetLineResult: Hashable, Sendable {
     id: LineID, source: LineSource, evaluation: LineEvaluation?,
     result: CalculationResult?, failureOrigins: [Int],
     tableFailureOrigins: [TableCellFailureOrigin] = [], hasUnreviewedModelDependency: Bool = false,
-    aiAssumption: AIAssumption? = nil, aiAssumptionOrigins: Set<LineID> = []
+    aiAssumptionOrigins: Set<LineID> = []
   ) {
     self.id = id
     self.source = source
@@ -29,7 +29,6 @@ public struct SheetLineResult: Hashable, Sendable {
     self.result = result
     failureOriginLineNumbers = failureOrigins
     failureOriginTableCells = tableFailureOrigins
-    self.aiAssumption = aiAssumption
     self.aiAssumptionOrigins = aiAssumptionOrigins
     self.hasUnreviewedModelDependency = hasUnreviewedModelDependency
   }
@@ -55,12 +54,6 @@ public struct SheetLineResult: Hashable, Sendable {
   }
   /// Whether the native evaluation reads the frozen clock.
   public var usesClock: Bool { evaluation?.clockInterval != nil }
-
-  /// The `ask_assistant` prompts the line needs answered, with their
-  /// placeholders filled in.
-  public var assistantPrompts: [AssistantPrompt] {
-    evaluation?.assistantPrompts ?? []
-  }
 
   public static func == (lhs: Self, rhs: Self) -> Bool {
     lhs.id == rhs.id && lhs.syntax == rhs.syntax && lhs.result == rhs.result
@@ -398,6 +391,7 @@ public struct SheetCalculator: Sendable {
               rates: rates,
               functions: functions,
               parsing: reusable,
+              kinds: reusable == nil ? nil : evaluation?.kinds,
               outcomes: outcomes,
               engine: engine,
               context: context
@@ -469,8 +463,7 @@ public struct SheetCalculator: Sendable {
         : (tree?.identifiers ?? []).subtracting(
           evaluation?.function?.parameters ?? [])
       let unreviewed =
-        facts?.containsAssistant == true || !(evaluation?.assistantPrompts.isEmpty ?? true)
-        || !readIdentifiers.isDisjoint(with: scope.unreviewedNames)
+        !readIdentifiers.isDisjoint(with: scope.unreviewedNames)
         || (facts?.calls.contains { evaluation?.functions[$0]?.hasUnreviewedCapture == true }
           ?? false)
         || (facts.map { !$0.unitIdentifiers.isDisjoint(with: unreviewedUnits) } ?? false)
@@ -481,24 +474,34 @@ public struct SheetCalculator: Sendable {
             }
           } ?? false))
       if unreviewed { unreviewedLines.insert(line.id) }
-      let assumption = AIAssumption.parse(line.text, syntax: source.syntax, context: context)
+      let assumption = source.aiAssumption
       var assumptionOrigins: Set<LineID> = assumption == nil ? [] : [line.id]
-      for name in (tree?.identifiers ?? []).subtracting(evaluation?.function?.parameters ?? []) {
-        assumptionOrigins.formUnion(assumptionNames[name] ?? [])
-      }
-      for name in facts?.calls ?? [] {
-        assumptionOrigins.formUnion(assumptionFunctions[name] ?? [])
-      }
-      for reference in evaluation?.references ?? [] {
-        for number in outcomes.lineNumbers(for: reference) ?? []
-        where sheet.lines.indices.contains(number - 1) {
-          assumptionOrigins.formUnion(assumptionLines[sheet.lines[number - 1].id] ?? [])
+      if !assumptionNames.isEmpty {
+        for name in (tree?.identifiers ?? []).subtracting(evaluation?.function?.parameters ?? []) {
+          if let origins = assumptionNames[name] { assumptionOrigins.formUnion(origins) }
         }
       }
-      assumptionLines[line.id] = assumptionOrigins
-      if let name = source.declaredName { assumptionNames[name] = assumptionOrigins }
+      if !assumptionFunctions.isEmpty {
+        for name in facts?.calls ?? [] {
+          if let origins = assumptionFunctions[name] { assumptionOrigins.formUnion(origins) }
+        }
+      }
+      if !assumptionLines.isEmpty {
+        for reference in evaluation?.references ?? [] {
+          for number in outcomes.lineNumbers(for: reference) ?? []
+          where sheet.lines.indices.contains(number - 1) {
+            if let origins = assumptionLines[sheet.lines[number - 1].id] {
+              assumptionOrigins.formUnion(origins)
+            }
+          }
+        }
+      }
+      if !assumptionOrigins.isEmpty { assumptionLines[line.id] = assumptionOrigins }
+      if let name = source.declaredName {
+        assumptionNames[name] = assumptionOrigins.isEmpty ? nil : assumptionOrigins
+      }
       if let function = evaluation?.function {
-        assumptionFunctions[function.name] = assumptionOrigins
+        assumptionFunctions[function.name] = assumptionOrigins.isEmpty ? nil : assumptionOrigins
       }
 
       if var function = evaluation?.function {
@@ -591,7 +594,7 @@ public struct SheetCalculator: Sendable {
           id: line.id, source: source, evaluation: evaluation,
           result: result, failureOrigins: failureOrigins, tableFailureOrigins: tableFailures,
           hasUnreviewedModelDependency: unreviewed,
-          aiAssumption: assumption, aiAssumptionOrigins: assumptionOrigins))
+          aiAssumptionOrigins: assumptionOrigins))
     }
 
     if cache.count > sheet.lines.count {
@@ -639,7 +642,7 @@ public struct SheetCalculator: Sendable {
   }
 
   /// A table block's physical line. Every block line, valid or not, has no
-  /// answer, declares nothing, asks no assistant and separates the aggregate
+  /// answer, declares nothing and separates the aggregate
   /// blocks around it. At a valid block's opener the table is calculated
   /// with the scope an ordinary line there would see. Kept out of
   /// `evaluate`'s frame, which stays on the stack under every line's parse.
@@ -905,6 +908,7 @@ private final class LineSource: Sendable {
   /// name, so a line is derived again when they change.
   let units: [CustomUnit]
   let syntax: LineSyntax
+  let aiAssumption: AIAssumption?
   /// A physical line of a table block, which is never calculated as prose.
   let isTableSource: Bool
   /// Whether Markdown classification read qualified table operands as values.
@@ -938,6 +942,7 @@ private final class LineSource: Sendable {
     self.tableOperands = tableOperands
     self.units = units
     if isTableSource {
+      aiAssumption = nil
       mayReadTables = false
       syntax = .comment(
         SourceRange(
@@ -957,6 +962,7 @@ private final class LineSource: Sendable {
       ? MarkdownLines.adjusted(
         parsed, text: text, engine: engine, context: context, tableOperands: tableOperands)
       : parsed
+    aiAssumption = AIAssumption.parse(text, syntax: syntax, context: context)
     var runs: [[String]] = [[]]
     for token in Lexer(source: text, configuration: context.lexingConfiguration).lex().tokens {
       if case .identifier(let word) = token.kind {
@@ -1081,8 +1087,6 @@ private final class LineEvaluation: Sendable {
   let rateUses: Set<CurrencyRateUse>
   /// The finance functions the result used.
   let financeUses: Set<FinanceFunction>
-  /// The `ask_assistant` prompts the result needed.
-  let assistantPrompts: [AssistantPrompt]
   /// The clock, rate and finance provenance of the result, including what
   /// table cells it read carried, for tables below that read this line.
   let provenance: TableCellProvenance
@@ -1109,6 +1113,7 @@ private final class LineEvaluation: Sendable {
     rates: [CurrencyPair: NumericValue],
     functions: [String: CustomFunction],
     parsing reusable: ParsingResult?,
+    kinds reusableKinds: [String: EngineValueKind]? = nil,
     outcomes: LineOutcomes,
     engine: CalculationEngine,
     context: EvaluationContext,
@@ -1117,7 +1122,7 @@ private final class LineEvaluation: Sendable {
     self.names = names
     self.rates = rates
     self.functions = functions
-    kinds = names.mapValues { $0?.kind ?? .number }
+    kinds = reusableKinds ?? names.mapValues { $0?.kind ?? .number }
     tableReads = checkedTables ? .none : .unchecked
     tableFailures = []
     if let nameFailure = source.nameFailure {
@@ -1130,7 +1135,6 @@ private final class LineEvaluation: Sendable {
       clockInterval = nil
       rateUses = []
       financeUses = []
-      assistantPrompts = []
       provenance = TableCellProvenance()
       return
     }
@@ -1154,7 +1158,6 @@ private final class LineEvaluation: Sendable {
       clockInterval = nil
       rateUses = []
       financeUses = []
-      assistantPrompts = []
       provenance = TableCellProvenance()
       guard let body = parsing.expression else {
         result = .syntaxFailure(parsing.diagnostics)
@@ -1189,7 +1192,6 @@ private final class LineEvaluation: Sendable {
       clockInterval = nil
       rateUses = []
       financeUses = []
-      assistantPrompts = []
       provenance = TableCellProvenance()
       return
     }
@@ -1211,7 +1213,6 @@ private final class LineEvaluation: Sendable {
       } ?? evaluated
     rateUses = trace.rateUses
     financeUses = trace.financeUses
-    assistantPrompts = trace.assistantPrompts
     clockInterval = trace.clock?.interval(in: context)
     provenance = TableCellProvenance(trace)
   }
@@ -1254,7 +1255,6 @@ private final class LineEvaluation: Sendable {
     provenance.formUnion(TableCellProvenance(prose.trace))
     rateUses = provenance.rateUses
     financeUses = provenance.financeUses
-    assistantPrompts = prose.trace.assistantPrompts
     clockInterval = prose.trace.clock?.interval(in: context)
     self.provenance = provenance
   }
@@ -1357,7 +1357,8 @@ private final class LineEvaluation: Sendable {
 
   /// The parse, when it remains valid for variables with these values.
   func parsing(for names: [String: EngineValue?]) -> ParsingResult? {
-    kinds == names.mapValues { $0?.kind ?? .number } ? parsing : nil
+    kinds.count == names.count
+      && names.allSatisfy { kinds[$0.key] == ($0.value?.kind ?? .number) } ? parsing : nil
   }
 }
 
@@ -1424,6 +1425,7 @@ private struct VariableScope: Sendable {
   }
 
   private mutating func indexPrefixes(of name: String) {
+    guard name.utf8.contains(UInt8(ascii: " ")) else { return }
     var prefix = ""
     for word in name.split(separator: " ").dropLast() {
       prefix = prefix.isEmpty ? String(word) : prefix + " " + word
@@ -1683,7 +1685,7 @@ extension Expression {
         .period(let child, _, _), .relative(let child, _, _),
         .money(let child, _, _), .grouped(let child, _):
         work.append(child)
-      case .assistantPrompt, .literal, .temporal, .identifier: break
+      case .literal, .temporal, .identifier: break
       }
     }
     return (rules, calls, units, references)

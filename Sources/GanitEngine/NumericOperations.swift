@@ -2,9 +2,19 @@ import BigInt
 import Foundation
 
 struct NumericOperations {
-  let context: EvaluationContext
+  let precision: PrecisionContext
+  let angleMode: AngleMode
   let limits: EvaluationLimits
-  var scalarBudget: TableScalarBudget? = nil
+  var scalarBudget: TableScalarBudget?
+
+  init(
+    context: EvaluationContext, limits: EvaluationLimits, scalarBudget: TableScalarBudget? = nil
+  ) {
+    precision = context.precision
+    angleMode = context.angleMode
+    self.limits = limits
+    self.scalarBudget = scalarBudget
+  }
 
   func applying(
     _ binaryOperator: BinaryOperator,
@@ -384,7 +394,7 @@ struct NumericOperations {
         estimate: angleResult(Foundation.atan2(dy, dx)),
         source: .transcendentalFunction,
         precision: .requestedSignificantDecimalDigits(
-          context.precision.transcendentalSignificantDigits
+          precision.transcendentalSignificantDigits
         )
       )
     )
@@ -564,7 +574,7 @@ struct NumericOperations {
         estimate: result,
         source: .transcendentalFunction,
         precision: .requestedSignificantDecimalDigits(
-          context.precision.transcendentalSignificantDigits
+          precision.transcendentalSignificantDigits
         )
       )
     )
@@ -621,7 +631,7 @@ struct NumericOperations {
     forTangent: Bool = false
   ) throws -> Double {
     try scalarBudget?.consume()
-    switch context.angleMode {
+    switch angleMode {
     case .radians:
       let input = try approximateEstimate(value)
       guard Swift.abs(input) <= 1_000_000_000_000 else {
@@ -664,7 +674,7 @@ struct NumericOperations {
   }
 
   private func angleResult(_ radians: Double) -> Double {
-    context.angleMode == .degrees
+    angleMode == .degrees
       ? radians * 180 / .pi
       : radians
   }
@@ -916,7 +926,7 @@ struct NumericOperations {
           estimate: 0,
           source: .derivedArithmetic,
           precision: .requestedSignificantDecimalDigits(
-            context.precision.transcendentalSignificantDigits
+            precision.transcendentalSignificantDigits
           )
         )
       )
@@ -931,7 +941,7 @@ struct NumericOperations {
         estimate: result,
         source: .derivedArithmetic,
         precision: .requestedSignificantDecimalDigits(
-          context.precision.transcendentalSignificantDigits
+          precision.transcendentalSignificantDigits
         )
       )
     )

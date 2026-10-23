@@ -92,8 +92,7 @@ struct EvaluationTrace: Sendable {
   var rateUses: Set<CurrencyRateUse> = []
   /// The finance functions a result used, whose assumptions it is shown with.
   var financeUses: Set<FinanceFunction> = []
-  /// The `ask_assistant` prompts evaluation needed, placeholders filled in.
-  var assistantPrompts: [AssistantPrompt] = []
+
 }
 
 /// How finely a result depends on the evaluation clock: a result that read
@@ -178,8 +177,6 @@ private struct EvaluationWorker {
         return try evaluateInfix(left, binaryOperator, right, operatorRange: operatorRange)
       case .call(let name, let nameRange, let arguments, _):
         return try evaluateCall(name: name, nameRange: nameRange, arguments: arguments)
-      case .assistantPrompt(let parts, let nameRange, _):
-        return try evaluateAssistantPrompt(parts, nameRange: nameRange)
       case .percentage(let points, _, _):
         return try evaluatePercentage(points)
       case .percentageOperation(let percentageOperator, let left, let right, let operatorRange, _):
@@ -536,6 +533,9 @@ private struct EvaluationWorker {
     left: EngineValue,
     right: EngineValue
   ) throws -> EngineValue {
+    if case .number(let lhs) = left, case .number(let rhs) = right {
+      return .number(try operations.applying(binaryOperator, left: lhs, right: rhs))
+    }
     if let result = try temporal.apply(binaryOperator, left: left, right: right) {
       return result
     }
@@ -545,11 +545,6 @@ private struct EvaluationWorker {
       return result
     }
     switch (left, right) {
-    case (.number(let lhs), .number(let rhs)):
-      return .number(
-        try operations.applying(binaryOperator, left: lhs, right: rhs)
-      )
-
     case (.number(let base), .percentage(let percentage)):
       let rate = try percentageRate(percentage)
       switch binaryOperator {
@@ -1076,40 +1071,6 @@ private struct EvaluationWorker {
   }
 
   @inline(never)
-  private mutating func evaluateAssistantPrompt(_ parts: [PromptPart], nameRange: SourceRange)
-    throws -> EngineValue
-  {
-    let isEmpty = parts.allSatisfy {
-      if case .text(let text) = $0 { text.allSatisfy(\.isWhitespace) } else { false }
-    }
-    guard !isEmpty else {
-      throw EngineError(code: .invalidDomain, ranges: [nameRange])
-    }
-    let prompt = AssistantPrompt(
-      try parts.map {
-        switch $0 {
-        case .text(let text): .text(text)
-        case .placeholder(let expression): .value(try evaluate(expression))
-        }
-      })
-    trace.assistantPrompts.append(prompt)
-    switch context.assistantAnswers[prompt] {
-    case .value(let value):
-      return value
-    case .unusable:
-      throw EngineError(
-        code: .unusableAssistantAnswer,
-        ranges: [nameRange]
-      )
-    case nil:
-      throw EngineError(
-        code: .unresolvedAssistantPrompt,
-        ranges: [nameRange]
-      )
-    }
-  }
-
-  @inline(never)
   private mutating func evaluateCall(
     name: String,
     nameRange: SourceRange,
@@ -1184,7 +1145,6 @@ private struct EvaluationWorker {
       }
       trace.rateUses.formUnion(body.trace.rateUses)
       trace.financeUses.formUnion(body.trace.financeUses)
-      trace.assistantPrompts += body.trace.assistantPrompts
     }
     do {
       return try body.evaluate(function.body)

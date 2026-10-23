@@ -34,8 +34,6 @@ struct TableFormulaDiagnostic: Error, Hashable, Sendable {
     case unsupportedFunction
     /// `=`, `<`, `>`, `<>`, `<=`, `>=`, `!=` and their symbols.
     case unsupportedComparison
-    /// `ask_assistant(…)`: table formulas never ask the assistant.
-    case assistantPrompt
     /// `@N`/`line N` naming a table block's source line, this block's or an
     /// earlier one's: table lines have no scalar answer.
     case tableLineReference
@@ -426,8 +424,8 @@ struct TableFormulaSyntax: Sendable {
 
   /// Syntax a table formula diagnoses before the kind-directed parse, so it
   /// is never reported as the ordinary parser's first syntax error, nor
-  /// evaluated through a substitute: comparisons, deferred functions and
-  /// assistant prompts. The earliest in source wins; an earlier unrelated
+  /// evaluated through a substitute: comparisons and deferred functions.
+  /// The earliest in source wins; an earlier unrelated
   /// lexing error stays the ordinary parser's syntax error.
   @inline(never)
   func unsupportedSyntax(customFunctions: Set<String>) -> TableFormulaDiagnostic? {
@@ -470,9 +468,8 @@ struct TableFormulaSyntax: Sendable {
     for (index, token) in tokens.enumerated() {
       guard case .identifier(let name) = token.kind else { continue }
       let lowered = name.lowercased()
-      if lowered == assistantFunctionName {
-        consider(.assistantPrompt, token.range)
-      } else if tableUnsupportedFunctionNames.contains(lowered),
+
+      if tableUnsupportedFunctionNames.contains(lowered),
         !customFunctions.contains(lowered), index + 1 < tokens.count,
         tokens[index + 1].kind == .leftParenthesis
       {
@@ -607,31 +604,11 @@ private struct TableReferenceScanner {
     var index = 0
     var operand = true
     var result: [TableReferenceOccurrence] = []
-    var promptDepth = 0
-    var inPlaceholder = false
     var phraseWords: [String] = []
     var expressionDepth = 0
     var percentageChanges: [Int] = []
     if tableFormula, chars.first == "=" { index = 1 }
     while index < chars.count {
-      if promptDepth > 0, !inPlaceholder {
-        switch chars[index] {
-        case "(": promptDepth += 1
-        case ")": promptDepth -= 1
-        case "{":
-          inPlaceholder = true
-          operand = true
-        default: break
-        }
-        index += 1
-        continue
-      }
-      if inPlaceholder, chars[index] == "}" {
-        inPlaceholder = false
-        operand = false
-        index += 1
-        continue
-      }
       if chars[index].isWhitespace {
         index += 1
         continue
@@ -673,16 +650,6 @@ private struct TableReferenceScanner {
           chars[index].isLetter || chars[index].isNumber || chars[index] == "_"
         { index += 1 }
         let word = String(chars[start..<index]).lowercased()
-        if word == assistantFunctionName {
-          var next = index
-          while next < chars.count, chars[next].isWhitespace { next += 1 }
-          if next < chars.count, chars[next] == "(" {
-            promptDepth = 1
-            index = next + 1
-            operand = false
-            continue
-          }
-        }
         if word == "from", Array(phraseWords.suffix(2)) == ["percentage", "change"] {
           percentageChanges.append(expressionDepth)
         }
@@ -914,11 +881,6 @@ extension Expression {
       .percentageOperation(_, let left, let right, _, _):
       return [left, right]
     case .call(_, _, let arguments, _): return arguments
-    case .assistantPrompt(let parts, _, _):
-      return parts.compactMap {
-        if case .placeholder(let value) = $0 { return value }
-        return nil
-      }
     }
   }
 }

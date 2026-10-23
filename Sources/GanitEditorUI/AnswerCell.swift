@@ -16,19 +16,14 @@ struct AnswerCell: Equatable {
   let text: String
   /// The exact value for Copy Full Precision; `nil` for failures.
   let fullPrecision: String?
-  /// An answer from the assistant, which Ganit did not work out itself and so
-  /// writes in a colour of its own.
-  var isAssisted = false
   var isAIAssumption = false
   var isAIDerived = false
-  /// A request is in flight; the sheet stays editable.
-  var isPending = false
   /// The value to fewer digits, marked `≈`, drawn when `text` does not fit so
   /// a unit or time zone is not the part cut off.
   var compactText: String?
 
   var isFailure: Bool {
-    fullPrecision == nil && !isAssisted && !isPending
+    fullPrecision == nil
   }
 }
 
@@ -116,6 +111,9 @@ final class InterpretationViewController: NSViewController {
     scroll.translatesAutoresizingMaskIntoConstraints = false
 
     let container = NSView()
+    container.setAccessibilityElement(true)
+    container.setAccessibilityRole(.group)
+    container.setAccessibilityLabel(localized("ask.detailsPanel", "Calculation details"))
     container.addSubview(scroll)
     let buttonCount = actions.count + (fullPrecision == nil ? 0 : 1)
     let buttonHeight: CGFloat =
@@ -197,7 +195,7 @@ final class InterpretationViewController: NSViewController {
     let field = NSTextField(wrappingLabelWithString: value)
     field.isSelectable = true
     field.font = VisualStyle.Typography.detailValue
-    field.lineBreakMode = .byCharWrapping
+    field.lineBreakMode = .byWordWrapping
     field.preferredMaxLayoutWidth = width
     return field
   }

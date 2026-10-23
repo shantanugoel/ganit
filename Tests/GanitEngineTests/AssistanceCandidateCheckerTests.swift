@@ -188,7 +188,7 @@ struct AssistanceCandidateCheckerTests {
     let expected: [String: AssistanceValidationFailure.Code] = [
       "inventedLiteral": .missingEvidence, "fakeHandle": .unknownBinding,
       "unrelatedEdit": .unauthorizedEdit,
-      "unknownSymbol": .unknownBinding, "modelValue": .unsupportedOperation,
+      "unknownSymbol": .unknownBinding, "modelValue": .syntax,
       "functionDefinition": .unsupportedOperation, "wrongTip": .relation, "wrongSplit": .relation,
     ]
     #expect(
@@ -342,55 +342,6 @@ struct AssistanceCandidateCheckerTests {
     #expect(checked.referencedLineIDs == [snapshot.source.lines[0].id])
   }
 
-  @Test func importedDefinitionsCannotLaunderLegacyModelValues() throws {
-    let prompt = AssistantPrompt([.text("a price")])
-    let context = try sheetContext().with(assistantAnswers: [
-      prompt: .value(.number(.integer(IntegerValue(1000))))
-    ])
-    let definitions = try SheetDefinitions(
-      source: "cost = ask_assistant(a price)\nprice = cost * 2\nf(x) = price + x", context: context)
-    #expect(definitions.unreviewedVariables == ["cost", "price"])
-    #expect(definitions.functions["f"]?.hasUnreviewedCapture == true)
-    var calculator = SheetCalculator(definitions: definitions)
-    let sheet = SheetSource("Make 20% profit on cost.")
-    let snapshot = try calculator.assistanceSnapshot(
-      sheet, context: sheetContext(), target: sheet.lines[0].id)
-    #expect(snapshot.inventory.first { $0.name == "cost" }?.unreviewed == true)
-    let proposal = try candidate(
-      "cost + 20%", snapshot: snapshot, names: ["cost"], literals: [("20%", "20%")])
-    #expect(
-      failureCode { try AssistanceCandidateChecker.check(proposal, against: snapshot) }
-        == .unknownBinding)
-    let root = try #require(
-      JSONSerialization.jsonObject(with: snapshot.permittedContext()) as? [String: Any])
-    let symbols = try #require(root["symbols"] as? [[String: Any]])
-    let cost = try #require(symbols.first { $0["name"] as? String == "cost" })
-    #expect(cost["unreviewed"] as? Bool == true)
-    #expect(cost["value"] == nil)
-  }
-
-  @Test func modelUnitDefinitionsCannotBecomePreviewFacts() throws {
-    let prompt = AssistantPrompt([.text("a weight")])
-    guard
-      case .value(let amount) = CalculationEngine().evaluate("10 kg", context: try sheetContext())
-    else {
-      Issue.record("Expected a mass")
-      return
-    }
-    let context = try sheetContext().with(assistantAnswers: [prompt: .value(amount)])
-    let definitions = try SheetDefinitions(
-      source: "1 bag = ask_assistant(a weight)", context: context)
-    #expect(definitions.unreviewedUnits == ["bag"])
-    var calculator = SheetCalculator(definitions: definitions)
-    let sheet = SheetSource("Convert 2 bags into g.")
-    let snapshot = try calculator.assistanceSnapshot(
-      sheet, context: sheetContext(), target: sheet.lines[0].id)
-    let proposal = try candidate("2 bags in g", snapshot: snapshot, literals: [("2", "2")])
-    #expect(
-      failureCode { try AssistanceCandidateChecker.check(proposal, against: snapshot) }
-        == .unsupportedOperation)
-  }
-
   @Test func scaleSuffixesCannotHideInventedNumericFactors() throws {
     let snapshot = try snapshot("bill = 100 INR\nMultiply bill by two.")
     let proposal = try candidate(
@@ -475,18 +426,6 @@ struct AssistanceCandidateCheckerTests {
       try AssistanceCandidateChecker.check(
         markup, against: profit, selectedChoices: ["profit_basis": "cost"]
       ).isApplicable)
-  }
-
-  @Test func parameterShadowingDoesNotCaptureAnUnusedModelValue() throws {
-    let prompt = AssistantPrompt([.text("a price")])
-    let context = try sheetContext().with(assistantAnswers: [
-      prompt: .value(.number(.integer(IntegerValue(1000))))
-    ])
-    let definitions = try SheetDefinitions(
-      source: "x = ask_assistant(a price)\nf(x) = x * 2\ny = 10 // x is not an input here",
-      context: context)
-    #expect(definitions.functions["f"]?.hasUnreviewedCapture == false)
-    #expect(!definitions.unreviewedVariables.contains("y"))
   }
 
 }

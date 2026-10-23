@@ -1,7 +1,9 @@
 # Assistance contracts
 
-Status: Implementation is in progress. This document describes the current
-code changes. It does not establish completion of M0, M1, or M2.
+Status: This document records the shared harness and its earlier checks.
+The [Ask job contract](../design/ai-native/ask-job-contract.md) defines the
+current product behavior. The [AI plan](../plans/ai-native.md) records current
+milestone gates and release checks.
 
 ## Module boundaries
 
@@ -46,7 +48,7 @@ scalar ancestry, rate provenance, and table records still need work.
 
 ## Response contract
 
-Each response has `schemaVersion: 1` and one `kind`. The four kinds are:
+Each response has `schemaVersion: 1` and one `kind`:
 
 | Kind | Required data |
 | --- | --- |
@@ -54,6 +56,8 @@ Each response has `schemaVersion: 1` and one `kind`. The four kinds are:
 | `clarify` | One question and up to three choices, or a missing input |
 | `need_context` | Named record handles and a reason |
 | `unsupported` | A reason |
+| `explanation` | Plain text, only when explicitly permitted |
+| `answer` | Unverified text for a non-calculation question, only when permitted |
 
 Each candidate contains an ID, target edits, symbol bindings, literal
 records, relation records, assumptions, and a summary. An assumption has
@@ -97,21 +101,21 @@ The complete shadow sheet stays local.
 
 The local policy checks profit basis, tax inclusion, tax base, nominal rate
 period, date order, split exclusions, and mass-to-volume inputs. Profit
-basis and changed units can require a user choice. An unstated density
-blocks application. The tested tip and tax rules use independent expected
+basis and changed units can require a user choice. An unstated density requires clarification or an approved named world-fact
+assumption before application. The tested tip and tax rules use independent expected
 expressions. Other relations remain interpretations for user review.
 
 A checked candidate contains its source change, engine result, affected
 results, references, choices, and clock and rate information. It does not
 establish that arbitrary English has one correct numerical interpretation.
 
-Native provenance flags follow legacy model values through declarations,
-references, imported definitions, units, and function captures. These values
-cannot become preview evidence. The context omits their canonical values.
+Approved assumptions retain their source origin comments. Dependency
+provenance supplies their visible marks. Model text cannot supply calculated
+results or bypass the native checker.
 
-Partial line edits, imported dependency tracing, table targets, and the full
-ambiguity fixture set remain incomplete. This code does not establish the
-M1 exit gate.
+Partial-line edits and table targets are not supported. Imported dependency
+tracing and interpretation coverage have the limits stated above. Current
+milestone gates are recorded in the AI plan.
 
 ## Transport contract
 
@@ -140,10 +144,11 @@ provider settings or keys. The tests cover scope capture, redeclarations,
 dividers, frozen values, source privacy, exact value encoding, strict
 response checks, body privacy, request count, redirect refusal, and limits.
 
-The editor has a source review and acceptance path for complete physical
-lines. Partial selections, table targets, automatic scheduling, complete dependency
-records, model evaluation, and user sessions remain part of the full
-[implementation plan](../plans/ai-expression-suggestions.md).
+Ask reviews and applies source for adjacent physical lines. Transitive local
+dependencies are included in the disclosed context. Partial-line targets
+and table targets are not supported. Automatic scheduling and persistent
+conversations are outside the current Ask design. See the
+[current plan](../plans/ai-native.md).
 
 The foundation check passed on 2026-10-13 with Xcode 27.0:
 
@@ -201,9 +206,9 @@ codes and native spans. It does not contain the complete shadow source.
 
 The memory cache has limits of 128 entries and 4 MiB. Cached proposals must
 pass the local checker again. No transport failure is stored as an answer.
-The cache still needs complete dependency and rate fingerprints. Editor
-session state must also retain dismissed outcomes before automatic mode
-can use this coordinator.
+Reuse checks source, scope, dependency, model, and engine fingerprints.
+Automatic mode is outside the current Ask design. Answer and explanation
+cards are not retained in the proposal cache.
 
 The coordinator tests use synthetic replies and a virtual clock. These tests cover request counts, context permission, exact request
 bodies, deadlines, late replies, window priority, automatic limits, and
@@ -212,10 +217,10 @@ cache eviction. They do not establish the M2 or release exit gate.
 ## Explicit editor review
 
 `SheetSuggestionConfiguration` supplies the coordinator and provider settings.
-Workspace sheets and Quick Ganit share the application coordinator. Provider
-setup does not grant context permission. Suggest Expression prepares a scope.
-Send is a separate action. The settings example also prepares a scope before
-it can send a request. Tests inject synthetic replies and separate settings.
+Workspace sheets share the application coordinator. Ask is not available
+in Quick Ganit. Provider setup does not grant context permission. Ask prepares
+a scope. Send is a separate action. Tests inject synthetic replies and
+separate settings.
 
 The temporary card contains the source edit, local result, interpretation,
 references, choices, and assumption approval. Context shows the exact request
@@ -233,22 +238,18 @@ References to later lines use the native reference transformation.
 The editor applies the patches through `SheetSourceCoordinator` in one Undo
 transaction. Undo and Redo restore the source and selection together.
 
-Tab accepts only when Use Expression has focus. Return edits the sheet.
-Escape dismisses the card before it dismisses Quick Ganit. Source edits,
-provider changes, and native namespace changes make the preview stale.
-Closing its window or hiding Quick Ganit cancels the suggestion. If a fresh
-local result differs, Apply first updates the preview for another review.
+The Apply button and ⌘Return accept a checked proposal. Escape dismisses
+Ask. Source edits, provider changes, and native namespace changes make the
+preview stale. Closing the sheet cancels the job. If a fresh local result
+differs, Apply first updates the preview for another review. Ask is not
+available in Quick Ganit.
 
 The selection must contain complete physical lines. A partial line or a
-table target shows a scope error. These targets still need implementation.
-This restriction does not complete or reduce the plan.
-The current card is in the editor review area. Placement beside the target,
-full accessibility review, real IMEs, visual checks, and release measurements
-still need work. No phase exit gate is complete.
+table target shows a scope error. The current plan records accessibility,
+IME, visual, and performance release checks.
 
-The application no longer attaches the legacy model-answer callbacks or
-opens their answer store. Legacy engine and editor APIs still need removal.
-The new feature does not load cached model values into accepted source.
+The legacy engine grammar, editor callbacks, and saved answer store have
+been removed. Ask does not load cached model values into accepted source.
 
 ## Native function context
 
@@ -275,8 +276,8 @@ Tests cover redeclarations, nested calls, imported captures, parameter and
 comment scope, exact rational values, custom units, record limits, source
 identity, and failed or legacy captures. Coordinator tests also cover
 changed captures and explicit material choices in request and reuse keys.
-Complete scalar and table dependency records and all earlier incomplete
-requirements still need work. No phase exit gate is complete.
+Transitive scalar dependencies are disclosed. Table targets remain unsupported.
+See the current plan for milestone and release status.
 
 The function-context check passed 665 engine tests, 22 coordinator tests,
 226 editor tests, 15 Quick Ganit tests, and 60 workspace tests on 2026-10-13.

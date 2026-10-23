@@ -31,7 +31,12 @@ struct LanguageReferenceTests {
         LanguageReference.topic(named: function.rawValue) != nil,
         "\(function.rawValue)")
     }
-    #expect(LanguageReference.topic(named: assistantFunctionName) != nil)
+    #expect(LanguageReference.topic(named: "ask_assistant") == nil)
+    #expect(LanguageReference.topics(matching: "ask_assistant").isEmpty)
+    let ask = LanguageReference.topic(id: "grammar.ask")
+    #expect(ask?.body.contains("Opening Ask or Context sends nothing") == true)
+    #expect(ask?.body.contains("Ganit asks when only you know") == true)
+    #expect(LanguageReference.topics(matching: "context").contains { $0.id == "grammar.ask" })
   }
 
   @Test

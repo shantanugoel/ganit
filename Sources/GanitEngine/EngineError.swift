@@ -18,8 +18,6 @@ public enum EngineErrorCode: String, CaseIterable, Hashable, Sendable {
   /// table block's source line, that cannot be read; the context says why.
   case tableReference = "evaluation.tableReference"
   case unknownFunction = "evaluation.unknownFunction"
-  case unresolvedAssistantPrompt = "evaluation.unresolvedAssistantPrompt"
-  case unusableAssistantAnswer = "evaluation.unusableAssistantAnswer"
   case argumentCountMismatch = "evaluation.argumentCountMismatch"
   case typeMismatch = "evaluation.typeMismatch"
   case incompatibleDimensions = "evaluation.incompatibleDimensions"

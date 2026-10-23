@@ -209,17 +209,6 @@ import Testing
 
   }
 
-  @Test func ordinaryAssistantPromptTextIsNotTableSyntax() throws {
-    let source = "ask_assistant(Items[Amount] costs Rates!B2)"
-    let syntax = try TableFormulaSyntax.discover(source, tableFormula: false)
-    #expect(syntax.references.isEmpty)
-    #expect(try syntax.parse(context: sheetContext()) == Parser(source: source).parse())
-    let placeholder = try TableFormulaSyntax.discover(
-      "ask_assistant(Cost {Items!B2})", tableFormula: false)
-    #expect(placeholder.references.count == 1)
-    #expect(try placeholder.parse(context: sheetContext()).expression != nil)
-  }
-
   @Test func functionNamesWithDigitsRemainCallNames() throws {
     for source in ["=log2(8)", "=log10(100)", "=atan2(1,1)", "=custom2(B2)"] {
       let syntax = try TableFormulaSyntax.discover(source)

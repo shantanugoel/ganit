@@ -6,6 +6,30 @@ import Testing
 @Suite
 struct SheetCalculatorTests {
   @Test
+  func reusedParsesKeepResourceChecksAndFollowSourceEdits() throws {
+    var calculator = SheetCalculator(
+      engine: CalculationEngine(evaluationLimits: EvaluationLimits(maximumIntegerBits: 8)))
+    var sheet = SheetSource("x = 1\nx + 256")
+    let context = try sheetContext()
+    let target = sheet.lines[1].id
+    for value in ["1", "2"] {
+      sheet.replace(utf8Range: 4..<5, with: value)
+      let evaluation = try calculator.evaluate(sheet, context: context)
+      guard case .evaluationFailure(let error) = evaluation.lines[1].result else {
+        Issue.record("Expected the integer bit limit")
+        return
+      }
+      #expect(error.code == .resourceLimitExceeded)
+      #expect(error.context == .resourceLimit(.integerBits))
+      if value == "2" { #expect(!evaluation.parsedLineIDs.contains(target)) }
+    }
+    let end = sheet.text.utf8.count
+    sheet.replace(utf8Range: (end - 3)..<end, with: "8")
+    let evaluation = try calculator.evaluate(sheet, context: context)
+    #expect(evaluation.lines[1].result == .value(.number(.integer(IntegerValue(10)))))
+  }
+
+  @Test
   func anExpressionWithBothLocalAndUpstreamBrokenReferencesReportsBothCauses() throws {
     var calculator = SheetCalculator()
     let sheet = SheetSource("@deleted\n@1 + @split\n@2")
@@ -282,46 +306,6 @@ struct SheetCalculatorTests {
     await #expect(throws: CancellationError.self) {
       try await task.value
     }
-  }
-
-  @Test
-  func assistantPromptsFillPlaceholdersAndAskAgainWhenTheyChange() throws {
-    var calculator = SheetCalculator()
-    var sheet = SheetSource("weight = 10\n20\nask_assistant({weight} kg and {previous} g)")
-    let context = try sheetContext()
-    func prompts() throws -> [AssistantPrompt] {
-      try calculator.evaluate(sheet, context: context).lines.last?.assistantPrompts ?? []
-    }
-    func asked(_ weight: Int) -> AssistantPrompt {
-      AssistantPrompt([
-        .value(.number(.integer(IntegerValue(weight)))), .text(" kg and "),
-        .value(.number(.integer(IntegerValue(20)))), .text(" g"),
-      ])
-    }
-    #expect(try prompts() == [asked(10)])
-    sheet.replace(utf8Range: 9..<11, with: "12")
-    #expect(try prompts() == [asked(12)])
-
-    let answered = try calculator.evaluate(
-      sheet,
-      context: context.with(assistantAnswers: [
-        asked(12): .value(.number(.integer(IntegerValue(3))))
-      ]))
-    #expect(try summary(answered).last == "3")
-  }
-
-  @Test
-  func anAssistantPromptWhosePlaceholderFailsAsksNothing() throws {
-    var calculator = SheetCalculator()
-    let evaluation = try calculator.evaluate(
-      SheetSource("ask_assistant({missing} kg)"), context: try sheetContext())
-    let line = try #require(evaluation.lines.last)
-    #expect(line.assistantPrompts.isEmpty)
-    guard case .evaluationFailure(let error) = line.result else {
-      Issue.record("expected a failure")
-      return
-    }
-    #expect(error.code == .unknownIdentifier)
   }
 
   private func summary(_ evaluation: SheetEvaluation) throws -> [String?] {

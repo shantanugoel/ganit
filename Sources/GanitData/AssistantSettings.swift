@@ -1,13 +1,12 @@
 import Foundation
 import Security
 
-/// Where Ganit may send a line it could not work out, and whether it sends any
-/// at all.
+/// The provider settings for explicit Ask requests.
 ///
 /// The endpoint is an OpenAI-compatible base, such as `https://host/v1`.
 /// Ganit POSTs to `chat/completions` under it. A hosted model and one
 /// running on this Mac are the same setting. Nothing is sent until someone
-/// fills this in and turns it on.
+/// turns it on and sends an Ask.
 public struct AssistantSettings: Equatable, Sendable {
   public static let defaultEndpoint = URL(string: "https://api.openai.com/v1")!
   public static let defaultModel = "gpt-4o-mini"
@@ -45,7 +44,7 @@ public struct AssistantSettings: Equatable, Sendable {
     self.repairAttempts = min(3, max(0, repairAttempts))
   }
 
-  /// Whether these settings name somewhere a line can actually be sent.
+  /// Whether Ask can use this provider.
   public var isReady: Bool {
     isEnabled && Assistant.isAllowed(endpoint) && !model.isEmpty
   }

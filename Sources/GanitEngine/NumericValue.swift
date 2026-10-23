@@ -13,7 +13,8 @@ public struct IntegerValue: Hashable, Sendable {
   let storage: BigInt
 
   public init(_ value: Int) {
-    storage = BigInt(value)
+    storage = BigInt(
+      sign: value < 0 ? .minus : .plus, magnitude: BigUInt(words: [value.magnitude]))
   }
 
   public init(
@@ -29,6 +30,10 @@ public struct IntegerValue: Hashable, Sendable {
         code: .integerLiteralTooLong,
         context: .maximumIntegerDigits(Self.maximumTextDigits)
       )
+    }
+    if digitCount <= Int.bitWidth, let value = Int(digits, radix: radix.rawValue) {
+      storage = Self(value).storage
+      return
     }
     guard let value = BigInt(digits, radix: radix.rawValue) else {
       throw EngineError(code: .invalidIntegerLiteral)

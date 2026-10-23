@@ -32,6 +32,17 @@ struct InlineTableTests {
     #expect(frame.minY + editor.textView.textContainerOrigin.y >= preview.frame.maxY)
     #expect(preview.open.accessibilityLabel() == "Open Items table")
   }
+  @Test func gutterSkipsHiddenTableSourceAndKeepsPhysicalProseNumbers() async throws {
+    let (editor, _) = try await makeEditor()
+    let text = try #require(editor.textView as? SheetTextView)
+    let tableLines = Set(
+      TableSourceDocument.blockLineRanges(in: editor.sheet).flatMap { $0 }.map { $0 + 1 })
+    let numbers = Set(text.lineNumberLayout(in: text.bounds).map(\.number))
+    #expect(numbers.isDisjoint(with: tableLines))
+    #expect(numbers.contains(1))
+    #expect(numbers.contains(editor.sheet.lines.count - 1))
+  }
+
   @Test func sourceCopyCrossesBothBoundaries() async throws {
     let (editor, _) = try await makeEditor()
     let pasteboard = NSPasteboard.withUniqueName()

@@ -1,160 +1,104 @@
-# The assistant
+# Ask Ganit
 
-Some lines a person reasonably writes are not arithmetic Ganit knows how to do:
-`10 kg of water in ml` needs to know what water weighs. Such a line ends as a
-red diagnostic. The assistant is an optional second opinion for exactly those
-lines, and nothing else. See [ADR 0012](../adr/0012-assistant-fallback.md) for
-why it works this way.
+Ask Ganit is optional. Ganit calculates each result with its own engine.
+A model can propose source changes or explain intent. It cannot supply a
+calculated answer in the answer column. See
+[ADR 0019](../adr/0019-ask-one-operation-four-outcomes.md).
 
-## Setting one up
+## Configure a model
 
-**Ganit ▸ Assistant…** holds five things: whether to ask at all, the address,
-the model, the key, and the Effort. The address is any OpenAI-compatible
-**base**, so these are all valid:
+Open **Ganit ▸ Assistant…**. Enable Ask, then enter the endpoint, model, and
+key. Ganit accepts an OpenAI-compatible endpoint.
 
-| Where the model runs | Address | Key |
-|---|---|---|
-| A provider | `https://api.openai.com/v1` | Required |
-| This Mac | `http://localhost:11434/v1` | Not needed |
-| Another host | `https://host/v1` | As that host asks |
+| Model location | Example endpoint | Key |
+| --- | --- | --- |
+| Provider | `https://api.openai.com/v1` | As the provider requires |
+| This Mac | `http://localhost:11434/v1` | As the local server requires |
+| Another host | `https://host/v1` | As that host requires |
 
-Ganit POSTs `chat/completions` under the base, so `https://host/v1` and
-`https://host/v1/chat/completions` are the same setting. A `/v1` base is
-what the OpenAI SDK, llama-swap, Ollama, and other compatible servers
-publish; posting to that path without `chat/completions` is a 404. A host
-with no path is treated as `/v1` too. HTTP is only for this Mac; everything
-else is HTTPS.
+Ganit appends `chat/completions` to the base. A complete
+`/v1/chat/completions` address is also valid. An address with no path uses
+`/v1`. HTTP is permitted only for a loopback address. Other addresses require
+HTTPS. Ganit refuses redirects.
 
-**Try It** asks the example line and shows the answer, or what went wrong, so a
-wrong address or key is found here rather than in the middle of a sheet.
-`AssistantSettings` keeps the address, model, switch, and Effort in preferences;
-the key goes in the keychain, since preferences are a file any process running as
-this user can read.
+**Review Example** opens a local test sheet. It sends nothing until you
+review Context and send an Ask from that sheet.
 
-### Effort
+Preferences store the endpoint, model, enabled state, Effort, repair limit,
+and dependency mark setting. The key is stored in the keychain.
 
-**Effort** is how hard the model is asked to think. It is one word in the
-request — `reasoning_effort` — and the server decides what to do with it, so
-Ganit names a preference and never promises a behaviour.
+**Effort** requests a reasoning level from the server. The default is Medium.
+Off omits `reasoning_effort`. Low, Medium, High, Extra high, and Max send
+`low`, `medium`, `high`, `xhigh`, and `max`. Custom sends the text you enter.
+An empty Custom value omits the field. The server controls its effect.
 
-| Effort | Sent | Meaning |
-|---|---|---|
-| Off | nothing | No preference at all; the model answers however it answers by default |
-| Low … Max | `low`, `medium`, `high`, `xhigh`, `max` | Ask for more thinking, and wait longer for it |
-| Custom… | whatever you type | A word Ganit has never heard, such as `minimal` or `none` |
+**Repair attempts** permits zero to three corrections of a rejected reply.
+The default is two. Each Ask permits at most three requests in total.
+Format fallback and context follow-ups use this same request limit.
 
-**Medium is the default**, for someone who never opened the window. A server
-that does not implement the field ignores the word, so a wrong Effort is a
-wasted second, not a wrong answer — but a model on a slow host may answer 400
-for a word it does not accept, which **Try It** shows here rather than in the
-middle of a sheet. Off omits the field entirely rather than sending an empty
-one, because a field the server has never heard of is likelier to be accepted
-when absent. A Custom level with nothing typed in it is Off. Nothing else in
-Ganit changes with Effort: Ganit still does every calculation, still refuses a
-line it cannot parse, and still draws a model's value in purple.
+## Open and send Ask
 
-### Ask repair attempts
+Press **⌘⇧A**, or choose **Calculate ▸ Ask Ganit…**. The same action is
+available in the selection summary, the right-click menu, and the Ask chip
+beside the current line when Ganit cannot read it. These actions open the
+same bar. They do not send a request.
 
-The Ask command uses **Repair attempts** in Assistant settings. The range is
-0 to 3. The default is 2. Zero disables automatic correction of a rejected
-reply. Each Ask has a shared limit of three requests. Thus, format fallback
-or a context follow-up can reduce the number of available repairs.
+Enter your instruction. Open **Context ▸** to inspect the source and the
+exact request body. To send, press Return or select Ask. Answer and Retry
+also send requests. Selecting a clarification choice sends that answer.
+Opening Ask or Context sends nothing. Ganit sends no automatic requests
+when you type or stop typing. Escape cancels Ask. Cancellation cannot recall
+bytes that have already reached the provider.
 
-Ask shows `Ganit is checking…` during native validation. A repair adds one
-status line and a count on the checked proposal. A rejected reply never
-becomes a proposal. The failure card gives the reason and can show rejected
-text in a separate read-only view. Retry sends a new explicit Ask.
+The target is the current line, selection, or sheet. A target must be
+contiguous, contain at most 12 lines and 8 KiB, and exclude table blocks.
+Context includes the target, attached notes, relevant named values,
+transitive source dependencies, captured function inputs, diagnostics,
+engine settings, and the supported function catalog. Engine settings include
+the sheet locale, time zone, and frozen calculation time. These are disclosed
+calculation inputs. They are not an automatic report about the Mac.
 
-## What is asked, and when
+Unrelated source, sheet titles, library contents, and local document
+identifiers are excluded. Opaque handles identify source records in the
+request. A request for more context requires a new review of Context before
+Send. See [privacy](../public/privacy.md).
 
-`SheetEditorViewController` asks about a line when all of these hold:
+## Review the result
 
-- An assistant is set up and turned on.
-- Ganit flagged the line as one it could not work out. A line that is merely
-  half-typed is not flagged, so it is not asked about.
-- The line is outside a table block. Its failure is not a table error
-  (`tableReference`). Ganit calculates tables locally. Automatic requests and
-  Ask Assistant exclude table source lines and prose with table errors. A kept
-  answer cannot replace a table diagnostic. A table formula with
-  `ask_assistant` produces a diagnostic and no request.
-- Typing has stopped for `assistantPause`, which is 1.2 seconds.
-- That exact text has not been asked about already. Answers are kept by the
-  text that was asked, so the same line in two places costs one request, and
-  editing a line and changing it back costs none. `AssistantAnswerStore`
-  keeps each reply, including "no answer", in `AssistantAnswers.json` under
-  Application Support, so reopening a sheet or relaunching Ganit does not ask
-  again. A failed or cancelled request is not kept.
+- **Proposal:** Ganit checks the proposed source on a frozen sheet copy.
+  Review each source change and calculated result. Use the inclusion controls
+  to select changes. Ganit checks the selected source again. Invalid source
+  has no preview and cannot be applied. Choose **Apply** or press **⌘↩** to
+  change source in one Undo step named **Apply AI Change**. Undo restores the
+  original source and selection. Later input edits calculate locally.
+- **Question:** Answer in the same Ask bar. Ganit asks at most two questions
+  per Ask. It asks for inputs that only you can supply, such as a tax rate,
+  salary, price, or budget.
+- **Assumption:** A missing world fact can become a named value on its own
+  line. Ganit writes a `// AI:` origin comment after approval. The AI badge
+  identifies the value. A dot identifies dependent results. **View ▸ Mark
+  AI-derived answers** controls the dots. The origin badge remains visible.
+  Open the badge to inspect the basis, model, date, and dependent lines.
+  Change the value to remove its origin mark. Removal previews affected
+  calculations before it changes source.
+- **Explanation:** Ganit first explains the expression with local engine
+  facts. The card states whether anything was sent. **Ask the model instead**
+  opens Ask and waits for Send. A model explanation is marked as such. Cards
+  are temporary, cannot be referenced by formulas, and are not saved.
+- **Answer:** A text answer can address a question with no calculation. It
+  is marked as unverified, is not saved or cached, and cannot be referenced
+  by formulas. It cannot contain numeric characters, arithmetic operators,
+  equations, or source. A needed fact for a calculation must become a named
+  assumption.
+- **Failure:** Ganit shows the reason. A rejected reply has no Apply action.
+  **Show what the model meant** opens rejected text in a separate read-only
+  view. Retry starts a new explicit Ask.
 
-**Ask Assistant** on the line's right-click menu, or under Calculate, asks
-again about that line or prompt even when an answer is already on screen or
-kept, and keeps the new reply instead.
-**Change Answer…** offers **Save Value into Sheet** and **Use Temporarily**.
-Saving validates a single-line value Ganit can calculate without assistance,
-replaces the selected line with it, and retains the original source as a
-`// Manual answer; original:` comment. The value survives restart as sheet
-source and can be used by later formulas. Undo restores the original line.
-Using a correction temporarily replaces the displayed value without a request;
-the dialog explains that temporary corrections are discarded when Ganit quits.
+Ganit asks when only you know; it assumes and marks when the world knows.
+If the choice is uncertain, Ganit asks.
 
-**Cancel Request** on the same menus stops waiting for a line or prompt that
-shows Asking…, and **Calculate ▸ Stop** cancels every request of the sheet as
-well as its evaluation. Each request is a task the editor keeps, so a
-cancelled request's late reply is ignored, and a cancelled line or prompt is
-not asked about again until Ask Assistant. Cancelling cannot recall a line
-already sent, or make the provider stop working on it; it only means Ganit no
-longer waits for or uses the reply.
-
-`SheetEditorViewController` also asks about `ask_assistant(prompt)` when it
-has no answer yet. The text inside the parentheses is the prompt, except that
-a `{…}` placeholder holds an expression, such as `{weight}` or `{previous}`,
-whose value is written into the prompt as the sheet shows it. Typing `{`
-offers the sheet's variables, and choosing one closes the placeholder. The reply is
-parsed as a Ganit value, so a later line can write `previous * 2`. Answers are
-kept by the prompt with its placeholders' values, so changing `weight` asks
-again and changing it back costs nothing. A placeholder Ganit cannot work out
-fails the line and nothing is sent. The same pause and privacy rules apply:
-one prompt is one request, and nothing else from the sheet is sent than the
-values its placeholders name.
-
-`Assistant` sends one `POST` carrying the line, the model name, the Effort you
-chose, and the instruction to reply with `{"value":"…"}`. It sends nothing else
-from the sheet, the library, or the machine, and `NetworkPrivacyTests` reads the
-bytes on the wire to keep that true. HTTPS is required except on the loopback
-address; redirects are refused, because a redirect would carry the line, and
-the key, somewhere the settings never named. A host that rejects structured
-output is asked again without it. The request may take a few minutes; the
-sheet stays editable.
-
-`AssistantReply` then takes the short value out of JSON, think-tags,
-markdown, and wrapping. A model's separate reasoning is its working, so it is
-read only for that JSON value, never for a last sentence. `UNKNOWN`, an empty
-reply, a reply with no letter or digit, and anything still over 120 characters
-leave the line as Ganit found it, and so does a failed
-request: a line Ganit could not work out already says so, and needs no
-second complaint.
-
-## What is shown
-
-While a request is in flight the answer column shows Asking… in secondary
-colour, not the red diagnostic. An answer replaces that and is drawn in
-`VisualStyle.Color.assisted`, purple, rather than the colour of a result, after
-an outlined **AI** badge, so its origin does not depend on seeing colour or
-survive only in colour on a screenshot. Hovering it says it is an unverified AI
-answer formulas cannot use, and VoiceOver reads it as `Line N AI answer,
-unverified`. The
-line keeps its underline: Ganit still could not read it. `AnswerCell.isAssisted`
-says which answers these are, and they carry no full precision, because there
-is no exact value behind them.
-
-A line-level answer is a display answer only: the engine still cannot read the
-line, so `line N`, `previous`, and totals cannot use it. A line referring to
-one says `Line N has an AI display answer, which formulas cannot use`, rather
-than the general reference error, and the answer's interpretation card shows
-the AI answer and that **Change Answer… ▸ Save Value into Sheet** turns a
-reviewed value into source later lines can use. `ask_assistant(prompt)` is the
-computable path: its parsed value takes part in later arithmetic.
-
-Model answers and temporary corrections are not saved with the sheet. They
-remain in the open sheet's session cache, including after closing and reopening
-its tab, but are discarded when Ganit quits. A correction explicitly saved into
-sheet source is durable.
+Ask uses a bounded memory cache. It does not save provider replies in
+`AssistantAnswers.json`. Existing files are not read. The former
+`ask_assistant(...)` syntax and prompt placeholders are not supported.
+Use ordinary source and Ask proposals instead. Ask is unavailable in Quick
+Ganit, services, shortcuts, and the command-line tool.

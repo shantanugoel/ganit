@@ -132,6 +132,10 @@ package final class SheetSuggestionSession {
     retry: Bool = false, instruction: String = "", autoSend: Bool = false,
     forceModel: Bool = false, allowsExplanation: Bool = false
   ) {
+    guard editor?.suggestionConfiguration?.settings.isReady == true else {
+      dismiss()
+      return
+    }
     var allowsExplanation = allowsExplanation
     var forceModel = forceModel
     var askedForExplanation = false
@@ -224,7 +228,7 @@ package final class SheetSuggestionSession {
         let body = try await SuggestionRequestContext.requestBody(
           settings: configuration.settings, snapshot: snapshot, including: self.included,
           choices: self.choices, userRevisedInputs: self.userRevisedInputs,
-          allowsExplanation: self.allowsExplanation)
+          allowsExplanation: self.allowsExplanation, allowsAnswer: !self.allowsExplanation)
         guard self.revision == version, snapshot.source.text == editor.sheet.text else { return }
         self.snapshot = snapshot
         self.preparedBody = body
@@ -281,7 +285,8 @@ package final class SheetSuggestionSession {
           includedRecords: self?.included ?? [], choices: self?.choices ?? [:],
           approvedAssumptions: self?.assumptions ?? [], retry: self?.retry ?? false,
           allowsExplanation: self?.allowsExplanation ?? false,
-          userRevisedInputs: self?.userRevisedInputs ?? false),
+          userRevisedInputs: self?.userRevisedInputs ?? false,
+          allowsAnswer: !(self?.allowsExplanation ?? false)),
         observer: { [weak self] event in await self?.receive(event, version: version) })
       guard let self, self.revision == version else {
         await configuration.coordinator.cancel(job.id)
@@ -294,6 +299,10 @@ package final class SheetSuggestionSession {
       }
       self.job = nil
       switch outcome {
+      case .answer(let text):
+        self.dismiss()
+        guard let target = self.target?.first else { return }
+        editor.showModelAnswer(text, target: target, model: configuration.settings.model)
       case .explanation(let text):
         self.dismiss()
         guard let target = self.target?.first else { return }
@@ -475,7 +484,7 @@ package final class SheetSuggestionSession {
         let body = try await SuggestionRequestContext.requestBody(
           settings: configuration.settings, snapshot: snapshot, including: self.included,
           choices: self.choices, userRevisedInputs: self.userRevisedInputs,
-          allowsExplanation: self.allowsExplanation)
+          allowsExplanation: self.allowsExplanation, allowsAnswer: !self.allowsExplanation)
         guard self.revision == version, snapshot.source.text == editor.sheet.text else { return }
         self.snapshot = snapshot
         self.preparedBody = body

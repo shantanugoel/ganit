@@ -76,10 +76,6 @@ private struct Scanner {
   private var diagnostics: [SyntaxDiagnostic] = []
   private var groupingCache: [Int: GroupingCacheEntry] = [:]
   private var lastTokenCanEndValue = false
-  /// Open parentheses of an `ask_assistant` prompt, whose words are not
-  /// tokens, and whether a `{…}` placeholder inside it is open.
-  private var promptDepth = 0
-  private var isInPlaceholder = false
 
   init(
     source: String,
@@ -116,20 +112,6 @@ private struct Scanner {
           advance()
         }
         append(.newline, from: start)
-        promptDepth = 0
-        isInPlaceholder = false
-        continue
-      }
-
-      if promptDepth > 0, !isInPlaceholder {
-        scanPromptCharacter(character)
-        continue
-      }
-
-      if isInPlaceholder, character == "}" {
-        advance()
-        append(.rightBrace, from: start)
-        isInPlaceholder = false
         continue
       }
 
@@ -307,39 +289,6 @@ private struct Scanner {
       return
     }
     append(.identifier(identifier), from: start)
-    guard identifier == assistantFunctionName, promptDepth == 0 else {
-      return
-    }
-    while let character = current, character.isWhitespace, !character.isNewline {
-      advance()
-    }
-    if current == "(" {
-      let parenthesis = cursor
-      advance()
-      append(.leftParenthesis, from: parenthesis)
-      promptDepth = 1
-    }
-  }
-
-  /// A prompt's words are sent as written, so only its closing parenthesis
-  /// and the `{` of each placeholder are tokens.
-  private mutating func scanPromptCharacter(_ character: Character) {
-    let start = cursor
-    advance()
-    switch character {
-    case "(":
-      promptDepth += 1
-    case ")":
-      promptDepth -= 1
-      if promptDepth == 0 {
-        append(.rightParenthesis, from: start)
-      }
-    case "{":
-      append(.leftBrace, from: start)
-      isInPlaceholder = true
-    default:
-      break
-    }
   }
 
   private mutating func scanDegreeUnit() {

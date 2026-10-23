@@ -113,4 +113,50 @@ struct AIAssumptionProvenanceTests {
       #expect(all.allSatisfy { $0.from.isEmpty }, "\(text) marks nothing")
     }
   }
+
+  @Test func anOrdinaryRedeclarationClearsTheNameButKeepsExplicitReferenceOrigins() throws {
+    let source = Self.origin + "\ndensity = 2 g/ml\nvolume = 10 kg / density in ml\n@1 * 2"
+    #expect(try line(source, "density = 2").from.isEmpty)
+    #expect(try line(source, "volume = ").from.isEmpty)
+    #expect(try line(source, "@1").from == [Self.origin])
+  }
+
+  @Test func redefiningAFunctionClearsItsMarkAndKeepsEarlierCapturedFunctions() throws {
+    let source =
+      Self.origin + """
+
+        f(mass) = mass / density in ml
+        captured(mass) = f(mass)
+        f(mass) = mass in g
+        ordinary = f(10 kg)
+        marked = captured(10 kg)
+        """
+    #expect(try line(source, "ordinary = ").from.isEmpty)
+    #expect(try line(source, "marked = ").from == [Self.origin])
+  }
+
+  @Test func incrementalEditsClearAndRestoreCachedOriginComments() throws {
+    var source = SheetSource(Self.origin + "\nvolume = 10 kg / density in ml")
+    var calculator = SheetCalculator()
+    let context = try sheetContext()
+    let marked = try calculator.evaluate(source, context: context)
+    #expect(marked.lines.last?.aiAssumptionOrigins == [source.lines[0].id])
+
+    let commentStart = try #require(Self.origin.range(of: " // AI:"))
+    let commentOffset = Self.origin.utf8.distance(
+      from: Self.origin.utf8.startIndex, to: commentStart.lowerBound)
+    let comment = String(Self.origin[commentStart.lowerBound...])
+    source.replace(utf8Range: commentOffset..<Self.origin.utf8.count, with: "")
+    let cleared = try calculator.evaluate(source, context: context)
+    #expect(cleared.lines.allSatisfy { $0.aiAssumption == nil && $0.aiAssumptionOrigins.isEmpty })
+
+    source.replace(utf8Range: commentOffset..<commentOffset, with: comment)
+    let restored = try calculator.evaluate(source, context: context)
+    #expect(restored.lines[0].aiAssumption != nil)
+    #expect(restored.lines.last?.aiAssumptionOrigins == [source.lines[0].id])
+    let repeated = try calculator.evaluate(source, context: context)
+    #expect(repeated.lines.last?.aiAssumptionOrigins == restored.lines.last?.aiAssumptionOrigins)
+    #expect(repeated.parsedLineIDs.isEmpty)
+  }
+
 }

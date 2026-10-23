@@ -56,40 +56,6 @@ struct ParserTests {
   }
 
   @Test
-  func keepsAssistantPromptTextUnparsed() throws {
-    #expect(
-      shape(try parse("ask_assistant(10 kg of water in ml)"))
-        == "ask_assistant{10 kg of water in ml}"
-    )
-    #expect(
-      shape(try parse("ask_assistant(10 kg of water in ml) * 2"))
-        == "(ask_assistant{10 kg of water in ml} * 2)"
-    )
-    #expect(
-      shape(try parse("ask_assistant(what's 5 (roughly)?)"))
-        == "ask_assistant{what's 5 (roughly)?}"
-    )
-    #expect(Parser(source: "prompt_assistant(density of water)").parse().expression == nil)
-  }
-
-  @Test
-  func parsesAssistantPromptPlaceholdersAsExpressions() throws {
-    #expect(
-      shape(try parse("ask_assistant(convert {weight} of water to {unit})"))
-        == "ask_assistant{convert [weight] of water to [unit]}"
-    )
-    #expect(
-      shape(try parse("ask_assistant({qty * 2} tickets)"))
-        == "ask_assistant{[(qty * 2)] tickets}"
-    )
-    #expect(
-      Parser(source: "ask_assistant(price of {gold)").parse().diagnostics.map(\.code)
-        == [.expectedClosingBrace]
-    )
-    #expect(!Parser(source: "ask_assistant(price of {})").parse().diagnostics.isEmpty)
-  }
-
-  @Test
   func parsesPercentagePhrasesAndPrecedence() throws {
     #expect(try shape(parse("20%")) == "20%")
     #expect(try shape(parse("2^3%")) == "(2 ^ 3%)")
@@ -334,14 +300,6 @@ struct ParserTests {
       return "(\(shape(expression)))"
     case .reference(let reference, _):
       return "@\(reference)"
-    case .assistantPrompt(let parts, _, _):
-      let prompt = parts.map {
-        switch $0 {
-        case .text(let text): text
-        case .placeholder(let expression): "[\(shape(expression))]"
-        }
-      }
-      return "ask_assistant{\(prompt.joined())}"
     }
   }
 

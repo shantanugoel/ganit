@@ -18,6 +18,23 @@ struct VisualStyleTests {
         >= VisualStyle.Typography.minimumSize)
   }
 
+  @Test func assumptionMarksUseTheSemanticTokenInBothAppearances() throws {
+    let view = SheetTextView()
+    for name in [NSAppearance.Name.aqua, .darkAqua] {
+      let appearance = try #require(NSAppearance(named: name))
+      appearance.performAsCurrentDrawingAppearance {
+        #expect(
+          view.badgeAttributes[.foregroundColor] as? NSColor == VisualStyle.Color.aiAssumption)
+        #expect(
+          view.badgeWidth(for: AnswerCell(text: "1", fullPrecision: "1", isAIAssumption: true)) > 0)
+        #expect(
+          view.badgeWidth(for: AnswerCell(text: "1", fullPrecision: "1", isAIDerived: true)) > 0)
+        #expect(view.badgeWidth(for: AnswerCell(text: "1", fullPrecision: "1")) == 0)
+      }
+    }
+    #expect(SheetTextView.assumptionBadge == "AI")
+  }
+
   /// Interface code uses semantic colors, system fonts, and standard
   /// materials rather than literal values or custom-painted effects.
   @Test

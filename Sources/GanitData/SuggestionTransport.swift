@@ -27,7 +27,7 @@ public struct SuggestionWireRequest: Sendable {
   /// heard of, so a refusal drops both together rather than one at a time.
   public init(
     settings: AssistantSettings, context: Data, structured: Bool = true, effort: Bool = true,
-    allowsExplanation: Bool = false
+    allowsExplanation: Bool = false, allowsAnswer: Bool = false
   ) throws {
     guard Assistant.isAllowed(settings.endpoint) else {
       throw SuggestionTransportError.disallowedURL
@@ -37,7 +37,8 @@ public struct SuggestionWireRequest: Sendable {
       (try? JSONSerialization.jsonObject(with: context)) is [String: Any]
     else { throw SuggestionTransportError.invalidContext }
     let schema = String(
-      decoding: try SuggestionSchema.data(allowsExplanation: allowsExplanation), as: UTF8.self)
+      decoding: try SuggestionSchema.data(
+        allowsExplanation: allowsExplanation, allowsAnswer: allowsAnswer), as: UTF8.self)
     var payload: [String: Any] = [
       "model": settings.model,
       "stream": false,
@@ -45,6 +46,7 @@ public struct SuggestionWireRequest: Sendable {
         [
           "role": "system",
           "content": Self.instruction + (allowsExplanation ? Self.explanationInstruction : "")
+            + (allowsAnswer ? Self.answerInstruction : "")
             + "\nResponse schema:\n" + schema,
         ],
         ["role": "user", "content": contextText],
@@ -71,6 +73,15 @@ public struct SuggestionWireRequest: Sendable {
     if !apiKey.isEmpty { request.setValue("Bearer " + apiKey, forHTTPHeaderField: "Authorization") }
     return request
   }
+
+  private static let answerInstruction = """
+
+    You may return kind answer with text only for a non-calculation world-knowledge question.
+    Use plain text only, with no numeric characters, number words, arithmetic operators, equations, or source.
+    Never answer a calculation or supply a missing user input this way. Use a proposal or clarification.
+    A needed world fact belongs in a named assumption, not an answer.
+    Ganit shows the answer once, marked unverified. It cannot be referenced or saved.
+    """
 
   private static let explanationInstruction = """
 

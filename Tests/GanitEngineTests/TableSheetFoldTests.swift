@@ -323,7 +323,6 @@ import Testing
     for block in evaluation.tables {
       for line in block.physicalLines {
         #expect(evaluation.lines[line].result == nil)
-        #expect(evaluation.lines[line].assistantPrompts.isEmpty)
       }
     }
   }

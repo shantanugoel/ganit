@@ -22,17 +22,21 @@ public enum SuggestionDecoder {
       throw SuggestionDecodingError.invalidSchema
     }
     switch kind {
-    case "explanation":
+    case "explanation", "answer":
       try keys(root, required: ["schemaVersion", "kind", "text"])
       let value = try text(root, "text", bytes: 8_192)
       guard
         !value.unicodeScalars.contains(where: { scalar in
-          switch scalar.properties.generalCategory {
-          case .decimalNumber, .letterNumber, .otherNumber: return true
-          default: return "=+*/%×÷".unicodeScalars.contains(scalar)
-          }
+          scalar.properties.numericType != nil || "=+*/%×÷".unicodeScalars.contains(scalar)
         })
       else { throw SuggestionDecodingError.invalidSchema }
+      if kind == "answer" {
+        let words = value.lowercased().split(whereSeparator: { !$0.isLetter })
+        guard !words.contains(where: { numberWords.contains(String($0)) }) else {
+          throw SuggestionDecodingError.invalidSchema
+        }
+        return .answer(value)
+      }
       return .explanation(value)
     case "proposal":
       try keys(root, required: ["schemaVersion", "kind", "candidates"])
@@ -110,6 +114,15 @@ public enum SuggestionDecoder {
       throw SuggestionDecodingError.invalidSchema
     }
   }
+
+  private static let numberWords: Set<String> = [
+    "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+    "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen",
+    "nineteen", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety",
+    "hundred", "thousand", "million", "billion", "trillion", "half", "quarter",
+    "dozen", "dozens", "hundreds", "thousands", "millions", "billions", "trillions",
+    "lakh", "lakhs", "crore", "crores",
+  ]
 
   private static func keys(
     _ object: [String: Any], required: Set<String>, optional: Set<String> = []

@@ -66,9 +66,6 @@ public enum TokenKind: Equatable, Sendable {
   case leftParenthesis
   case rightParenthesis
   case argumentSeparator
-  /// `{` and `}` around a placeholder in an `ask_assistant` prompt.
-  case leftBrace
-  case rightBrace
   case newline
   case endOfFile
 }

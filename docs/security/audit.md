@@ -9,7 +9,7 @@ the check that keeps it true.
 | --- | --- | --- |
 | App Sandbox | On | `scripts/verify-app.sh` compares signed entitlements |
 | Entitlements | `app-sandbox`, `files.user-selected.read-write`, `network.client`, and the two mach-lookup names Sparkle's installer answers on | Same exact comparison |
-| Network client | The ECB rate request; the assistant, when it is set up; the update check, when it is asked for | `onlyTheRatesAndTheAssistantReachTheNetworkFromGanitsOwnCode` source scan, `theUpdaterAsksNothingUntilItIsAsked` |
+| Network client | The ECB rate request; Ask, after explicit Send; the update check, when it is asked for | `onlyTheRatesAndTheAssistantReachTheNetworkFromGanitsOwnCode` source scan, `theUpdaterAsksNothingUntilItIsAsked` |
 | Hardened Runtime | On for the app, `Contents/Helpers/ganit`, and Sparkle's tools | `scripts/sign-app.sh` signs with `--options runtime`; `verify-app.sh` checks the flag |
 | Library validation | On in a release; off only in an ad-hoc local build, which has no team to validate against | `verify-app.sh` allows the exception only when the signature has no team |
 | Embedded frameworks | Sparkle only, without its downloader service | `verify-app.sh` |
@@ -29,7 +29,7 @@ Every way data enters Ganit from outside its own library is bounded.
 | `ganit` command | 4 KB expression argument, 1 MB UTF-8 sheet on standard input | CI command-line step |
 | Import (`.ganit`, text) | 1 MB source, 64 KB manifest, UTF-8 only, known schema only | `SheetExchangeTests` |
 | Exchange-rate download | Fixed HTTPS host, 64 KB, strict schema, plausible ranges | `ECBRateValidatorTests`, `NetworkPrivacyTests` |
-| Assistant request | Off until set up; HTTPS or this Mac only, no redirects, one line of at most 500 characters, 64 KB reply | `AssistantTests`, `NetworkPrivacyTests` |
+| Ask request | Explicit Send after context review; HTTPS or loopback only; no redirects; 12 target lines, 8 KiB target, 64 KiB request, 256 KiB reply, three requests per job | `SuggestionTransportTests`, `NetworkPrivacyTests`, `AssistanceSnapshotTests`, `SuggestionCoordinatorTests` |
 | Editor text | Engine limits: 1 MB source, 100,000 tokens, parse depth 128 | Engine limit tests, fuzzing |
 
 URL, service, intent, and command-line requests only compute an answer: none
@@ -47,6 +47,7 @@ Precision, and ⌘Return in Quick Ganit, all explicit commands.
 | Units | Independently encoded from cited sources | `ThirdPartyNotices/UnitSources.md`, generated and verified in CI |
 | Time zones | System IANA database; resolved zone and offset shown | Answer details |
 | Finance assumptions | Stated per function | Answer details |
+| AI assumptions | Named source value with origin comment, model, and date | AI badge and dependent-result dots |
 
 ## Findings
 

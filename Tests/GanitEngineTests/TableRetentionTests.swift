@@ -56,7 +56,6 @@ private struct EditRun {
       for line in table.physicalLines {
         let result = evaluation.lines[line]
         #expect(result.result == nil && result.declaredVariableName == nil)
-        #expect(result.assistantPrompts.isEmpty)
       }
     }
     #expect(evaluation.tableDiagnostics == evaluation.tables.flatMap(\.diagnostics))

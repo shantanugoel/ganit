@@ -30,6 +30,7 @@ final class AskBar: NSView {
   private let instructionField = NSTextField()
   private var actions: [() -> Void] = []
   private var popover: NSPopover?
+  private var announcedState = ""
   private var displayedClarification: Int?
 
   init(session: SheetSuggestionSession, editor: SheetEditorViewController) {
@@ -49,7 +50,9 @@ final class AskBar: NSView {
     NSLayoutConstraint.activate([
       stack.widthAnchor.constraint(equalTo: scroll.contentView.widthAnchor)
     ])
-    setAccessibilityLabel(localized("ask.bar", "Ask"))
+    setAccessibilityElement(true)
+    setAccessibilityRole(.group)
+    setAccessibilityLabel(localized("ask.bar", "Ask Ganit"))
     instructionField.placeholderString =
       localized("ask.placeholder", "Ask Ganit about these lines…")
     instructionField.setAccessibilityLabel(localized("ask.field", "What to ask Ganit"))
@@ -63,7 +66,10 @@ final class AskBar: NSView {
       session.submitClarification(instructionField.stringValue, autoSend: true)
       return
     }
-    if session.canSend && instructionField.stringValue == session.instruction {
+    if session.canSend
+      && instructionField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        == session.instruction
+    {
       session.send()
       return
     }
@@ -131,6 +137,7 @@ final class AskBar: NSView {
   }
 
   func clear() {
+    announcedState = ""
     popover?.close()
     popover = nil
     for view in stack.arrangedSubviews {
@@ -166,6 +173,27 @@ final class AskBar: NSView {
       instructionField.placeholderString = localized(
         "ask.placeholder", "Ask Ganit about these lines…")
       instructionField.setAccessibilityLabel(localized("ask.field", "What to ask Ganit"))
+    }
+    let panelLabel =
+      session.clarification != nil
+      ? localized("ask.questionPanel", "Ask Ganit question")
+      : session.state == .failed
+        ? localized("ask.failurePanel", "Ask Ganit failure")
+        : session.preview != nil
+          ? localized("ask.proposalPanel", "Checked source proposal")
+          : localized("ask.bar", "Ask Ganit")
+    setAccessibilityLabel(panelLabel)
+    let announcement = session.clarification?.question ?? session.message
+    if focusQuestion || (session.state != .failed && session.clarification == nil) {
+      announcedState = ""
+    }
+    if announcement != announcedState, session.state == .failed || session.clarification != nil {
+      announcedState = announcement
+      NSAccessibility.post(
+        element: self, notification: .announcementRequested,
+        userInfo: [
+          .announcement: announcement, .priority: NSAccessibilityPriorityLevel.high.rawValue,
+        ])
     }
     label(session.message)
     if let notice = session.repairNotice { label(notice) }
@@ -377,6 +405,33 @@ final class AskBar: NSView {
   }
 
   private func showContext() {
+    let words = instructionField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+    if canSubmitInstruction, session.clarification != nil, !words.isEmpty {
+      session.submitClarification(words)
+    } else if canSubmitInstruction, session.clarification == nil, words != session.instruction {
+      session.prepare(
+        instruction: words, forceModel: session.forceModel,
+        allowsExplanation: session.allowsExplanation)
+    } else {
+      presentContext()
+      return
+    }
+    Task { [weak self] in
+      guard let self else { return }
+      await session.waitUntilIdle()
+      guard session.isVisible else { return }
+      if session.clarification == nil,
+        instructionField.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+          != session.instruction
+      {
+        showContext()
+        return
+      }
+      presentContext()
+    }
+  }
+
+  private func presentContext() {
     let bodies = session.preparedBody.map { [$0] } ?? session.requestBodies
     let content = bodies.enumerated().map { index, body in
       (bodies.count > 1 ? "Request \(index + 1)\n" : "")
