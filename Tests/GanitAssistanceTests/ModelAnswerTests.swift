@@ -171,4 +171,26 @@ struct ModelAnswerTests {
         return false
       })
   }
+
+  @Test func anAnswerWhereACalculationIsDueHasItsOwnReasonAndNoRepair() async throws {
+    let payload = try outcome("answer", ["text": "Paris"])
+    let transport = FakeSuggestionTransport([.reply(payload), .reply(payload)])
+    let log = SuggestionEventLog()
+    let coordinator = SuggestionCoordinator(transport: transport)
+    let job = await coordinator.start(
+      try input(text: "2 + 2"), observer: { await log.append($0) })
+    guard case .failed(.schema) = await job.result.value else {
+      Issue.record("Expected the answer gate to reject a calculable line")
+      return
+    }
+    #expect(await transport.count() == 1)
+    let events = await log.events
+    #expect(
+      !events.contains { if case .repairStarted = $0 { return true }; return false })
+    #expect(
+      events.contains {
+        if case .failure(.answerNotApplicable) = $0 { return true }
+        return false
+      })
+  }
 }

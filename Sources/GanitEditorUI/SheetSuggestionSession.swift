@@ -380,6 +380,14 @@ package final class SheetSuggestionSession {
       message = localized(
         "ask.failure.numbers",
         "The model put numbers in its words. Ganit does the calculating, so ask about intent or wording instead.")
+    case .answerNotApplicable:
+      message = localized(
+        "ask.failure.answerNotApplicable",
+        "This line needs a calculation Ganit can check, not a spoken answer. Ask Ganit to fix it instead.")
+    case .explanationNotRequested:
+      message = localized(
+        "ask.failure.explanationNotRequested",
+        "The model explained a line you had not asked it to explain. Ask about that line, or select it and ask again.")
     case .rejectedByEngine(let validation):
       let formatter = DiagnosticFormatter(
         localeIdentifier: snapshot?.context.localeIdentifier ?? "en-US")

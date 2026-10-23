@@ -291,10 +291,14 @@ public actor SuggestionCoordinator {
           guard record.input.allowsAnswer, !record.input.allowsExplanation,
             record.input.origin == .manual,
             SuggestionRequestContext.canAnswer(record.input.snapshot, including: record.included)
-          else { return await finish(id, result: .failed(.schema)) }
+          else {
+            record.failure = .answerNotApplicable
+            return await finish(id, result: .failed(.schema))
+          }
           return await finish(id, result: .answer(text))
         case .explanation(let text):
           guard record.input.allowsExplanation, record.input.origin == .manual else {
+            record.failure = .explanationNotRequested
             return await finish(id, result: .failed(.schema))
           }
           return await finish(id, result: .explanation(text))

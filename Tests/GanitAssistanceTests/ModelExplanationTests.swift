@@ -114,4 +114,22 @@ struct ModelExplanationTests {
         return false
       })
   }
+
+  @Test func anUnsolicitedExplanationHasItsOwnReason() async throws {
+    let transport = FakeSuggestionTransport([.reply(try outcome("explanation", ["text": text]))])
+    let log = SuggestionEventLog()
+    let coordinator = SuggestionCoordinator(transport: transport)
+    let job = await coordinator.start(
+      try input(allow: false), observer: { await log.append($0) })
+    guard case .failed(.schema) = await job.result.value else {
+      Issue.record("Expected rejection of an unsolicited explanation")
+      return
+    }
+    #expect(await transport.count() == 1)
+    #expect(
+      await log.events.contains {
+        if case .failure(.explanationNotRequested) = $0 { return true }
+        return false
+      })
+  }
 }
