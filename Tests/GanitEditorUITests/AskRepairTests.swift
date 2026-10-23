@@ -56,14 +56,15 @@ struct AskRepairTests {
 
   private func configure(
     _ editor: SheetEditorViewController, steps: [AskRepairTransport.Step],
-    repairs: Int = 2, clock: SuggestionClock = .continuous
+    repairs: Int = 2, clock: SuggestionClock = .continuous,
+    responseTimeout: TimeInterval = AssistantSettings.defaultResponseTimeout
   ) -> AskRepairTransport {
     let transport = AskRepairTransport(steps)
     editor.suggestionConfiguration = SheetSuggestionConfiguration(
       coordinator: SuggestionCoordinator(transport: transport, clock: clock),
       settings: AssistantSettings(
         isEnabled: true, endpoint: URL(string: "https://fixture.invalid/v1")!,
-        model: "synthetic", repairAttempts: repairs))
+        model: "synthetic", repairAttempts: repairs, responseTimeout: responseTimeout))
     return transport
   }
 
@@ -205,7 +206,8 @@ struct AskRepairTests {
     let editor = try await editor()
     let valid = try await proposal(editor, source: "2 + 3")
     let clock = AskRepairClock()
-    let transport = configure(editor, steps: [.pending], clock: clock.clock)
+    // The wait is the one under test, so the clock knows it too.
+    let transport = configure(editor, steps: [.pending], clock: clock.clock, responseTimeout: 30)
     let session = editor.suggestionSession
     session.prepare(autoSend: true)
     await transport.waitForRequests(1)
