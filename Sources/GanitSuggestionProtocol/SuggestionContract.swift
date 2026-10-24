@@ -9,6 +9,8 @@ public enum SuggestionLimits {
   public static let symbols = 64
   public static let requestBytes = 64 * 1_024
   public static let payloadBytes = 256 * 1_024
+  /// A rejected reply sent back in a repair request.
+  public static let repairReplyBytes = 8 * 1_024
   public static let proposalBytes = 32 * 1_024
   public static let candidates = 3
   public static let replacementBytes = 4 * 1_024

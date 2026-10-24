@@ -4,6 +4,8 @@ import GanitEngine
 /// A failed Ask has no proposal to apply.
 public enum AskFailure: Sendable {
   case notGanitSource
+  /// The target lines were blank and the reader typed no words.
+  case nothingToSend
   /// The model answered or explained in words that contained numbers, which only
   /// Ganit's own engine may produce.
   case modelSuppliedNumbers

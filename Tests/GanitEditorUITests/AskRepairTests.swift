@@ -14,13 +14,13 @@ struct AskRepairTests {
   private static var windows: [NSWindow] = []
   private let source = "Add two and three."
 
-  private func editor() async throws -> SheetEditorViewController {
+  private func editor(text: String? = nil) async throws -> SheetEditorViewController {
     let context = try EvaluationContext(
       localeIdentifier: "en-US", lexingConfiguration: .englishUnitedStates,
       angleMode: .radians, precision: PrecisionContext(significantDecimalDigits: 15),
       now: Date(timeIntervalSince1970: 0), calendar: Calendar(identifier: .gregorian),
       timeZone: TimeZone(identifier: "UTC")!)
-    let editor = SheetEditorViewController(text: source, context: context)
+    let editor = SheetEditorViewController(text: text ?? source, context: context)
     let window = NSWindow(
       contentRect: NSRect(x: 0, y: 0, width: 720, height: 540),
       styleMask: [.titled], backing: .buffered, defer: true)
@@ -225,6 +225,58 @@ struct AskRepairTests {
     await transport.complete(valid)
     #expect(!session.canApply)
     #expect(editor.sheet.text == source)
+  }
+
+  @Test func aBlankLineWithNoWordsSaysThereIsNothingToSend() async throws {
+    let text = source + "\n"
+    let editor = try await editor(text: text)
+    editor.textView.setSelectedRange(NSRange(location: text.utf16.count, length: 0))
+    let transport = configure(editor, steps: [])
+    let session = editor.suggestionSession
+    session.prepare(autoSend: true)
+    await session.waitUntilIdle()
+    guard case .nothingToSend = session.failure else {
+      Issue.record("Expected a nothing-to-send card")
+      return
+    }
+    #expect(
+      session.message
+        == "There is nothing to send. Select lines that have text, or type what you want to ask.")
+    #expect(session.state == .failed)
+    #expect(await transport.bodies().isEmpty)
+  }
+
+  @Test func anAnswerThatFailsEveryRepairIsExplainedInPlainWords() async throws {
+    let editor = try await editor()
+    func unbound(_ source: String) async throws -> Data {
+      var root = try #require(
+        JSONSerialization.jsonObject(with: try await proposal(editor, source: source))
+          as? [String: Any])
+      var candidates = try #require(root["candidates"] as? [[String: Any]])
+      candidates[0]["bindings"] = [["symbol": "bill", "source": "S99"]]
+      root["candidates"] = candidates
+      return try JSONSerialization.data(withJSONObject: root)
+    }
+    let transport = configure(
+      editor, steps: [.reply(try await unbound("2 + 3")), .reply(try await unbound("3 + 2"))],
+      repairs: 1)
+    let session = editor.suggestionSession
+    session.prepare(instruction: "add the numbers", autoSend: true)
+    await session.waitUntilIdle()
+    guard case .rejectedByEngine = session.failure else {
+      Issue.record("Expected a checked-answer failure card")
+      return
+    }
+    #expect(await transport.bodies().count == 2)
+    #expect(session.message.hasPrefix("Ganit did not use the model's answer."))
+    #expect(
+      session.message.hasSuffix("Ask again, or add more detail about what you want to calculate."))
+    #expect(!session.message.contains("bind"))
+    #expect(!session.message.contains("declaration"))
+    #expect(
+      session.repairNotice
+        == "Ganit asked the model to fix its answer 1 time. The answer still did not pass the checks."
+    )
   }
 
   @Test func anUnsupportedReplyShowsTheNoUsefulAnswerCard() async throws {

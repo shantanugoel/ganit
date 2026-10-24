@@ -84,6 +84,58 @@ struct SuggestionCoordinatorTests {
     #expect(messages[1].contains("missingEvidence"))
   }
 
+  @Test func repairsKeepTheFirstPromptAsACacheablePrefix() async throws {
+    let snapshot = try assistanceSnapshot(source)
+    let unbound = try billProposal(snapshot, source: "(other + 10%) / 4", binding: "S99")
+    let unproven = try billProposal(snapshot, source: "(bill + 15%) / 4", literal: "15%")
+    let transport = FakeSuggestionTransport([
+      .reply(unbound), .reply(unproven), .reply(try billProposal(snapshot)),
+    ])
+    let coordinator = SuggestionCoordinator(transport: transport)
+    guard case .proposal = await coordinator.start(input(snapshot)).result.value else {
+      Issue.record("Expected a corrected proposal")
+      return
+    }
+    let messages = try await transport.requests.map { request in
+      let root = try #require(JSONSerialization.jsonObject(with: request.body) as? [String: Any])
+      return try #require(root["messages"] as? [[String: String]])
+    }
+    #expect(messages.map(\.count) == [2, 4, 6])
+    // Each request starts with every message of the one before it, byte for byte.
+    #expect(Array(messages[1].prefix(2)) == messages[0])
+    #expect(Array(messages[2].prefix(4)) == messages[1])
+    #expect(
+      messages[1][2] == ["role": "assistant", "content": String(decoding: unbound, as: UTF8.self)])
+    #expect(messages[2][4]["content"] == String(decoding: unproven, as: UTF8.self))
+    for (index, code) in [(3, "unknownBinding"), (5, "missingEvidence")] {
+      #expect(messages[2][index]["role"] == "user")
+      let content = try #require(messages[2][index]["content"])
+      let turn = try #require(
+        JSONSerialization.jsonObject(with: Data(content.utf8)) as? [String: Any])
+      #expect((turn["feedback"] as? [String: Any])?["code"] as? String == code)
+    }
+  }
+
+  @Test func aBlankTargetWithoutWordsSendsNothing() async throws {
+    let blank = try assistanceSnapshot("bill = 2400 INR\n  ")
+    #expect(!blank.hasRequest)
+    #expect(try blank.addingTaskNote("Split the bill four ways.").hasRequest)
+    let transport = FakeSuggestionTransport([])
+    let coordinator = SuggestionCoordinator(transport: transport)
+    let log = SuggestionEventLog()
+    let job = await coordinator.start(input(blank), observer: { await log.append($0) })
+    guard case .failed(.nothingToSend) = await job.result.value else {
+      Issue.record("Expected a blank Ask to stop before the provider")
+      return
+    }
+    #expect(await transport.count() == 0)
+    #expect(
+      await log.events.contains {
+        if case .failure(.nothingToSend) = $0 { return true }
+        return false
+      })
+  }
+
   @Test func formatFallbackConsumesTheSameBudget() async throws {
     let snapshot = try assistanceSnapshot(source)
     let transport = FakeSuggestionTransport([

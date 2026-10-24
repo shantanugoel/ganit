@@ -85,8 +85,8 @@ public actor SuggestionCoordinator {
       SuggestionJob(
         id: id,
         result: Task {
-          if case .failed = result {
-            await observer(.failure(.noUsefulAnswer))
+          if case .failed(let failure) = result {
+            await observer(.failure(failure == .nothingToSend ? .nothingToSend : .noUsefulAnswer))
             await observer(.state(.failed))
           }
           return result
@@ -97,6 +97,9 @@ public actor SuggestionCoordinator {
     guard input.permission.contextAccepted,
       input.origin == .manual || input.permission.automaticArea != nil
     else { return terminal(.failed(.permissionRequired)) }
+    // A blank line with no words is not a question. Sending it only waits on
+    // a model that has nothing to answer.
+    guard input.snapshot.hasRequest else { return terminal(.failed(.nothingToSend)) }
     let provider = Provider(endpoint: Assistant.chatCompletionsURL(input.settings.endpoint))
     let key: CacheKey
     do { key = try contextKey(input, provider: provider) } catch {
@@ -186,18 +189,31 @@ public actor SuggestionCoordinator {
       }
       var structured = true
       var effort = record.input.settings.effort.wireValue != nil
+      // Only included records change the context. A repair adds turns after
+      // it, so the provider can reuse the prompt it cached for the first try.
       var feedback: [String: Any]?
+      var turns: [SuggestionWireTurn] = []
       var seenSources: Set<String> = []
       var seenFailures: Set<String> = []
       while record.requests < SuggestionLimits.requestsPerJob {
         try ensureActive(id)
         let context = try requestContext(record, feedback: feedback)
-        let wire = try SuggestionWireRequest(
-          settings: record.input.settings, context: context, structured: structured,
-          effort: effort, allowsExplanation: record.input.allowsExplanation,
-          allowsAnswer: record.input.allowsAnswer && !record.input.allowsExplanation
-            && SuggestionRequestContext.canAnswer(record.input.snapshot, including: record.included)
-        )
+        func wireRequest(_ turns: [SuggestionWireTurn]) throws -> SuggestionWireRequest {
+          try SuggestionWireRequest(
+            settings: record.input.settings, context: context, structured: structured,
+            effort: effort, allowsExplanation: record.input.allowsExplanation,
+            allowsAnswer: record.input.allowsAnswer && !record.input.allowsExplanation
+              && SuggestionRequestContext.canAnswer(
+                record.input.snapshot, including: record.included),
+            turns: turns)
+        }
+        let wire: SuggestionWireRequest
+        do { wire = try wireRequest(turns) } catch SuggestionTransportError.requestTooLarge
+          where turns.count > 1
+        {
+          // Earlier attempts do not fit. The newest feedback alone still does.
+          wire = try wireRequest(Array(turns.suffix(1)))
+        }
         guard record.input.origin != .automatic || reserveAutomaticWire(record) else {
           return await finish(id, result: .paused)
         }
@@ -236,9 +252,11 @@ public actor SuggestionCoordinator {
           record.failure = .modelSuppliedNumbers
           return await finish(id, result: .failed(.schema))
         } catch let error where Self.isInvalidReply(error) {
+          var rejected: Data?
           if let transportError = error as? SuggestionTransportError,
             case .rejectedReply(let reply) = transportError
           {
+            rejected = reply
             await record.observer(
               .rejectedReply(
                 String(decoding: reply.prefix(SuggestionLimits.payloadBytes), as: UTF8.self)))
@@ -253,10 +271,7 @@ public actor SuggestionCoordinator {
               result: .failed(
                 record.requests == SuggestionLimits.requestsPerJob ? .requestLimit : .schema))
           }
-          feedback = [
-            "code": "schema.invalidResponse",
-            "message": "Return one response that matches the supplied JSON schema.",
-          ]
+          turns += try Self.repairTurns(reply: rejected, feedback: Self.schemaFeedback)
           continue
         }
         try ensureActive(id)
@@ -282,10 +297,7 @@ public actor SuggestionCoordinator {
               result: .failed(
                 record.requests == SuggestionLimits.requestsPerJob ? .requestLimit : .schema))
           }
-          feedback = [
-            "code": "schema.invalidResponse",
-            "message": "Return one response that matches the supplied JSON schema.",
-          ]
+          turns += try Self.repairTurns(reply: payload, feedback: Self.schemaFeedback)
           continue
         }
         switch outcome {
@@ -333,6 +345,7 @@ public actor SuggestionCoordinator {
             record.included.formUnion(approved)
           }
           feedback = ["code": "context.included", "records": handles]
+          turns = []
           seenFailures = []
         case .proposal(let candidates):
           await record.observer(.state(.checking))
@@ -385,9 +398,10 @@ public actor SuggestionCoordinator {
               result: .failed(
                 record.requests == SuggestionLimits.requestsPerJob ? .requestLimit : .validation))
           }
-          feedback = Self.validationFeedback(
+          var repair = Self.validationFeedback(
             failure, source: rejectedSources.first ?? "", context: context)
-          feedback?["rejectedSource"] = rejectedSources.first
+          repair["rejectedSource"] = rejectedSources.first
+          turns += try Self.repairTurns(reply: payload, feedback: repair)
         }
       }
       return await finish(id, result: .failed(.requestLimit))
@@ -414,6 +428,30 @@ public actor SuggestionCoordinator {
     case .malformedCompletion, .rejectedReply: return true
     default: return false
     }
+  }
+
+  private static var schemaFeedback: [String: Any] {
+    [
+      "code": "schema.invalidResponse",
+      "message": "Return one response that matches the supplied JSON schema.",
+    ]
+  }
+
+  /// The rejected reply, when there is one, then the feedback on it.
+  private static func repairTurns(reply: Data?, feedback: [String: Any]) throws
+    -> [SuggestionWireTurn]
+  {
+    var turns: [SuggestionWireTurn] = []
+    if let reply, !reply.isEmpty {
+      turns.append(
+        SuggestionWireTurn(
+          .assistant,
+          String(decoding: reply.prefix(SuggestionLimits.repairReplyBytes), as: UTF8.self)))
+    }
+    let data = try JSONSerialization.data(
+      withJSONObject: ["feedback": feedback], options: [.sortedKeys])
+    turns.append(SuggestionWireTurn(.user, String(decoding: data, as: UTF8.self)))
+    return turns
   }
 
   private func scheduleRepair(_ record: Record) -> Bool {

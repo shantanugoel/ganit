@@ -48,7 +48,20 @@ package final class SheetSuggestionSession {
   package private(set) var automaticRepairs = 0
   package var repairNotice: String? {
     guard automaticRepairs > 0 else { return nil }
-    return localized("ask.repairNotice", "Ganit asked the model to fix its first attempt.")
+    guard state == .failed else {
+      return localized("ask.repairNotice", "Ganit asked the model to fix its first attempt.")
+    }
+    return String(
+      format: automaticRepairs == 1
+        ? localized(
+          "ask.repairNotice.failedOne",
+          "Ganit asked the model to fix its answer %1$d time. The answer still did not pass the checks."
+        )
+        : localized(
+          "ask.repairNotice.failed",
+          "Ganit asked the model to fix its answer %1$d times. The answer still did not pass the checks."
+        ),
+      automaticRepairs)
   }
   package var checkedFooter: String {
     guard automaticRepairs > 0 else { return Self.checkedMessage }
@@ -272,6 +285,11 @@ package final class SheetSuggestionSession {
     guard canSend, let configuration, let snapshot, let editor,
       snapshot.source.text == editor.sheet.text
     else { return }
+    guard snapshot.hasRequest else {
+      preparedBody = nil
+      reportFailure(.nothingToSend)
+      return
+    }
     let version = revision
     preparedBody = nil
     update(.requesting, localized("ask.requesting", "Ganit is asking…"))
@@ -376,6 +394,8 @@ package final class SheetSuggestionSession {
     case .notGanitSource:
       message = localized(
         "ask.failure.notSource", "Ganit could not turn the reply into Ganit source.")
+    case .nothingToSend:
+      message = Self.nothingToSendMessage
     case .modelSuppliedNumbers:
       message = localized(
         "ask.failure.numbers",
@@ -392,14 +412,8 @@ package final class SheetSuggestionSession {
         "The model explained a line you had not asked it to explain. Ask about that line, or select it and ask again."
       )
     case .rejectedByEngine(let validation):
-      let formatter = DiagnosticFormatter(
-        localeIdentifier: snapshot?.context.localeIdentifier ?? "en-US")
-      switch validation.engineResult {
-      case .evaluationFailure(let error): message = formatter.format(error).message
-      case .syntaxFailure(let diagnostics):
-        message = diagnostics.first.map { formatter.format($0).message } ?? validation.message
-      default: message = validation.message
-      }
+      message = Self.rejectionMessage(
+        validation, localeIdentifier: snapshot?.context.localeIdentifier ?? "en-US")
     case .provider(let failure):
       message = ProviderErrorMessages.message(for: failure.category)
     case .unreachable:
@@ -650,6 +664,64 @@ package final class SheetSuggestionSession {
     didChange()
   }
 
+  /// The checker's own message is feedback for the model, written in Ganit's
+  /// terms ("must bind to its permitted declaration"). The reader gets what
+  /// went wrong with the answer and what to do next.
+  static func rejectionMessage(
+    _ validation: AssistanceValidationFailure, localeIdentifier: String
+  ) -> String {
+    let formatter = DiagnosticFormatter(localeIdentifier: localeIdentifier)
+    let reason: String
+    switch validation.engineResult {
+    case .evaluationFailure(let error): reason = formatter.format(error).message
+    case .syntaxFailure(let diagnostics) where !diagnostics.isEmpty:
+      reason = formatter.format(diagnostics[0]).message
+    case _ where validation.concernsAssumption:
+      reason = localized(
+        "ask.rejected.assumption",
+        "The model used an assumption that Ganit could not trace to your lines.")
+    default:
+      switch validation.code {
+      case .invalidBounds, .unauthorizedEdit:
+        reason = localized(
+          "ask.rejected.outsideTarget", "The model tried to change lines you did not select.")
+      case .changedDeclaration:
+        reason = localized(
+          "ask.rejected.changedDeclaration", "The model tried to change a value you entered.")
+      case .unknownBinding:
+        reason = localized(
+          "ask.rejected.unknownBinding",
+          "The model used a name that does not match a line on this sheet.")
+      case .missingEvidence, .relation:
+        reason = localized(
+          "ask.rejected.missingEvidence",
+          "The model used a number or a rule that is not in your lines.")
+      case .unsupportedOperation:
+        reason = localized(
+          "ask.rejected.unsupportedOperation", "The model used a step that Ganit cannot check.")
+      case .dimension:
+        reason = localized(
+          "ask.rejected.dimension", "The model mixed units that do not go together.")
+      case .downstreamFailure:
+        reason = localized(
+          "ask.rejected.downstream", "The model's change would break other lines on this sheet.")
+      case .syntax, .evaluation:
+        reason = localized(
+          "ask.rejected.calculation", "Ganit could not calculate the model's working.")
+      }
+    }
+    return localized("ask.rejected.lead", "Ganit did not use the model's answer.") + " " + reason
+      + " "
+      + localized(
+        "ask.rejected.next", "Ask again, or add more detail about what you want to calculate.")
+  }
+
+  private static var nothingToSendMessage: String {
+    localized(
+      "ask.failure.nothingToSend",
+      "There is nothing to send. Select lines that have text, or type what you want to ask.")
+  }
+
   private static var checkedMessage: String {
     localized("ask.checked", "Ganit checked these lines. Review them before Apply.")
   }
@@ -687,6 +759,8 @@ package final class SheetSuggestionSession {
       localized("ask.failed.transport", "Ganit could not reach the provider.")
     case .schema:
       localized("ask.failed.schema", "The reply was not something Ganit could read.")
+    case .nothingToSend:
+      nothingToSendMessage
     }
   }
 }

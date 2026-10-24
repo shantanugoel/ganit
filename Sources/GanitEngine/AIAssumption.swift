@@ -172,6 +172,6 @@ package struct AssistanceAssumptionDeclaration {
   }
 
   private static func invalid(_ message: String) -> AssistanceValidationFailure {
-    AssistanceValidationFailure(.missingEvidence, message)
+    AssistanceValidationFailure(.missingEvidence, message, concernsAssumption: true)
   }
 }

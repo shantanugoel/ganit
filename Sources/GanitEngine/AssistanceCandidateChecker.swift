@@ -10,15 +10,18 @@ public struct AssistanceValidationFailure: Error, Sendable {
   public let message: String
   public let ranges: [SourceRange]
   public let engineResult: CalculationResult?
+  /// True when the model's assumption, not its working, failed the check.
+  public let concernsAssumption: Bool
 
   init(
     _ code: Code, _ message: String, ranges: [SourceRange] = [],
-    engineResult: CalculationResult? = nil
+    engineResult: CalculationResult? = nil, concernsAssumption: Bool = false
   ) {
     self.code = code
     self.message = message
     self.ranges = ranges
     self.engineResult = engineResult
+    self.concernsAssumption = concernsAssumption
   }
 }
 
@@ -78,7 +81,8 @@ public enum AssistanceCandidateChecker {
         !snapshot.targetLines.contains(where: { $0.text == line.text })
       {
         throw AssistanceValidationFailure(
-          .unsupportedOperation, "Ganit writes assumption origin comments.")
+          .unsupportedOperation, "Ganit writes assumption origin comments.",
+          concernsAssumption: true)
       }
     }
     let plan = try AssistanceProposalPlan(candidate, snapshot: snapshot, choices: selectedChoices)
@@ -232,7 +236,8 @@ public enum AssistanceCandidateChecker {
           })
         else {
           throw AssistanceValidationFailure(
-            .missingEvidence, "The assumption must name its declared value.")
+            .missingEvidence, "The assumption must name its declared value.",
+            concernsAssumption: true)
         }
         continue
       }
@@ -354,7 +359,8 @@ public enum AssistanceCandidateChecker {
       candidate.assumptions.allSatisfy({ evidence[$0.evidence]?.kind == "relation" })
     else {
       throw AssistanceValidationFailure(
-        .missingEvidence, "An assumption has no supplied task evidence.")
+        .missingEvidence, "An assumption has no supplied task evidence.",
+        concernsAssumption: true)
     }
     var shadow = plan.shadow
     let originalText = snapshot.source.text

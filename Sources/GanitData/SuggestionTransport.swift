@@ -16,6 +16,17 @@ public enum SuggestionTransportError: Error, Equatable, Sendable {
   case rejectedReply(Data)
 }
 
+/// One message that follows the first context in a repair request.
+public struct SuggestionWireTurn: Sendable, Equatable {
+  public enum Role: String, Sendable { case assistant, user }
+  public let role: Role
+  public let content: String
+  public init(_ role: Role, _ content: String) {
+    self.role = role
+    self.content = content
+  }
+}
+
 /// Freeze the body before transmission. The inspector can show this exact body.
 public struct SuggestionWireRequest: Sendable {
   public let body: Data
@@ -24,9 +35,11 @@ public struct SuggestionWireRequest: Sendable {
   private let authorization: String?
 
   /// Optional parameters can be removed separately after a provider rejection.
+  /// A repair keeps the system and context messages byte for byte and adds
+  /// `turns` after them, so a provider can reuse its cached prompt prefix.
   public init(
     settings: AssistantSettings, context: Data, structured: Bool = true, effort: Bool = true,
-    allowsExplanation: Bool = false, allowsAnswer: Bool = false
+    allowsExplanation: Bool = false, allowsAnswer: Bool = false, turns: [SuggestionWireTurn] = []
   ) throws {
     guard Assistant.isAllowed(settings.endpoint) else {
       throw SuggestionTransportError.disallowedURL
@@ -49,7 +62,7 @@ public struct SuggestionWireRequest: Sendable {
             + "\nResponse schema:\n" + schema,
         ],
         ["role": "user", "content": contextText],
-      ],
+      ] + turns.map { ["role": $0.role.rawValue, "content": $0.content] },
     ]
     if structured { payload["response_format"] = ["type": "json_object"] }
     if effort, let level = settings.effort.wireValue { payload["reasoning_effort"] = level }

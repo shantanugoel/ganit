@@ -108,6 +108,13 @@ public struct AssistanceSnapshot: Sendable {
     notes = attached
   }
 
+  /// False when every target line is blank and the reader typed no words, so
+  /// an Ask would send the model nothing to work on.
+  public var hasRequest: Bool {
+    targetLines.contains { !$0.text.trimmingCharacters(in: .whitespaces).isEmpty }
+      || notes.contains { $0.source.hasPrefix("// Task: ") }
+  }
+
   /// An explicit user answer supplies a task constraint for a new job.
   public func addingTaskNote(_ text: String) throws -> AssistanceSnapshot {
     guard text.utf8.count <= SuggestionLimits.targetBytes,

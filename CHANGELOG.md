@@ -5,6 +5,19 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+## 0.7.3
+
+- Tell you when an Ask has nothing to send. If the selected line is blank
+  and you typed no words, Ganit does not send a request. Earlier Ganit sent
+  the request and then said that it could not reach the provider.
+- Keep the first request the same when Ganit asks the model to fix its
+  answer. Ganit adds the rejected answer and the feedback after it, so a
+  provider can use its prompt cache again.
+- Explain in plain words why Ganit did not use the model's answer, and say
+  how many times Ganit asked the model to fix it. Earlier Ganit showed its
+  internal check message, for example "must bind to its permitted
+  declaration".
+
 ## 0.7.2
 
 - Set the AI response wait yourself in Settings ▸ Assistant. **Response

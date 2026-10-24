@@ -46,7 +46,8 @@ extension AssistanceCandidateChecker {
           rows[assumed.lineIndex].text + " " + marker.comment, context: snapshot.context) != nil
       else {
         throw AssistanceValidationFailure(
-          .invalidBounds, "The assumption origin needs a model and a valid date.")
+          .invalidBounds, "The assumption origin needs a model and a valid date.",
+          concernsAssumption: true)
       }
       working = rows.enumerated().map { index, line in
         line.text + (index == assumed.lineIndex ? " " + marker.comment : "")

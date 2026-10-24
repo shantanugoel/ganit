@@ -136,6 +136,76 @@
         "en" : { "stringUnit" : { "state" : "translated", "value" : "the provider" } }
       }
     },
+    "ask.failure.nothingToSend" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "There is nothing to send. Select lines that have text, or type what you want to ask." } }
+      }
+    },
+    "ask.repairNotice.failedOne" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ganit asked the model to fix its answer %1$d time. The answer still did not pass the checks." } }
+      }
+    },
+    "ask.repairNotice.failed" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ganit asked the model to fix its answer %1$d times. The answer still did not pass the checks." } }
+      }
+    },
+    "ask.rejected.lead" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ganit did not use the model's answer." } }
+      }
+    },
+    "ask.rejected.next" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ask again, or add more detail about what you want to calculate." } }
+      }
+    },
+    "ask.rejected.outsideTarget" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The model tried to change lines you did not select." } }
+      }
+    },
+    "ask.rejected.changedDeclaration" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The model tried to change a value you entered." } }
+      }
+    },
+    "ask.rejected.unknownBinding" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The model used a name that does not match a line on this sheet." } }
+      }
+    },
+    "ask.rejected.missingEvidence" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The model used a number or a rule that is not in your lines." } }
+      }
+    },
+    "ask.rejected.unsupportedOperation" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The model used a step that Ganit cannot check." } }
+      }
+    },
+    "ask.rejected.dimension" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The model mixed units that do not go together." } }
+      }
+    },
+    "ask.rejected.downstream" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The model's change would break other lines on this sheet." } }
+      }
+    },
+    "ask.rejected.assumption" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "The model used an assumption that Ganit could not trace to your lines." } }
+      }
+    },
+    "ask.rejected.calculation" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Ganit could not calculate the model's working." } }
+      }
+    },
     "ask.failure.unreachable" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Ganit could not reach %1$@." } }
