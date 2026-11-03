@@ -1,4 +1,5 @@
 import Foundation
+import GanitSuggestionProtocol
 import Security
 
 /// The provider settings for explicit Ask requests.
@@ -37,6 +38,9 @@ public struct AssistantSettings: Equatable, Sendable {
   public var responseTimeout: TimeInterval {
     didSet { responseTimeout = Self.clamped(responseTimeout) }
   }
+  /// How much of the sheet an Ask may send. `AssistantContextSharing.default`
+  /// sends only what the lines need.
+  public var contextSharing: AssistantContextSharing
 
   static func clamped(_ timeout: TimeInterval) -> TimeInterval {
     guard timeout.isFinite else { return defaultResponseTimeout }
@@ -52,7 +56,8 @@ public struct AssistantSettings: Equatable, Sendable {
     effort: AssistantEffort = .default,
     repairAttempts: Int = 2,
     responseTimeout: TimeInterval = AssistantSettings.defaultResponseTimeout,
-    markAIDerivedAnswers: Bool = true
+    markAIDerivedAnswers: Bool = true,
+    contextSharing: AssistantContextSharing = .default
   ) {
     self.provider = provider
     self.isEnabled = isEnabled
@@ -63,6 +68,7 @@ public struct AssistantSettings: Equatable, Sendable {
     self.effort = effort
     self.repairAttempts = min(3, max(0, repairAttempts))
     self.responseTimeout = Self.clamped(responseTimeout)
+    self.contextSharing = contextSharing
   }
 
   /// Whether Ask can use this provider.
@@ -80,6 +86,7 @@ public struct AssistantSettings: Equatable, Sendable {
   private static let effortKey = "AssistantEffort"
   private static let repairAttemptsKey = "AssistantRepairAttempts"
   private static let responseTimeoutKey = "AssistantResponseTimeout"
+  private static let contextSharingKey = "AssistantContextSharing"
 
   /// Preferences say where to ask; the keychain holds the key.
   public static func load(from defaults: UserDefaults = .standard) -> AssistantSettings {
@@ -106,7 +113,8 @@ public struct AssistantSettings: Equatable, Sendable {
         doubleValue in
         AssistantSettings.clamped(doubleValue.doubleValue)
       } ?? defaultResponseTimeout,
-      markAIDerivedAnswers: defaults.object(forKey: markAIDerivedAnswersKey) as? Bool ?? true
+      markAIDerivedAnswers: defaults.object(forKey: markAIDerivedAnswersKey) as? Bool ?? true,
+      contextSharing: AssistantContextSharing(storage: defaults.string(forKey: contextSharingKey))
     )
   }
 
@@ -119,6 +127,7 @@ public struct AssistantSettings: Equatable, Sendable {
     defaults.set(repairAttempts, forKey: Self.repairAttemptsKey)
     defaults.set(responseTimeout, forKey: Self.responseTimeoutKey)
     defaults.set(markAIDerivedAnswers, forKey: Self.markAIDerivedAnswersKey)
+    defaults.set(contextSharing.rawValue, forKey: Self.contextSharingKey)
   }
 }
 

@@ -25,7 +25,7 @@ Automatically**; conversions then use the last rates Ganit accepted or rates
 you declare.
 
 The second is Ask Ganit. It is off until you configure and enable a model
-under **Ganit ▸ Assistant…**. Opening Ask or typing in a sheet sends nothing.
+under **Settings ▸ Assistant**. Opening Ask or typing in a sheet sends nothing.
 A request starts only after an explicit send action: Return, Ask, Answer,
 Retry, or a clarification choice. Opening Context sends nothing.
 
@@ -42,6 +42,13 @@ and frozen calculation time. These are calculation inputs, not a system
 profile. The target is limited to 12 contiguous lines and 8 KiB and cannot
 include a table block. Unrelated source, sheet titles, library contents, and
 local document identifiers are excluded. Opaque handles identify records.
+
+**Share with assistant** in Settings ▸ Assistant can send more. **Also
+variable names** adds the names of other variables and functions, with no
+values or source. **Whole sheet** adds the full sheet text and all values,
+and Ganit does not ask before it sends them. Sheet titles, library contents,
+and local document identifiers are not sent at any level. The default is
+**Only what's needed**.
 
 The request also includes your instruction, the model name, the selected
 Effort, and instructions for the model. Off omits the Effort field. A job can

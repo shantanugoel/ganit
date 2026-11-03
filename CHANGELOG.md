@@ -5,6 +5,17 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+- Select how much of the sheet Ask sends with **Share with assistant** in
+  Settings ▸ Assistant. **Only what's needed** is the default and does not
+  change the request. **Also variable names** adds the names of other
+  variables and functions, without values, so the model can ask for the one
+  it needs. **Whole sheet** sends all of the sheet text and all values. A
+  sheet that is too large to send whole sends the names, and the Ask bar
+  tells you.
+- Add a **?** button to the Ask bar. It opens the Ask Ganit help topic.
+- Add the help topic **Ask Ganit: What Is Shared**. Correct the help text
+  that pointed to Ganit ▸ Assistant… instead of Settings ▸ Assistant.
+
 ## 0.7.5
 
 - Open the window with a click on the Ganit icon in the menu bar, and open the

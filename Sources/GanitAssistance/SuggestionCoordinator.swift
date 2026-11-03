@@ -52,6 +52,12 @@ public actor SuggestionCoordinator {
       self.deadline = deadline
       included = input.includedRecords
     }
+    /// What a reply may cite: the included records, or every record when the
+    /// reader chose to share the whole sheet.
+    var shared: Set<String> {
+      SuggestionRequestContext.permitted(
+        input.snapshot, including: included, sharing: input.settings.contextSharing)
+    }
   }
   private struct Accounting {
     var jobs: [TimeInterval] = []
@@ -332,7 +338,7 @@ public actor SuggestionCoordinator {
             return await finish(id, result: .failed(.contextDenied))
           }
           let permitted = Set(record.input.snapshot.inventory.filter(\.matchesTarget).map(\.handle))
-            .union(record.included)
+            .union(record.shared)
           if !requested.isSubset(of: permitted) {
             record.requestedContext = requested
             let approved = try await SuggestionDeadline<Set<String>?>.run(
@@ -359,7 +365,7 @@ public actor SuggestionCoordinator {
             }
             do {
               let input = record.input
-              let included = record.included
+              let included = record.shared
               let result = try await SuggestionDeadline<AssistanceCheckedCandidate>.run(
                 clock: clock, deadline: record.deadline
               ) {
@@ -583,8 +589,8 @@ public actor SuggestionCoordinator {
   private func requestContext(_ record: Record, feedback: [String: Any]?) throws -> Data {
     let data = try SuggestionRequestContext.data(
       snapshot: record.input.snapshot,
-      including: record.included, choices: record.input.choices,
-      userRevisedInputs: record.input.userRevisedInputs)
+      including: record.included, sharing: record.input.settings.contextSharing,
+      choices: record.input.choices, userRevisedInputs: record.input.userRevisedInputs)
     guard let feedback else { return data }
     var root = try JSONSerialization.jsonObject(with: data) as! [String: Any]
     root["feedback"] = feedback
@@ -596,8 +602,8 @@ public actor SuggestionCoordinator {
   ) throws -> CacheKey {
     let data = try SuggestionRequestContext.data(
       snapshot: input.snapshot,
-      including: included ?? input.includedRecords, choices: input.choices,
-      userRevisedInputs: input.userRevisedInputs)
+      including: included ?? input.includedRecords, sharing: input.settings.contextSharing,
+      choices: input.choices, userRevisedInputs: input.userRevisedInputs)
     var root = try JSONSerialization.jsonObject(with: data) as! [String: Any]
     var settings = root["settings"] as! [String: Any]
     settings.removeValue(forKey: "now")
@@ -623,7 +629,10 @@ public actor SuggestionCoordinator {
           try Task.checkCancellation()
           if let value = try? await SuggestionLocalChecking.check(
             candidate, snapshot: input.snapshot,
-            handles: input.includedRecords, choices: input.choices,
+            handles: SuggestionRequestContext.permitted(
+              input.snapshot, including: input.includedRecords,
+              sharing: input.settings.contextSharing),
+            choices: input.choices,
             assumptions: input.approvedAssumptions, userRevisedInputs: input.userRevisedInputs)
           {
             checked.append(value)

@@ -105,6 +105,13 @@ package final class SheetSuggestionSession {
   package private(set) var choices: [String: String] = [:]
   package private(set) var assumptions: Set<String> = []
   private var included: Set<String> = []
+  /// What a proposal may cite in `snapshot`: the included records, or every
+  /// record when Settings shares the whole sheet.
+  private func shared(in snapshot: AssistanceSnapshot) -> Set<String> {
+    SuggestionRequestContext.permitted(
+      snapshot, including: included,
+      sharing: configuration?.settings.contextSharing ?? .needed)
+  }
   private var selected: SuggestionCandidate?
   package private(set) var omittedLines: Set<Int> = []
   package var proposalLines: [String] {
@@ -248,11 +255,19 @@ package final class SheetSuggestionSession {
         if autoSend {
           // send() only accepts an idle job, so the scope has to be reported ready
           // first even when nobody will see the intermediate state.
-          self.update(.idle, Self.contextSummary(snapshot, model: configuration.settings.model))
+          self.update(
+            .idle,
+            Self.contextSummary(
+              snapshot, model: configuration.settings.model,
+              sharing: configuration.settings.contextSharing, body: body))
           self.send()
           return
         }
-        self.update(.idle, Self.contextSummary(snapshot, model: configuration.settings.model))
+        self.update(
+          .idle,
+          Self.contextSummary(
+            snapshot, model: configuration.settings.model,
+            sharing: configuration.settings.contextSharing, body: body))
       } catch {
         guard let self, self.revision == version else { return }
         self.update(
@@ -267,13 +282,32 @@ package final class SheetSuggestionSession {
   /// Names what is about to leave the Mac, in the same words the disclosure uses.
   /// Every specifier is positional: one that is not, sitting after ones that are,
   /// reuses the previous argument and reads an `Int` as an object.
-  private static func contextSummary(_ snapshot: AssistanceSnapshot, model: String) -> String {
-    String(
+  private static func contextSummary(
+    _ snapshot: AssistanceSnapshot, model: String, sharing: AssistantContextSharing = .needed,
+    body: Data? = nil
+  ) -> String {
+    let ready = String(
       format: localized(
         "ask.ready",
         "Ready to send %1$d line(s), %2$d source record(s), and these calculation settings to %3$@. Open Context to see them."
       ),
       snapshot.targetLines.count, snapshot.inventory.filter(\.matchesTarget).count, model)
+    guard sharing == .sheet, let body, !sharesWholeSheet(body) else { return ready }
+    return ready + " "
+      + localized(
+        "ask.sheetTooLarge",
+        "This sheet is too large to share whole, so Ganit shares only the names of other records.")
+  }
+
+  /// Whether a prepared request carries the sheet text. A sheet too large for
+  /// one request falls back to names, and the reader chose more than that.
+  static func sharesWholeSheet(_ body: Data) -> Bool {
+    guard let payload = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+      let messages = payload["messages"] as? [[String: Any]],
+      let text = (messages.first { $0["role"] as? String == "user" })?["content"] as? String,
+      let context = try? JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any]
+    else { return false }
+    return context["sheet"] != nil
   }
 
   /// Only this explicit action grants permission for the frozen context.
@@ -475,7 +509,8 @@ package final class SheetSuggestionSession {
       do {
         let result = try await scheduler.checkSuggestion(
           selected, snapshot: snapshot,
-          handles: self.included, choices: self.choices, assumptions: self.assumptions,
+          handles: self.shared(in: snapshot), choices: self.choices,
+          assumptions: self.assumptions,
           userRevisedInputs: self.userRevisedInputs, omittedLines: self.omittedLines)
         guard self.revision == version else { return }
         self.preview = result
@@ -499,7 +534,7 @@ package final class SheetSuggestionSession {
       !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     else { return }
     let permittedRecords = Set(snapshot?.inventory.filter(\.matchesTarget).map(\.handle) ?? [])
-      .union(included)
+      .union(snapshot.map(shared(in:)) ?? included)
     revision += 1
     let version = revision
     clarification = nil
@@ -523,7 +558,9 @@ package final class SheetSuggestionSession {
           .isSubset(of: permittedRecords)
         self.update(
           .idle,
-          Self.contextSummary(snapshot, model: configuration.settings.model)
+          Self.contextSummary(
+            snapshot, model: configuration.settings.model,
+            sharing: configuration.settings.contextSharing, body: body)
             + " "
             + (addsSource
               ? localized(
@@ -564,7 +601,8 @@ package final class SheetSuggestionSession {
         for note in self.taskNotes { fresh = try fresh.addingTaskNote(note) }
         let edit = try await scheduler.prepareSuggestion(
           selected, snapshot: fresh,
-          handles: self.included, choices: self.choices, assumptions: self.assumptions,
+          handles: self.shared(in: fresh), choices: self.choices,
+          assumptions: self.assumptions,
           userRevisedInputs: self.userRevisedInputs, omittedLines: self.omittedLines,
           assumptionModel: self.configuration?.settings.model ?? "AI")
         guard self.revision == version, fresh.source.text == editor.sheet.text,

@@ -156,11 +156,68 @@ public struct AssistanceSnapshot: Sendable {
   }
 
   /// Additional handles need permission from the coordinator before this call.
-  /// Encoding never includes the local shadow sheet or the unselected inventory.
-  public func permittedContext(including handles: Set<String> = []) throws -> Data {
+  /// Encoding never includes the local shadow sheet. At `.needed` it never
+  /// includes the unselected inventory either; `.names` adds an index of it
+  /// with no values, and `.sheet` adds all of it and the sheet text.
+  ///
+  /// A level that does not fit falls back one step at a time, so a long sheet
+  /// still gets an Ask: whole sheet, then sheet text with the index, then the
+  /// index alone, then only what the lines need.
+  public func permittedContext(
+    including handles: Set<String> = [], sharing: AssistantContextSharing = .needed
+  ) throws -> Data {
     guard handles.isSubset(of: Set(inventory.map(\.handle))) else {
       throw AssistanceSnapshotError.unknownTarget
     }
+    let attempts: [(records: Set<String>, index: Bool, sheet: Bool)]
+    switch sharing {
+    case .needed:
+      return try encodedContext(including: handles)
+    case .names:
+      attempts = [(handles, true, false)]
+    case .sheet:
+      attempts = [
+        (Set(inventory.map(\.handle)), false, true), (handles, true, true), (handles, true, false),
+      ]
+    }
+    for attempt in attempts {
+      do {
+        return try encodedContext(
+          including: attempt.records, index: attempt.index, sheet: attempt.sheet)
+      } catch AssistanceSnapshotError.contextTooLarge {
+        continue
+      }
+    }
+    return try encodedContext(including: handles)
+  }
+
+  /// The names of records the request does not carry, nearest the target
+  /// first. Line results have no name worth reading, so they stay out.
+  private func index(excluding sent: [AssistanceSymbol]) -> [IndexRecord] {
+    let sentHandles = Set(sent.map(\.handle))
+    let targetIndex = source.lines.firstIndex { $0.id == target.id } ?? 0
+    func distance(_ symbol: AssistanceSymbol) -> Int {
+      guard let id = symbol.declaration?.id,
+        let line = source.lines.firstIndex(where: { $0.id == id })
+      else { return Int.max }
+      return abs(targetIndex - line)
+    }
+    return
+      inventory
+      .filter { $0.kind != "line_result" && !sentHandles.contains($0.handle) }
+      .enumerated()
+      .sorted {
+        ($0.element.kind == "function" ? 1 : 0, distance($0.element), $0.offset)
+          < ($1.element.kind == "function" ? 1 : 0, distance($1.element), $1.offset)
+      }
+      .prefix(AssistantContextSharing.indexLimit)
+      .map { IndexRecord(handle: $0.element.handle, name: $0.element.name, kind: $0.element.kind) }
+  }
+
+  private func encodedContext(
+    including handles: Set<String>, index includesIndex: Bool = false,
+    sheet includesSheet: Bool = false
+  ) throws -> Data {
     let symbols = inventory.filter { $0.matchesTarget || handles.contains($0.handle) }
     guard symbols.count <= SuggestionLimits.symbols else {
       throw AssistanceSnapshotError.contextTooLarge
@@ -212,7 +269,9 @@ public struct AssistanceSnapshot: Sendable {
         target: TargetRecord(handle: "T1", source: targetText), notes: notes,
         symbols: encodedSymbols, settings: SettingsRecord(context),
         evidence: evidence, catalog: catalog, diagnostics: diagnostics,
-        dependencySources: dependencySources))
+        dependencySources: dependencySources,
+        index: includesIndex ? index(excluding: symbols) : nil,
+        sheet: includesSheet ? source.text : nil))
     guard data.count <= SuggestionLimits.requestBytes else {
       throw AssistanceSnapshotError.contextTooLarge
     }
@@ -391,6 +450,14 @@ public struct AssistanceSnapshot: Sendable {
     let catalog: AssistanceCatalog
     let diagnostics: [AssistanceDiagnostic]
     let dependencySources: [DependencySource]
+    /// Absent at `.needed`, so that request stays byte for byte the same.
+    let index: [IndexRecord]?
+    let sheet: String?
+  }
+  private struct IndexRecord: Encodable {
+    let handle: String
+    let name: String
+    let kind: String
   }
 }
 

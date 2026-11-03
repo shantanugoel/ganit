@@ -7,7 +7,7 @@ calculated answer in the answer column. See
 
 ## Configure a model
 
-Open **Ganit ▸ Assistant…**. Select a provider and check its address.
+Open **Settings ▸ Assistant**. Select a provider and check its address.
 Enter a key if required. Enable Ask and enter a model identifier.
 
 | Provider | Default API base | Key |
@@ -42,7 +42,7 @@ HTTPS. Ganit refuses redirects.
 review Context and send an Ask from that sheet.
 
 Preferences store the provider, endpoint, model, enabled state, Effort,
-repair limit, response timeout, and dependency mark setting. The key is
+repair limit, response timeout, sharing level, and dependency mark setting. The key is
 stored in the keychain.
 
 **Effort** requests a reasoning level from the server. The default is Medium.
@@ -68,12 +68,31 @@ fallback without both fields. Known credential, model, context, rate-limit,
 and server errors do not start this fallback. Provider errors do not start
 reply repair. Ganit does not accept partial content from a failed request.
 
+**Share with assistant** sets how much of the sheet an Ask sends. The
+setting applies to the next Ask. Each level adds to the level before it:
+
+| Level | What Ganit sends |
+| --- | --- |
+| Only what's needed (default) | The context in the next section. To use another value, the model must ask, and you must agree. |
+| Also variable names | The same context, and an `index` of other variables and functions: handle, name, and kind only. Ganit sends no values and no source for them. The index has at most 64 names, nearest to the target first. Line results are not in the index. To use an index record, the model must ask, and you must agree. |
+| Whole sheet | All records with their values, and the full sheet text in `sheet`. Ganit does not ask before it sends a record. |
+
+If a Whole sheet request is too large, Ganit tries again with less. It
+sends the target context, the sheet text, and the index. If that is also too
+large, it sends the target context and the index. The Ask bar then tells you
+that the sheet was too large to share whole. At each level, Ganit checks each
+handle that a reply cites. The model instructions for the index and the sheet
+text are sent only when the request contains them, so the default request
+does not change.
+
 ## Open and send Ask
 
 Press **⌘⇧A**, or choose **Calculate ▸ Ask Ganit…**. The same action is
 available in the selection summary, the right-click menu, and the Ask chip
 beside the current line when Ganit cannot read it. These actions open the
 same bar. They do not send a request.
+
+Select **?** at the end of the Ask field to open the Ask Ganit help topic.
 
 Enter your instruction. Open **Context ▸** to inspect the source and the
 exact request body. To send, press Return or select Ask. Answer and Retry
@@ -90,8 +109,8 @@ engine settings, and the supported function catalog. Engine settings include
 the sheet locale, time zone, and frozen calculation time. These are disclosed
 calculation inputs. They are not an automatic report about the Mac.
 
-Unrelated source, sheet titles, library contents, and local document
-identifiers are excluded. Opaque handles identify source records in the
+At the default sharing level, unrelated source is excluded. Sheet titles,
+library contents, and local document identifiers are always excluded. Opaque handles identify source records in the
 request. A request for more context requires a new review of Context before
 Send. See [privacy](../public/privacy.md).
 

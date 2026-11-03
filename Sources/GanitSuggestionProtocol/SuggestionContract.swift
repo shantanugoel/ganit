@@ -124,3 +124,30 @@ public enum SuggestionDecodingError: Error, Equatable, Sendable {
   case unsupportedVersion
   case invalidBounds
 }
+
+/// How much of the sheet an Ask may send beyond the lines it is about.
+///
+/// The level only adds records. Ganit still checks every handle a reply
+/// cites, and a record outside the level still needs the reader's consent.
+public enum AssistantContextSharing: String, CaseIterable, Equatable, Hashable, Sendable {
+  /// The target, the records it reads, and their sources.
+  case needed
+  /// `needed`, plus the handle, name, and kind of other variables and
+  /// functions, with no values or sources.
+  case names
+  /// Every record and the whole sheet text. A sheet too large to send whole
+  /// falls back to `names`.
+  case sheet
+
+  /// What someone gets who never touched the setting.
+  public static let `default`: AssistantContextSharing = .needed
+
+  /// The most names one request lists in its index.
+  public static let indexLimit = 64
+
+  /// Reads back a stored value. Anything unknown, including a level a newer
+  /// Ganit invented, is the default rather than a level nobody chose.
+  public init(storage: String?) {
+    self = storage.flatMap(Self.init(rawValue:)) ?? .default
+  }
+}

@@ -82,10 +82,26 @@ extension LanguageReference {
       summary: text("help.grammar.ask.summary", "Review model proposals before source changes."),
       body: text(
         "help.grammar.ask.body",
-        "Configure a model in Ganit ▸ Assistant…. Press ⌘⇧A to open Ask. Open Context to inspect the source and exact request body. Press Return or select Ask to send. Answer, Retry, and clarification choices also send requests. Opening Ask or Context sends nothing. Context includes the selected lines and the source they depend on. Ganit checks proposed source and calculates its results. Review the proposal, then choose Apply. Undo restores the source. Explanations use local engine facts first. Model explanations are marked and are not saved. Text answers are unverified, cannot contain numeric characters or arithmetic, and are not saved or referenced. Ganit asks when only you know; it assumes and marks when the world knows. An assumed fact becomes a named value with an AI badge. Dependent results have a dot. Edit the value to remove its mark. Escape closes Ask."
+        "Configure a model in Settings ▸ Assistant. Press ⌘⇧A to open Ask. Select ? in the Ask bar to open this help. Open Context to inspect the source and exact request body. Press Return or select Ask to send. Answer, Retry, and clarification choices also send requests. Opening Ask or Context sends nothing. Context includes the selected lines and the source they depend on. Share with assistant in Settings ▸ Assistant can send more. See Ask Ganit: What Is Shared. Ganit checks proposed source and calculates its results. Review the proposal, then choose Apply. Undo restores the source. Explanations use local engine facts first. Model explanations are marked and are not saved. Text answers are unverified, cannot contain numeric characters or arithmetic, and are not saved or referenced. Ganit asks when only you know; it assumes and marks when the world knows. An assumed fact becomes a named value with an AI badge. Dependent results have a dot. Edit the value to remove its mark. Escape closes Ask."
       ),
       examples: [],
       keywords: ["AI", "assistant", "proposal", "assumption", "context", "explain"]
+    ),
+    topic(
+      id: "grammar.ask.sharing",
+      category: .grammar,
+      title: text("help.grammar.askSharing.title", "Ask Ganit: What Is Shared"),
+      summary: text(
+        "help.grammar.askSharing.summary",
+        "Select how much of the sheet Ask sends to the assistant."),
+      body: text(
+        "help.grammar.askSharing.body",
+        "Set Share with assistant in Settings ▸ Assistant. The setting applies to the next Ask. Each level adds to the level before it. Only what's needed is the default. Ganit sends the lines you ask about, the notes above them, the values and functions they use, the lines those values come from, and the calculation settings. To use another value, the assistant must ask, and you must agree. Also variable names adds the names of other variables and functions. Ganit sends no values and no source for them. Ganit lists at most 64 names, nearest to your lines first. The assistant can then ask for the record that it needs, and you must agree. Whole sheet sends all of the sheet text and all values. The assistant does not ask before it uses a value. If the sheet is too large for one request, Ganit sends the sheet text and the names. If that is also too large, Ganit sends only the names. The Ask bar tells you when this occurs. At each level, Ganit checks each proposal on your Mac before you can apply it. Open Context before you send to see the exact request. All of it goes to the provider that you set up. A model on this Mac keeps it on this Mac. A hosted model receives it."
+      ),
+      examples: [],
+      keywords: [
+        "AI", "assistant", "privacy", "share", "sharing", "context", "names", "sheet", "send",
+      ]
     ),
     topic(
       id: "grammar.lines",

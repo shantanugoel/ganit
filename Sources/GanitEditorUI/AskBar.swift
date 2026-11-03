@@ -28,6 +28,10 @@ final class AskBar: NSView {
   private let scroll = NSScrollView()
   private let stack = NSStackView()
   private let instructionField = NSTextField()
+  /// Opens the Ask Ganit help topic, which says what each sharing level sends.
+  package let helpButton = NSButton(title: "", target: nil, action: nil)
+  /// The topic the help button opens.
+  package static let helpTopicID = "grammar.ask"
   private var actions: [() -> Void] = []
   package private(set) var popover: NSPopover?
   private var announcedState = ""
@@ -47,6 +51,13 @@ final class AskBar: NSView {
     scroll.documentView = stack
     addSubview(scroll)
     addSubview(instructionField)
+    helpButton.bezelStyle = .helpButton
+    helpButton.target = self
+    helpButton.action = #selector(openHelp(_:))
+    helpButton.setAccessibilityLabel(localized("ask.help", "Ask Ganit Help"))
+    helpButton.toolTip = localized(
+      "ask.help.tip", "What Ask sends to the assistant, and how to review a proposal")
+    addSubview(helpButton)
     NSLayoutConstraint.activate([
       stack.widthAnchor.constraint(equalTo: scroll.contentView.widthAnchor)
     ])
@@ -76,6 +87,10 @@ final class AskBar: NSView {
     session.prepare(
       instruction: instructionField.stringValue, autoSend: true, forceModel: session.forceModel,
       allowsExplanation: session.allowsExplanation)
+  }
+
+  @objc private func openHelp(_ sender: Any?) {
+    editor?.openHelp?(Self.helpTopicID)
   }
 
   func setInstruction(_ instruction: String) { instructionField.stringValue = instruction }
@@ -116,10 +131,18 @@ final class AskBar: NSView {
     // resign its first responder and drop the caret the reader is typing into.
     let height = instructionField.intrinsicContentSize.height
     let inset = instructionField.isHidden ? 0 : height + VisualStyle.Spacing.related
+    // The help button sits at the field's trailing edge, centred on its line.
+    let help = helpButton.intrinsicContentSize
+    helpButton.isHidden = instructionField.isHidden
+    let fieldWidth = max(
+      0, bounds.width - 2 * VisualStyle.Spacing.standard - help.width - VisualStyle.Spacing.related)
     instructionField.frame = NSRect(
       x: VisualStyle.Spacing.standard,
       y: bounds.maxY - VisualStyle.Spacing.compact - height,
-      width: max(0, bounds.width - 2 * VisualStyle.Spacing.standard), height: height)
+      width: fieldWidth, height: height)
+    helpButton.frame = NSRect(
+      x: instructionField.frame.maxX + VisualStyle.Spacing.related,
+      y: instructionField.frame.midY - help.height / 2, width: help.width, height: help.height)
     scroll.frame = NSRect(
       x: 0, y: 0, width: bounds.width, height: max(0, bounds.height - inset))
   }
@@ -508,6 +531,14 @@ final class AskBar: NSView {
     section(
       localized("ask.context.dependencies", "Lines these calculations read"),
       array("dependencySources").compactMap { $0["source"] as? String })
+    section(
+      localized("ask.context.index", "Other names shared, without values"),
+      array("index").compactMap { $0["name"] as? String })
+    if let sheet = context["sheet"] as? String {
+      section(
+        localized("ask.context.sheet", "The whole sheet"),
+        sheet.split(separator: "\n", omittingEmptySubsequences: false).map(String.init))
+    }
     let definitions = array("symbols").flatMap { symbol -> [[String: Any]] in
       let function = symbol["function"] as? [String: Any]
       return function?["definitions"] as? [[String: Any]] ?? []

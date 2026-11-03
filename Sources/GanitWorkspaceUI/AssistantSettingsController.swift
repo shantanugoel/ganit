@@ -3,6 +3,7 @@ import GanitAssistance
 import GanitData
 import GanitEditorUI
 import GanitEngine
+import GanitSuggestionProtocol
 
 /// Sets up the provider. Each source request needs a separate review action.
 @MainActor
@@ -47,6 +48,10 @@ public final class AssistantSettingsController: NSViewController {
   private let timeoutStepper = NSStepper()
   private let timeoutUnit = NSTextField(
     labelWithString: localized("assistant.responseTimeout.unit", "seconds"))
+  /// How much of the sheet an Ask sends, with a line under it that says what
+  /// the chosen level shares in words.
+  private let sharing = NSPopUpButton(frame: .zero, pullsDown: false)
+  private let sharingDetail = SettingsLayout.caption("")
   private let markAIDerivedAnswers = NSButton(
     checkboxWithTitle: localized("assistant.markDerived", "Mark AI-derived answers"),
     target: nil, action: nil)
@@ -90,6 +95,9 @@ public final class AssistantSettingsController: NSViewController {
     timeoutStepper.maxValue = AssistantSettings.maximumResponseTimeout
     timeoutStepper.increment = 5
     timeoutStepper.doubleValue = settings.responseTimeout
+    sharing.addItems(withTitles: AssistantContextSharing.allCases.map(Self.title(for:)))
+    sharing.selectItem(
+      at: AssistantContextSharing.allCases.firstIndex(of: settings.contextSharing)!)
   }
 
   @available(*, unavailable)
@@ -148,6 +156,9 @@ public final class AssistantSettingsController: NSViewController {
     timeoutUnit.textColor = VisualStyle.Color.secondary
     effort.target = self
     effort.action = #selector(effortChanged(_:))
+    sharing.setAccessibilityLabel(localized("assistant.sharing", "Share with assistant"))
+    sharing.target = self
+    sharing.action = #selector(sharingChanged(_:))
     customEffort.setAccessibilityLabel(
       localized("assistant.effort.customField", "Custom effort"))
     customEffort.placeholderString = localized(
@@ -216,6 +227,12 @@ public final class AssistantSettingsController: NSViewController {
         (localized("assistant.repairAttempts", "Repair attempts"), repairAttempts),
         (localized("assistant.responseTimeout", "Response timeout"), timeoutField),
       ]))
+    let sharingSection = SettingsLayout.section(
+      localized("assistant.section.sharing", "Sharing"),
+      SettingsLayout.stack([
+        SettingsLayout.rows([(localized("assistant.sharing", "Share with assistant"), sharing)]),
+        sharingDetail,
+      ]))
     for field in [endpoint, model, key] {
       field.widthAnchor.constraint(equalToConstant: SettingsLayout.fieldWidth).isActive = true
       field.heightAnchor.constraint(greaterThanOrEqualToConstant: field.fittingSize.height)
@@ -237,6 +254,7 @@ public final class AssistantSettingsController: NSViewController {
       scroll.widthAnchor.constraint(equalToConstant: SettingsLayout.controlAreaWidth),
       scroll.heightAnchor.constraint(equalToConstant: 120),
       discoveryStatus.widthAnchor.constraint(equalToConstant: SettingsLayout.controlAreaWidth),
+      sharingDetail.widthAnchor.constraint(equalToConstant: SettingsLayout.controlAreaWidth),
     ])
 
     let save = NSButton(
@@ -256,11 +274,12 @@ public final class AssistantSettingsController: NSViewController {
     ])
     view = SettingsLayout.panel(
       [
-        explanation, disclosure, enabled, connection, modelSection, generation,
+        explanation, disclosure, enabled, connection, modelSection, generation, sharingSection,
         markAIDerivedAnswers, status, buttons,
       ],
-      height: 620)
+      height: 720)
     syncCustomEffortField()
+    syncSharingDetail()
   }
 
   static func title(for provider: AssistantProvider) -> String {
@@ -411,6 +430,53 @@ public final class AssistantSettingsController: NSViewController {
     }
   }
 
+  /// The name Settings shows for a sharing level.
+  static func title(for sharing: AssistantContextSharing) -> String {
+    switch sharing {
+    case .needed:
+      return localized("assistant.sharing.needed", "Only what's needed")
+    case .names:
+      return localized("assistant.sharing.names", "Also variable names")
+    case .sheet:
+      return localized("assistant.sharing.sheet", "Whole sheet")
+    }
+  }
+
+  /// What a level sends, in words a reader can check against their sheet.
+  static func detail(for sharing: AssistantContextSharing) -> String {
+    switch sharing {
+    case .needed:
+      return localized(
+        "assistant.sharing.needed.detail",
+        "The assistant gets the lines you ask about and the values they use. It asks before it uses other values."
+      )
+    case .names:
+      return localized(
+        "assistant.sharing.names.detail",
+        "The assistant also gets the names of other variables and functions, but not their values. It asks before it uses one."
+      )
+    case .sheet:
+      return localized(
+        "assistant.sharing.sheet.detail",
+        "The assistant gets all of the sheet text and all values, and it does not ask first. If the sheet is too large, it gets only the names."
+      )
+    }
+  }
+
+  private var chosenSharing: AssistantContextSharing {
+    let index = sharing.indexOfSelectedItem
+    return AssistantContextSharing.allCases.indices.contains(index)
+      ? AssistantContextSharing.allCases[index] : .default
+  }
+
+  @objc private func sharingChanged(_ sender: Any?) {
+    syncSharingDetail()
+  }
+
+  private func syncSharingDetail() {
+    sharingDetail.stringValue = Self.detail(for: chosenSharing)
+  }
+
   @objc private func effortChanged(_ sender: Any?) {
     syncCustomEffortField()
     if effort.indexOfSelectedItem == AssistantEffort.choices.count {
@@ -450,7 +516,8 @@ public final class AssistantSettingsController: NSViewController {
       effort: chosenEffort,
       repairAttempts: max(0, repairAttempts.indexOfSelectedItem),
       responseTimeout: chosenTimeout,
-      markAIDerivedAnswers: markAIDerivedAnswers.state == .on
+      markAIDerivedAnswers: markAIDerivedAnswers.state == .on,
+      contextSharing: chosenSharing
     )
   }
 

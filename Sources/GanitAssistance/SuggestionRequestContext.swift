@@ -1,6 +1,7 @@
 import Foundation
 import GanitData
 import GanitEngine
+import GanitSuggestionProtocol
 
 /// The editor inspector and coordinator use the same app-owned request context.
 public enum SuggestionRequestContext {
@@ -13,8 +14,8 @@ public enum SuggestionRequestContext {
     let task = Task.detached(priority: .utility) {
       try Task.checkCancellation()
       let context = try data(
-        snapshot: snapshot, including: handles, choices: choices,
-        userRevisedInputs: userRevisedInputs)
+        snapshot: snapshot, including: handles, sharing: settings.contextSharing,
+        choices: choices, userRevisedInputs: userRevisedInputs)
       try Task.checkCancellation()
       return try SuggestionWireRequest(
         settings: settings, context: context, allowsExplanation: allowsExplanation,
@@ -43,11 +44,21 @@ public enum SuggestionRequestContext {
     }
   }
 
+  /// The records the reader has agreed to share. At `.sheet` that is every
+  /// record, so a reply may cite any of them and no consent prompt appears.
+  package static func permitted(
+    _ snapshot: AssistanceSnapshot, including handles: Set<String>,
+    sharing: AssistantContextSharing
+  ) -> Set<String> {
+    sharing == .sheet ? handles.union(snapshot.inventory.map(\.handle)) : handles
+  }
+
   public static func data(
     snapshot: AssistanceSnapshot, including handles: Set<String> = [],
+    sharing: AssistantContextSharing = .needed,
     choices: [String: String] = [:], userRevisedInputs: Bool = false
   ) throws -> Data {
-    let data = try snapshot.permittedContext(including: handles)
+    let data = try snapshot.permittedContext(including: handles, sharing: sharing)
     guard !choices.isEmpty || userRevisedInputs else { return data }
     var root = try JSONSerialization.jsonObject(with: data) as! [String: Any]
     if !choices.isEmpty { root["selectedChoices"] = choices }
