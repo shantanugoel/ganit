@@ -5,6 +5,8 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+## 0.8.0
+
 - Select how much of the sheet Ask sends with **Share with assistant** in
   Settings ▸ Assistant. **Only what's needed** is the default and does not
   change the request. **Also variable names** adds the names of other
