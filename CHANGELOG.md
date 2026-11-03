@@ -5,6 +5,15 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+## 0.7.4
+
+- Double-click the Ganit icon in the menu bar to open the window. A single
+  click or a right-click still opens the menu. After a single click, the menu
+  opens when the double-click time of the Mac has passed.
+- Give every window that Ganit opens the keyboard focus. Earlier, a window that
+  opened from the menu bar, from Show Window, or from Scratch could stay
+  behind another app and not take the keyboard.
+
 ## 0.7.3
 
 - Tell you when an Ask has nothing to send. If the selected line is blank

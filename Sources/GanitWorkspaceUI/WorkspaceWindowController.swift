@@ -17,6 +17,13 @@ public final class WorkspaceWindowController: NSWindowController, WorkspaceComma
   private let searchItem = NSSearchToolbarItem(itemIdentifier: .searchSheets)
   private var sheet: OpenSheet?
 
+  /// Shows the window and makes it key, then brings Ganit forward so the
+  /// window has the focus. Every way to open a window ends here.
+  public override func showWindow(_ sender: Any?) {
+    super.showWindow(sender)
+    workspace.activateApplication()
+  }
+
   public var editor: SheetEditorViewController? {
     sheet?.editor
   }

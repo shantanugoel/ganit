@@ -110,6 +110,12 @@ public final class Workspace {
   /// Whether the next window opened shows the notice, because none was
   /// visible when it was asked for.
   private var showsNoticeInNextWindow = false
+
+  /// Brings Ganit forward so a window it shows takes the keyboard. A window
+  /// shown while another app is active, such as from the menu bar, stays
+  /// behind it and unfocused otherwise. Tests replace it so they do not take
+  /// focus from the person running them.
+  var activateApplication: () -> Void = { NSApplication.shared.activate() }
   private var sheets: [UUID: OpenSheet] = [:]
 
   /// Reads the definitions sheet so the first sheet opened already evaluates
@@ -154,6 +160,7 @@ public final class Workspace {
       definitionsWindow = DefinitionsWindowController(store: store, editor: editor)
     }
     definitionsWindow?.showWindow(nil)
+    activateApplication()
   }
 
   /// Opens a window, optionally showing a sheet.
