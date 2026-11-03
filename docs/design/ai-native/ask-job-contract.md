@@ -38,10 +38,10 @@ An Ask job is one call to `SuggestionCoordinator.start(_:observer:)` with one
 | Input | Where it comes from |
 | --- | --- |
 | `snapshot` | `SheetCalculator.assistanceSnapshot(_:context:target:)` or the `targets:` overload, taken at the caret line, the selection, or the whole sheet **within the harness target limits: 12 lines, 8 KiB, contiguous, no table-block overlap** |
-| `settings` | `AssistantSettings`, `effort` included |
+| `settings` | `AssistantSettings`, `effort` and `contextSharing` included |
 | `document` | The saved sheet identity. Source and settings changes invalidate its jobs and cache. |
 | `permission.contextAccepted` | False until the reader sends. The Ask bar makes `Context ▸` available before Send. An explicit send action is Return, Ask, Answer, Retry, or a clarification choice. Opening Ask or the disclosure sends nothing. |
-| `includedRecords` | extra symbol handles the reader opted into |
+| `includedRecords` | extra symbol handles the reader opted into. At the `sheet` sharing level, Ganit also adds each record that the model requests. |
 | `choices` | answers to earlier clarifications in this job, `AssistanceChoice.id → Option.id` |
 | `retry` | **Try again** on a failure card |
 | `origin` | `.manual`, always, in v1 |
@@ -183,6 +183,14 @@ Thus, a later declaration does not replace an earlier captured input.
 The disclosure includes function definitions, captured inputs, dependency
 source, and the exact request body. The existing size limits apply to all
 these records. Ganit does not open another sheet to build context.
+
+The `contextSharing` setting can add two top-level fields to the context.
+At `names`, `index` is an array of `{handle, name, kind}` records. At
+`sheet`, `symbols` contains all records, and `sheet` contains the full sheet
+text. The `needed` context has neither field. If a context is too large,
+`AssistanceSnapshot.permittedContext(including:sharing:)` removes records
+in this sequence: all records, then the sheet text, then the index. See the
+[ADR 0019 amendment of 2026-11-03](../../adr/0019-ask-one-operation-four-outcomes.md).
 
 ## Apply
 

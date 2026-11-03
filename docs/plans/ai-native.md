@@ -78,6 +78,10 @@ one is a design change, not an implementation detail.
    disclosure shows the exact lines before they go. Existing transport
    protections remain: HTTPS except loopback, redirect refusal, ephemeral
    session, keychain key, `User-Agent: Ganit`.
+   *Amended 2026-11-03:* minimal context is the default. The reader can
+   select **Also variable names** or **Whole sheet** in Settings ▸
+   Assistant to send more. See the
+   [ADR 0019 amendment](../adr/0019-ask-one-operation-four-outcomes.md).
 10. **The product is complete without AI.** No model configured means no
     affordance, a disabled menu item, and no behavioural difference elsewhere.
 

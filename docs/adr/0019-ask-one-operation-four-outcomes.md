@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-10-21
-- Amended: 2026-10-23; see the amendment below
+- Amended: 2026-10-23 and 2026-11-03; see the amendments below
 - Amends: [ADR 0018](0018-assistant-expression-suggestions.md) (decision 1, and
   the naming of decision 6) and withdraws the automatic-request half of
   [ADR 0012](0012-assistant-fallback.md)
@@ -226,3 +226,39 @@ An explicit send action starts a request: Return, Ask, Answer, Retry, or a
 clarification choice. Opening Ask or Context sends nothing. A started job
 can make bounded repair and format requests under the shared request limit.
 Typing and a pause in typing do not start a request.
+
+## Amendment, 2026-11-03: a sharing level that the reader selects
+
+This amendment changes rule 9 of the plan. Rule 9 said that context is
+always minimal. The reader can now select more context with **Share with
+assistant** in Settings ▸ Assistant. The setting is
+`AssistantSettings.contextSharing`, of type `AssistantContextSharing`.
+
+| Level | Request |
+| --- | --- |
+| `needed` (default) | The context of the 2026-10-23 amendment. The request body does not change. |
+| `names` | That context, and an `index` of other records: handle, name, and kind. The index has no values and no source. It has at most 64 records, nearest to the target first. It has no line results. |
+| `sheet` | All records with their values, and the full sheet text in `sheet`. |
+
+Rules for each level:
+
+1. At `needed` and `names`, the model must request a record that is not in
+   the context. The reader must agree before Ganit sends it.
+2. At `sheet`, the reader agreed to all records when they selected the
+   level. Ganit does not ask again. Ganit adds each requested record to the
+   next request.
+3. If the `sheet` request is too large, Ganit sends the target context, the
+   sheet text, and the index. If that is also too large, Ganit sends the
+   target context and the index. The Ask bar tells the reader.
+4. At each level, Ganit checks each handle that a reply cites. The engine
+   calculates each result.
+5. The model instructions for the index and the sheet text are in a request
+   only when that request contains the index or the sheet text.
+6. Sheet titles, library contents, and local document identifiers are not
+   sent at any level.
+7. Each level has a different cache key. A reply for one level is not shown
+   for a different level.
+
+The default stays minimal. Thus, a reader who does not change the setting
+sends the same request as before. The reader can see the exact request in
+Context before Send at each level.

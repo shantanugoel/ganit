@@ -127,7 +127,9 @@ and cancellation. `GanitAssistance.SuggestionCoordinator` provides these control
 `SuggestionWireRequest` freezes its body, endpoint, and timeout. The context
 inspector can read the same body that transmission will use. The key is an
 Authorization header. It is not part of the body. Body limits apply after
-JSON encoding, including escapes and instructions.
+JSON encoding, including escapes and instructions. The system message
+contains the index instruction only when the context has `index`. It
+contains the sheet instruction only when the context has `sheet`.
 
 `ProviderSuggestionTransport` uses an ephemeral session. It refuses all
 redirects and bounds the received payload while it reads bytes. Each call
@@ -201,7 +203,12 @@ requests require a session area. They have a 15-second minimum interval,
 two jobs and six wire requests per minute, and twelve jobs per area.
 These controls do not implement the editor completion-event scheduler.
 
-Additional context waits for an explicit application action. The exact
+Additional context waits for an explicit application action. At the
+`sheet` sharing level, the reader agreed to all records in Settings. The
+coordinator does not ask, but it adds each requested record to the next
+request. This is necessary when a large sheet falls back to the index.
+At each level, a reply can cite only target records, included records,
+or, at `sheet`, any record. The exact
 encoded wire body is available to the context inspector. Every follow-up
 uses the same permitted-context encoder. Feedback contains stable error
 codes and native spans. It does not contain the complete shadow source.

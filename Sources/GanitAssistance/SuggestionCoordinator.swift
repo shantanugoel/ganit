@@ -349,6 +349,10 @@ public actor SuggestionCoordinator {
             try ensureActive(id)
             guard let approved else { return await finish(id, result: .failed(.contextDenied)) }
             record.included.formUnion(approved)
+          } else {
+            // Already shared, so no prompt. A whole sheet too large to send
+            // falls back to the index, and only `included` puts a record back.
+            record.included.formUnion(requested)
           }
           feedback = ["code": "context.included", "records": handles]
           turns = []
