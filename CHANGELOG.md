@@ -5,6 +5,12 @@ existing answer. See the [release train](docs/release/release-train.md).
 
 ## Unreleased
 
+## 0.7.5
+
+- Open the window with a click on the Ganit icon in the menu bar, and open the
+  menu with a right-click. The double-click in 0.7.4 did not work, because the
+  menu bar gives an icon no double-click.
+
 ## 0.7.4
 
 - Double-click the Ganit icon in the menu bar to open the window. A single

@@ -49,9 +49,6 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
   private static let startsInMenuBarDefaultsKey = "StartsInMenuBar"
   private var statusItem: NSStatusItem?
   private var statusMenu: NSMenu?
-  private lazy var statusItemClicks = StatusItemClickRouter(
-    showWindow: { [weak self] in self?.showWorkspaceWindow(nil) },
-    showMenu: { [weak self] in self?.popUpStatusMenu() })
   private var shortcutWindow: NSWindow?
   private var help: HelpWindowController?
   private var releaseNotes: ReleaseNotesWindowController?
@@ -281,13 +278,11 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
     updateMenuBarItem()
   }
 
-  /// A double-click on the icon shows the window. A single click or a
-  /// right-click opens a short menu of the things worth reaching for without
-  /// a window: the current window, the scratch sheet, Quick Ganit, and a new
-  /// sheet.
+  /// A click on the icon shows the window. A right-click opens a short menu
+  /// of the things worth reaching for without a window: the current window,
+  /// the scratch sheet, Quick Ganit, and a new sheet.
   private func updateMenuBarItem() {
     guard UserDefaults.standard.bool(forKey: Self.menuBarDefaultsKey) else {
-      statusItemClicks.cancel()
       statusItem.map(NSStatusBar.system.removeStatusItem)
       statusItem = nil
       statusMenu = nil
@@ -317,7 +312,7 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
       keyEquivalent: ""
     )
     // The menu is not set on the item, because an item with a menu opens it
-    // on the first click and never reports a double-click.
+    // on every click and never sends the button's action.
     statusMenu = menu
     item.button?.target = self
     item.button?.action = #selector(statusItemClicked(_:))
@@ -327,10 +322,11 @@ final class GanitApplication: NSObject, NSApplicationDelegate, ApplicationComman
 
   @objc private func statusItemClicked(_ sender: Any?) {
     let event = NSApplication.shared.currentEvent
-    statusItemClicks.click(
-      count: event?.clickCount ?? 1,
-      opensMenuAtOnce: event?.type == .rightMouseUp
-        || event?.modifierFlags.contains(.control) == true)
+    if event?.type == .rightMouseUp || event?.modifierFlags.contains(.control) == true {
+      popUpStatusMenu()
+    } else {
+      showWorkspaceWindow(nil)
+    }
   }
 
   private func popUpStatusMenu() {

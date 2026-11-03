@@ -25,10 +25,9 @@ adds Ganit to the Mac's login items. With Stay in the Menu Bar on, Start in the
 Menu Bar Without a Window opens no sheet at launch, closing any restored
 windows; Show Window, the Dock icon, or any sheet command opens one.
 
-Double-click the menu bar icon to open the window. A single click or a
-right-click opens the menu. After a single click, the menu opens when the
-double-click time of the Mac has passed. A window that Ganit opens always
-takes the keyboard focus.
+Click the menu bar icon to open the window. Right-click it, or click it with
+Control held, to open the menu. A window that Ganit opens always takes the
+keyboard focus.
 
 The sheet's right-click menu is the same sheet commands plus Cut, Copy, Paste,
 and Select All. It does not include AppKit Font, Spelling, Speech, or Services
