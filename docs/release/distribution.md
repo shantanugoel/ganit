@@ -119,8 +119,10 @@ only way to know the nested signing and the sandboxed installer agree.
 
 ## Homebrew upgrades
 
-The release workflow renders `packaging/ganit.rb.in` into the separate Homebrew
-tap with the released version and disk image checksum. The cask requests a
+The release workflow renders `packaging/ganit.rb.in` into the Homebrew tap
+`shantanugoel/homebrew-tap` with the released version and disk image checksum.
+The old tap `shantanugoel/homebrew-ganit` copies `Casks/ganit.rb` from that tap
+by itself, so installations from the old tap keep updating. The cask requests a
 normal quit using Ganit's bundle ID and prints a reminder to reopen the app.
 Users who disable Homebrew's quit behavior should quit with Command-Q and
 reopen Ganit themselves.

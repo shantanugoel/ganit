@@ -135,16 +135,19 @@ jobs:
         env:
           TAP_DEPLOY_KEY: ${{ secrets.GANIT_TAP_DEPLOY_KEY }}
         run: |
-          # The tap is its own repository, shantanugoel/homebrew-ganit, and a
+          # The cask lives in the shared tap, shantanugoel/homebrew-tap, and a
           # deploy key is the only thing that can write to it. The cask points
           # at the disk image just published, so it changes only after that.
+          # The old tap, shantanugoel/homebrew-ganit, copies this file from
+          # the shared tap by itself.
           version=${GITHUB_REF_NAME#v}
           sha256=$(shasum -a 256 "$GANIT_DISK_IMAGE" | awk '{ print $1 }')
           key=$(mktemp)
           printf '%s\n' "$TAP_DEPLOY_KEY" >"$key"
           export GIT_SSH_COMMAND="ssh -i $key -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
           tap=$(mktemp -d)
-          git clone --depth 1 git@github.com:shantanugoel/homebrew-ganit.git "$tap"
+          git clone --depth 1 git@github.com:shantanugoel/homebrew-tap.git "$tap"
+          mkdir -p "$tap/Casks"
           sed \
             -e "s/@VERSION@/$version/g" \
             -e "s/@SHA256@/$sha256/g" \
@@ -155,7 +158,13 @@ jobs:
           git -C "$tap" -c user.name="github-actions[bot]" \
             -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
             commit -am "Update Ganit to $version"
-          git -C "$tap" push origin HEAD
+          # Other projects push to the same tap. Retry after a rebase if one
+          # of them pushed first.
+          for attempt in 1 2 3; do
+            git -C "$tap" push origin HEAD && break
+            test "$attempt" -lt 3
+            git -C "$tap" pull --rebase origin main
+          done
           rm -f "$key"
 
       - name: Forget the signing identity
